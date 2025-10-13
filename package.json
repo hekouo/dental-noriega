@@ -1,0 +1,41 @@
+{
+  "name": "deposito-dental-nextjs",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3002",
+    "build": "next build",
+    "start": "next start -p 3002",
+    "lint": "next lint",
+    "analyze": "ANALYZE=true npm run build",
+    "lh:mobile": "lighthouse http://localhost:3002 --chrome-flags=\"--headless=new\" --only-categories=performance,accessibility,seo,best-practices --form-factor=mobile --screenEmulation.mobile=true --output=json --output-path=./lighthouse-mobile.json --no-enable-error-reporting",
+    "lh:mobile:slowfix": "lighthouse http://localhost:3002 --chrome-flags=\"--headless=new\" --max-wait-for-load=120000 --throttling-method=provided --only-categories=performance,accessibility,seo,best-practices --form-factor=mobile --screenEmulation.mobile=true --output=json --output-path=./lighthouse-mobile.json --no-enable-error-reporting",
+    "lh:mobile:html": "lighthouse http://localhost:3002 --form-factor=mobile --screenEmulation.mobile=true --output=html --output-path=./lighthouse-mobile.html --no-enable-error-reporting"
+  },
+  "dependencies": {
+    "@stripe/stripe-js": "^4.8.0",
+    "@supabase/ssr": "^0.5.2",
+    "@supabase/supabase-js": "^2.75.0",
+    "date-fns": "^4.1.0",
+    "lucide-react": "^0.462.0",
+    "next": "^14.2.33",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "stripe": "^17.7.0",
+    "zod": "^3.23.8",
+    "zustand": "^5.0.1"
+  },
+  "devDependencies": {
+    "@next/bundle-analyzer": "^14.2.33",
+    "@types/node": "^22.8.6",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "14.2.15",
+    "lighthouse": "^12.8.2",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.14",
+    "typescript": "^5.6.3"
+  }
+}

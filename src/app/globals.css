@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Altura móvil real y safe area */
+:root {
+  --vh: 100dvh; /* iOS moderno */
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-t: env(safe-area-inset-top, 0px);
+}
+
+html, body {
+  height: 100%;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Bloqueo de scroll cuando drawer está abierto */
+.body-lock {
+  overflow: hidden;
+  touch-action: none;
+}
+
+/* Drawer móvil y burbujas no "reboten" la página */
+.drawer {
+  overscroll-behavior: contain;
+}
+
+/* Inputs: evitar zoom iOS elevando tipografía */
+input, select, textarea {
+  font-size: 16px;
+}
+
+/* Utilidad para padding inferior respetando notch */
+.pb-safe {
+  padding-bottom: calc(1rem + var(--safe-b));
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-primary-600 text-white hover:bg-primary-700 min-h-[44px];
+  }
+  
+  .btn {
+    @apply min-h-[44px] inline-flex items-center justify-center;
+  }
+}

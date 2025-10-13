@@ -1,0 +1,10 @@
+sku,product_name,package,variant,system,brand,featured,show_on_home,price_mxn,discount_pct
+EQ-002,LAMPARA DE FOTOCURADO 3 programas PLUMA,,,Equipos,,true,true,1000,
+EQ-001,PIEZA DE ALTA CON LUZ LED 30 dias garantia,,,Equipos,,true,true,909,
+EQ-003,PIEZA DE BAJA CON CONTRÁNGULO 30 dias garantia,,,Equipos,,true,true,1290,
+BT-002,BRACKET CERÁMICO ROTH AZDENT,,,Ortodoncia — Brackets y Tubos,AZDENT,true,true,260,
+BT-005,BRAQUET DE AUTOLIGADO CON INSTRUMENTO,,,Ortodoncia — Brackets y Tubos,,true,false,870,
+IO-005,PINZA CORTE DISTAL CABEZA MINI AZDENT,,,Instrumental — Ortodoncia,AZDENT,true,false,837,
+AR-004,MÁSCARA DE PROTRACCIÓN PRACTICA,,,Accesorios y Retenedores,,true,false,679,
+IC-001,AEROPULIDOR,,,Instrumental — Clínico,,true,true,693,
+
