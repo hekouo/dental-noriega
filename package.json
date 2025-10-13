@@ -1,4 +1,4 @@
-{
+﻿{
     "name":  "deposito-dental-nextjs",
     "version":  "0.1.0",
     "private":  true,
@@ -57,5 +57,6 @@
                         "*.{ts,tsx,js,jsx}":  [
                                                   "eslint --fix"
                                               ]
-                    }
+                    },
+    "packageManager":  "pnpm@10.18.2"
 }
