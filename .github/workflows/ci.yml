@@ -7,7 +7,6 @@ on:
 jobs:
   build-test-lint:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -16,48 +15,27 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-          cache: 'npm'
+          cache: 'pnpm'
 
-      - name: Enable Corepack
-        run: corepack enable
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+          run_install: false
 
-      - name: Activate pnpm (only if pnpm)
+      - name: Show versions
         run: |
-          if [ -f pnpm-lock.yaml ]; then
-            corepack prepare pnpm@latest --activate
-            pnpm --version
-          else
-            echo "No pnpm-lock.yaml. Saltando pnpm."
-          fi
+          node -v
+          pnpm -v
 
-      - name: Install deps
-        run: |
-          if [ -f pnpm-lock.yaml ]; then
-            pnpm install --frozen-lockfile
-          else
-            npm ci || npm install
-          fi
+      - name: Install
+        run: pnpm install --frozen-lockfile
 
       - name: Lint
-        run: |
-          if [ -f pnpm-lock.yaml ]; then
-            pnpm lint || echo "Sin lint aÃºn"
-          else
-            npm run lint --if-present || echo "Sin lint aÃºn"
-          fi
+        run: pnpm run lint || echo "Sin script lint"
 
       - name: Test
-        run: |
-          if [ -f pnpm-lock.yaml ]; then
-            pnpm -s test || echo "Sin tests aÃºn"
-          else
-            npm test --if-present || echo "Sin tests aÃºn"
-          fi
+        run: pnpm -s test || echo "Sin tests"
 
       - name: Build
-        run: |
-          if [ -f pnpm-lock.yaml ]; then
-            pnpm build || echo "Sin build aÃºn"
-          else
-            npm run build --if-present || echo "Sin build aÃºn"
-          fi
+        run: pnpm run build || echo "Sin build"
