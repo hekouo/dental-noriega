@@ -7,6 +7,7 @@ Sitio web de catálogo de productos dentales con carrito de compras, integració
 Catálogo completo con carrito "light" y consultas por WhatsApp. **Sin login ni pagos por ahora**.
 
 ### Características activas:
+
 - ✅ Catálogo completo con búsqueda
 - ✅ Productos destacados
 - ✅ Carrito persistente (localStorage)
@@ -81,6 +82,7 @@ npm run lh:mobile:html
 ```
 
 ### Objetivos de Lighthouse (móvil):
+
 - **Performance**: ≥85
 - **Accessibility**: ≥95
 - **Best Practices**: ≥95
@@ -134,6 +136,7 @@ vercel
 ```
 
 ### Variables en Vercel:
+
 - Copia todas las variables de `.env.local`
 - Configura tu dominio personalizado en Settings → Domains
 - El sitio respeta `NEXT_PUBLIC_SITE_URL` en producción
@@ -160,6 +163,11 @@ vercel
 - **WhatsApp**: [+52 55 3103 3715](https://wa.me/525531033715)
 - **Email**: dental.noriega721@gmail.com
 - **Ubicación**: [Ver en Google Maps](https://maps.app.goo.gl/ruP2HHjLXtoKqnB57)
+
+## ⚠️ Checkout desactivado temporalmente
+
+Se movió `/api/checkout/create-session` a `/api_disabled/checkout/create-session` para evitar el fallo de build en Vercel.
+**Rehabilitar cuando existan las ENV de Stripe y el handler tenga manejo de errores.**
 
 ## 📄 Licencia
 
