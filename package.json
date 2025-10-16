@@ -12,9 +12,9 @@
     "lh:mobile:slowfix": "lighthouse http://localhost:3002 --chrome-flags=\"--headless=new\" --max-wait-for-load=120000 --throttling-method=provided --only-categories=performance,accessibility,seo,best-practices --form-factor=mobile --screenEmulation.mobile=true --output=json --output-path=./lighthouse-mobile.json --no-enable-error-reporting",
     "lh:mobile:html": "lighthouse http://localhost:3002 --form-factor=mobile --screenEmulation.mobile=true --output=html --output-path=./lighthouse-mobile.html --no-enable-error-reporting",
     "format": "prettier --write .",
-    "prepare": "husky",
     "clean": "node -e \"try{require('fs').rmSync('.next',{recursive:true,force:true})}catch(e){}\"",
-    "rebuild": "npm run clean && pnpm build"
+    "rebuild": "npm run clean && pnpm build",
+    "prepare": "node -e \"const fs=require('fs');const {execSync}=require('child_process');if(fs.existsSync('.git')){execSync('husky',{stdio:'inherit'})}else{console.log('skip husky: no .git')}\""
   },
   "dependencies": {
     "@stripe/stripe-js": "^4.8.0",
@@ -60,7 +60,7 @@
       "eslint --fix"
     ]
   },
-  "packageManager": "pnpm@10",
+  "packageManager": "pnpm@10.18.2",
   "pnpm": {
     "onlyBuiltDependencies": [
       "unrs-resolver"
