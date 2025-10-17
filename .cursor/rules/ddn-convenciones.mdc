@@ -1,0 +1,43 @@
+# Stack del proyecto
+- Web: Next.js 14 App Router + TypeScript + Tailwind + shadcn/ui.
+- Móvil: Expo SDK 54 + Expo Router.
+- Backend as a Service: Supabase (Auth + RLS + Storage).
+- Pagos: Stripe Checkout (preferido) o Elements si se requiere UI embebida.
+- Paquete/CLI: pnpm.
+
+# Estructura y alias
+- Alias `@/` apunta a `src/` o `app/` según el caso.
+- Directorios de interés: `app/`, `components/`, `lib/`, `hooks/`, `supabase/`, `docs/`.
+- NO tocar ni referenciar: `node_modules/`, `.next/`, `dist/`, `build/`, `.vercel/`, `public/uploads/`.
+
+# Variables de entorno
+- Nunca imprimir ni leer `.env`. Documentar placeholders así:
+  - `NEXT_PUBLIC_SUPABASE_URL=<url>`
+  - `NEXT_PUBLIC_SUPABASE_ANON_KEY=<key>`
+  - `STRIPE_PUBLIC_KEY=<key>` / `STRIPE_SECRET_KEY=<key>`
+- Si hay que agregar envs, entrega un `.env.example` actualizado.
+
+# UI/UX
+- Paleta: navy #0D1B2A, dorado #C9A95D, blanco, negro.
+- Componentes: usa shadcn/ui; no inventes botones desde cero sin razón.
+- Accesibilidad: textos de botón claros, estados de carga y error visibles.
+
+# Convenciones de código
+- TypeScript estricto. Evitar `any`.
+- Server Actions preferidas para mutaciones simples. API Routes solo cuando haya integración externa.
+- Imports ordenados: libs nativas → libs externas → alias internos.
+- Confirmar rutas con `export const dynamic = "force-dynamic"` cuando se requiera evitar caché.
+
+# Git y ramas
+- Conventional Commits: `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `style:`, `test:`.
+- Ramas: `feature/<slug>`, `fix/<slug>`, `chore/<slug>`.
+- Pull Requests deben incluir: resumen, contexto, instrucciones de prueba.
+
+# Calidad y verificación
+- Antes de finalizar, el agente debe:
+  1) Ejecutar revisión estática mental (tipos, imports, rutas).
+  2) Incluir snippet de prueba manual o archivo de ejemplo.
+  3) Enumerar riesgos y rollback rápido.
+
+# WhatsApp y contacto
+- Botón flotante usa `wa.me/5215531033715` cuando se requiera CTA.

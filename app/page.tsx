@@ -1,9 +1,4 @@
 import FeaturedCarousel from "../components/FeaturedCarousel";
-import dynamic from "next/dynamic";
-
-const ConsultarDrawer = dynamic(() => import("../components/ConsultarDrawer"), {
-  ssr: false,
-});
 
 export default function Home() {
   return (
@@ -12,7 +7,6 @@ export default function Home() {
         <h2 className="text-xl font-semibold mb-2">Destacados</h2>
         <FeaturedCarousel />
       </section>
-      <ConsultarDrawer />
     </>
   );
 }

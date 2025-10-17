@@ -3,6 +3,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Inter } from "next/font/google";
 import dynamic from "next/dynamic";
+const ConsultarDrawer = dynamic(() => import("@/components/ConsultarDrawer"), {
+  ssr: false,
+});
 import WhatsappBubble from "@/components/WhatsappBubble";
 import CartProvider from "@/components/CartProvider";
 import CartBubble from "@/components/CartBubble";
@@ -136,7 +139,10 @@ export default function RootLayout({
           {/* Footer del sitio - Cargado dinámicamente */}
           <SiteFooter />
         </CartProvider>
+        <ConsultarDrawer />
+        \n{" "}
       </body>
+      \n{" "}
     </html>
   );
 }

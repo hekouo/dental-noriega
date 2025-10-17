@@ -1,0 +1,52 @@
+# Builds y artefactos
+.next/
+out/
+dist/
+build/
+.turbo/
+.vercel/
+coverage/
+*.log
+*.cache
+.cache/
+
+# Dependencias y lockfiles ruidosos
+node_modules/
+.pnpm-store/
+pnpm-lock.yaml.*
+package-lock.json
+yarn.lock
+
+# Control de versiones y configs locales
+.git/
+.github/
+.vscode/
+.idea/
+
+# Medios pesados (no los necesita para razonar)
+public/uploads/
+public/**/raw/
+assets/**/*.png
+assets/**/*.jpg
+assets/**/*.jpeg
+assets/**/*.gif
+assets/**/*.webp
+**/*.mp4
+**/*.mov
+**/*.pdf
+**/*.zip
+
+# Entornos y secretos (prohibidísimos)
+.env
+.env.*
+.env.local
+.env.development
+.env.production
+supabase/.temp/
+secrets.*
+*.key
+*.pem
+
+# Cachés varias
+*.DS_Store
+Thumbs.db
