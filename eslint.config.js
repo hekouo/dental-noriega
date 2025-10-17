@@ -39,7 +39,7 @@ export default [
       "no-useless-escape": "warn",
       "react-hooks/rules-of-hooks": "error",
       // Estos warnings no deben romper tu commit
-      "react-refresh/only-export-components": "warn",
+      "react-refresh/only-export-components": "off",
     },
   },
   // En archivos de declaración: sin reglas molestas
