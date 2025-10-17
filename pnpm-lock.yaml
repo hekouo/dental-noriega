@@ -24,13 +24,16 @@ importers:
         specifier: ^0.462.0
         version: 0.462.0(react@18.3.1)
       next:
-        specifier: ^14.2.33
+        specifier: '14'
         version: 14.2.33(@babel/core@7.28.4)(@opentelemetry/api@1.9.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      papaparse:
+        specifier: ^5.5.3
+        version: 5.5.3
       react:
-        specifier: ^18.3.1
+        specifier: '18'
         version: 18.3.1
       react-dom:
-        specifier: ^18.3.1
+        specifier: '18'
         version: 18.3.1(react@18.3.1)
       stripe:
         specifier: ^17.7.0
@@ -48,6 +51,9 @@ importers:
       '@types/node':
         specifier: ^22.8.6
         version: 22.18.10
+      '@types/papaparse':
+        specifier: ^5.3.16
+        version: 5.3.16
       '@types/react':
         specifier: ^18.3.12
         version: 18.3.26
@@ -91,7 +97,7 @@ importers:
         specifier: ^3.4.14
         version: 3.4.18(yaml@2.8.1)
       typescript:
-        specifier: ^5.6.3
+        specifier: '5'
         version: 5.9.3
       typescript-eslint:
         specifier: ^8.46.1
@@ -632,6 +638,9 @@ packages:
 
   '@types/node@22.18.10':
     resolution: {integrity: sha512-anNG/V/Efn/YZY4pRzbACnKxNKoBng2VTFydVu8RRs5hQjikP8CQfaeAV59VFSCzKNp90mXiVXW2QzV56rwMrg==}
+
+  '@types/papaparse@5.3.16':
+    resolution: {integrity: sha512-T3VuKMC2H0lgsjI9buTB3uuKj3EMD2eap1MOuEQuBQ44EnDx/IkGhU6EwiTf9zG3za4SKlmwKAImdDKdNnCsXg==}
 
   '@types/pg-pool@2.0.6':
     resolution: {integrity: sha512-TaAUE5rq2VQYxab5Ts7WZhKNmuN78Q6PiFonTDdpbx8a1H0M1vhy3rhiMjl+e2iHmogyMw7jZF4FrE6eJUy5HQ==}
@@ -2169,6 +2178,9 @@ packages:
   package-json-from-dist@1.0.1:
     resolution: {integrity: sha512-UEZIS3/by4OC8vL3P2dTXRETpebLI2NiI5vIrjaD/5UtrkFX/tNbwjTSRAGC/+7CAo2pIcBaRgWmcBBHcsaCIw==}
 
+  papaparse@5.5.3:
+    resolution: {integrity: sha512-5QvjGxYVjxO59MGU2lHVYpRWBBtKHnlIAcSe1uNFCkkptUh63NFRj0FJQm7nR67puEruUci/ZkjmEFrjCAyP4A==}
+
   parent-module@1.0.1:
     resolution: {integrity: sha512-GQ2EWRpQV8/o+Aw8YqtfZZPfNRWZYkbidE9k5rpl/hC3vtHHBfGm2Ifi6qWV+coDGkrUKZAxE3Lot5kcsRlh+g==}
     engines: {node: '>=6'}
@@ -3588,6 +3600,10 @@ snapshots:
   '@types/node@22.18.10':
     dependencies:
       undici-types: 6.21.0
+
+  '@types/papaparse@5.3.16':
+    dependencies:
+      '@types/node': 22.18.10
 
   '@types/pg-pool@2.0.6':
     dependencies:
@@ -5341,6 +5357,8 @@ snapshots:
       netmask: 2.0.2
 
   package-json-from-dist@1.0.1: {}
+
+  papaparse@5.5.3: {}
 
   parent-module@1.0.1:
     dependencies:

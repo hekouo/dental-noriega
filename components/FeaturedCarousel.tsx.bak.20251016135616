@@ -1,0 +1,32 @@
+"use client";
+import { useEffect, useState } from "react";
+import { loadFeatured, type FeaturedItem } from "@/lib/featured";
+
+export default function FeaturedCarousel() {
+  const [items, setItems] = useState<FeaturedItem[]>([]);
+  useEffect(() => { loadFeatured().then(setItems).catch(() => setItems([])); }, []);
+  if (!items.length) return null;
+
+  return (
+    <div className="w-full overflow-x-auto py-2">
+      <ul className="flex gap-4">
+        {items.map(p => (
+          <li key={p.sku} className="min-w-[220px] max-w-[220px] rounded-2xl shadow p-3 bg-white">
+            <img src={p.imageUrl} alt={p.title} className="w-full h-36 object-cover rounded-xl" />
+            <div className="mt-2 text-sm font-medium line-clamp-2">{p.title}</div>
+            <div className="text-xs text-gray-500">{p.variant} • {p.pack}</div>
+            <div className="mt-2 text-lg font-semibold">
+              {p.price > 0 ? \{p.price.toLocaleString("es-MX")}  : "Consultar"}
+            </div>
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent("consultar:open", { detail: p }))}
+              className="mt-2 w-full rounded-xl py-2 text-center bg-black text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
+            >
+              Consultar
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}

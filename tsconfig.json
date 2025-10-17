@@ -31,12 +31,22 @@
     ]
   },
   "include": [
+    "app",
+    "components",
+    "lib",
+    "src",
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    ".next",
+    "**/*.disabled.ts",
+    "**/*.off",
+    "**/*.bak.ts",
+    "**/.cursor/**",
+    "**/worktrees/**"
   ]
 }
