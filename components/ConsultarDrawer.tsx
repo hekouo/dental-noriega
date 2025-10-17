@@ -21,14 +21,17 @@ export default function ConsultarDrawer() {
   const [note, setNote] = useState("");
 
   useEffect(() => {
-    const handler = (e: unknown) => {
-      setProduct(e.detail);
+    const handler = (e: Event) => {
+      const ce = e as CustomEvent<any>;
+      if (!("detail" in ce) || ce.detail == null) return;
+      setProduct(ce.detail);
       setQty(1);
       setNote("");
       setOpen(true);
     };
-    window.addEventListener("consultar:open", handler as any);
-    return () => window.removeEventListener("consultar:open", handler as any);
+    window.addEventListener("consultar", handler as EventListener);
+    return () =>
+      window.removeEventListener("consultar", handler as EventListener);
   }, []);
 
   if (!open || !product) return null;
