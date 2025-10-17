@@ -14,7 +14,9 @@ export default function CartBubble() {
 
   return (
     <>
-      <FAB offset={88}> {/* Más arriba que WhatsApp (16 + 56 + 16 = 88) */}
+      <FAB offset={88}>
+        {" "}
+        {/* Más arriba que WhatsApp (16 + 56 + 16 = 88) */}
         <button
           onClick={() => setOpen(true)}
           className="h-14 w-14 rounded-full bg-primary-600 hover:bg-primary-700 text-white shadow-xl flex items-center justify-center transition-all hover:scale-110"
@@ -40,13 +42,13 @@ function CartDrawer({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     document.body.classList.add("body-lock");
-    
+
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
-    
+
     window.addEventListener("keydown", onKey);
-    
+
     return () => {
       document.body.classList.remove("body-lock");
       window.removeEventListener("keydown", onKey);
@@ -89,12 +91,19 @@ function CartDrawer({ onClose }: { onClose: () => void }) {
               <p>Aún no agregas productos.</p>
             </div>
           )}
-          
-          {state.items.map(it => (
-            <div key={it.id} className="flex items-center gap-3 border rounded-lg p-3">
+
+          {state.items.map((it) => (
+            <div
+              key={it.id}
+              className="flex items-center gap-3 border rounded-lg p-3"
+            >
               <div className="h-16 w-16 bg-gray-100 rounded overflow-hidden relative flex-shrink-0">
                 <img
-                  src={it.imageResolved || it.image || "/img/products/placeholder.png"}
+                  src={
+                    it.imageResolved ||
+                    it.image ||
+                    "/img/products/placeholder.png"
+                  }
                   alt={it.title}
                   className="w-full h-full object-cover"
                 />
@@ -103,7 +112,10 @@ function CartDrawer({ onClose }: { onClose: () => void }) {
                 <p className="font-medium text-sm line-clamp-1">{it.title}</p>
                 <p className="text-xs text-gray-500">{formatPrice(it.price)}</p>
                 <div className="flex items-center gap-2 mt-2">
-                  <label htmlFor={`qty-${it.id}`} className="text-xs text-gray-600">
+                  <label
+                    htmlFor={`qty-${it.id}`}
+                    className="text-xs text-gray-600"
+                  >
                     Cant:
                   </label>
                   <input
@@ -112,7 +124,7 @@ function CartDrawer({ onClose }: { onClose: () => void }) {
                     inputMode="numeric"
                     min={1}
                     value={it.qty}
-                    onChange={e => setQty(it.id, Number(e.target.value) || 1)}
+                    onChange={(e) => setQty(it.id, Number(e.target.value) || 1)}
                     className="w-16 border rounded px-2 py-1 text-sm min-h-[44px]"
                   />
                   <button

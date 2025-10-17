@@ -10,7 +10,9 @@ export default function FinalThanks() {
   return (
     <section className="mt-16 rounded-2xl border bg-white shadow-sm p-6 grid md:grid-cols-2 gap-6">
       <div>
-        <h2 className="text-xl font-semibold mb-2">Gracias por revisar el catálogo</h2>
+        <h2 className="text-xl font-semibold mb-2">
+          Gracias por revisar el catálogo
+        </h2>
         <p className="text-gray-600 mb-4">
           Estamos listos para ayudarte con tus compras y dudas técnicas.
           Escríbenos y con gusto te atendemos.
@@ -18,19 +20,20 @@ export default function FinalThanks() {
         <ul className="space-y-2 text-sm text-gray-700">
           <li>
             <strong>WhatsApp:</strong>{" "}
-            <a 
-              href={wa} 
-              target="_blank" 
+            <a
+              href={wa}
+              target="_blank"
               rel="noopener noreferrer"
               className="text-primary-600 hover:underline"
             >
-              +52 {SITE.waPhone.slice(2, 5)} {SITE.waPhone.slice(5, 8)} {SITE.waPhone.slice(8)}
+              +52 {SITE.waPhone.slice(2, 5)} {SITE.waPhone.slice(5, 8)}{" "}
+              {SITE.waPhone.slice(8)}
             </a>
           </li>
           <li>
             <strong>Email:</strong>{" "}
-            <a 
-              href={`mailto:${SITE.email}`} 
+            <a
+              href={`mailto:${SITE.email}`}
               className="text-primary-600 hover:underline"
             >
               {SITE.email}
@@ -38,10 +41,10 @@ export default function FinalThanks() {
           </li>
           <li>
             <strong>Ubicación:</strong>{" "}
-            <a 
-              href={SITE.mapsUrl} 
-              target="_blank" 
-              rel="noopener noreferrer" 
+            <a
+              href={SITE.mapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
               className="text-primary-600 hover:underline"
             >
               Ver en Google Maps
@@ -82,7 +85,9 @@ export default function FinalThanks() {
       <div className="flex md:justify-end">
         <div className="p-3 bg-white rounded-xl border">
           <img src={qr} alt="Escanea para WhatsApp" width={180} height={180} />
-          <p className="text-xs text-center text-gray-500 mt-2">Escanéame para WhatsApp</p>
+          <p className="text-xs text-center text-gray-500 mt-2">
+            Escanéame para WhatsApp
+          </p>
         </div>
       </div>
     </section>

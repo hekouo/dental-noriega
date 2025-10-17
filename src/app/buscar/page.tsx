@@ -24,7 +24,10 @@ export default async function BuscarPage({ searchParams }: Props) {
         <h1 className="text-3xl font-bold mb-4">Buscar Productos</h1>
         <form action="/buscar" method="GET" className="flex gap-2">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              size={20}
+            />
             <input
               name="q"
               defaultValue={q}
@@ -34,7 +37,10 @@ export default async function BuscarPage({ searchParams }: Props) {
               autoFocus
             />
           </div>
-          <button className="btn btn-primary px-6 py-3 rounded-lg" type="submit">
+          <button
+            className="btn btn-primary px-6 py-3 rounded-lg"
+            type="submit"
+          >
             <span>Buscar</span>
           </button>
         </form>
@@ -42,7 +48,8 @@ export default async function BuscarPage({ searchParams }: Props) {
 
       {q && (
         <p className="text-gray-600">
-          {results.length} resultado{results.length === 1 ? "" : "s"} para <strong>"{q}"</strong>
+          {results.length} resultado{results.length === 1 ? "" : "s"} para{" "}
+          <strong>"{q}"</strong>
         </p>
       )}
 

@@ -1,51 +1,53 @@
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import { AuthGuard } from '@/components/auth/AuthGuard'
-import { createClient } from '@/lib/supabase/client'
-import { formatCurrency } from '@/lib/utils/currency'
-import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
-import Link from 'next/link'
-import { ROUTES } from '@/lib/routes'
+import { useEffect, useState } from "react";
+import { AuthGuard } from "@/components/auth/AuthGuard";
+import { createClient } from "@/lib/supabase/client";
+import { formatCurrency } from "@/lib/utils/currency";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
+import Link from "next/link";
+import { ROUTES } from "@/lib/routes";
 
 const statusLabels: Record<string, string> = {
-  pending: 'Pendiente',
-  paid: 'Pagado',
-  fulfilled: 'Completado',
-  cancelled: 'Cancelado',
-}
+  pending: "Pendiente",
+  paid: "Pagado",
+  fulfilled: "Completado",
+  cancelled: "Cancelado",
+};
 
 const statusColors: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-800',
-  paid: 'bg-green-100 text-green-800',
-  fulfilled: 'bg-blue-100 text-blue-800',
-  cancelled: 'bg-red-100 text-red-800',
-}
+  pending: "bg-yellow-100 text-yellow-800",
+  paid: "bg-green-100 text-green-800",
+  fulfilled: "bg-blue-100 text-blue-800",
+  cancelled: "bg-red-100 text-red-800",
+};
 
 export default function PedidosPage() {
-  const [orders, setOrders] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [orders, setOrders] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    loadOrders()
-  }, [])
+    loadOrders();
+  }, []);
 
   const loadOrders = async () => {
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
     if (user) {
       const { data } = await supabase
-        .from('orders')
-        .select('*, order_items(*)')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
+        .from("orders")
+        .select("*, order_items(*)")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
 
-      setOrders(data || [])
+      setOrders(data || []);
     }
-    setIsLoading(false)
-  }
+    setIsLoading(false);
+  };
 
   if (isLoading) {
     return (
@@ -54,7 +56,7 @@ export default function PedidosPage() {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
         </div>
       </AuthGuard>
-    )
+    );
   }
 
   return (
@@ -95,9 +97,9 @@ export default function PedidosPage() {
 
                 <div className="border-t pt-4">
                   <p className="text-sm text-gray-600 mb-2">
-                    {order.fulfillment_method === 'shipping'
-                      ? '🚚 Entrega a domicilio'
-                      : '📍 Recoger en tienda'}
+                    {order.fulfillment_method === "shipping"
+                      ? "🚚 Entrega a domicilio"
+                      : "📍 Recoger en tienda"}
                   </p>
 
                   <div className="space-y-2 mb-4">
@@ -117,7 +119,10 @@ export default function PedidosPage() {
                   <div className="border-t pt-4 flex justify-between items-center">
                     <div>
                       <p className="text-sm text-gray-600">
-                        Total: <span className="font-bold text-lg">{formatCurrency(order.total)}</span>
+                        Total:{" "}
+                        <span className="font-bold text-lg">
+                          {formatCurrency(order.total)}
+                        </span>
                       </p>
                       {order.points_redeemed > 0 && (
                         <p className="text-sm text-primary-600">
@@ -133,6 +138,5 @@ export default function PedidosPage() {
         )}
       </div>
     </AuthGuard>
-  )
+  );
 }
-

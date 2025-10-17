@@ -106,11 +106,13 @@ Abre [http://localhost:3000](http://localhost:3000)
 ## 📁 Datos de prueba
 
 El proyecto incluye un archivo CSV de productos destacados en:
+
 ```
 public/data/destacados_sin_descuento.csv
 ```
 
 Formato del CSV:
+
 ```csv
 sku,nombre,precio,descripcion
 SKU001,Producto 1,150.00,Descripción del producto
@@ -137,9 +139,9 @@ Edita `src/app/checkout/datos/page.tsx`:
 
 ```typescript
 const PICKUP_LOCATIONS = [
-  { id: '1', name: 'Sucursal Centro', address: '...' },
+  { id: "1", name: "Sucursal Centro", address: "..." },
   // Agrega más ubicaciones
-]
+];
 ```
 
 ### Cambiar reglas de envío
@@ -148,7 +150,7 @@ Edita `src/lib/utils/currency.ts`:
 
 ```typescript
 export function calculateShipping(subtotal: number): number {
-  return subtotal >= 2000 ? 0 : 150
+  return subtotal >= 2000 ? 0 : 150;
 }
 ```
 
@@ -158,11 +160,11 @@ Edita `src/lib/utils/currency.ts`:
 
 ```typescript
 export function calculatePointsEarned(total: number): number {
-  return Math.floor(total / 10) // 1 punto por cada $10
+  return Math.floor(total / 10); // 1 punto por cada $10
 }
 
 export function calculatePointsValue(points: number): number {
-  return (points / 100) * 10 // 100 puntos = $10
+  return (points / 100) * 10; // 100 puntos = $10
 }
 ```
 
@@ -171,7 +173,7 @@ export function calculatePointsValue(points: number): number {
 Edita `src/components/WhatsappFloating.tsx`:
 
 ```typescript
-const phoneNumber = '525512345678' // Tu número con código de país
+const phoneNumber = "525512345678"; // Tu número con código de país
 ```
 
 ## ❓ Solución de problemas
@@ -216,4 +218,3 @@ Si necesitas ayuda, revisa:
 4. Los logs en Supabase Dashboard
 
 ¡Listo para desarrollar! 🎉
-

@@ -19,7 +19,7 @@ export function createActionSupabase() {
       },
       remove(name: string, options: CookieOptions) {
         cookieStore.set(name, "", { ...options, maxAge: 0 });
-      }
-    }
+      },
+    },
   });
 }

@@ -13,7 +13,12 @@ function driveToDirect(u: string) {
 }
 
 function encodeSegments(p: string) {
-  return "/" + ["img", "products", ...p.split("/")].map(s => encodeURIComponent(s)).join("/");
+  return (
+    "/" +
+    ["img", "products", ...p.split("/")]
+      .map((s) => encodeURIComponent(s))
+      .join("/")
+  );
 }
 
 async function existsPublic(rel: string) {
@@ -55,14 +60,18 @@ function* candidates(raw: string) {
   }
 }
 
-export async function resolveImagePublicPath(raw: string): Promise<{ resolved: string; ok: boolean }> {
+export async function resolveImagePublicPath(
+  raw: string,
+): Promise<{ resolved: string; ok: boolean }> {
   if (!raw) return { resolved: "/img/products/placeholder.png", ok: false };
 
   // remota
   if (/^https?:\/\//i.test(raw)) {
     return {
-      resolved: /^https?:\/\/drive\.google\.com\//i.test(raw) ? driveToDirect(raw) : raw,
-      ok: true
+      resolved: /^https?:\/\/drive\.google\.com\//i.test(raw)
+        ? driveToDirect(raw)
+        : raw,
+      ok: true,
     };
   }
 
@@ -72,6 +81,6 @@ export async function resolveImagePublicPath(raw: string): Promise<{ resolved: s
       return { resolved: c, ok: true };
     }
   }
-  
+
   return { resolved: "/img/products/placeholder.png", ok: false };
 }

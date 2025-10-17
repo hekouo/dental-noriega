@@ -22,7 +22,13 @@ type Props = {
   sectionSlug: string;
 };
 
-export function QuantitySelector({ productTitle, sectionName, price, product, sectionSlug }: Props) {
+export function QuantitySelector({
+  productTitle,
+  sectionName,
+  price,
+  product,
+  sectionSlug,
+}: Props) {
   const [quantity, setQuantity] = useState(1);
 
   const handleQuantityChange = (delta: number) => {
@@ -53,7 +59,9 @@ export function QuantitySelector({ productTitle, sectionName, price, product, se
             type="number"
             min="1"
             value={quantity}
-            onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+            onChange={(e) =>
+              setQuantity(Math.max(1, parseInt(e.target.value) || 1))
+            }
             className="w-20 text-center border border-gray-300 rounded-lg px-3 py-2 font-semibold text-lg"
           />
           <button

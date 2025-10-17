@@ -1,26 +1,26 @@
-'use client'
+"use client";
 
-import { useCartStore } from '@/lib/store/cartStore'
-import { formatCurrency } from '@/lib/utils/currency'
-import { Trash2, Plus, Minus } from 'lucide-react'
-import Link from 'next/link'
-import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import { ROUTES } from '@/lib/routes'
+import { useCartStore } from "@/lib/store/cartStore";
+import { formatCurrency } from "@/lib/utils/currency";
+import { Trash2, Plus, Minus } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { ROUTES } from "@/lib/routes";
 
 export default function CarritoPage() {
-  const items = useCartStore((state) => state.items)
-  const updateQuantity = useCartStore((state) => state.updateQuantity)
-  const removeItem = useCartStore((state) => state.removeItem)
-  const getSubtotal = useCartStore((state) => state.getSubtotal)
-  const [user, setUser] = useState<any>(null)
+  const items = useCartStore((state) => state.items);
+  const updateQuantity = useCartStore((state) => state.updateQuantity);
+  const removeItem = useCartStore((state) => state.removeItem);
+  const getSubtotal = useCartStore((state) => state.getSubtotal);
+  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    const supabase = createClient()
-    supabase.auth.getUser().then(({ data: { user } }) => setUser(user))
-  }, [])
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => setUser(user));
+  }, []);
 
-  const subtotal = getSubtotal()
+  const subtotal = getSubtotal();
 
   if (items.length === 0) {
     return (
@@ -35,7 +35,7 @@ export default function CarritoPage() {
           </Link>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -111,7 +111,10 @@ export default function CarritoPage() {
             </div>
 
             {user ? (
-              <Link href="/checkout" className="w-full btn btn-primary block text-center">
+              <Link
+                href="/checkout"
+                className="w-full btn btn-primary block text-center"
+              >
                 <span>Continuar al Checkout</span>
               </Link>
             ) : (
@@ -119,7 +122,10 @@ export default function CarritoPage() {
                 <p className="text-sm text-gray-600 mb-3 text-center">
                   Inicia sesión para continuar
                 </p>
-                <Link href={ROUTES.cuenta()} className="w-full btn btn-primary block text-center">
+                <Link
+                  href={ROUTES.cuenta()}
+                  className="w-full btn btn-primary block text-center"
+                >
                   <span>Iniciar Sesión</span>
                 </Link>
               </div>
@@ -135,6 +141,5 @@ export default function CarritoPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }
-

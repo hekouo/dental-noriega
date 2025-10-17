@@ -17,7 +17,14 @@ const QuantityInput: React.FC<Props> = ({ min = 1, value, onChange }) => {
 
   return (
     <div className="inline-flex items-center rounded-lg border border-gray-300 overflow-hidden">
-      <button type="button" aria-label="Disminuir" onClick={dec} className="px-3 py-2 hover:bg-gray-50">−</button>
+      <button
+        type="button"
+        aria-label="Disminuir"
+        onClick={dec}
+        className="px-3 py-2 hover:bg-gray-50"
+      >
+        −
+      </button>
       <input
         className="w-16 text-center outline-none py-2"
         inputMode="numeric"
@@ -26,11 +33,16 @@ const QuantityInput: React.FC<Props> = ({ min = 1, value, onChange }) => {
         onChange={onField}
         aria-label="Cantidad"
       />
-      <button type="button" aria-label="Aumentar" onClick={inc} className="px-3 py-2 hover:bg-gray-50">+</button>
+      <button
+        type="button"
+        aria-label="Aumentar"
+        onClick={inc}
+        className="px-3 py-2 hover:bg-gray-50"
+      >
+        +
+      </button>
     </div>
   );
 };
 
 export default QuantityInput;
-
-

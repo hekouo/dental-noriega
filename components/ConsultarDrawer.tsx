@@ -38,49 +38,92 @@ export default function ConsultarDrawer() {
     <div className="fixed inset-0 z-50 bg-black/40 flex items-end md:items-center md:justify-center">
       <div className="w-full md:w-[520px] bg-white rounded-t-2xl md:rounded-2xl p-5">
         <div className="flex gap-4">
-          <img src={product.imageUrl} alt={product.title} className="w-24 h-24 rounded-xl object-cover" />
+          <img
+            src={product.imageUrl}
+            alt={product.title}
+            className="w-24 h-24 rounded-xl object-cover"
+          />
           <div className="flex-1">
             <div className="font-semibold">{product.title}</div>
-            <div className="text-xs text-gray-500">{product.variant} • {product.pack}</div>
+            <div className="text-xs text-gray-500">
+              {product.variant} • {product.pack}
+            </div>
             <div className="mt-1 text-sm">
-              {product.price > 0 ? `$${product.price.toLocaleString("es-MX")} ${product.currency}` : "Precio a consultar"}
+              {product.price > 0
+                ? `$${product.price.toLocaleString("es-MX")} ${product.currency}`
+                : "Precio a consultar"}
             </div>
           </div>
-          <button onClick={() => setOpen(false)} className="text-sm text-gray-500">Cerrar</button>
+          <button
+            onClick={() => setOpen(false)}
+            className="text-sm text-gray-500"
+          >
+            Cerrar
+          </button>
         </div>
 
         <div className="mt-4 grid grid-cols-3 gap-3">
           <div className="col-span-1">
             <label className="text-xs text-gray-600">Cantidad</label>
             <div className="mt-1 flex items-center rounded-xl border">
-              <button className="px-3 py-2" onClick={() => setQty(Math.max(1, qty - 1))}>−</button>
-              <input className="w-full text-center py-2 outline-none" value={qty}
-                     onChange={(e) => setQty(Math.max(1, Number(e.target.value) || 1))}/>
-              <button className="px-3 py-2" onClick={() => setQty(qty + 1)}>+</button>
+              <button
+                className="px-3 py-2"
+                onClick={() => setQty(Math.max(1, qty - 1))}
+              >
+                −
+              </button>
+              <input
+                className="w-full text-center py-2 outline-none"
+                value={qty}
+                onChange={(e) =>
+                  setQty(Math.max(1, Number(e.target.value) || 1))
+                }
+              />
+              <button className="px-3 py-2" onClick={() => setQty(qty + 1)}>
+                +
+              </button>
             </div>
           </div>
           <div className="col-span-2">
-            <label className="text-xs text-gray-600">Comentario (opcional)</label>
-            <textarea className="mt-1 w-full rounded-xl border p-2 h-[70px]"
-                      placeholder="Color, calibre, entrega, factura, etc."
-                      value={note} onChange={(e) => setNote(e.target.value)}/>
+            <label className="text-xs text-gray-600">
+              Comentario (opcional)
+            </label>
+            <textarea
+              className="mt-1 w-full rounded-xl border p-2 h-[70px]"
+              placeholder="Color, calibre, entrega, factura, etc."
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
           </div>
         </div>
 
         <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
           {product.price > 0 && (
-            <button className="rounded-xl py-3 bg-gray-900 text-white">Agregar al carrito</button>
+            <button className="rounded-xl py-3 bg-gray-900 text-white">
+              Agregar al carrito
+            </button>
           )}
-          <a href={link} target="_blank" rel="noopener" onClick={() => trackWhatsAppClick({ sku: product.sku, title: product.title, qty })} className="rounded-xl py-3 text-center border">
+          <a
+            href={link}
+            target="_blank"
+            rel="noopener"
+            onClick={() =>
+              trackWhatsAppClick({
+                sku: product.sku,
+                title: product.title,
+                qty,
+              })
+            }
+            className="rounded-xl py-3 text-center border"
+          >
             Consultar por WhatsApp
           </a>
         </div>
         <p className="mt-3 text-[11px] text-gray-500">
-          Se abrirá WhatsApp con un mensaje prellenado a <b>+52 55 3103 3715</b>.
+          Se abrirá WhatsApp con un mensaje prellenado a <b>+52 55 3103 3715</b>
+          .
         </p>
       </div>
     </div>
   );
 }
-
-

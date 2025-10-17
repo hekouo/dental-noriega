@@ -12,43 +12,54 @@ export async function GET() {
     const dataDir = path.join(publicDir, "data");
 
     const files = await fs.readdir(dataDir);
-    const csvs = files.filter(f => /\.csv$/i.test(f));
+    const csvs = files.filter((f) => /\.csv$/i.test(f));
 
     const sections = await loadAllSections();
-    const usedCsvs = new Set(sections.map(s => s.file.replace(/^\/data\//, "")));
+    const usedCsvs = new Set(
+      sections.map((s) => s.file.replace(/^\/data\//, "")),
+    );
 
-    const unusedCsvs = csvs.filter(f => !usedCsvs.has(f)).sort();
+    const unusedCsvs = csvs.filter((f) => !usedCsvs.has(f)).sort();
 
     // Chequear solo imágenes locales
-    const missingImages: Array<{ section: string; title: string; expectedPath: string }> = [];
+    const missingImages: Array<{
+      section: string;
+      title: string;
+      expectedPath: string;
+    }> = [];
     for (const s of sections) {
       for (const i of s.items) {
         const resolved = imageSrc(i.image);
-        if (!/^https?:\/\//i.test(resolved) && resolved !== "/img/products/placeholder.png") {
+        if (
+          !/^https?:\/\//i.test(resolved) &&
+          resolved !== "/img/products/placeholder.png"
+        ) {
           const abs = path.join(publicDir, resolved.replace(/^\//, ""));
           try {
             await fs.access(abs);
           } catch {
-            missingImages.push({ 
-              section: s.sectionName, 
-              title: i.title, 
-              expectedPath: abs 
+            missingImages.push({
+              section: s.sectionName,
+              title: i.title,
+              expectedPath: abs,
             });
           }
         }
       }
     }
 
-    return NextResponse.json({ 
-      unusedCsvs, 
+    return NextResponse.json({
+      unusedCsvs,
       missingImages,
       totalProducts: sections.reduce((sum, s) => sum + s.items.length, 0),
-      totalSections: sections.length
+      totalSections: sections.length,
     });
   } catch (error) {
-    return NextResponse.json({ 
-      error: error instanceof Error ? error.message : String(error) 
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 },
+    );
   }
 }
-

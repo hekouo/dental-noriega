@@ -14,4 +14,3 @@ export type CartItem = {
 export type CartState = {
   items: CartItem[];
 };
-

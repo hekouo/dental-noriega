@@ -1,12 +1,12 @@
-import { ProductCard } from '@/components/ProductCard'
-import { readCSV } from '@/lib/utils/csv'
-import { parsePrice } from '@/lib/utils/catalog'
+import { ProductCard } from "@/components/ProductCard";
+import { readCSV } from "@/lib/utils/csv";
+import { parsePrice } from "@/lib/utils/catalog";
 
 export const revalidate = 300; // Cache 5 minutos
 
 export default async function DestacadosPage() {
   // Read CSV file from public/data
-  const products = await readCSV('/data/destacados_sin_descuento.csv')
+  const products = await readCSV("/data/destacados_sin_descuento.csv");
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -24,12 +24,13 @@ export default async function DestacadosPage() {
           {products.map((product: any, index: number) => {
             // Usar las columnas correctas del CSV
             const sku = product.sku || `dest-${index}`;
-            const name = product.product_name || '';
+            const name = product.product_name || "";
             const price = parsePrice(product.price_mxn);
-            const description = [product.variant, product.package, product.brand]
-              .filter(Boolean)
-              .join(' • ') || '';
-            const image = product.image || '';
+            const description =
+              [product.variant, product.package, product.brand]
+                .filter(Boolean)
+                .join(" • ") || "";
+            const image = product.image || "";
 
             return (
               <ProductCard
@@ -45,5 +46,5 @@ export default async function DestacadosPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

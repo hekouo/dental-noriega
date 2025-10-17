@@ -16,7 +16,7 @@ type Props = {
 
 function Icon({ name }: { name: IconType }) {
   const iconProps = { size: 24, strokeWidth: 2 };
-  
+
   switch (name) {
     case "users":
       return <Users {...iconProps} />;
@@ -52,4 +52,3 @@ const StatsBar: React.FC<Props> = ({ items }) => {
 };
 
 export default StatsBar;
-

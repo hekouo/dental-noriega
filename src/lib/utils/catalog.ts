@@ -6,7 +6,7 @@ export type Product = {
   title: string;
   price: number;
   description: string;
-  image: string;   // valor original del CSV
+  image: string; // valor original del CSV
   slug: string;
   imageResolved?: string; // ruta/URL final ya resuelta
 };
@@ -14,7 +14,8 @@ export type Product = {
 export function slugify(s: string) {
   return (s || "")
     .toLowerCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
 }
@@ -35,12 +36,16 @@ export function imageSrc(image: string, imageResolved?: string) {
   if (!image) return PLACEHOLDER;
   const t = image.trim();
   if (/^https?:\/\//i.test(t)) {
-    return /^https?:\/\/drive\.google\.com\//i.test(t) ? toDirectDriveUrl(t) : t;
+    return /^https?:\/\/drive\.google\.com\//i.test(t)
+      ? toDirectDriveUrl(t)
+      : t;
   }
   // Mantener MAYÚSCULAS y espacios codificados para servidores Linux
-  const encoded = "/" + ["img", "products", ...t.split("/")]
-    .map(seg => encodeURIComponent(seg))
-    .join("/");
+  const encoded =
+    "/" +
+    ["img", "products", ...t.split("/")]
+      .map((seg) => encodeURIComponent(seg))
+      .join("/");
   return encoded;
 }
 
@@ -54,13 +59,19 @@ export function parsePrice(input: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-export const mxn = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" });
+export const mxn = new Intl.NumberFormat("es-MX", {
+  style: "currency",
+  currency: "MXN",
+});
 
 export function formatPrice(n: number) {
   return n > 0 ? mxn.format(n) : "";
 }
 
-export function normalizeRow(r: Record<string, string>, fallbackSection: string): Product {
+export function normalizeRow(
+  r: Record<string, string>,
+  fallbackSection: string,
+): Product {
   const section = r.Section || r.section || fallbackSection || "General";
   const title = r.Title || r.title || "";
   const price = parsePrice(r.Price ?? r.price);
@@ -73,6 +84,8 @@ export function normalizeRow(r: Record<string, string>, fallbackSection: string)
     price,
     description,
     image,
-    slug: slugify(title || `${fallbackSection}-${Math.random().toString(36).slice(2, 8)}`)
+    slug: slugify(
+      title || `${fallbackSection}-${Math.random().toString(36).slice(2, 8)}`,
+    ),
   };
 }

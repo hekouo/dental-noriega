@@ -7,12 +7,14 @@ export async function GET() {
   try {
     const sections = await loadAllSections();
     const broken: Array<{ section: string; title: string; img: string }> = [];
-    
-    sections.forEach(s => s.items.forEach(i => {
-      if (!i.imageResolved || i.imageResolved.endsWith("/placeholder.png")) {
-        broken.push({ section: s.sectionName, title: i.title, img: i.image });
-      }
-    }));
+
+    sections.forEach((s) =>
+      s.items.forEach((i) => {
+        if (!i.imageResolved || i.imageResolved.endsWith("/placeholder.png")) {
+          broken.push({ section: s.sectionName, title: i.title, img: i.image });
+        }
+      }),
+    );
 
     return NextResponse.json({
       success: true,
@@ -22,10 +24,12 @@ export async function GET() {
       broken,
     });
   } catch (error) {
-    return NextResponse.json({
-      success: false,
-      error: error instanceof Error ? error.message : String(error),
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 },
+    );
   }
 }
-

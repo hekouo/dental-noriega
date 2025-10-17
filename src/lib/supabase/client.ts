@@ -9,7 +9,9 @@ export function createClient() {
 
   if (!url || !anon) {
     // Grita en desarrollo si faltan variables
-    throw new Error("Faltan NEXT_PUBLIC_SUPABASE_URL o NEXT_PUBLIC_SUPABASE_ANON_KEY");
+    throw new Error(
+      "Faltan NEXT_PUBLIC_SUPABASE_URL o NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    );
   }
 
   // Si no tienes tipos, quita <Database>

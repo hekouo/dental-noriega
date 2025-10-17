@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
-const withBundleAnalyzer = require('@next/bundle-analyzer')({
-  enabled: process.env.ANALYZE === 'true',
+const withBundleAnalyzer = require("@next/bundle-analyzer")({
+  enabled: process.env.ANALYZE === "true",
 });
 
 const nextConfig = {
@@ -8,9 +8,9 @@ const nextConfig = {
     remotePatterns: [
       { protocol: "https", hostname: "**.supabase.co" },
       { protocol: "https", hostname: "drive.google.com" },
-      { protocol: "https", hostname: "lh3.googleusercontent.com" }
+      { protocol: "https", hostname: "lh3.googleusercontent.com" },
     ],
-    formats: ['image/webp', 'image/avif'],
+    formats: ["image/webp", "image/avif"],
     minimumCacheTTL: 60,
   },
   experimental: {

@@ -16,13 +16,15 @@ export type SearchItem = {
 export async function searchProducts(q: string): Promise<SearchItem[]> {
   const needle = normalizeText(q);
   if (!needle) return [];
-  
+
   const secs = await loadAllSections();
   const out: SearchItem[] = [];
 
   for (const s of secs) {
     for (const it of s.items) {
-      const hay = normalizeText([it.title, it.description, s.sectionName].join(" "));
+      const hay = normalizeText(
+        [it.title, it.description, s.sectionName].join(" "),
+      );
       if (hay.includes(needle)) {
         out.push({
           sectionSlug: s.sectionSlug,
@@ -37,7 +39,6 @@ export async function searchProducts(q: string): Promise<SearchItem[]> {
       }
     }
   }
-  
+
   return out.sort((a, b) => a.title.localeCompare(b.title));
 }
-

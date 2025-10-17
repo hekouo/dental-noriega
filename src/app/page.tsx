@@ -1,15 +1,17 @@
-import Link from 'next/link'
-import dynamic from 'next/dynamic'
-import { ShoppingBag, Package, Award, Truck } from 'lucide-react'
-import { ROUTES } from '@/lib/routes'
-import { getFeaturedProducts } from '@/lib/data/featured'
-import ProductImage from '@/components/ProductImage'
-import { formatPrice } from '@/lib/utils/catalog'
-import { pointsFor } from '@/lib/utils/points'
-import PointsBadge from '@/components/PointsBadge'
+import Link from "next/link";
+import dynamic from "next/dynamic";
+import { ShoppingBag, Package, Award, Truck } from "lucide-react";
+import { ROUTES } from "@/lib/routes";
+import { getFeaturedProducts } from "@/lib/data/featured";
+import ProductImage from "@/components/ProductImage";
+import { formatPrice } from "@/lib/utils/catalog";
+import { pointsFor } from "@/lib/utils/points";
+import PointsBadge from "@/components/PointsBadge";
 
 // Dynamic import para componente no crítico
-const FinalThanks = dynamic(() => import('@/components/FinalThanks'), { ssr: false });
+const FinalThanks = dynamic(() => import("@/components/FinalThanks"), {
+  ssr: false,
+});
 
 export const revalidate = 300; // Cache 5 minutos
 
@@ -28,10 +30,16 @@ export default async function HomePage() {
             Equipamiento e instrumental odontológico de calidad
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href={ROUTES.destacados()} className="btn btn-primary bg-white text-primary-600 hover:bg-gray-100 text-lg px-8 py-3">
+            <Link
+              href={ROUTES.destacados()}
+              className="btn btn-primary bg-white text-primary-600 hover:bg-gray-100 text-lg px-8 py-3"
+            >
               <span>Ver Productos Destacados</span>
             </Link>
-            <Link href={ROUTES.catalogIndex()} className="btn bg-primary-700 text-white hover:bg-primary-800 text-lg px-8 py-3">
+            <Link
+              href={ROUTES.catalogIndex()}
+              className="btn bg-primary-700 text-white hover:bg-primary-800 text-lg px-8 py-3"
+            >
               <span>Explorar Catálogo</span>
             </Link>
           </div>
@@ -44,7 +52,9 @@ export default async function HomePage() {
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-10">
               <h2 className="text-3xl font-bold mb-2">Productos Destacados</h2>
-              <p className="text-gray-600">Los mejores productos para tu consultorio</p>
+              <p className="text-gray-600">
+                Los mejores productos para tu consultorio
+              </p>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
               {featured.map(({ sectionSlug, item }, idx) => (
@@ -95,21 +105,27 @@ export default async function HomePage() {
                 <ShoppingBag size={32} />
               </div>
               <h3 className="font-semibold mb-2">Compra Fácil</h3>
-              <p className="text-gray-600 text-sm">Carrito persistente y checkout rápido</p>
+              <p className="text-gray-600 text-sm">
+                Carrito persistente y checkout rápido
+              </p>
             </div>
             <div className="text-center">
               <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-100 text-primary-600 rounded-full mb-4">
                 <Package size={32} />
               </div>
               <h3 className="font-semibold mb-2">Entrega o Recogida</h3>
-              <p className="text-gray-600 text-sm">Elige la opción que más te convenga</p>
+              <p className="text-gray-600 text-sm">
+                Elige la opción que más te convenga
+              </p>
             </div>
             <div className="text-center">
               <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-100 text-primary-600 rounded-full mb-4">
                 <Award size={32} />
               </div>
               <h3 className="font-semibold mb-2">Programa de Puntos</h3>
-              <p className="text-gray-600 text-sm">Gana puntos en cada compra</p>
+              <p className="text-gray-600 text-sm">
+                Gana puntos en cada compra
+              </p>
             </div>
             <div className="text-center">
               <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-100 text-primary-600 rounded-full mb-4">
@@ -125,11 +141,16 @@ export default async function HomePage() {
       {/* CTA Section */}
       <section className="py-16 px-4">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl font-bold mb-4">¿Listo para equipar tu consultorio?</h2>
+          <h2 className="text-3xl font-bold mb-4">
+            ¿Listo para equipar tu consultorio?
+          </h2>
           <p className="text-gray-600 mb-8">
             Crea tu cuenta y comienza a ganar puntos con cada compra
           </p>
-          <Link href={ROUTES.cuenta()} className="btn btn-primary text-lg px-8 py-3">
+          <Link
+            href={ROUTES.cuenta()}
+            className="btn btn-primary text-lg px-8 py-3"
+          >
             <span>Crear Cuenta</span>
           </Link>
         </div>
@@ -140,5 +161,5 @@ export default async function HomePage() {
         <FinalThanks />
       </div>
     </main>
-  )
+  );
 }

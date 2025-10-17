@@ -9,7 +9,8 @@
   --safe-t: env(safe-area-inset-top, 0px);
 }
 
-html, body {
+html,
+body {
   height: 100%;
 }
 
@@ -29,7 +30,9 @@ html, body {
 }
 
 /* Inputs: evitar zoom iOS elevando tipografía */
-input, select, textarea {
+input,
+select,
+textarea {
   font-size: 16px;
 }
 
@@ -42,7 +45,7 @@ input, select, textarea {
   .btn-primary {
     @apply bg-primary-600 text-white hover:bg-primary-700 min-h-[44px];
   }
-  
+
   .btn {
     @apply min-h-[44px] inline-flex items-center justify-center;
   }

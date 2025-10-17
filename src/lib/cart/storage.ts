@@ -15,4 +15,3 @@ export function saveCart(state: any) {
   if (typeof window === "undefined") return;
   localStorage.setItem(KEY, JSON.stringify(state));
 }
-

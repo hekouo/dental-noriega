@@ -4,22 +4,46 @@ import { loadFeatured, type FeaturedItem } from "../lib/featured";
 
 export default function FeaturedCarousel() {
   const [items, setItems] = useState<FeaturedItem[]>([]);
-  useEffect(() => { loadFeatured().then(setItems).catch(() => setItems([])); }, []);
+  useEffect(() => {
+    loadFeatured()
+      .then(setItems)
+      .catch(() => setItems([]));
+  }, []);
   if (!items.length) return null;
 
   return (
     <div className="w-full py-2">
       <ul className="flex gap-4 list-none no-scrollbar overflow-x-auto snap-x px-1">
         {items.map((p) => (
-          <li key={p.sku} className="min-w-[220px] max-w-[220px] snap-start rounded-2xl shadow p-3 bg-white">
-            <img src={p.imageUrl} alt={p.title} className="w-full h-36 object-cover rounded-xl" onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/placeholder.png"; }} />
-            <div className="mt-2 text-sm font-medium h-10 overflow-hidden">{p.title}</div>
-            <div className="text-xs text-gray-500">{p.variant} • {p.pack}</div>
+          <li
+            key={p.sku}
+            className="min-w-[220px] max-w-[220px] snap-start rounded-2xl shadow p-3 bg-white"
+          >
+            <img
+              src={p.imageUrl}
+              alt={p.title}
+              className="w-full h-36 object-cover rounded-xl"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src = "/placeholder.png";
+              }}
+            />
+            <div className="mt-2 text-sm font-medium h-10 overflow-hidden">
+              {p.title}
+            </div>
+            <div className="text-xs text-gray-500">
+              {p.variant} • {p.pack}
+            </div>
             <div className="mt-2 text-sm text-gray-600">
-              {p.price > 0 ? `$${p.price.toLocaleString("es-MX")} ${p.currency}` : "Precio a consultar"}
+              {p.price > 0
+                ? `$${p.price.toLocaleString("es-MX")} ${p.currency}`
+                : "Precio a consultar"}
             </div>
             <button
-              onClick={() => window.dispatchEvent(new CustomEvent("consultar:open", { detail: p }))}
+              onClick={() =>
+                window.dispatchEvent(
+                  new CustomEvent("consultar:open", { detail: p }),
+                )
+              }
               className="mt-2 w-full rounded-xl py-2 text-center bg-black text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
             >
               Consultar

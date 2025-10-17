@@ -7,7 +7,7 @@ import { ROUTES } from "@/lib/routes";
 export async function GET() {
   try {
     const sections = await loadAllSections();
-    const sample = sections.map(s => ({
+    const sample = sections.map((s) => ({
       sectionName: s.sectionName,
       sectionSlug: s.sectionSlug,
       sectionHref: ROUTES.section(s.sectionSlug),
@@ -34,8 +34,7 @@ export async function GET() {
         success: false,
         error: error instanceof Error ? error.message : String(error),
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-

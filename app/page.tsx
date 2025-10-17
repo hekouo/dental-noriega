@@ -1,7 +1,9 @@
 import FeaturedCarousel from "../components/FeaturedCarousel";
 import dynamic from "next/dynamic";
 
-const ConsultarDrawer = dynamic(() => import("../components/ConsultarDrawer"), { ssr: false });
+const ConsultarDrawer = dynamic(() => import("../components/ConsultarDrawer"), {
+  ssr: false,
+});
 
 export default function Home() {
   return (

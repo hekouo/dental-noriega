@@ -3,6 +3,7 @@
 ## 📊 Objetivo: Lighthouse Mobile ≥ 85
 
 **Target Scores:**
+
 - ✅ Performance: ≥ 85
 - ✅ Accessibility: ≥ 95
 - ✅ Best Practices: ≥ 95
@@ -15,6 +16,7 @@
 ### **1. LCP (Largest Contentful Paint)**
 
 #### **a) Priority en primera imagen visible**
+
 ```tsx
 // src/app/page.tsx
 <ProductImage
@@ -22,7 +24,7 @@
   sizes="(min-width:1024px) 25vw, (min-width:768px) 33vw, 50vw"
 />
 
-// src/app/catalogo/[section]/page.tsx  
+// src/app/catalogo/[section]/page.tsx
 <ProductImage
   priority={idx === 0}  // Primera card del listado
 />
@@ -40,16 +42,19 @@
 #### **b) Imágenes optimizadas con sizes correctos**
 
 **Cards:**
+
 ```
 sizes="(min-width:1280px) 20vw, (min-width:1024px) 25vw, (min-width:768px) 33vw, 50vw"
 ```
 
 **Ficha de producto:**
+
 ```
 sizes="(min-width:768px) 50vw, 100vw"
 ```
 
 **Formatos modernos:**
+
 ```js
 // next.config.js
 images: {
@@ -81,7 +86,8 @@ export const loadAllSections = cache(async function loadAllSectionsCached() {
 export const revalidate = 300; // 5 minutos
 ```
 
-**Resultado:** 
+**Resultado:**
+
 - CSV se leen solo 1 vez, no en cada componente
 - Páginas se regeneran cada 5 minutos (ISR)
 
@@ -93,17 +99,18 @@ export const revalidate = 300; // 5 minutos
 
 ```tsx
 // src/app/layout.tsx
-const SiteFooter = dynamic(() => import("@/components/SiteFooter"), { 
-  ssr: false 
+const SiteFooter = dynamic(() => import("@/components/SiteFooter"), {
+  ssr: false,
 });
 
 // src/app/page.tsx
-const FinalThanks = dynamic(() => import('@/components/FinalThanks'), { 
-  ssr: false 
+const FinalThanks = dynamic(() => import("@/components/FinalThanks"), {
+  ssr: false,
 });
 ```
 
 **Resultado:**
+
 - FinalThanks: ~15KB menos en bundle inicial
 - SiteFooter: ~10KB menos en bundle inicial
 - Carga perezosa después del contenido principal
@@ -130,8 +137,8 @@ prefetch={false}
 // src/app/layout.tsx
 import { Inter } from "next/font/google";
 
-const inter = Inter({ 
-  subsets: ["latin"], 
+const inter = Inter({
+  subsets: ["latin"],
   display: "swap"  // Evita FOIT (Flash of Invisible Text)
 });
 
@@ -139,6 +146,7 @@ const inter = Inter({
 ```
 
 **Resultado:**
+
 - Fuente self-hosted (no CDN externo)
 - display: swap → muestra texto inmediatamente
 - ~100ms menos en CLS
@@ -150,11 +158,11 @@ const inter = Inter({
 ```js
 // next.config.js
 module.exports = {
-  productionBrowserSourceMaps: false,  // Reduce tamaño
-  poweredByHeader: false,              // Security
-  compress: true,                       // Gzip automático
+  productionBrowserSourceMaps: false, // Reduce tamaño
+  poweredByHeader: false, // Security
+  compress: true, // Gzip automático
   images: {
-    formats: ['image/webp', 'image/avif'],
+    formats: ["image/webp", "image/avif"],
     minimumCacheTTL: 60,
   },
 };
@@ -167,11 +175,13 @@ module.exports = {
 ### **1. Bundle Analyzer**
 
 #### **Instalado:**
+
 ```json
 "@next/bundle-analyzer": "^14.2.33"
 ```
 
 #### **Uso:**
+
 ```bash
 # Analizar bundle
 npm run analyze
@@ -182,6 +192,7 @@ npm run analyze
 ```
 
 **Buscar:**
+
 - Dependencias grandes (>50KB)
 - Módulos duplicados
 - Code splitting oportunities
@@ -193,16 +204,20 @@ npm run analyze
 #### **Scripts disponibles:**
 
 **a) JSON (rápido):**
+
 ```bash
 npm run lh:mobile
 ```
+
 - Salida: `lighthouse-mobile.json`
 - Solo scores numéricos
 
 **b) HTML (visual):**
+
 ```bash
 npm run lh:mobile:html
 ```
+
 - Salida: `lighthouse-mobile.html`
 - Abrir en navegador para ver detalles
 
@@ -230,6 +245,7 @@ npm run lh:mobile:html
 #### **Leer scores del JSON:**
 
 **PowerShell:**
+
 ```powershell
 $json = Get-Content lighthouse-mobile.json | ConvertFrom-Json
 $json.categories.performance.score * 100
@@ -239,6 +255,7 @@ $json.categories.'best-practices'.score * 100
 ```
 
 **Bash/Zsh:**
+
 ```bash
 jq '.categories | to_entries[] | {category: .key, score: (.value.score * 100)}' lighthouse-mobile.json
 ```
@@ -263,24 +280,28 @@ Antes de ejecutar la auditoría, verificar:
 ## 🎯 Scores Esperados
 
 ### **Performance: ≥ 85**
+
 - LCP < 2.5s
 - TBT < 300ms
 - CLS < 0.1
 - TTFB < 800ms
 
 ### **Accessibility: ≥ 95**
+
 - Contraste adecuado
 - Labels en inputs
 - ARIA en modals
 - Min-height ≥ 44px en botones
 
 ### **SEO: ≥ 95**
+
 - Meta tags presentes
 - Títulos únicos
 - Descripción
 - Mobile-friendly
 
 ### **Best Practices: ≥ 95**
+
 - HTTPS en prod
 - No console.log
 - Imágenes con alt
@@ -299,35 +320,39 @@ Antes de ejecutar la auditoría, verificar:
 
 2. **Problemas comunes y soluciones:**
 
-| Problema | Solución |
-|----------|----------|
-| LCP > 2.5s | ✅ Agregar `priority` a imagen LCP |
-| TBT > 300ms | ✅ Dynamic imports para componentes pesados |
-| TTFB > 800ms | ✅ Verificar que `cache()` esté aplicado |
-| Bundle JS > 200KB | ✅ Ejecutar `npm run analyze` |
-| Imágenes > 200KB | ✅ Reducir calidad o usar AVIF |
+| Problema          | Solución                                    |
+| ----------------- | ------------------------------------------- |
+| LCP > 2.5s        | ✅ Agregar `priority` a imagen LCP          |
+| TBT > 300ms       | ✅ Dynamic imports para componentes pesados |
+| TTFB > 800ms      | ✅ Verificar que `cache()` esté aplicado    |
+| Bundle JS > 200KB | ✅ Ejecutar `npm run analyze`               |
+| Imágenes > 200KB  | ✅ Reducir calidad o usar AVIF              |
 
 ---
 
 ## 📈 Mejoras Implementadas por Métrica
 
 ### **LCP: Largest Contentful Paint**
+
 - ✅ `priority` en primera imagen visible
 - ✅ `sizes` optimizados
 - ✅ Formats: WebP + AVIF
 - ✅ Cache TTL: 60 segundos
 
 ### **TTFB: Time to First Byte**
+
 - ✅ React `cache()` en loadAllSections
 - ✅ ISR con `revalidate: 300`
 - ✅ Filesystem reads cacheados
 
 ### **TBT: Total Blocking Time**
+
 - ✅ Dynamic imports (FinalThanks, SiteFooter)
 - ✅ Prefetch selectivo (solo primeros 4)
 - ✅ next/font self-hosted
 
 ### **CLS: Cumulative Layout Shift**
+
 - ✅ `aspect-ratio` en todas las imágenes
 - ✅ `display: swap` en fuentes
 - ✅ Skeletons si fuera necesario
@@ -361,12 +386,14 @@ npm run lh:mobile:html
 ## 📝 Archivos Modificados
 
 ### **Core:**
+
 1. `next.config.js` - Bundle analyzer + optimizaciones
 2. `package.json` - Scripts + devDependencies
 3. `src/app/layout.tsx` - next/font + dynamic imports
 4. `src/app/globals.css` - Safe area + performance
 
 ### **Páginas:**
+
 5. `src/app/page.tsx` - priority + dynamic + revalidate
 6. `src/app/catalogo/page.tsx` - revalidate + prefetch
 7. `src/app/catalogo/[section]/page.tsx` - priority + revalidate
@@ -374,6 +401,7 @@ npm run lh:mobile:html
 9. `src/app/destacados/page.tsx` - revalidate
 
 ### **Componentes:**
+
 10. `src/components/ProductImage.tsx` - Eliminado unoptimized
 11. `src/lib/data/catalog-sections.ts` - React cache()
 
@@ -397,6 +425,7 @@ npm run lh:mobile:html
 ## 🎉 Próximos Pasos
 
 1. **Ejecutar Lighthouse:**
+
    ```bash
    npm run build && npm start
    # En otra terminal:
@@ -416,4 +445,3 @@ npm run lh:mobile:html
 ---
 
 **Última actualización:** Octubre 2025
-

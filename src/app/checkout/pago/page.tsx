@@ -1,51 +1,53 @@
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import { AuthGuard } from '@/components/auth/AuthGuard'
-import { loadStripe } from '@stripe/stripe-js'
-import { Loader2 } from 'lucide-react'
+import { useEffect, useState } from "react";
+import { AuthGuard } from "@/components/auth/AuthGuard";
+import { loadStripe } from "@stripe/stripe-js";
+import { Loader2 } from "lucide-react";
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
+const stripePromise = loadStripe(
+  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!,
+);
 
 export default function CheckoutPagoPage() {
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    handleCheckout()
-  }, [])
+    handleCheckout();
+  }, []);
 
   const handleCheckout = async () => {
     try {
-      const checkoutDataStr = localStorage.getItem('checkout_data')
+      const checkoutDataStr = localStorage.getItem("checkout_data");
       if (!checkoutDataStr) {
-        setError('No hay datos de checkout')
-        return
+        setError("No hay datos de checkout");
+        return;
       }
 
-      const checkoutData = JSON.parse(checkoutDataStr)
+      const checkoutData = JSON.parse(checkoutDataStr);
 
       // Call API to create Stripe session
-      const response = await fetch('/api/checkout/create-session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/checkout/create-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(checkoutData),
-      })
+      });
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Error al crear sesión de pago')
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Error al crear sesión de pago");
       }
 
-      const { url } = await response.json()
+      const { url } = await response.json();
 
       // Redirect to Stripe Checkout
-      window.location.href = url
+      window.location.href = url;
     } catch (err: any) {
-      setError(err.message)
-      setIsLoading(false)
+      setError(err.message);
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <AuthGuard>
@@ -54,7 +56,9 @@ export default function CheckoutPagoPage() {
           {isLoading ? (
             <>
               <Loader2 className="animate-spin h-12 w-12 text-primary-600 mx-auto mb-4" />
-              <p className="text-gray-600">Redirigiendo al checkout seguro...</p>
+              <p className="text-gray-600">
+                Redirigiendo al checkout seguro...
+              </p>
             </>
           ) : error ? (
             <>
@@ -67,6 +71,5 @@ export default function CheckoutPagoPage() {
         </div>
       </div>
     </AuthGuard>
-  )
+  );
 }
-

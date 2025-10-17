@@ -249,4 +249,3 @@ Tu e-commerce está desplegado y funcionando. Ahora puedes:
 - Agregar analytics
 
 ¡Buenas ventas! 🚀
-

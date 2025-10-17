@@ -1,14 +1,20 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 const categories = [
-  { title: 'Consumibles y Profilaxis', href: '/tienda/consumibles' },
-  { title: 'Equipos', href: '/tienda/equipos' },
-  { title: 'Instrumental Clínico', href: '/tienda/instrumental-clinico' },
-  { title: 'Instrumental Ortodoncia', href: '/tienda/instrumental-ortodoncia' },
-  { title: 'Ortodoncia: Brackets y Tubos', href: '/tienda/ortodoncia-brackets' },
-  { title: 'Ortodoncia: Arcos y Resortes', href: '/tienda/ortodoncia-arcos' },
-  { title: 'Ortodoncia: Accesorios y Retenedores', href: '/tienda/ortodoncia-accesorios' },
-]
+  { title: "Consumibles y Profilaxis", href: "/tienda/consumibles" },
+  { title: "Equipos", href: "/tienda/equipos" },
+  { title: "Instrumental Clínico", href: "/tienda/instrumental-clinico" },
+  { title: "Instrumental Ortodoncia", href: "/tienda/instrumental-ortodoncia" },
+  {
+    title: "Ortodoncia: Brackets y Tubos",
+    href: "/tienda/ortodoncia-brackets",
+  },
+  { title: "Ortodoncia: Arcos y Resortes", href: "/tienda/ortodoncia-arcos" },
+  {
+    title: "Ortodoncia: Accesorios y Retenedores",
+    href: "/tienda/ortodoncia-accesorios",
+  },
+];
 
 export default function TiendaPage() {
   return (
@@ -16,9 +22,7 @@ export default function TiendaPage() {
       <div className="bg-gradient-to-r from-primary-600 to-primary-800 text-white py-12">
         <div className="max-w-7xl mx-auto px-4">
           <h1 className="text-4xl font-bold mb-2">Catálogo Completo</h1>
-          <p className="text-primary-100">
-            Explora todas nuestras categorías
-          </p>
+          <p className="text-primary-100">Explora todas nuestras categorías</p>
         </div>
       </div>
 
@@ -40,6 +44,5 @@ export default function TiendaPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }
-

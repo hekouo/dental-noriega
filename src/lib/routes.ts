@@ -5,9 +5,9 @@ export const ROUTES = {
   home: () => "/",
   catalogIndex: () => "/catalogo",
   section: (sectionSlug: string) => `/catalogo/${sectionSlug}`,
-  product: (sectionSlug: string, productSlug: string) => `/catalogo/${sectionSlug}/${productSlug}`,
+  product: (sectionSlug: string, productSlug: string) =>
+    `/catalogo/${sectionSlug}/${productSlug}`,
   destacados: () => "/destacados",
   cuenta: () => "/cuenta",
   carrito: () => "/carrito",
 };
-
