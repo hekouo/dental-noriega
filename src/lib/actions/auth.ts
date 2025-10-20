@@ -41,7 +41,7 @@ export async function loginAction(input: z.infer<typeof loginSchema>) {
 export async function registerAction(input: z.infer<typeof registerSchema>) {
   const supabase = createActionSupabase();
 
-  const { data, error } = await supabase.auth.signUp({
+  const { error } = await supabase.auth.signUp({
     email: input.email,
     password: input.password,
     options: {

@@ -19,7 +19,9 @@
     "test": "vitest run",
     "test:ui": "vitest",
     "e2e": "playwright test",
-    "build:ci": "node scripts/prebuild-pages-manifest.js && next build"
+    "build:ci": "node scripts/prebuild-pages-manifest.js && next build",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "verify": "pnpm -s tsc && pnpm -s lint && pnpm -s build"
   },
   "dependencies": {
     "@stripe/stripe-js": "^4.8.0",
@@ -37,6 +39,8 @@
   "devDependencies": {
     "@axe-core/react": "^4.10.2",
     "@changesets/cli": "^2.29.7",
+    "@commitlint/cli": "20.0.0",
+    "@commitlint/config-conventional": "20.0.0",
     "@eslint/js": "^9.38.0",
     "@next/bundle-analyzer": "^14.2.33",
     "@playwright/test": "^1.56.1",
@@ -52,17 +56,20 @@
     "@typescript-eslint/parser": "^8.46.1",
     "autoprefixer": "^10.4.20",
     "eslint": "^8.57.1",
-    "eslint-config-next": "^14.2.15",
+    "eslint-config-next": "^14.2.33",
     "eslint-config-prettier": "^10.1.8",
     "eslint-import-resolver-typescript": "^4.4.4",
     "eslint-plugin-import-x": "^4.16.1",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react-hooks": "^7.0.0",
     "eslint-plugin-react-refresh": "^0.4.23",
+    "eslint-plugin-security": "^3.0.1",
+    "eslint-plugin-sonarjs": "^3.0.5",
     "husky": "^9.1.7",
     "jsdom": "^27.0.1",
     "lighthouse": "^12.8.2",
-    "lint-staged": "^16.2.4",
+    "lint-staged": "^15.2.7",
+    "noop": "^1.0.1",
     "postcss": "^8.4.47",
     "prettier": "^3.6.2",
     "tailwindcss": "^3.4.14",
@@ -72,7 +79,8 @@
     "zod": "^3.23.8"
   },
   "engines": {
-    "node": "20.11.x"
+    "pnpm": "10",
+    "node": ">=20.19 <21"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,css,md,json}": [
@@ -85,7 +93,10 @@
   "pnpm": {
     "onlyBuiltDependencies": [
       "unrs-resolver"
-    ]
+    ],
+    "overrides": {
+      "@rushstack/eslint-patch": "npm:noop@1.0.0"
+    }
   },
   "type": "module",
   "size-limit": [
