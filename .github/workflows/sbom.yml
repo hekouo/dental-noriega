@@ -1,0 +1,57 @@
+name: SBOM Generation
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  release:
+    types: [published]
+
+jobs:
+  sbom:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.11.0'
+          cache: 'pnpm'
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.2
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --prefer-offline
+      
+      - name: Generate SBOM
+        run: |
+          npx @cyclonedx/cyclonedx-npm --output bom.xml --output-format xml
+      
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: bom.xml
+          retention-days: 30
+      
+      - name: Upload to GitHub Security
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /repos/${{ github.repository }}/dependency-graph/sbom \
+            -f sbom=bom.xml
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+

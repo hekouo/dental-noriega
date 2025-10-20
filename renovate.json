@@ -1,0 +1,11 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "rangeStrategy": "bump",
+  "packageRules": [
+    { "matchPackageNames": ["typescript","next","react"], "stabilityDays": 3 }
+  ],
+  "prHourlyLimit": 2,
+  "timezone": "America/Mexico_City",
+  "assignees": ["@org/owners"]
+}

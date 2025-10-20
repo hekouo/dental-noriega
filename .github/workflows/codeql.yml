@@ -1,4 +1,4 @@
-﻿name: CodeQL
+name: CodeQL
 on:
   push:
     branches: [main]
@@ -18,7 +18,13 @@ jobs:
       fail-fast: false
     steps:
       - uses: actions/checkout@v4
+      - name: Set environment variables
+        run: |
+          echo 'CI=1' >> 
+          echo 'NODE_ENV=production' >> 
       - uses: github/codeql-action/init@v3
         with:
           languages: javascript
       - uses: github/codeql-action/analyze@v3
+
+

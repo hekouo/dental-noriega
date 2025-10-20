@@ -1,9 +1,11 @@
-﻿version: 2
-updates:
-  - package-ecosystem: "npm"
-    directory: "/"
-    schedule: { interval: "weekly" }
-    open-pull-requests-limit: 5
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule: { interval: "weekly" }
+# Dependabot configuration
+# Este archivo está vacío intencionalmente para evitar conflictos con Renovate
+# Renovate es la fuente de verdad para actualizaciones de dependencias
+
+# Para activar solo GitHub Security Alerts:
+# 1. Ve a Settings > Security & analysis
+# 2. Activa "Dependabot alerts" y "Dependabot security updates"
+# 3. Mantén "Dependabot version updates" desactivado
+
+# Renovate maneja las actualizaciones de versiones
+# Dependabot solo maneja alertas de seguridad

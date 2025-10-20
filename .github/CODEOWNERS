@@ -1,0 +1,28 @@
+# CODEOWNERS
+# Este archivo define quién es responsable de revisar cambios en diferentes partes del código
+
+# Frontend - Componentes y páginas
+/src/**    @tu-equipo/frontend
+/app/**    @tu-equipo/frontend
+
+# Infraestructura y DevOps
+/infra/**  @tu-equipo/devops
+/.github/** @tu-equipo/devops
+
+# Archivos TypeScript
+*.ts       @tu-equipo/frontend
+*.tsx      @tu-equipo/frontend
+
+# Configuración del proyecto
+package.json @tu-equipo/frontend @tu-equipo/devops
+tsconfig.json @tu-equipo/frontend
+next.config.* @tu-equipo/frontend
+
+# Documentación
+docs/**    @tu-equipo/frontend
+README.md  @tu-equipo/frontend
+
+# Notas:
+# - Reemplaza @tu-equipo/frontend y @tu-equipo/devops con los usuarios/equipos reales
+# - Los usuarios deben tener permisos de write en el repositorio
+# - GitHub requerirá review de al menos un code owner antes de mergear PRs

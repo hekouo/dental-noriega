@@ -19,7 +19,10 @@ export default function CuentaPage() {
     setIsLoading(true);
 
     const formData = new FormData(e.currentTarget);
-    const data = Object.fromEntries(formData);
+    const data: Record<string, string> = {};
+    formData.forEach((value, key) => {
+      data[key] = value as string;
+    });
 
     try {
       if (mode === "login") {

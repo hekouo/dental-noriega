@@ -61,81 +61,76 @@ export default function PedidosPage() {
 
   return (
     <AuthGuard>
-      <div className="max-w-6xl mx-auto px-4 py-12">
-        <h1 className="text-3xl font-bold mb-8">Mis Pedidos</h1>
-
-        {orders.length === 0 ? (
-          <div className="bg-white rounded-lg shadow p-12 text-center">
-            <p className="text-gray-500 mb-4">No tienes pedidos aún</p>
-            <Link href={ROUTES.destacados()} className="btn btn-primary">
-              <span>Ver Productos</span>
-            </Link>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {orders.map((order) => (
-              <div key={order.id} className="bg-white rounded-lg shadow p-6">
-                <div className="flex flex-wrap justify-between items-start mb-4">
-                  <div>
-                    <p className="text-sm text-gray-500">
-                      Pedido #{order.id.slice(0, 8)}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      {format(new Date(order.created_at), "d 'de' MMMM, yyyy", {
-                        locale: es,
-                      })}
-                    </p>
-                  </div>
-                  <span
-                    className={`px-3 py-1 rounded-full text-sm ${
-                      statusColors[order.status]
-                    }`}
-                  >
-                    {statusLabels[order.status]}
-                  </span>
-                </div>
-
-                <div className="border-t pt-4">
-                  <p className="text-sm text-gray-600 mb-2">
-                    {order.fulfillment_method === "shipping"
-                      ? "🚚 Entrega a domicilio"
-                      : "📍 Recoger en tienda"}
-                  </p>
-
-                  <div className="space-y-2 mb-4">
-                    {order.order_items.map((item: any) => (
-                      <div
-                        key={item.id}
-                        className="flex justify-between text-sm"
-                      >
-                        <span>
-                          {item.name} x{item.qty}
-                        </span>
-                        <span>{formatCurrency(item.price * item.qty)}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="border-t pt-4 flex justify-between items-center">
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-6xl mx-auto px-4">
+          <h1 className="text-2xl font-bold text-gray-900 mb-6">
+            Mis Pedidos
+          </h1>
+          
+          {orders.length === 0 ? (
+            <div className="bg-white rounded-lg shadow-sm p-8 text-center">
+              <p className="text-gray-500 mb-4">No tienes pedidos aún</p>
+              <Link
+                href={ROUTES.catalogIndex()}
+                className="btn btn-primary"
+              >
+                Ver Catálogo
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {orders.map((order) => (
+                <div key={order.id} className="bg-white rounded-lg shadow-sm p-6">
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
                     <div>
-                      <p className="text-sm text-gray-600">
-                        Total:{" "}
-                        <span className="font-bold text-lg">
-                          {formatCurrency(order.total)}
-                        </span>
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        Orden #{order.id}
+                      </h3>
+                      <p className="text-sm text-gray-500">
+                        {format(new Date(order.created_at), 'PPP', { locale: es })}
                       </p>
-                      {order.points_redeemed > 0 && (
-                        <p className="text-sm text-primary-600">
-                          🎁 {order.points_redeemed} puntos canjeados
-                        </p>
-                      )}
+                    </div>
+                    <div className="flex items-center space-x-4 mt-2 md:mt-0">
+                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusColors[order.status]}`}>
+                        {statusLabels[order.status]}
+                      </span>
+                      <span className="text-lg font-bold text-gray-900">
+                        {formatCurrency(order.total_amount)}
+                      </span>
                     </div>
                   </div>
+                  
+                  <div className="border-t pt-4">
+                    <h4 className="font-medium text-gray-900 mb-2">
+                      Productos ({order.order_items?.length || 0})
+                    </h4>
+                    <div className="space-y-2">
+                      {order.order_items?.map((item: any) => (
+                        <div key={item.id} className="flex justify-between text-sm">
+                          <span className="text-gray-600">
+                            {item.quantity}x {item.product_name}
+                          </span>
+                          <span className="font-medium">
+                            {formatCurrency(item.price * item.quantity)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-end mt-4">
+                    <Link
+                      href={`${ROUTES.cuenta()}/pedidos/${order.id}`}
+                      className="text-primary-600 hover:text-primary-700 font-medium"
+                    >
+                      Ver Detalles
+                    </Link>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </AuthGuard>
   );

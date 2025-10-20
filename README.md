@@ -1,3 +1,5 @@
+![CI](https://github.com/hekouo/dental-noriega/actions/workflows/ci.yml/badge.svg)
+
 # DENTAL NORIEGA - Catálogo Digital
 
 Sitio web de catálogo de productos dentales con carrito de compras, integración de WhatsApp y sistema de pedidos.
@@ -172,3 +174,25 @@ vercel
 ## 📄 Licencia
 
 © 2024 DENTAL NORIEGA. Todos los derechos reservados.
+
+
+## Verificaciones Automáticas
+
+| Check | PR | Main | Artifacts |
+|-------|----|----|-----------|
+| TypeScript | ❌ Falla | ✅ Aviso | - |
+| Linting | ❌ Falla | ✅ Aviso | - |
+| Build | ❌ Falla | ✅ Aviso | - |
+| Bundle Size | ❌ Falla | ✅ Aviso | size-limit.json |
+| Secret Scanning | ❌ Falla | ✅ Issue | gitleaks.sarif |
+| Dead Exports | ⚠️ Soft | ⚠️ Soft | cleanup-report |
+| Dependencies | ⚠️ Soft | ⚠️ Soft | cleanup-report |
+| Licenses | ✅ Info | ✅ Info | licenses.csv/json |
+| E2E Tests | ✅ Info | ✅ Info | playwright-report |
+| Lighthouse | ✅ Info | ✅ Info | lhci-reports |
+
+**Leyenda:**
+- ❌ Falla: Bloquea el merge
+- ⚠️ Soft: Solo aviso (primera vez)  
+- ✅ Info: Solo información
+

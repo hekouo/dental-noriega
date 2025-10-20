@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
-import type { FeaturedItem } from "../lib/featured";
-import { trackWhatsAppClick } from "../lib/analytics";
+import type { FeaturedItem } from "@/lib/featured";
+import { trackWhatsAppClick } from "@/lib/analytics";
 
 const PHONE = "525531033715";
 

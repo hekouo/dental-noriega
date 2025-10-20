@@ -6,7 +6,12 @@ import { createClient } from "@/lib/supabase/client";
 import { calculatePointsValue } from "@/lib/utils/currency";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { Award, TrendingUp, TrendingDown } from "lucide-react";
+import dynamic from "next/dynamic";
+
+// Dynamic imports para iconos no críticos
+const Award = dynamic(() => import("lucide-react").then(mod => ({ default: mod.Award })), { ssr: false });
+const TrendingUp = dynamic(() => import("lucide-react").then(mod => ({ default: mod.TrendingUp })), { ssr: false });
+const TrendingDown = dynamic(() => import("lucide-react").then(mod => ({ default: mod.TrendingDown })), { ssr: false });
 
 const typeLabels: Record<string, string> = {
   earn: "Ganados",
@@ -68,103 +73,113 @@ export default function PuntosPage() {
   }
 
   const balance = profile?.points_balance || 0;
-  const value = calculatePointsValue(balance);
+  const balanceValue = calculatePointsValue(balance);
 
   return (
     <AuthGuard>
-      <div className="max-w-4xl mx-auto px-4 py-12">
-        <h1 className="text-3xl font-bold mb-8">Mis Puntos</h1>
-
-        {/* Balance Card */}
-        <div className="bg-gradient-to-br from-primary-600 to-primary-800 text-white rounded-lg shadow-lg p-8 mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-primary-100 mb-2">Saldo actual</p>
-              <p className="text-5xl font-bold">{balance}</p>
-              <p className="text-primary-100 mt-2">
-                puntos ≈ ${value.toFixed(2)} MXN de descuento
-              </p>
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-4xl mx-auto px-4">
+          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">
+              Mis Puntos
+            </h1>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="bg-primary-50 rounded-lg p-4">
+                <h3 className="text-sm font-medium text-primary-600 mb-1">
+                  Balance Actual
+                </h3>
+                <p className="text-2xl font-bold text-primary-900">
+                  {balance.toLocaleString()} pts
+                </p>
+                <p className="text-sm text-primary-600">
+                  ≈ {balanceValue}
+                </p>
+              </div>
+              
+              <div className="bg-green-50 rounded-lg p-4">
+                <h3 className="text-sm font-medium text-green-600 mb-1">
+                  Ganados este mes
+                </h3>
+                <p className="text-2xl font-bold text-green-900">
+                  {ledger
+                    .filter(item => item.type === 'earn' && 
+                      new Date(item.created_at).getMonth() === new Date().getMonth())
+                    .reduce((sum, item) => sum + item.points, 0)
+                    .toLocaleString()} pts
+                </p>
+              </div>
+              
+              <div className="bg-blue-50 rounded-lg p-4">
+                <h3 className="text-sm font-medium text-blue-600 mb-1">
+                  Canjeados este mes
+                </h3>
+                <p className="text-2xl font-bold text-blue-900">
+                  {ledger
+                    .filter(item => item.type === 'redeem' && 
+                      new Date(item.created_at).getMonth() === new Date().getMonth())
+                    .reduce((sum, item) => sum + item.points, 0)
+                    .toLocaleString()} pts
+                </p>
+              </div>
             </div>
-            <Award size={80} className="opacity-20" />
           </div>
-        </div>
 
-        {/* How it works */}
-        <div className="bg-white rounded-lg shadow p-6 mb-8">
-          <h2 className="font-semibold text-lg mb-4">
-            ¿Cómo funcionan los puntos?
-          </h2>
-          <ul className="space-y-2 text-gray-600">
-            <li>
-              ✅ Gana <strong>1 punto por cada $10 MXN</strong> en tus compras
-            </li>
-            <li>
-              ✅ Canjea <strong>100 puntos = $10 MXN</strong> de descuento
-            </li>
-            <li>✅ Puedes canjear hasta el 50% del total de tu pedido</li>
-          </ul>
-        </div>
-
-        {/* Ledger */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="p-6 border-b">
-            <h2 className="font-semibold text-lg">Historial de Movimientos</h2>
-          </div>
-          <div className="divide-y">
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">
+              Historial de Puntos
+            </h2>
+            
             {ledger.length === 0 ? (
-              <p className="p-6 text-gray-500 text-center">
-                No hay movimientos aún. ¡Realiza tu primera compra!
-              </p>
+              <div className="text-center py-8">
+                <p className="text-gray-500">No hay historial de puntos aún</p>
+              </div>
             ) : (
-              ledger.map((entry) => {
-                const Icon = typeIcons[entry.type];
-                const isPositive = entry.points > 0;
-
-                return (
-                  <div
-                    key={entry.id}
-                    className="p-4 flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`p-2 rounded-full ${
-                          isPositive ? "bg-green-100" : "bg-red-100"
-                        }`}
-                      >
-                        <Icon
-                          size={20}
-                          className={
-                            isPositive ? "text-green-600" : "text-red-600"
-                          }
-                        />
-                      </div>
-                      <div>
-                        <p className="font-medium">{typeLabels[entry.type]}</p>
-                        <p className="text-sm text-gray-500">
-                          {format(
-                            new Date(entry.created_at),
-                            "d 'de' MMMM, yyyy",
-                            {
-                              locale: es,
-                            },
+              <div className="space-y-3">
+                {ledger.map((item) => {
+                  const Icon = typeIcons[item.type] || Award;
+                  const isPositive = item.type === 'earn';
+                  
+                  return (
+                    <div key={item.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <div className={`p-2 rounded-full ${
+                          isPositive ? 'bg-green-100' : 'bg-red-100'
+                        }`}>
+                          <Icon className={`h-5 w-5 ${
+                            isPositive ? 'text-green-600' : 'text-red-600'
+                          }`} />
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            {typeLabels[item.type] || item.type}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {format(new Date(item.created_at), 'PPP', { locale: es })}
+                          </p>
+                          {item.description && (
+                            <p className="text-sm text-gray-600 mt-1">
+                              {item.description}
+                            </p>
                           )}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className={`font-bold ${
+                          isPositive ? 'text-green-600' : 'text-red-600'
+                        }`}>
+                          {isPositive ? '+' : '-'}{item.points.toLocaleString()} pts
                         </p>
-                        {entry.note && (
-                          <p className="text-sm text-gray-400">{entry.note}</p>
+                        {item.order_id && (
+                          <p className="text-xs text-gray-500">
+                            Orden #{item.order_id}
+                          </p>
                         )}
                       </div>
                     </div>
-                    <span
-                      className={`font-bold text-lg ${
-                        isPositive ? "text-green-600" : "text-red-600"
-                      }`}
-                    >
-                      {isPositive ? "+" : ""}
-                      {entry.points}
-                    </span>
-                  </div>
-                );
-              })
+                  );
+                })}
+              </div>
             )}
           </div>
         </div>

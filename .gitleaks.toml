@@ -1,0 +1,42 @@
+[allowlist]
+description = "Allowlist for common false positives and test data"
+regex = [
+    '''(test|mock|example)''',
+    '''(dummy|placeholder)''',
+    '''(password|secret|token|key) = "changeme"''',
+    '''(password|secret|token|key) = 'changeme'''',
+    '''(password|secret|token|key): changeme''',
+    '''(password|secret|token|key): 'changeme'''',
+    '''(password|secret|token|key): "changeme"'''
+]
+
+# Target specific paths
+[[rules]]
+id = "jwt-token"
+description = "JWT Token"
+regex = '''eyJ[A-Za-z0-9_-]*\.[A-Za-z0-9_-]*\.[A-Za-z0-9_-]*'''
+tags = ["jwt", "token"]
+target = ["src/**", "app/**", ".github/**"]
+
+[[rules]]
+id = "slack-webhook"
+description = "Slack Webhook"
+regex = '''https://hooks\.slack\.com/services/[A-Za-z0-9_-]+/[A-Za-z0-9_-]+/[A-Za-z0-9_-]+'''
+tags = ["slack", "webhook"]
+target = ["src/**", "app/**", ".github/**"]
+
+[[rules]]
+id = "stripe-key"
+description = "Stripe API Key"
+regex = '''sk_(test_|live_)[A-Za-z0-9]{24}'''
+tags = ["stripe", "api"]
+target = ["src/**", "app/**", ".github/**"]
+
+# Enhanced allowlist
+[[rules.allowlist]]
+files = ['''\.env\.example$''', '''\.env\.local\.example$''', '''docs/.*''', '''tests/.*''', '''README\.md$''', '''\.gitignore$''']
+regexes = ['''example[_-]?key''', '''test[_-]?token''', '''demo[_-]?secret''', '''placeholder[_-]?value''']
+
+# Ignore specific paths
+[[rules.allowlist]]
+files = ['''^docs/.*''', '''^tests/.*''']

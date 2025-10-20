@@ -14,8 +14,11 @@
     "format": "prettier --write .",
     "clean": "node -e \"try{require('fs').rmSync('.next',{recursive:true,force:true})}catch(e){}\"",
     "rebuild": "npm run clean && pnpm build",
-    "prepare": "node -e \"const fs=require('fs');const {execSync}=require('child_process');if(fs.existsSync('.git')){execSync('husky',{stdio:'inherit'})}else{console.log('skip husky: no .git')}\"",
+    "prepare": "husky",
     "tsc": "tsc -p .",
+    "test": "vitest run",
+    "test:ui": "vitest",
+    "e2e": "playwright test",
     "build:ci": "node scripts/prebuild-pages-manifest.js && next build"
   },
   "dependencies": {
@@ -29,32 +32,47 @@
     "react": "18",
     "react-dom": "18",
     "stripe": "^17.7.0",
-    "zod": "^3.23.8",
     "zustand": "^5.0.1"
   },
   "devDependencies": {
+    "@axe-core/react": "^4.10.2",
+    "@changesets/cli": "^2.29.7",
+    "@eslint/js": "^9.38.0",
     "@next/bundle-analyzer": "^14.2.33",
+    "@playwright/test": "^1.56.1",
+    "@sentry/nextjs": "^10.20.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^22.8.6",
     "@types/papaparse": "^5.3.16",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
+    "@typescript-eslint/eslint-plugin": "^8.46.1",
+    "@typescript-eslint/parser": "^8.46.1",
     "autoprefixer": "^10.4.20",
     "eslint": "^8.57.1",
     "eslint-config-next": "^14.2.15",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-import-resolver-typescript": "^4.4.4",
+    "eslint-plugin-import-x": "^4.16.1",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react-hooks": "^7.0.0",
     "eslint-plugin-react-refresh": "^0.4.23",
     "husky": "^9.1.7",
+    "jsdom": "^27.0.1",
     "lighthouse": "^12.8.2",
     "lint-staged": "^16.2.4",
     "postcss": "^8.4.47",
     "prettier": "^3.6.2",
     "tailwindcss": "^3.4.14",
     "typescript": "5",
-    "typescript-eslint": "^8.46.1"
+    "typescript-eslint": "^8.46.1",
+    "vitest": "^3.2.4",
+    "zod": "^3.23.8"
   },
   "engines": {
-    "node": ">=20 <23"
+    "node": "20.11.x"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,css,md,json}": [
@@ -69,5 +87,15 @@
       "unrs-resolver"
     ]
   },
-  "type": "module"
+  "type": "module",
+  "size-limit": [
+    {
+      "path": ".next/static/chunks/*.js",
+      "limit": "250 KB"
+    },
+    {
+      "path": ".next/static/chunks/*.css",
+      "limit": "80 KB"
+    }
+  ]
 }

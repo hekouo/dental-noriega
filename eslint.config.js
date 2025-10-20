@@ -1,55 +1,41 @@
-import ts from "@typescript-eslint/eslint-plugin";
-import parser from "@typescript-eslint/parser";
-import reactHooks from "eslint-plugin-react-hooks";
-import reactRefresh from "eslint-plugin-react-refresh";
+import js from "@eslint/js";
+import tseslint from "typescript-eslint";
+import importX from "eslint-plugin-import-x";
+import security from "eslint-plugin-security";
+import sonarjs from "eslint-plugin-sonarjs";
 
-/** @type {import('eslint').Linter.FlatConfig[]} */
 export default [
+  js.configs.recommended,
+  ...tseslint.configs.recommendedTypeChecked,
   {
-    ignores: [
-      ".next/**",
-      "dist/**",
-      "build/**",
-      "out/**",
-      "coverage/**",
-      "**/*.d.ts",
-      "public/**",
-    ],
-  },
-  {
-    files: ["**/*.{ts,tsx,js,jsx}"],
-    languageOptions: {
-      parser,
-      parserOptions: { ecmaVersion: "latest", sourceType: "module" },
-    },
     plugins: {
-      "@typescript-eslint": ts,
-      "react-hooks": reactHooks,
-      "react-refresh": reactRefresh,
+      "import-x": importX,
+      "security": security,
+      "sonarjs": sonarjs
     },
+    settings: {
+      "import-x/resolver": {
+        typescript: {
+          project: "./tsconfig.json"
+        }
+      }
+    },
+    extends: [
+      "plugin:security/recommended",
+      "plugin:sonarjs/recommended"
+    ],
     rules: {
-      // Haz que compile y pase el hook; luego afinamos tipos.
-      "@typescript-eslint/no-explicit-any": "off",
-      "@typescript-eslint/no-unsafe-function-type": "off",
-      "@typescript-eslint/no-empty-object-type": "off",
-      "@typescript-eslint/no-unused-vars": [
+      "import-x/no-unresolved": "error",
+      "import-x/order": [
         "warn",
-        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+        {
+          "newlines-between": "always",
+          "groups": ["builtin", "external", "internal", "parent", "sibling", "index"],
+          "alphabetize": { "order": "asc" }
+        }
       ],
-      "no-useless-escape": "warn",
-      "react-hooks/rules-of-hooks": "error",
-      // Estos warnings no deben romper tu commit
-      "react-refresh/only-export-components": "off",
-    },
-  },
-  // En archivos de declaración: sin reglas molestas
-  {
-    files: ["**/*.d.ts"],
-    rules: {
-      "@typescript-eslint/no-explicit-any": "off",
-      "@typescript-eslint/no-unsafe-function-type": "off",
-      "@typescript-eslint/no-empty-object-type": "off",
-      "@typescript-eslint/no-unused-vars": "off",
-    },
-  },
+      "no-console": ["error", { "allow": ["warn", "error"] }],
+      "no-debugger": "error"
+    }
+  }
 ];

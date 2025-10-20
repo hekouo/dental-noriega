@@ -1,0 +1,117 @@
+name: Maintenance
+on:
+  schedule:
+    # Ejecutar todos los lunes a las 6:00 AM UTC
+    - cron: '0 6 * * 1'
+  workflow_dispatch: # Permitir ejecución manual
+
+jobs:
+  maintenance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.11.0
+          cache: 'pnpm'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.2
+      
+      - name: Enable corepack
+        run: corepack enable
+      
+      - name: Set environment variables
+        run: |
+          echo 'CI=1' >> $GITHUB_ENV
+          echo 'NODE_ENV=production' >> $GITHUB_ENV
+      
+      - name: Clean pnpm store
+        run: pnpm store prune
+      
+      - name: Check for duplicates
+        run: pnpm dedupe --check
+        continue-on-error: true
+        id: dedupe-check
+      
+      - name: Security audit
+        run: pnpm audit --prod
+        continue-on-error: true
+        id: audit-check
+      
+      - name: Generate license reports
+        run: pnpm licenses:json
+        continue-on-error: true
+        id: licenses-check
+      
+      - name: Lint lockfile
+        run: pnpm lockfile:lint || true
+        continue-on-error: true
+        id: lockfile-check
+      
+      - name: Check dependencies
+        run: pnpm deps:check:soft || true
+        continue-on-error: true
+        id: deps-check
+      
+      - name: Verify lockfile integrity
+        run: |
+          pnpm install --frozen-lockfile --prefer-offline
+          git diff --exit-code pnpm-lock.yaml || (echo "Lockfile has unexpected changes" && git status --porcelain && exit 1)
+        continue-on-error: true
+        id: lockfile-integrity-check
+      
+      - name: Run health checks
+        run: |
+          pnpm typecheck
+          pnpm lint
+          pnpm build
+        continue-on-error: true
+        id: health-check
+      
+      - name: Upload maintenance report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maintenance-report
+          path: |
+            licenses.json
+            licenses.csv
+          retention-days: 30
+      
+      - name: Create issue if maintenance failed
+        if: failure() && github.event_name == 'schedule'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = `🚨 Maintenance check failed - ${new Date().toISOString().split('T')[0]}`;
+            const body = `
+            ## Maintenance Check Failed
+            
+            The weekly maintenance check has failed. Please investigate:
+            
+            - **Dedupe Check**: ${{ steps.dedupe-check.outcome }}
+            - **Audit Check**: ${{ steps.audit-check.outcome }}
+            - **Licenses Check**: ${{ steps.licenses-check.outcome }}
+            - **Lockfile Check**: ${{ steps.lockfile-check.outcome }}
+            - **Dependencies Check**: ${{ steps.deps-check.outcome }}
+            - **Lockfile Integrity**: ${{ steps.lockfile-integrity-check.outcome }}
+            - **Health Check**: ${{ steps.health-check.outcome }}
+            
+            ### Next Steps:
+            1. Check the [workflow run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            2. Review the maintenance report in artifacts
+            3. Fix any issues found
+            4. Close this issue when resolved
+            
+            ---
+            *This issue was created automatically by the maintenance workflow.*
+            `;
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['maintenance', 'automated']
+            });
