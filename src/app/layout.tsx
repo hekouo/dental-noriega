@@ -140,9 +140,7 @@ export default function RootLayout({
           <SiteFooter />
         </CartProvider>
         <ConsultarDrawer />
-        \n{" "}
       </body>
-      \n{" "}
     </html>
   );
 }
