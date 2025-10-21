@@ -2,8 +2,17 @@ name: CI
 
 on:
   push:
-    branches: [ chore/wip-pre-restart ]
+    branches: [chore/wip-pre-restart]
   pull_request:
+    branches: [chore/wip-pre-restart]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -12,16 +21,20 @@ jobs:
       CI: true
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Use Node 20.19.0
-        uses: actions/setup-node@v4
+      # Node, SIN cache de pnpm para no invocar pnpm todavía
+      - uses: actions/setup-node@v4
         with:
           node-version: '20.19.0'
-          cache: 'pnpm'
-          cache-dependency-path: pnpm-lock.yaml
 
-      - name: Verify pnpm
-        run: pnpm --version
+      # Activa pnpm con Corepack (incluido en Node 20)
+      - name: Enable pnpm via Corepack
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.18.2 --activate
+          pnpm -v
 
       - name: Install deps
         run: pnpm install --frozen-lockfile
