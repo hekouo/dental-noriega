@@ -16,18 +16,16 @@ jobs:
           node-version: '20.19.0'
           cache: 'pnpm'
 
-      - name: Setup pnpm 10.18.2
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.18.2
-          standalone: true
-          run_install: false
+      # Plan A: instala pnpm de forma clásica y 100% garantizada
+      - name: Install pnpm (global)
+        run: npm i -g pnpm@10.18.2
 
+      # Plan B: por si PATH se comporta raro, activa corepack igual
       - name: Ensure pnpm is available
         shell: bash
         run: |
           if ! command -v pnpm >/dev/null 2>&1; then
-            echo "pnpm not found, enabling via Corepack..."
+            echo "pnpm still not found, enabling via Corepack..."
             corepack enable
             corepack prepare pnpm@10.18.2 --activate
           fi
@@ -42,6 +40,5 @@ jobs:
 
       - name: Build (artifact)
         run: pnpm run -s build
-
 
 
