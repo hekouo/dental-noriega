@@ -16,7 +16,6 @@ jobs:
           node-version: '20.19.0'
           cache: 'pnpm'
 
-      # Instala pnpm y lo pone en PATH (standalone para evitar sustos)
       - name: Setup pnpm 10.18.2
         uses: pnpm/action-setup@v4
         with:
@@ -24,7 +23,6 @@ jobs:
           standalone: true
           run_install: false
 
-      # Plan B: si por algo no quedó, activarlo con Corepack
       - name: Ensure pnpm is available
         shell: bash
         run: |
@@ -44,4 +42,6 @@ jobs:
 
       - name: Build (artifact)
         run: pnpm run -s build
+
+
 
