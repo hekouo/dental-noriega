@@ -56,3 +56,6 @@ coverage/
 *.bak.*
 *.autobak.*
 
+
+# editor
+.cursor/
