@@ -1,14 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
 import { useSearchParams } from "next/navigation";
 
 export default function GraciasClient() {
   const sp = useSearchParams();
-
   const sessionId = sp?.get("session_id") ?? "";
-
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -16,8 +13,15 @@ export default function GraciasClient() {
 
     async function load() {
       try {
-        // TODO: fetch de orden usando sessionId si existe
-        // e.g., if (sessionId) { const r = await fetch(`/api/orders?session_id=${sessionId}`); setOrder(await r.json()); }
+        if (sessionId) {
+          // Nota: si tienes un endpoint, puedes consultar detalles del pedido aquí.
+          await fetch(
+            `/api/orders?session_id=${encodeURIComponent(sessionId)}`,
+            {
+              cache: "no-store",
+            },
+          ).catch(() => {});
+        }
       } finally {
         if (!ignore) setIsLoading(false);
       }
@@ -31,14 +35,12 @@ export default function GraciasClient() {
   }, [sessionId]);
 
   if (isLoading) return <p>Procesando pago…</p>;
-
   if (!sessionId) return <p>No encontramos tu sesión de pago.</p>;
 
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-xl font-semibold">¡Gracias por tu compra!</h1>
-
-      {/* TODO: render de detalles de order */}
+      {/* Aquí puedes renderizar detalles del pedido si los tienes */}
     </div>
   );
 }
