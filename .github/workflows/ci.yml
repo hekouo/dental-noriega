@@ -1,16 +1,9 @@
 name: CI
 
 on:
+  push:
+    branches: [ chore/wip-pre-restart ]
   pull_request:
-    branches: [chore/wip-pre-restart]
-  # si no quieres doble ejecución, QUITA 'push' aquí
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-permissions:
-  contents: read
 
 jobs:
   build:
@@ -19,17 +12,9 @@ jobs:
       CI: true
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      # 1) Instala pnpm para que exista en PATH
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.18.2
-          run_install: false
-
-      # 2) Ahora sí, setup-node puede cachear pnpm sin morirse
-      - uses: actions/setup-node@v4
+      - name: Use Node 20.19.0
+        uses: actions/setup-node@v4
         with:
           node-version: '20.19.0'
           cache: 'pnpm'
