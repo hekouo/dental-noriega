@@ -24,17 +24,23 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Node, SIN cache de pnpm para no invocar pnpm todavía
-      - uses: actions/setup-node@v4
+      # 1) Instala pnpm PRIMERO para que exista en PATH
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.2
+          run_install: false
+
+      # 2) Luego Node con caché de pnpm
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: '20.19.0'
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
 
-      # Activa pnpm con Corepack (incluido en Node 20)
-      - name: Enable pnpm via Corepack
-        run: |
-          corepack enable
-          corepack prepare pnpm@10.18.2 --activate
-          pnpm -v
+      - name: Verify pnpm
+        run: pnpm -v
 
       - name: Install deps
         run: pnpm install --frozen-lockfile
