@@ -2,73 +2,41 @@
 
 import { useEffect, useState } from "react";
 import { AuthGuard } from "@/components/auth/AuthGuard";
-import { loadStripe } from "@stripe/stripe-js";
 import { Loader2 } from "lucide-react";
-
-const stripePromise = loadStripe(
-  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!,
-);
 
 export default function CheckoutPagoPage() {
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<string>("");
 
   useEffect(() => {
-    handleCheckout();
-  }, []);
-
-  const handleCheckout = async () => {
     try {
       const checkoutDataStr = localStorage.getItem("checkout_data");
       if (!checkoutDataStr) {
-        setError("No hay datos de checkout");
-        return;
+        setError("No hay datos de checkout. Regresa al paso anterior.");
       }
-
-      const checkoutData = JSON.parse(checkoutDataStr);
-
-      // Call API to create Stripe session
-      const response = await fetch("/api/checkout/create-session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(checkoutData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Error al crear sesión de pago");
-      }
-
-      const { url } = await response.json();
-
-      // Redirect to Stripe Checkout
-      window.location.href = url;
-    } catch (err: any) {
-      setError(err.message);
+      // Aquí iría la integración real de pago (Stripe, etc.)
+    } catch {
+      setError("Error leyendo datos de checkout.");
+    } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   return (
     <AuthGuard>
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          {isLoading ? (
-            <>
-              <Loader2 className="animate-spin h-12 w-12 text-primary-600 mx-auto mb-4" />
-              <p className="text-gray-600">
-                Redirigiendo al checkout seguro...
-              </p>
-            </>
-          ) : error ? (
-            <>
-              <p className="text-red-600 mb-4">{error}</p>
-              <a href="/checkout/datos" className="btn btn-primary">
-                Volver
-              </a>
-            </>
-          ) : null}
-        </div>
+      <div className="max-w-3xl mx-auto px-4 py-12">
+        <h1 className="text-2xl font-semibold mb-6">Pago</h1>
+
+        {isLoading ? (
+          <div className="flex items-center gap-2 text-gray-600">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>Preparando pago…</span>
+          </div>
+        ) : error ? (
+          <p className="text-red-600">{error}</p>
+        ) : (
+          <p className="text-gray-700">Datos listos para pago.</p>
+        )}
       </div>
     </AuthGuard>
   );

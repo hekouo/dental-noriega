@@ -12,6 +12,32 @@ import {
   calculateMaxRedeemablePoints,
 } from "@/lib/utils/currency";
 
+type Address = {
+  id: string;
+  label?: string;
+  street?: string;
+  ext_no?: string;
+  neighborhood?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  is_default?: boolean;
+};
+
+type UserProfile = {
+  id: string;
+  full_name?: string;
+  phone?: string;
+  points_balance: number;
+};
+
+type CartItem = {
+  sku: string;
+  name: string;
+  price: number;
+  qty: number;
+};
+
 const PICKUP_LOCATIONS = [
   { id: "1", name: "Sucursal Centro", address: "Av. Juárez 123, Centro, CDMX" },
   {
@@ -23,22 +49,25 @@ const PICKUP_LOCATIONS = [
 
 export default function CheckoutDatosPage() {
   const router = useRouter();
-  const items = useCartStore((state) => state.items);
-  const getSubtotal = useCartStore((state) => state.getSubtotal);
+  const items = useCartStore((state) => state.items as CartItem[]);
+  const getSubtotal = useCartStore(
+    (state) => state.getSubtotal as () => number,
+  );
 
   const [method, setMethod] = useState<"shipping" | "pickup">("shipping");
-  const [addresses, setAddresses] = useState<any[]>([]);
+  const [addresses, setAddresses] = useState<Address[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState("");
   const [selectedPickupId, setSelectedPickupId] = useState("");
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [pointsToRedeem, setPointsToRedeem] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const savedMethod = localStorage.getItem("checkout_method");
-    if (savedMethod) setMethod(savedMethod as any);
-
-    loadData();
+    if (savedMethod === "shipping" || savedMethod === "pickup") {
+      setMethod(savedMethod);
+    }
+    void loadData();
   }, []);
 
   const loadData = async () => {
@@ -55,9 +84,10 @@ export default function CheckoutDatosPage() {
         .eq("user_id", user.id)
         .order("is_default", { ascending: false });
 
-      setAddresses(addressData || []);
-      if (addressData && addressData.length > 0) {
-        setSelectedAddressId(addressData[0].id);
+      const list = (addressData as Address[]) ?? [];
+      setAddresses(list);
+      if (list.length > 0) {
+        setSelectedAddressId(list[0].id);
       }
 
       // Load profile
@@ -67,7 +97,7 @@ export default function CheckoutDatosPage() {
         .eq("id", user.id)
         .single();
 
-      setProfile(profileData);
+      setProfile((profileData as UserProfile) ?? null);
     }
   };
 
@@ -77,7 +107,7 @@ export default function CheckoutDatosPage() {
   const total = Math.max(0, subtotal + shipping - pointsDiscount);
   const maxRedeemable = calculateMaxRedeemablePoints(
     subtotal + shipping,
-    profile?.points_balance || 0,
+    profile?.points_balance ?? 0,
   );
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -101,9 +131,9 @@ export default function CheckoutDatosPage() {
             ? PICKUP_LOCATIONS.find((l) => l.id === selectedPickupId)?.name
             : null,
         contact: {
-          name: formData.get("name") as string,
-          phone: formData.get("phone") as string,
-          email: formData.get("email") as string,
+          name: (formData.get("name") as string) ?? "",
+          phone: (formData.get("phone") as string) ?? "",
+          email: (formData.get("email") as string) ?? "",
         },
         points_to_redeem: pointsToRedeem,
         subtotal,
@@ -112,11 +142,16 @@ export default function CheckoutDatosPage() {
         total,
       };
 
-      // Save to localStorage for payment page
+      // Save to localStorage for payment page and navigate
       localStorage.setItem("checkout_data", JSON.stringify(checkoutData));
       router.push("/checkout/pago");
-    } catch (error) {
+    } catch (e: unknown) {
+      const err = e instanceof Error ? e : new Error(String(e));
+      console.error("checkout/datos handleSubmit:", err);
       alert("Error al procesar el pedido");
+      // opcional: rethrow si tu regla lo exige estrictamente
+      // throw err;
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -253,7 +288,7 @@ export default function CheckoutDatosPage() {
               )}
 
               {/* Points */}
-              {profile && profile.points_balance > 0 && (
+              {profile && (profile.points_balance ?? 0) > 0 && (
                 <div className="bg-white rounded-lg shadow p-6">
                   <h2 className="text-xl font-semibold mb-4">Puntos</h2>
                   <p className="text-gray-600 mb-4">
@@ -270,12 +305,17 @@ export default function CheckoutDatosPage() {
                     </label>
                     <input
                       type="number"
-                      min="0"
+                      min={0}
                       max={maxRedeemable}
-                      step="100"
+                      step={100}
                       value={pointsToRedeem}
                       onChange={(e) =>
-                        setPointsToRedeem(Number(e.target.value))
+                        setPointsToRedeem(
+                          Math.min(
+                            maxRedeemable,
+                            Math.max(0, Number(e.target.value) || 0),
+                          ),
+                        )
                       }
                       className="input"
                     />

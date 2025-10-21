@@ -10,7 +10,7 @@ import { ROUTES } from "@/lib/routes";
 
 export function TopNav() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [user, setUser] = useState<unknown>(null);
+  const [user, setUser] = useState<any>(null);
   const itemCount = useCartStore((state) => state.getItemCount());
   const router = useRouter();
 

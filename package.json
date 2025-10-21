@@ -19,9 +19,10 @@
     "test": "vitest run",
     "test:ui": "vitest",
     "e2e": "playwright test",
-    "build:ci": "node scripts/prebuild-pages-manifest.js && next build",
+    "build:ci": "node scripts/prebuild-pages-manifest.js && next build && node scripts/budget.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "verify": "pnpm -s tsc && pnpm -s lint && pnpm -s build"
+    "verify": "pnpm -s tsc && pnpm -s lint && pnpm -s build",
+    "budget": "node scripts/budget.mjs"
   },
   "dependencies": {
     "@stripe/stripe-js": "^4.8.0",

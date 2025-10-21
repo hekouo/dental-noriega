@@ -1,4 +1,3 @@
 export default function Healthz() {
-  return null;
+  return null; // o <div>ok</div> si quieres ver algo
 }
-export const config = { runtime: "nodejs" };

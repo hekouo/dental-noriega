@@ -13,7 +13,7 @@ export default function CarritoPage() {
   const updateQuantity = useCartStore((state) => state.updateQuantity);
   const removeItem = useCartStore((state) => state.removeItem);
   const getSubtotal = useCartStore((state) => state.getSubtotal);
-  const [user, setUser] = useState<unknown>(null);
+  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
     const supabase = createClient();

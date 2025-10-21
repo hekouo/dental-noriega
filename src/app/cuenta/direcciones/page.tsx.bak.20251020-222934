@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Plus, Edit, Trash2 } from "lucide-react";
 
 export default function DireccionesPage() {
-  const [addresses, setAddresses] = useState<any[]>([]);
+  const [addresses, setAddresses] = useState<unknown[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -57,7 +57,7 @@ export default function DireccionesPage() {
     };
 
     try {
-      // TODO: validar con esquema (zod) si se requiere
+      addressSchema.parse(addressData);
 
       if (editingId) {
         await supabase
@@ -72,9 +72,8 @@ export default function DireccionesPage() {
       setEditingId(null);
       loadAddresses();
     } catch (e) {
-      const err = e instanceof Error ? e : new Error(String(e));
-      console.error("cuenta/direcciones failed:", err);
-      alert("Error al guardar dirección");
+  const err = e instanceof Error ? e : new Error(String(e));
+console.error("cuenta/direcciones failed:", err);alert("Error al guardar dirección");
     }
   };
 
@@ -248,3 +247,6 @@ export default function DireccionesPage() {
     </AuthGuard>
   );
 }
+
+
+
