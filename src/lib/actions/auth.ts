@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { createActionSupabase } from "@/lib/supabase/server-actions";
 
-// Mantén los esquemas internos para que el archivo "use server" solo exporte funciones async
+// Esquemas internos (no exportados)
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
@@ -23,12 +23,18 @@ const registerSchema = z
   });
 
 // LOGIN
-export async function loginAction(input: z.infer<typeof loginSchema>) {
+export async function loginAction(input: unknown) {
+  const parsed = loginSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+
+  const { email, password } = parsed.data;
   const supabase = createActionSupabase();
 
   const { data, error } = await supabase.auth.signInWithPassword({
-    email: input.email,
-    password: input.password,
+    email,
+    password,
   });
 
   if (error) return { error: error.message };
@@ -38,16 +44,22 @@ export async function loginAction(input: z.infer<typeof loginSchema>) {
 }
 
 // REGISTRO
-export async function registerAction(input: z.infer<typeof registerSchema>) {
+export async function registerAction(input: unknown) {
+  const parsed = registerSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+
+  const { fullName, phone, email, password } = parsed.data;
   const supabase = createActionSupabase();
 
   const { error } = await supabase.auth.signUp({
-    email: input.email,
-    password: input.password,
+    email,
+    password,
     options: {
       data: {
-        full_name: input.fullName,
-        phone: input.phone ?? null,
+        full_name: fullName,
+        phone: phone ?? null,
       },
       emailRedirectTo: process.env.SITE_URL
         ? `${process.env.SITE_URL}/cuenta/perfil`
