@@ -57,7 +57,7 @@ export default function DireccionesPage() {
     };
 
     try {
-      // TODO: validar con esquema (zod) si se requiere
+      // PENDIENTE: validar con esquema (zod) si se requiere
 
       if (editingId) {
         await supabase
