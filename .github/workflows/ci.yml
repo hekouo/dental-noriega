@@ -2,33 +2,48 @@ name: CI
 
 on:
   push:
-    branches: [ chore/wip-pre-restart ]
+    branches: [chore/wip-pre-restart]
   pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      CI: true
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Use Node 20.19.0
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20.19.0'
           cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
 
-      # Asegura pnpm en PATH
-      - name: Install pnpm (global)
-        run: npm i -g pnpm@10.18.2
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.2
+          run_install: false
 
-      - name: Show pnpm version
+      - name: Verify pnpm
         run: pnpm --version
 
       - name: Install deps
         run: pnpm install --frozen-lockfile
 
-      - name: Typecheck & Lint
-        run: pnpm -s tsc && pnpm -s lint
+      - name: Typecheck
+        run: pnpm -s tsc
+
+      - name: Lint
+        run: pnpm -s lint
 
       - name: Build
         run: pnpm -s build
