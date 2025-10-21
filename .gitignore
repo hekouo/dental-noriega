@@ -52,3 +52,7 @@ coverage/
 .env.local
 .next/
 .vercel
+# local backups
+*.bak.*
+*.autobak.*
+
