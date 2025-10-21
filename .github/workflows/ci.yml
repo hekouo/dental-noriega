@@ -16,11 +16,10 @@ jobs:
           node-version: '20.19.0'
           cache: 'pnpm'
 
-      # Plan A: instala pnpm de forma clásica y 100% garantizada
+      # Garantiza pnpm en PATH, sí o sí
       - name: Install pnpm (global)
         run: npm i -g pnpm@10.18.2
 
-      # Plan B: por si PATH se comporta raro, activa corepack igual
       - name: Ensure pnpm is available
         shell: bash
         run: |
