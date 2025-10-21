@@ -3,13 +3,13 @@
 import { z } from "zod";
 import { createActionSupabase } from "@/lib/supabase/server-actions";
 
-// Esquemas mínimos por si no los tenías
-export const loginSchema = z.object({
+// Mantén los esquemas internos para que el archivo "use server" solo exporte funciones async
+const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
 });
 
-export const registerSchema = z
+const registerSchema = z
   .object({
     fullName: z.string().min(2),
     phone: z.string().optional(),
@@ -57,7 +57,6 @@ export async function registerAction(input: z.infer<typeof registerSchema>) {
 
   if (error) return { error: error.message };
 
-  // Si tu proyecto requiere verificación por correo, aquí no habrá sesión aún.
   return {
     success: true,
     message: "Registro exitoso. Revisa tu correo para confirmar.",
