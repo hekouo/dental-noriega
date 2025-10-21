@@ -1,19 +1,18 @@
 /* eslint-disable react-refresh/only-export-components */
 import "./globals.css";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { Inter } from "next/font/google";
 import dynamic from "next/dynamic";
-const ConsultarDrawer = dynamic(() => import("@/components/ConsultarDrawer"), {
-  ssr: false,
-});
 import WhatsappBubble from "@/components/WhatsappBubble";
 import CartProvider from "@/components/CartProvider";
 import CartBubble from "@/components/CartBubble";
 import { ROUTES } from "@/lib/routes";
 import { Search } from "lucide-react";
 
-// Dynamic imports para componentes no críticos
+const ConsultarDrawer = dynamic(() => import("@/components/ConsultarDrawer"), {
+  ssr: false,
+});
 const SiteFooter = dynamic(() => import("@/components/SiteFooter"), {
   ssr: false,
 });
@@ -21,7 +20,6 @@ const FinalThanks = dynamic(() => import("@/components/FinalThanks"), {
   ssr: false,
 });
 
-// Font optimization
 const inter = Inter({ subsets: ["latin"], display: "swap" });
 
 export const metadata: Metadata = {
@@ -30,9 +28,12 @@ export const metadata: Metadata = {
     template: "%s · DENTAL NORIEGA",
   },
   description: "Catálogo y compras de DENTAL NORIEGA",
-  other: {
-    viewport: "width=device-width, initial-scale=1, viewport-fit=cover",
-  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -41,10 +42,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="es">
+    <html lang="es" suppressHydrationWarning>
       <head>
-        <link rel="preconnect" href="https://lh3.googleusercontent.com" />
-        <link rel="preconnect" href="https://drive.google.com" />
+        <link
+          rel="preconnect"
+          href="https://lh3.googleusercontent.com"
+          crossOrigin=""
+        />
+        <link rel="preconnect" href="https://drive.google.com" crossOrigin="" />
       </head>
       <body
         className={`${inter.className} min-h-screen bg-white text-gray-900 flex flex-col`}
@@ -59,7 +64,7 @@ export default function RootLayout({
                 <span>DENTAL NORIEGA</span>
               </Link>
 
-              {/* Buscador */}
+              {/* Buscador desktop */}
               <form
                 action="/buscar"
                 method="GET"
@@ -133,13 +138,15 @@ export default function RootLayout({
             <FinalThanks />
           </main>
 
-          {/* Burbujas flotantes */}
+          {/* Flotantes */}
           <CartBubble />
           <WhatsappBubble />
 
-          {/* Footer del sitio - Cargado dinámicamente */}
+          {/* Footer */}
           <SiteFooter />
         </CartProvider>
+
+        {/* Drawer global */}
         <ConsultarDrawer />
       </body>
     </html>
