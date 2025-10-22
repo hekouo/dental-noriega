@@ -9,8 +9,7 @@ on:
     types: [ published ]
 
 permissions:
-  # Necesario para subir el SBOM al Dependency Graph
-  contents: write
+  contents: write  # necesario para subir al Dependency Graph
 
 jobs:
   sbom:
@@ -21,33 +20,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # pnpm no existe “mágicamente”; habilita Corepack primero
-      - name: Enable Corepack
-        run: corepack enable
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20.19.0
-          # No uses cache: 'pnpm' aquí; requiere pnpm instalado antes
-
-      - name: Prepare pnpm
-        run: corepack prepare pnpm@10.18.2 --activate
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
+      # No hace falta instalar pnpm ni deps para generar SBOM con Anchore
       - name: Generate SBOM (CycloneDX JSON)
-        run: npx @cyclonedx/cyclonedx-npm --output-file sbom.cdx.json --output-format JSON
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: anchore/sbom-action@v0
         with:
-          name: sbom-cyclonedx
-          path: sbom.cdx.json
-          retention-days: 30
+          path: .
+          format: cyclonedx-json
+          output-file: sbom.cdx.json
+          artifact-name: sbom-cyclonedx
+          upload-artifact: true
 
-      # Subir al Dependency Graph solo en pushes a main
+      # Sube el SBOM al Dependency Graph cuando es push a main
       - name: Upload to GitHub Dependency Graph
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
@@ -59,5 +42,6 @@ jobs:
             -H "X-GitHub-Api-Version: 2022-11-28" \
             /repos/${{ github.repository }}/dependency-graph/sbom \
             -f sbom=@sbom.cdx.json
+
 
 
