@@ -3,6 +3,7 @@
 ## Preparación pre-deploy
 
 ### 1. Verificar build local
+
 ```bash
 npm run build
 npm start
@@ -11,13 +12,14 @@ npm start
 ```
 
 ### 2. Ejecutar Lighthouse
+
 ```bash
 # En otra terminal (con el servidor corriendo)
 npm run lh:mobile:slowfix
 
 # Verificar puntajes objetivo:
 # ✅ Performance ≥ 85
-# ✅ Accessibility ≥ 95  
+# ✅ Accessibility ≥ 95
 # ✅ Best Practices ≥ 95
 # ✅ SEO ≥ 95
 ```
@@ -25,11 +27,13 @@ npm run lh:mobile:slowfix
 ## Deploy en Vercel
 
 ### Instalación de Vercel CLI
+
 ```bash
 npm i -g vercel
 ```
 
 ### Primer deploy
+
 ```bash
 # Desde la raíz del proyecto
 vercel
@@ -69,6 +73,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=tu_key_supabase
 6. Guarda y redeploy
 
 ### Redeploy con variables
+
 ```bash
 vercel --prod
 ```
@@ -92,6 +97,7 @@ NEXT_PUBLIC_SITE_URL=https://tudominio.com.mx
 ```
 
 Redeploy:
+
 ```bash
 vercel --prod
 ```
@@ -162,6 +168,7 @@ STRIPE_WEBHOOK_SECRET=whsec_xxx
 ```
 
 ### 4. Redeploy
+
 ```bash
 vercel --prod
 ```
@@ -243,4 +250,3 @@ Si algo sale mal:
 - **Vercel Docs**: [vercel.com/docs](https://vercel.com/docs)
 - **Next.js Docs**: [nextjs.org/docs](https://nextjs.org/docs)
 - **Contacto**: dental.noriega721@gmail.com
-

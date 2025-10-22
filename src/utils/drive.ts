@@ -7,7 +7,9 @@ function extractId(url: string = ""): string | null {
 /** Variante A: binario directo */
 export function toUsercontent(url: string = ""): string {
   const id = extractId(url);
-  return id ? `https://drive.usercontent.google.com/uc?id=${id}&export=download` : url.trim();
+  return id
+    ? `https://drive.usercontent.google.com/uc?id=${id}&export=download`
+    : url.trim();
 }
 
 /** Variante B: vista embebible */
@@ -18,7 +20,10 @@ export function toUcView(url: string = ""): string {
 
 /** Variante C: proxy (evita bloqueos/hotlink) */
 export function toImageProxy(url: string = ""): string {
-  const clean = url.replace(/^\uFEFF/, "").trim().replace(/^https?:\/\//, "");
+  const clean = url
+    .replace(/^\uFEFF/, "")
+    .trim()
+    .replace(/^https?:\/\//, "");
   const ts = Date.now(); // cache-buster
   return `https://images.weserv.nl/?url=${encodeURIComponent(clean)}&t=${ts}`;
 }

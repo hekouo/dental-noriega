@@ -1,4 +1,4 @@
-﻿name: Auto Merge (label-based)
+name: Auto Merge (label-based)
 on:
   pull_request_target:
     types: [labeled, opened, reopened, synchronize]
@@ -14,3 +14,5 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh pr merge ${{ github.event.pull_request.number }} --squash --auto --repo ${{ github.repository }}
+
+

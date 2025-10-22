@@ -13,15 +13,21 @@ export default async function PerfilPage() {
   }
 
   const fullName =
-    (user.user_metadata && (user.user_metadata.full_name || user.user_metadata.fullName)) || "";
+    (user.user_metadata &&
+      (user.user_metadata.full_name || user.user_metadata.fullName)) ||
+    "";
   const phone =
-    (user.user_metadata && (user.user_metadata.phone || user.user_metadata.telefono)) || "";
+    (user.user_metadata &&
+      (user.user_metadata.phone || user.user_metadata.telefono)) ||
+    "";
 
   return (
     <main className="max-w-xl mx-auto p-6 space-y-6">
       <header>
         <h1 className="text-2xl font-semibold">Mi perfil</h1>
-        <p className="text-gray-600">Gestiona tu cuenta y tus datos de contacto.</p>
+        <p className="text-gray-600">
+          Gestiona tu cuenta y tus datos de contacto.
+        </p>
       </header>
 
       <section className="rounded-xl border p-4 space-y-2">
@@ -45,7 +51,8 @@ export default async function PerfilPage() {
 
       <section className="text-sm text-gray-600">
         <p>
-          Próximo: direcciones guardadas, pedidos y puntos. Tranquilo, Roma no se codificó en un día.
+          Próximo: direcciones guardadas, pedidos y puntos. Tranquilo, Roma no
+          se codificó en un día.
         </p>
       </section>
     </main>

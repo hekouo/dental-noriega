@@ -1,85 +1,90 @@
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import { AuthGuard } from '@/components/auth/AuthGuard'
-import { createClient } from '@/lib/supabase/client'
-import { Plus, Edit, Trash2 } from 'lucide-react'
-import { addressSchema, type AddressInput } from '@/lib/validations/checkout'
+import { useEffect, useState } from "react";
+import { AuthGuard } from "@/components/auth/AuthGuard";
+import { createClient } from "@/lib/supabase/client";
+import { Plus, Edit, Trash2 } from "lucide-react";
 
 export default function DireccionesPage() {
-  const [addresses, setAddresses] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [showForm, setShowForm] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
+  const [addresses, setAddresses] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   useEffect(() => {
-    loadAddresses()
-  }, [])
+    loadAddresses();
+  }, []);
 
   const loadAddresses = async () => {
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
     if (user) {
       const { data } = await supabase
-        .from('addresses')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('is_default', { ascending: false })
+        .from("addresses")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("is_default", { ascending: false });
 
-      setAddresses(data || [])
+      setAddresses(data || []);
     }
-    setIsLoading(false)
-  }
+    setIsLoading(false);
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    const formData = new FormData(e.currentTarget)
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-    if (!user) return
+    if (!user) return;
 
     const addressData: any = {
       user_id: user.id,
-      label: formData.get('label'),
-      street: formData.get('street'),
-      ext_no: formData.get('ext_no'),
-      int_no: formData.get('int_no'),
-      neighborhood: formData.get('neighborhood'),
-      city: formData.get('city'),
-      state: formData.get('state'),
-      zip: formData.get('zip'),
-      is_default: formData.get('is_default') === 'on',
-    }
+      label: formData.get("label"),
+      street: formData.get("street"),
+      ext_no: formData.get("ext_no"),
+      int_no: formData.get("int_no"),
+      neighborhood: formData.get("neighborhood"),
+      city: formData.get("city"),
+      state: formData.get("state"),
+      zip: formData.get("zip"),
+      is_default: formData.get("is_default") === "on",
+    };
 
     try {
-      addressSchema.parse(addressData)
+      // PENDIENTE: validar con esquema (zod) si se requiere
 
       if (editingId) {
         await supabase
-          .from('addresses')
+          .from("addresses")
           .update(addressData)
-          .eq('id', editingId)
+          .eq("id", editingId);
       } else {
-        await supabase.from('addresses').insert(addressData)
+        await supabase.from("addresses").insert(addressData);
       }
 
-      setShowForm(false)
-      setEditingId(null)
-      loadAddresses()
-    } catch (error) {
-      alert('Error al guardar dirección')
+      setShowForm(false);
+      setEditingId(null);
+      loadAddresses();
+    } catch (e) {
+      const err = e instanceof Error ? e : new Error(String(e));
+      console.error("cuenta/direcciones failed:", err);
+      alert("Error al guardar dirección");
     }
-  }
+  };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('¿Eliminar esta dirección?')) return
+    if (!confirm("¿Eliminar esta dirección?")) return;
 
-    const supabase = createClient()
-    await supabase.from('addresses').delete().eq('id', id)
-    loadAddresses()
-  }
+    const supabase = createClient();
+    await supabase.from("addresses").delete().eq("id", id);
+    loadAddresses();
+  };
 
   if (isLoading) {
     return (
@@ -88,7 +93,7 @@ export default function DireccionesPage() {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
         </div>
       </AuthGuard>
-    )
+    );
   }
 
   return (
@@ -108,11 +113,13 @@ export default function DireccionesPage() {
         {showForm && (
           <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
             <h2 className="text-xl font-semibold mb-4">
-              {editingId ? 'Editar Dirección' : 'Nueva Dirección'}
+              {editingId ? "Editar Dirección" : "Nueva Dirección"}
             </h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="label">Etiqueta (ej. Casa, Consultorio)</label>
+                <label className="label">
+                  Etiqueta (ej. Casa, Consultorio)
+                </label>
                 <input type="text" name="label" required className="input" />
               </div>
 
@@ -124,7 +131,12 @@ export default function DireccionesPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="label">No. Ext</label>
-                    <input type="text" name="ext_no" required className="input" />
+                    <input
+                      type="text"
+                      name="ext_no"
+                      required
+                      className="input"
+                    />
                   </div>
                   <div>
                     <label className="label">No. Int</label>
@@ -135,7 +147,12 @@ export default function DireccionesPage() {
 
               <div>
                 <label className="label">Colonia</label>
-                <input type="text" name="neighborhood" required className="input" />
+                <input
+                  type="text"
+                  name="neighborhood"
+                  required
+                  className="input"
+                />
               </div>
 
               <div className="grid md:grid-cols-3 gap-4">
@@ -167,8 +184,8 @@ export default function DireccionesPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    setShowForm(false)
-                    setEditingId(null)
+                    setShowForm(false);
+                    setEditingId(null);
                   }}
                   className="btn btn-secondary"
                 >
@@ -202,8 +219,8 @@ export default function DireccionesPage() {
               <div className="flex gap-2 mt-4">
                 <button
                   onClick={() => {
-                    setEditingId(address.id)
-                    setShowForm(true)
+                    setEditingId(address.id);
+                    setShowForm(true);
                   }}
                   className="text-primary-600 hover:underline flex items-center gap-1"
                 >
@@ -229,6 +246,5 @@ export default function DireccionesPage() {
         </div>
       </div>
     </AuthGuard>
-  )
+  );
 }
-

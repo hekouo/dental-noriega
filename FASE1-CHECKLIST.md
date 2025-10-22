@@ -15,6 +15,7 @@
 ### B) Optimizaciones de Performance ✓
 
 #### B.1 Imágenes optimizadas
+
 - [x] Priority en primera imagen (LCP) del home
 - [x] Sizes correctos en grids de catálogo
 - [x] Sizes correctos en fichas de producto
@@ -22,23 +23,28 @@
 - [x] `remotePatterns` configurados en `next.config.js`
 
 #### B.2 Preconnect
+
 - [x] Preconnect a `lh3.googleusercontent.com`
 - [x] Preconnect a `drive.google.com`
 
 #### B.3 Cache y TTFB
+
 - [x] `cache()` aplicado en `catalog-sections.ts`
 - [x] `revalidate = 300` en páginas de catálogo
 
 #### B.4 Lazy Loading
+
 - [x] `FinalThanks` cargado con `dynamic()` y `ssr: false`
 - [x] `SiteFooter` cargado con `dynamic()` y `ssr: false`
 
 #### B.5 Fuentes optimizadas
+
 - [x] `next/font/google` con Inter
 - [x] `display: "swap"` configurado
 - [x] `className` aplicado en `<body>`
 
 #### B.6 Prefetch controlado
+
 - [x] `prefetch={false}` en listas grandes de catálogo
 - [x] `prefetch` solo en primeros 4 items de destacados
 
@@ -63,11 +69,13 @@
 ### E) SEO y Páginas Informativas ✓
 
 #### Metadata
+
 - [x] Metadata configurado en layout principal
 - [x] Viewport configurado correctamente
 - [x] Title templates por página
 
 #### Footer
+
 - [x] Email: dental.noriega721@gmail.com
 - [x] Ubicación con link a Google Maps
 - [x] Facebook e Instagram
@@ -75,8 +83,9 @@
 - [x] Enlaces a páginas informativas
 
 #### Páginas estáticas
+
 - [x] `/envios` - Política de envíos
-- [x] `/devoluciones` - Política de devoluciones  
+- [x] `/devoluciones` - Política de devoluciones
 - [x] `/privacidad` - Política de privacidad
 - [x] Todas con metadata SEO
 - [x] Enlaces desde footer
@@ -100,7 +109,6 @@
   - Fase 2 (próxima)
   - Deploy en Vercel
   - Optimizaciones aplicadas
-  
 - [x] `DEPLOYMENT.md` con:
   - Guía paso a paso para Vercel
   - Configuración de dominio
@@ -126,12 +134,14 @@
 ### I) Verificaciones Finales
 
 #### Build
+
 - [x] `npm run build` exitoso
 - [x] 0 errores de TypeScript
 - [x] 0 errores de linting
 - [x] 30 páginas generadas
 
 #### Funcionalidad
+
 - [x] Home carga correctamente
 - [x] Catálogo muestra productos
 - [x] Búsqueda funciona
@@ -143,6 +153,7 @@
 - [x] Responsive en móvil y desktop
 
 #### Performance (Objetivos Lighthouse Mobile)
+
 - [ ] Performance ≥ 85 (PENDIENTE: Ejecutar `npm run lh:mobile:slowfix`)
 - [ ] Accessibility ≥ 95
 - [ ] Best Practices ≥ 95
@@ -167,6 +178,7 @@
 ## 🚀 Listo para Producción
 
 El sitio está completamente funcional para Fase 1:
+
 - ✅ Catálogo completo
 - ✅ Búsqueda
 - ✅ Productos destacados
@@ -178,4 +190,3 @@ El sitio está completamente funcional para Fase 1:
 - ✅ Documentación completa
 
 **Sin login ni pagos** (se activan en Fase 2 con flags).
-

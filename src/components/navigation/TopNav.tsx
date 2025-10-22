@@ -1,40 +1,42 @@
-'use client'
+"use client";
 
-import Link from 'next/link'
-import { ShoppingCart, User, Menu, X } from 'lucide-react'
-import { useCartStore } from '@/lib/store/cartStore'
-import { createClient } from '@/lib/supabase/client'
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { ROUTES } from '@/lib/routes'
+import Link from "next/link";
+import { ShoppingCart, User, Menu, X } from "lucide-react";
+import { useCartStore } from "@/lib/store/cartStore";
+import { createClient } from "@/lib/supabase/client";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { ROUTES } from "@/lib/routes";
 
 export function TopNav() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const [user, setUser] = useState<any>(null)
-  const itemCount = useCartStore((state) => state.getItemCount())
-  const router = useRouter()
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [user, setUser] = useState<unknown>(null);
+  const itemCount = useCartStore((state) => state.getItemCount());
+  const router = useRouter();
 
   useEffect(() => {
-    const supabase = createClient()
-    
+    const supabase = createClient();
+
     // Check initial session
     supabase.auth.getUser().then(({ data: { user } }) => {
-      setUser(user)
-    })
+      setUser(user);
+    });
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-    })
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
 
-    return () => subscription.unsubscribe()
-  }, [])
+    return () => subscription.unsubscribe();
+  }, []);
 
   const handleLogout = async () => {
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    router.push('/')
-  }
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/");
+  };
 
   return (
     <nav className="bg-white shadow-sm sticky top-0 z-40">
@@ -47,13 +49,22 @@ export function TopNav() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-6">
-            <Link href={ROUTES.destacados()} className="text-gray-700 hover:text-primary-600">
+            <Link
+              href={ROUTES.destacados()}
+              className="text-gray-700 hover:text-primary-600"
+            >
               <span>Destacados</span>
             </Link>
-            <Link href={ROUTES.catalogIndex()} className="text-gray-700 hover:text-primary-600">
+            <Link
+              href={ROUTES.catalogIndex()}
+              className="text-gray-700 hover:text-primary-600"
+            >
               <span>Catálogo</span>
             </Link>
-            <Link href={ROUTES.carrito()} className="relative text-gray-700 hover:text-primary-600">
+            <Link
+              href={ROUTES.carrito()}
+              className="relative text-gray-700 hover:text-primary-600"
+            >
               <ShoppingCart size={24} />
               {itemCount > 0 && (
                 <span className="absolute -top-2 -right-2 bg-primary-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
@@ -166,8 +177,8 @@ export function TopNav() {
                 </Link>
                 <button
                   onClick={() => {
-                    handleLogout()
-                    setIsMenuOpen(false)
+                    handleLogout();
+                    setIsMenuOpen(false);
                   }}
                   className="block w-full text-left text-gray-700 hover:text-primary-600"
                 >
@@ -187,6 +198,5 @@ export function TopNav() {
         </div>
       )}
     </nav>
-  )
+  );
 }
-

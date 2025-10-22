@@ -17,7 +17,12 @@ type Props = {
   className?: string;
 };
 
-export function AddToCartBtn({ product, sectionSlug, qty = 1, className }: Props) {
+export function AddToCartBtn({
+  product,
+  sectionSlug,
+  qty = 1,
+  className,
+}: Props) {
   const { add } = useCart();
   const [isAdding, setIsAdding] = useState(false);
 
@@ -40,11 +45,13 @@ export function AddToCartBtn({ product, sectionSlug, qty = 1, className }: Props
     <button
       onClick={handleClick}
       disabled={isAdding}
-      className={className || "btn btn-primary px-4 py-2 rounded-lg flex items-center gap-2"}
+      className={
+        className ||
+        "btn btn-primary px-4 py-2 rounded-lg flex items-center gap-2"
+      }
     >
       <ShoppingCart size={18} />
       <span>{isAdding ? "¡Agregado!" : "Agregar al carrito"}</span>
     </button>
   );
 }
-

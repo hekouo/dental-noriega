@@ -40,7 +40,12 @@
   }
 
   /* Typography adjustments for print */
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     page-break-after: avoid;
     color: #000 !important;
   }
@@ -57,28 +62,35 @@
   }
 
   /* Colors for print */
-  .bg-blue-600, .bg-blue-700 {
-    background-color: #1E88E5 !important;
+  .bg-blue-600,
+  .bg-blue-700 {
+    background-color: #1e88e5 !important;
   }
 
-  .bg-green-500, .bg-green-600 {
-    background-color: #4CAF50 !important;
+  .bg-green-500,
+  .bg-green-600 {
+    background-color: #4caf50 !important;
   }
 
-  .text-blue-600, .text-blue-700 {
-    color: #1E88E5 !important;
+  .text-blue-600,
+  .text-blue-700 {
+    color: #1e88e5 !important;
   }
 
-  .text-green-500, .text-green-600 {
-    color: #4CAF50 !important;
+  .text-green-500,
+  .text-green-600 {
+    color: #4caf50 !important;
   }
 
   /* Shadows and borders for print */
-  .shadow-lg, .shadow-md, .shadow-sm {
+  .shadow-lg,
+  .shadow-md,
+  .shadow-sm {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
   }
 
-  .border-gray-200, .border-gray-300 {
+  .border-gray-200,
+  .border-gray-300 {
     border-color: #ccc !important;
   }
 
@@ -108,11 +120,13 @@
   }
 
   /* Text size adjustments */
-  .text-5xl, .text-7xl {
+  .text-5xl,
+  .text-7xl {
     font-size: 2.5rem !important;
   }
 
-  .text-3xl, .text-4xl {
+  .text-3xl,
+  .text-4xl {
     font-size: 1.8rem !important;
   }
 
@@ -129,12 +143,14 @@
     padding: 1.5rem !important;
   }
 
-  .mb-16, .mt-16 {
+  .mb-16,
+  .mt-16 {
     margin-bottom: 2rem !important;
     margin-top: 2rem !important;
   }
 
-  .mb-12, .mt-12 {
+  .mb-12,
+  .mt-12 {
     margin-bottom: 1.5rem !important;
     margin-top: 1.5rem !important;
   }
@@ -179,7 +195,10 @@
 }
 
 .transition-colors {
-  transition: color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;
+  transition:
+    color 0.3s ease,
+    background-color 0.3s ease,
+    border-color 0.3s ease;
 }
 
 .transition-transform {
@@ -188,9 +207,13 @@
 
 /* Hover effects */
 .hover\:shadow-md:hover {
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 .hover\:shadow-xl:hover {
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  box-shadow:
+    0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04);
 }

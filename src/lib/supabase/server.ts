@@ -14,7 +14,7 @@ export function createServerSupabase() {
         return cookieStore.get(name)?.value;
       },
       set() {},
-      remove() {}
-    }
+      remove() {},
+    },
   });
 }

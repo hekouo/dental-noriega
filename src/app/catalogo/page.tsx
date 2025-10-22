@@ -24,7 +24,9 @@ export default async function CatalogoIndexPage() {
         {sections.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-12 text-center">
             <Package size={48} className="mx-auto mb-4 text-gray-400" />
-            <p className="text-gray-500 mb-2">No se encontraron secciones en el catálogo</p>
+            <p className="text-gray-500 mb-2">
+              No se encontraron secciones en el catálogo
+            </p>
             <p className="text-sm text-gray-400">
               Verifica que existan archivos CSV en public/data/
             </p>
@@ -43,7 +45,8 @@ export default async function CatalogoIndexPage() {
                     {section.sectionName}
                   </h2>
                   <p className="text-sm text-gray-500">
-                    {section.items.length} producto{section.items.length !== 1 ? "s" : ""}
+                    {section.items.length} producto
+                    {section.items.length !== 1 ? "s" : ""}
                   </p>
                 </span>
               </Link>

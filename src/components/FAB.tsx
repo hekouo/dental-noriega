@@ -12,12 +12,13 @@ export default function FAB({ children, offset = 16 }: Props) {
 
   useEffect(() => {
     const onResize = () => {
-      const safeB = Number(
-        getComputedStyle(document.documentElement)
-          .getPropertyValue("--safe-b")
-          .replace("px", "")
-      ) || 0;
-      
+      const safeB =
+        Number(
+          getComputedStyle(document.documentElement)
+            .getPropertyValue("--safe-b")
+            .replace("px", ""),
+        ) || 0;
+
       // Heurística: teclado abierto si altura < 520px
       const kbOpen = window.innerHeight < 520;
       setBottom((kbOpen ? 8 : offset) + safeB);
@@ -41,4 +42,3 @@ export default function FAB({ children, offset = 16 }: Props) {
     </div>
   );
 }
-

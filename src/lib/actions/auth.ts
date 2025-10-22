@@ -3,30 +3,38 @@
 import { z } from "zod";
 import { createActionSupabase } from "@/lib/supabase/server-actions";
 
-// Esquemas mínimos por si no los tenías
-export const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6)
-});
-
-export const registerSchema = z.object({
-  fullName: z.string().min(2),
-  phone: z.string().optional(),
+// Esquemas internos (no exportados)
+const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
-  confirmPassword: z.string().min(6)
-}).refine((d) => d.password === d.confirmPassword, {
-  message: "Las contraseñas no coinciden",
-  path: ["confirmPassword"]
 });
 
+const registerSchema = z
+  .object({
+    fullName: z.string().min(2),
+    phone: z.string().optional(),
+    email: z.string().email(),
+    password: z.string().min(6),
+    confirmPassword: z.string().min(6),
+  })
+  .refine((d) => d.password === d.confirmPassword, {
+    message: "Las contraseñas no coinciden",
+    path: ["confirmPassword"],
+  });
+
 // LOGIN
-export async function loginAction(input: z.infer<typeof loginSchema>) {
+export async function loginAction(input: unknown) {
+  const parsed = loginSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+
+  const { email, password } = parsed.data;
   const supabase = createActionSupabase();
 
   const { data, error } = await supabase.auth.signInWithPassword({
-    email: input.email,
-    password: input.password
+    email,
+    password,
   });
 
   if (error) return { error: error.message };
@@ -36,25 +44,33 @@ export async function loginAction(input: z.infer<typeof loginSchema>) {
 }
 
 // REGISTRO
-export async function registerAction(input: z.infer<typeof registerSchema>) {
+export async function registerAction(input: unknown) {
+  const parsed = registerSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+
+  const { fullName, phone, email, password } = parsed.data;
   const supabase = createActionSupabase();
 
-  const { data, error } = await supabase.auth.signUp({
-    email: input.email,
-    password: input.password,
+  const { error } = await supabase.auth.signUp({
+    email,
+    password,
     options: {
       data: {
-        full_name: input.fullName,
-        phone: input.phone ?? null
+        full_name: fullName,
+        phone: phone ?? null,
       },
       emailRedirectTo: process.env.SITE_URL
         ? `${process.env.SITE_URL}/cuenta/perfil`
-        : undefined
-    }
+        : undefined,
+    },
   });
 
   if (error) return { error: error.message };
 
-  // Si tu proyecto requiere verificación por correo, aquí no habrá sesión aún.
-  return { success: true, message: "Registro exitoso. Revisa tu correo para confirmar." };
+  return {
+    success: true,
+    message: "Registro exitoso. Revisa tu correo para confirmar.",
+  };
 }

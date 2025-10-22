@@ -1,14 +1,16 @@
-﻿name: CodeQL
+name: CodeQL
+
 on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
   schedule:
-    - cron: '24 3 * * 1'
+    - cron: "24 3 * * 1"
+
 jobs:
   analyze:
-    name: Analyze
+    name: Analyze (CodeQL)
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -16,9 +18,34 @@ jobs:
       security-events: write
     strategy:
       fail-fast: false
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: github/codeql-action/init@v3
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set environment variables
+        run: |
+          echo "CI=1" >> $GITHUB_ENV
+          echo "NODE_ENV=production" >> $GITHUB_ENV
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.19.0
+          cache: pnpm
+
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Init CodeQL
+        uses: github/codeql-action/init@v3
         with:
           languages: javascript
-      - uses: github/codeql-action/analyze@v3
+          queries: security-and-quality
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@v3
+

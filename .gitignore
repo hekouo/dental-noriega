@@ -51,3 +51,20 @@ dist/
 coverage/
 .env.local
 .next/
+.vercel
+# local backups
+*.bak.*
+*.autobak.*
+
+
+# editor
+.cursor/
+
+# Junk: terminal output y backups
+= git status --porcelain
+*.bak
+*.bak.*
+
+# Ignorar backups locales
+*.bak
+*.bak.*

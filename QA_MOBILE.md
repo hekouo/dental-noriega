@@ -3,6 +3,7 @@
 ## 🎯 Checklist de Verificación
 
 ### ✅ **Responsive Layout**
+
 - [ ] Header no tapa contenido en scroll
 - [ ] Grids: 1 columna en móvil, 2 en tablet, 3-4 en desktop
 - [ ] Imágenes no se estiran ni pixelan
@@ -10,6 +11,7 @@
 - [ ] Sin scroll horizontal
 
 ### ✅ **Burbujas Flotantes**
+
 - [ ] Carrito (azul) y WhatsApp (verde) visibles
 - [ ] No tapan contenido importante
 - [ ] Respetan safe-area en iOS (notch/home indicator)
@@ -17,6 +19,7 @@
 - [ ] No se superponen entre sí
 
 ### ✅ **Drawer del Carrito**
+
 - [ ] Se abre suavemente desde la derecha
 - [ ] Bloquea scroll del body mientras está abierto
 - [ ] Cierra con:
@@ -27,12 +30,14 @@
 - [ ] Footer del drawer siempre visible
 
 ### ✅ **Targets Táctiles**
+
 - [ ] Todos los botones ≥ 44×44px
 - [ ] Links en cards clickeables fácilmente
 - [ ] Inputs tienen área táctil suficiente
 - [ ] Badges no interfieren con clicks
 
 ### ✅ **Formularios e Inputs**
+
 - [ ] Buscador: teclado alfanumérico
 - [ ] Email: teclado con @ disponible
 - [ ] Cantidad: teclado numérico
@@ -40,6 +45,7 @@
 - [ ] Autocomplete habilitado
 
 ### ✅ **Performance**
+
 - [ ] Imágenes optimizadas con `sizes` correctos
 - [ ] Sin layout shift en carga
 - [ ] Scroll suave
@@ -59,6 +65,7 @@
 ```
 
 **Puntos a verificar:**
+
 - Header sticky funciona
 - Burbujas no tapan contenido
 - Drawer se abre correctamente
@@ -73,6 +80,7 @@ http://localhost:3000/qa/mobile
 ```
 
 **Incluye:**
+
 - Checklist completo
 - Iframes de preview
 - Tips de prueba
@@ -82,6 +90,7 @@ http://localhost:3000/qa/mobile
 ### **3. Lighthouse Móvil**
 
 #### **Prerequisito:**
+
 ```bash
 npm install  # Instala lighthouse
 ```
@@ -89,26 +98,31 @@ npm install  # Instala lighthouse
 #### **Ejecutar auditoría:**
 
 **Paso 1:** Iniciar servidor
+
 ```bash
 npm run dev
 ```
 
 **Paso 2:** En otra terminal
+
 ```bash
 npm run lh:mobile
 ```
 
 **Resultado:**
+
 - Archivo generado: `lighthouse-mobile.json`
 - Buscar: `"score"` en cada categoría
 
 #### **Scores objetivo:**
+
 - ✅ Performance: ≥ 90
 - ✅ Accessibility: ≥ 90
 - ✅ SEO: ≥ 90
 - ✅ Best Practices: ≥ 90
 
 #### **Ver resultados:**
+
 ```bash
 # Linux/Mac
 jq '.categories | to_entries[] | {category: .key, score: (.value.score * 100)}' lighthouse-mobile.json
@@ -133,18 +147,21 @@ xl:   1280px → 4 columnas
 ## 🎨 Safe Area en iOS
 
 El sitio respeta automáticamente:
+
 - **Top:** Notch de iPhone
 - **Bottom:** Home indicator
 
 **Variables CSS:**
+
 ```css
 --safe-t: env(safe-area-inset-top, 0px)
---safe-b: env(safe-area-inset-bottom, 0px)
+  --safe-b: env(safe-area-inset-bottom, 0px);
 ```
 
 **Uso:**
+
 ```html
-<main class="pb-safe">  <!-- Padding bottom + safe area -->
+<main class="pb-safe"><!-- Padding bottom + safe area --></main>
 ```
 
 ---
@@ -152,18 +169,23 @@ El sitio respeta automáticamente:
 ## 🔧 Solución de Problemas Comunes
 
 ### **Problema: Burbujas tapan footer**
+
 **Solución:** Componente FAB ajusta automáticamente con safe-area
 
 ### **Problema: Drawer no bloquea scroll**
+
 **Solución:** Clase `.body-lock` aplicada automáticamente
 
 ### **Problema: Inputs hacen zoom en iOS**
+
 **Solución:** Todos los inputs tienen `font-size: 16px` en globals.css
 
 ### **Problema: Imágenes pixeladas**
+
 **Solución:** `sizes` attribute optimizado por breakpoint
 
 ### **Problema: Click no responde en móvil**
+
 **Solución:** Todos los targets táctiles ≥ 44px con `.btn` class
 
 ---
@@ -217,4 +239,3 @@ open http://localhost:3000/qa/mobile
 ---
 
 **Última actualización:** Octubre 2025
-

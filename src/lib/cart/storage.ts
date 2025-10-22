@@ -11,8 +11,7 @@ export function loadCart() {
   }
 }
 
-export function saveCart(state: any) {
+export function saveCart(state: unknown) {
   if (typeof window === "undefined") return;
   localStorage.setItem(KEY, JSON.stringify(state));
 }
-

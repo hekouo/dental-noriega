@@ -10,4 +10,3 @@ export function pointsFor(priceMXN: number, qty = 1): number {
   const total = Math.max(0, (priceMXN || 0) * Math.max(1, qty));
   return Math.floor(total / rate);
 }
-

@@ -1,32 +1,38 @@
-'use client'
+"use client";
 
-import { formatCurrency } from '@/lib/utils/currency'
-import { pointsFor } from '@/lib/utils/points'
-import { useCartStore } from '@/lib/store/cartStore'
-import { ShoppingCart } from 'lucide-react'
-import { useState } from 'react'
-import ProductImage from '@/components/ProductImage'
-import PointsBadge from '@/components/PointsBadge'
+import { formatCurrency } from "@/lib/utils/currency";
+import { pointsFor } from "@/lib/utils/points";
+import { useCartStore } from "@/lib/store/cartStore";
+import { ShoppingCart } from "lucide-react";
+import { useState } from "react";
+import ProductImage from "@/components/ProductImage";
+import PointsBadge from "@/components/PointsBadge";
 
 interface ProductCardProps {
-  sku: string
-  name: string
-  price: number
-  description?: string
-  image?: string
+  sku: string;
+  name: string;
+  price: number;
+  description?: string;
+  image?: string;
 }
 
-export function ProductCard({ sku, name, price, description, image }: ProductCardProps) {
-  const addItem = useCartStore((state) => state.addItem)
-  const [isAdding, setIsAdding] = useState(false)
+export function ProductCard({
+  sku,
+  name,
+  price,
+  description,
+  image,
+}: ProductCardProps) {
+  const addItem = useCartStore((state) => state.addItem);
+  const [isAdding, setIsAdding] = useState(false);
 
   const handleAddToCart = () => {
-    setIsAdding(true)
-    addItem({ sku, name, price, qty: 1 })
-    setTimeout(() => setIsAdding(false), 1000)
-  }
+    setIsAdding(true);
+    addItem({ sku, name, price, qty: 1 });
+    setTimeout(() => setIsAdding(false), 1000);
+  };
 
-  const points = pointsFor(price, 1)
+  const points = pointsFor(price, 1);
 
   return (
     <div className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow overflow-hidden flex flex-col">
@@ -51,7 +57,9 @@ export function ProductCard({ sku, name, price, description, image }: ProductCar
         </div>
 
         {description && (
-          <p className="text-sm text-gray-600 mb-3 line-clamp-2">{description}</p>
+          <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+            {description}
+          </p>
         )}
 
         <div className="mb-4 mt-auto">
@@ -66,9 +74,9 @@ export function ProductCard({ sku, name, price, description, image }: ProductCar
           className="w-full btn btn-primary flex items-center justify-center gap-2 disabled:opacity-50"
         >
           <ShoppingCart size={18} />
-          {isAdding ? 'Agregado!' : 'Agregar al Carrito'}
+          {isAdding ? "Agregado!" : "Agregar al Carrito"}
         </button>
       </div>
     </div>
-  )
+  );
 }

@@ -10,7 +10,9 @@ export type FeaturedProduct = {
   item: Product;
 };
 
-export async function getFeaturedProducts(limit: number = 8): Promise<FeaturedProduct[]> {
+export async function getFeaturedProducts(
+  limit: number = 8,
+): Promise<FeaturedProduct[]> {
   const sections = await loadAllSections();
   const featured: FeaturedProduct[] = [];
 
@@ -18,14 +20,14 @@ export async function getFeaturedProducts(limit: number = 8): Promise<FeaturedPr
   for (const section of sections) {
     // Tomar hasta 2 productos por sección
     const itemsToTake = section.items.slice(0, 2);
-    
+
     for (const item of itemsToTake) {
       featured.push({
         sectionSlug: section.sectionSlug,
         sectionName: section.sectionName,
         item,
       });
-      
+
       // Detener si alcanzamos el límite
       if (featured.length >= limit) {
         return featured;
@@ -35,4 +37,3 @@ export async function getFeaturedProducts(limit: number = 8): Promise<FeaturedPr
 
   return featured;
 }
-

@@ -1,12 +1,20 @@
+![CI](https://github.com/hekouo/dental-noriega/actions/workflows/ci.yml/badge.svg)
+
 # DENTAL NORIEGA - Catálogo Digital
 
 Sitio web de catálogo de productos dentales con carrito de compras, integración de WhatsApp y sistema de pedidos.
+
+## ⚠️ Checkout desactivado temporalmente
+
+Se movió `/api/checkout/create-session` a `/api_disabled/checkout/create-session` para evitar el fallo de build en Vercel.
+Rehabilitar cuando existan las ENV de Stripe y el handler tenga manejo de errores.
 
 ## 🚀 Fase 1 (Actual)
 
 Catálogo completo con carrito "light" y consultas por WhatsApp. **Sin login ni pagos por ahora**.
 
 ### Características activas:
+
 - ✅ Catálogo completo con búsqueda
 - ✅ Productos destacados
 - ✅ Carrito persistente (localStorage)
@@ -81,6 +89,7 @@ npm run lh:mobile:html
 ```
 
 ### Objetivos de Lighthouse (móvil):
+
 - **Performance**: ≥85
 - **Accessibility**: ≥95
 - **Best Practices**: ≥95
@@ -134,6 +143,7 @@ vercel
 ```
 
 ### Variables en Vercel:
+
 - Copia todas las variables de `.env.local`
 - Configura tu dominio personalizado en Settings → Domains
 - El sitio respeta `NEXT_PUBLIC_SITE_URL` en producción
@@ -164,3 +174,25 @@ vercel
 ## 📄 Licencia
 
 © 2024 DENTAL NORIEGA. Todos los derechos reservados.
+
+
+## Verificaciones Automáticas
+
+| Check | PR | Main | Artifacts |
+|-------|----|----|-----------|
+| TypeScript | ❌ Falla | ✅ Aviso | - |
+| Linting | ❌ Falla | ✅ Aviso | - |
+| Build | ❌ Falla | ✅ Aviso | - |
+| Bundle Size | ❌ Falla | ✅ Aviso | size-limit.json |
+| Secret Scanning | ❌ Falla | ✅ Issue | gitleaks.sarif |
+| Dead Exports | ⚠️ Soft | ⚠️ Soft | cleanup-report |
+| Dependencies | ⚠️ Soft | ⚠️ Soft | cleanup-report |
+| Licenses | ✅ Info | ✅ Info | licenses.csv/json |
+| E2E Tests | ✅ Info | ✅ Info | playwright-report |
+| Lighthouse | ✅ Info | ✅ Info | lhci-reports |
+
+**Leyenda:**
+- ❌ Falla: Bloquea el merge
+- ⚠️ Soft: Solo aviso (primera vez)  
+- ✅ Info: Solo información
+

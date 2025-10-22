@@ -1,11 +1,11 @@
-'use client'
+"use client";
 
-import { MessageCircle } from 'lucide-react'
-import { generateWhatsAppLink } from '@/lib/utils/whatsapp'
+import { MessageCircle } from "lucide-react";
+import { generateWhatsAppLink } from "@/lib/utils/whatsapp";
 
 export function WhatsappFloating() {
-  const phoneNumber = '525512345678' // Reemplaza con tu número
-  const defaultMessage = '¡Hola! Tengo una consulta sobre los productos.'
+  const phoneNumber = "525512345678"; // Reemplaza con tu número
+  const defaultMessage = "¡Hola! Tengo una consulta sobre los productos.";
 
   return (
     <a
@@ -17,5 +17,5 @@ export function WhatsappFloating() {
     >
       <MessageCircle size={24} />
     </a>
-  )
+  );
 }

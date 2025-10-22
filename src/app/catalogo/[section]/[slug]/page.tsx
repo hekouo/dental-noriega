@@ -15,7 +15,7 @@ type Props = { params: { section: string; slug: string } };
 
 export default async function ProductPage({ params }: Props) {
   const data = await loadProductBySlug(params.section, params.slug);
-  
+
   if (!data) {
     return notFound();
   }
@@ -90,8 +90,8 @@ export default async function ProductPage({ params }: Props) {
               {/* Info adicional */}
               <div className="mt-6 pt-6 border-t">
                 <p className="text-sm text-gray-600">
-                  <strong>Nota:</strong> Los precios pueden variar sin previo aviso. 
-                  Consulta disponibilidad y tiempos de entrega.
+                  <strong>Nota:</strong> Los precios pueden variar sin previo
+                  aviso. Consulta disponibilidad y tiempos de entrega.
                 </p>
               </div>
             </div>
