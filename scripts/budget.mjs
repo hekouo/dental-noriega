@@ -27,12 +27,11 @@ function gzipSize(buf) {
 }
 
 // Sin exists/stat previos: intenta leer y, si falla, devuelve 0.
-// Esto evita la condición de carrera “fue verificado pero cambió”.
 function getGzipSizeIfExists(filePath) {
   try {
     const buf = readFileSync(filePath);
     return gzipSize(buf);
-  } catch {
+  } catch (e) {
     return 0;
   }
 }
@@ -48,7 +47,7 @@ function listFiles(dir) {
       else if (d.isFile()) out.push(full);
     }
     return out;
-  } catch {
+  } catch (e) {
     return [];
   }
 }
@@ -92,4 +91,41 @@ function checkBudget() {
 
   // framework-*.js
   const allChunkFiles = listFiles(chunksDir).filter((f) => f.endsWith(".js"));
-  const frameworkFiles =
+  const frameworkFiles = allChunkFiles.filter((f) => /[\\/]framework-[^/\\]+\.js$/.test(f));
+  const frameworkSize = frameworkFiles.length ? findLargestGzipped(frameworkFiles).size : 0;
+  if (frameworkSize === 0) {
+    console.warn("No se encontró framework-*.js; puede variar por versión de Next.");
+  } else if (frameworkSize > BUDGET_LIMITS["framework"]) {
+    console.error(`❌ Framework excede: ${formatKB(frameworkSize)} > ${formatKB(BUDGET_LIMITS["framework"])}`);
+    totalViolations++;
+  } else {
+    console.log(`✅ Framework ok: ${formatKB(frameworkSize)}`);
+  }
+
+  // main-*.js
+  const mainFiles = allChunkFiles.filter((f) => /[\\/]main-[^/\\]+\.js$/.test(f));
+  const mainSize = mainFiles.length ? findLargestGzipped(mainFiles).size : 0;
+  if (mainSize === 0) {
+    console.warn("No se encontró main-*.js; puede variar por versión de Next.");
+  } else if (mainSize > BUDGET_LIMITS["main"]) {
+    console.error(`❌ Main excede: ${formatKB(mainSize)} > ${formatKB(BUDGET_LIMITS["main"])}`);
+    totalViolations++;
+  } else {
+    console.log(`✅ Main ok: ${formatKB(mainSize)}`);
+  }
+
+  if (totalViolations > 0) {
+    console.error(`\n❌ Performance budget falló: ${totalViolations} violación(es).`);
+    process.exit(1);
+  } else {
+    console.log("\n✅ Todos los performance budgets pasaron.");
+  }
+}
+
+try {
+  checkBudget();
+} catch (e) {
+  const err = e instanceof Error ? e : new Error(String(e));
+  console.error("❌ Error ejecutando budget script:", err.message);
+  process.exit(1);
+}
