@@ -59,3 +59,8 @@ coverage/
 
 # editor
 .cursor/
+
+# Junk: terminal output y backups
+= git status --porcelain
+*.bak
+*.bak.*
