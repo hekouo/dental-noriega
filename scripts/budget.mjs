@@ -27,11 +27,16 @@ function gzipSize(buf) {
 }
 
 // Sin exists/stat previos: intenta leer y, si falla, devuelve 0.
+// Logueamos el motivo para satisfacer sonarjs/no-ignored-exceptions.
 function getGzipSizeIfExists(filePath) {
   try {
     const buf = readFileSync(filePath);
     return gzipSize(buf);
   } catch (e) {
+    // ENOENT/EPERM son comunes durante builds incrementales
+    const code = e && e.code ? String(e.code) : "UNKNOWN";
+    // Nivel debug para no ensuciar CI; cambia a warn si quieres ruido.
+    console.debug(`[budget] skip file "${filePath}": ${code}`);
     return 0;
   }
 }
@@ -48,6 +53,8 @@ function listFiles(dir) {
     }
     return out;
   } catch (e) {
+    const code = e && e.code ? String(e.code) : "UNKNOWN";
+    console.debug(`[budget] cannot read dir "${dir}": ${code}`);
     return [];
   }
 }
