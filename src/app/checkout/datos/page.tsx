@@ -1,4 +1,5 @@
 "use client";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { DatosSchema, type DatosInput } from "@/lib/validations/checkout";
@@ -8,6 +9,11 @@ import { useRouter } from "next/navigation";
 export default function DatosPage() {
   const { datos, setDatos, items } = useCheckout();
   const router = useRouter();
+
+  // Redirección en effect (no durante render)
+  useEffect(() => {
+    if (!items.length) router.replace("/checkout");
+  }, [items.length, router]);
 
   const form = useForm<DatosInput>({
     resolver: zodResolver(DatosSchema),
@@ -26,10 +32,8 @@ export default function DatosPage() {
     },
   });
 
-  if (!items.length) {
-    if (typeof window !== "undefined") router.push("/checkout");
-    return null;
-  }
+  // Mientras redirige, no pintes nada
+  if (!items.length) return null;
 
   function onSubmit(values: DatosInput) {
     setDatos(values);
@@ -40,26 +44,28 @@ export default function DatosPage() {
     <main className="max-w-2xl mx-auto p-6">
       <h1 className="text-xl font-semibold">Datos de envío</h1>
       <form className="mt-4 grid gap-3" onSubmit={form.handleSubmit(onSubmit)}>
-        {[
-          ["fullName", "Nombre completo"],
-          ["email", "Email"],
-          ["phone", "Teléfono"],
-          ["street", "Calle"],
-          ["extNumber", "No. exterior"],
-          ["intNumber", "No. interior (opcional)"],
-          ["neighborhood", "Colonia"],
-          ["postalCode", "C.P."],
-          ["city", "Ciudad"],
-          ["state", "Estado"],
-        ].map(([name, label]) => (
+        {(
+          [
+            ["fullName", "Nombre completo"],
+            ["email", "Email"],
+            ["phone", "Teléfono"],
+            ["street", "Calle"],
+            ["extNumber", "No. exterior"],
+            ["intNumber", "No. interior (opcional)"],
+            ["neighborhood", "Colonia"],
+            ["postalCode", "C.P."],
+            ["city", "Ciudad"],
+            ["state", "Estado"],
+          ] as const
+        ).map(([name, label]) => (
           <label key={name} className="grid gap-1">
             <span className="text-sm">{label}</span>
             <input
               className="border rounded px-3 py-2"
-              {...form.register(name as any)}
+              {...form.register(name)}
             />
             <span className="text-xs text-red-600">
-              {form.formState.errors[name as keyof DatosInput]?.message as any}
+              {form.formState.errors[name]?.message as string | undefined}
             </span>
           </label>
         ))}
