@@ -83,7 +83,9 @@ export const DatosSchema = z.object({
   postalCode: reqRegex(zipRegex, "C.P. inválido"),
   city: req("Ciudad requerida"),
   state: req("Estado requerido"),
-  notes: t.max(300).optional(),
+  notes: t
+    .refine((s) => s.length <= 300, { message: "Máximo 300 caracteres" })
+    .optional(),
 });
 export type DatosInput = z.infer<typeof DatosSchema>;
 
