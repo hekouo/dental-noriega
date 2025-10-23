@@ -1,43 +1,77 @@
 "use client";
+import { useRouter } from "next/navigation";
+import { useCheckout } from "@/lib/store/checkoutStore";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { PagoSchema, type PagoInput } from "@/lib/validations/checkout";
 
-import { useEffect, useState } from "react";
-import { AuthGuard } from "@/components/auth/AuthGuard";
-import { Loader2 } from "lucide-react";
+export default function PagoPage() {
+  const { items, datos, setPago, setOrderId, clearAll } = useCheckout();
+  const router = useRouter();
 
-export default function CheckoutPagoPage() {
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string>("");
+  const form = useForm<PagoInput>({
+    resolver: zodResolver(PagoSchema),
+    defaultValues: { method: "card-mock", agree: false },
+  });
 
-  useEffect(() => {
+  if (!items.length || !datos) {
+    if (typeof window !== "undefined") router.push("/checkout");
+    return null;
+  }
+
+  async function onSubmit(values: PagoInput) {
+    setPago(values);
     try {
-      const checkoutDataStr = localStorage.getItem("checkout_data");
-      if (!checkoutDataStr) {
-        setError("No hay datos de checkout. Regresa al paso anterior.");
-      }
-      // Aquí iría la integración real de pago (Stripe, etc.)
-    } catch {
-      setError("Error leyendo datos de checkout.");
-    } finally {
-      setIsLoading(false);
+      const res = await fetch("/api/orders/mock", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items, datos, payment: values }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Error al crear orden mock");
+
+      setOrderId(data.id);
+      clearAll(); // limpia estado del checkout (y tu carrito real si quieres, en otro paso)
+      router.push(
+        `/checkout/gracias?order=${encodeURIComponent(String(data.id))}`,
+      );
+    } catch (e) {
+      console.error(e);
+      alert("No se pudo confirmar el pago simulado.");
     }
-  }, []);
+  }
 
   return (
-    <AuthGuard>
-      <div className="max-w-3xl mx-auto px-4 py-12">
-        <h1 className="text-2xl font-semibold mb-6">Pago</h1>
-
-        {isLoading ? (
-          <div className="flex items-center gap-2 text-gray-600">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span>Preparando pago…</span>
-          </div>
-        ) : error ? (
-          <p className="text-red-600">{error}</p>
-        ) : (
-          <p className="text-gray-700">Datos listos para pago.</p>
-        )}
-      </div>
-    </AuthGuard>
+    <main className="max-w-2xl mx-auto p-6">
+      <h1 className="text-xl font-semibold">Pago</h1>
+      <form className="mt-4 grid gap-3" onSubmit={form.handleSubmit(onSubmit)}>
+        <label className="flex items-center gap-2">
+          <input type="radio" value="card-mock" {...form.register("method")} />
+          <span>Tarjeta (simulado)</span>
+        </label>
+        <label className="flex items-center gap-2">
+          <input type="radio" value="oxxo-mock" {...form.register("method")} />
+          <span>OXXO (simulado)</span>
+        </label>
+        <label className="flex items-center gap-2">
+          <input
+            type="radio"
+            value="transfer-mock"
+            {...form.register("method")}
+          />
+          <span>Transferencia (simulado)</span>
+        </label>
+        <label className="flex items-center gap-2 mt-2">
+          <input type="checkbox" {...form.register("agree")} />
+          <span>Acepto términos y política de privacidad</span>
+        </label>
+        <span className="text-xs text-red-600">
+          {form.formState.errors.agree?.message}
+        </span>
+        <button className="mt-2 rounded-lg border px-4 py-2">
+          Confirmar pedido
+        </button>
+      </form>
+    </main>
   );
 }
