@@ -11,7 +11,7 @@ export default function PagoPage() {
 
   const form = useForm<PagoInput>({
     resolver: zodResolver(PagoSchema),
-    defaultValues: { method: "card-mock", agree: false },
+    defaultValues: { method: "card-mock" },
   });
 
   if (!items.length || !datos) {
