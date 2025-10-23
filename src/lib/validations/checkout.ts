@@ -1,20 +1,15 @@
-// src/lib/validations/checkout.ts
 import { z } from "zod";
 
-/** Regex sencillos y útiles */
-const phoneRegex = /^[0-9]{10,15}$/; // MX 10 dígitos, tolera internacionales
-const zipRegex = /^[0-9]{4,10}$/; // Ajusta a /^[0-9]{5}$/ si quieres MX estricto
+/** Regex útiles */
+const phoneRegex = /^\d{10,15}$/; // MX 10, permite intl.
+const zipRegex = /^\d{4,10}$/; // Cambia a /^\d{5}$/ si quieres MX estricto
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
 
-/** Helpers: primero TRIM, luego validamos con refine */
-const trimmed = z.string().transform((s) => s.trim());
-
-const required = (msg: string) =>
-  trimmed.refine((s) => s.length > 0, { message: msg });
-
-const requiredRegex = (re: RegExp, msg: string) =>
-  trimmed.refine((s) => re.test(s), { message: msg });
-
+/** Helpers: trim + validaciones con refine para evitar el problema de ZodEffects */
+const t = z.string().transform((s) => s.trim());
+const req = (msg: string) => t.refine((s) => s.length > 0, { message: msg });
+const reqRegex = (re: RegExp, msg: string) =>
+  t.refine((s) => re.test(s), { message: msg });
 const emailNorm = z
   .string()
   .transform((s) => s.trim().toLowerCase())
@@ -22,36 +17,32 @@ const emailNorm = z
     message: "Correo electrónico inválido",
   });
 
-/** Dirección */
+/** ========== Dirección/Contacto/Checkout (modelo general) ========== */
 export const addressSchema = z.object({
-  label: required("La etiqueta es requerida"),
-  street: required("La calle es requerida"),
-  ext_no: required("El número exterior es requerido"),
-  int_no: trimmed.optional(),
-  neighborhood: required("La colonia es requerida"),
-  city: required("La ciudad es requerida"),
-  state: required("El estado es requerido"),
-  zip: requiredRegex(zipRegex, "C.P. inválido"),
+  label: req("La etiqueta es requerida"),
+  street: req("La calle es requerida"),
+  ext_no: req("El número exterior es requerido"),
+  int_no: t.optional(),
+  neighborhood: req("La colonia es requerida"),
+  city: req("La ciudad es requerida"),
+  state: req("El estado es requerido"),
+  zip: reqRegex(zipRegex, "C.P. inválido"),
   is_default: z.boolean().optional(),
 });
-
 export type AddressInput = z.infer<typeof addressSchema>;
 
-/** Contacto */
 export const contactSchema = z.object({
-  name: required("El nombre es requerido").refine((s) => s.length >= 2, {
+  name: req("El nombre es requerido").refine((s) => s.length >= 2, {
     message: "El nombre es requerido",
   }),
-  phone: requiredRegex(phoneRegex, "Teléfono inválido"),
+  phone: reqRegex(phoneRegex, "Teléfono inválido"),
   email: emailNorm,
 });
-
 export type ContactInput = z.infer<typeof contactSchema>;
 
 export const FulfillmentMethod = z.enum(["shipping", "pickup"]);
 export type FulfillmentMethod = z.infer<typeof FulfillmentMethod>;
 
-/** Checkout */
 export const checkoutSchema = z
   .object({
     fulfillment_method: FulfillmentMethod,
@@ -76,5 +67,30 @@ export const checkoutSchema = z
       });
     }
   });
-
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
+
+/** ========== Esquemas del flujo MVP por pasos (compatibilidad con tus páginas) ========== */
+export const DatosSchema = z.object({
+  fullName: req("Nombre requerido").refine((s) => s.length >= 3, {
+    message: "Nombre demasiado corto",
+  }),
+  email: emailNorm,
+  phone: reqRegex(phoneRegex, "Teléfono inválido"),
+  street: req("Calle requerida"),
+  extNumber: req("No. exterior requerido"),
+  intNumber: t.optional(),
+  neighborhood: req("Colonia requerida"),
+  postalCode: reqRegex(zipRegex, "C.P. inválido"),
+  city: req("Ciudad requerida"),
+  state: req("Estado requerido"),
+  notes: t.max(300).optional(),
+});
+export type DatosInput = z.infer<typeof DatosSchema>;
+
+export const PagoSchema = z.object({
+  method: z.enum(["card-mock", "oxxo-mock", "transfer-mock"]),
+  agree: z.literal(true, {
+    errorMap: () => ({ message: "Debes aceptar términos" }),
+  }),
+});
+export type PagoInput = z.infer<typeof PagoSchema>;
