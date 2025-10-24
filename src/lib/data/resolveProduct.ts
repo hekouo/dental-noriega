@@ -1,11 +1,10 @@
 import removeAccents from "remove-accents";
 import { loadProductBySlug } from "./catalog-sections";
 import { guessSectionForFeaturedSlug } from "@/lib/catalog/featuredSection";
+import { normalizeSlug, autocorrect } from "@/lib/utils/slug";
 
 function normSlug(s: string) {
-  return removeAccents(s.toLowerCase().trim())
-    .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9-]/g, "");
+  return normalizeSlug(s);
 }
 
 async function tryLoadProduct(section: string, slug: string, context: string) {
@@ -51,13 +50,21 @@ export async function resolveProduct(section: string, slug: string) {
     if (byId) return byId;
   }
 
-  // 5) nada
+  // 5) búsqueda fuzzy con autocorrección
+  const corrected = autocorrect(g);
+  if (corrected !== g) {
+    const fuzzyMatch = await tryLoadProduct(section, corrected, "Fuzzy match");
+    if (fuzzyMatch) return { ...fuzzyMatch, correctedSlug: corrected };
+  }
+
+  // 6) nada
   if (process.env.NODE_ENV === "development") {
     console.warn("[PDP] Not found", {
       section,
       slug,
       normalized: { s, g },
       guessed,
+      corrected,
     });
   }
 

@@ -1,6 +1,6 @@
 // src/app/catalogo/[section]/[slug]/page.tsx
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Metadata } from "next";
 import { resolveProduct } from "@/lib/data/resolveProduct";
 import { formatPrice } from "@/lib/utils/catalog";
@@ -10,6 +10,8 @@ import { QuantitySelector } from "@/components/QuantitySelector";
 import ProductImage from "@/components/ProductImage";
 import PointsBadge from "@/components/PointsBadge";
 import { normalizeImageUrl } from "@/lib/img/normalizeImageUrl";
+import { RecentlyViewedTracker } from "@/components/RecentlyViewedTracker";
+import RecentlyViewedCarousel from "@/components/RecentlyViewedCarousel";
 
 export const revalidate = 300; // Cache 5 minutos
 
@@ -57,10 +59,23 @@ export default async function ProductPage({ params }: Props) {
     return notFound();
   }
 
+  // Si se encontró con slug corregido, redirigir a la URL correcta
+  if ('correctedSlug' in data && data.correctedSlug) {
+    redirect(`/catalogo/${params.section}/${data.correctedSlug}`);
+  }
+
   const { section, product } = data;
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <RecentlyViewedTracker
+        slug={params.slug}
+        title={product.title}
+        section={section.sectionName}
+        sectionSlug={section.sectionSlug}
+        price={product.price}
+        image={product.image}
+      />
       <div className="max-w-7xl mx-auto px-4 py-8">
         <Link
           href={ROUTES.section(section.sectionSlug)}
@@ -132,6 +147,11 @@ export default async function ProductPage({ params }: Props) {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Carrusel de productos vistos recientemente */}
+        <div className="mt-8">
+          <RecentlyViewedCarousel />
         </div>
       </div>
     </div>

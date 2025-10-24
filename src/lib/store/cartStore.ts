@@ -10,6 +10,7 @@ export type CartItem = {
   imageUrl?: string;
   variantId?: string;
   qty: number;
+  selected: boolean;
 };
 
 type CartState = {
@@ -17,10 +18,13 @@ type CartState = {
 };
 
 type CartActions = {
-  addToCart: (item: CartItem) => void;
+  addToCart: (item: Omit<CartItem, 'selected'>) => void;
   removeFromCart: (id: string, variantId?: string) => void;
   setCartQty: (id: string, variantId: string | undefined, qty: number) => void;
   clearCart: () => void;
+  toggleSelect: (id: string, variantId?: string) => void;
+  selectAll: () => void;
+  deselectAll: () => void;
 };
 
 export type CartStore = CartState & CartActions;
@@ -90,7 +94,7 @@ export const useCartStore = create<CartStore>()(
               i === existingIndex ? { ...x, qty: x.qty + item.qty } : x,
             );
           } else {
-            next = [...cartItems, item];
+            next = [...cartItems, { ...item, selected: true }];
           }
 
           if (next === cartItems) return;
@@ -124,6 +128,48 @@ export const useCartStore = create<CartStore>()(
           if (get().cartItems.length === 0) return;
           _safeSet({ cartItems: [] });
         },
+
+        toggleSelect: (id, variantId) => {
+          _tripwire("toggleSelect", { id, variantId });
+          const cartItems = get().cartItems;
+          const key = getKey(id, variantId);
+          const idx = cartItems.findIndex((x) => getKey(x.id, x.variantId) === key);
+          if (idx === -1) return;
+          
+          const it = cartItems[idx];
+          const next = { ...it, selected: !it.selected };
+          if (next.selected === it.selected) return;
+          
+          const copy = cartItems.slice();
+          copy[idx] = next;
+          _safeSet({ cartItems: copy });
+        },
+
+        selectAll: () => {
+          _tripwire("selectAll");
+          const cartItems = get().cartItems;
+          let changed = false;
+          const copy = cartItems.map((i) => {
+            if (i.selected) return i;
+            changed = true;
+            return { ...i, selected: true };
+          });
+          if (!changed) return;
+          _safeSet({ cartItems: copy });
+        },
+
+        deselectAll: () => {
+          _tripwire("deselectAll");
+          const cartItems = get().cartItems;
+          let changed = false;
+          const copy = cartItems.map((i) => {
+            if (!i.selected) return i;
+            changed = true;
+            return { ...i, selected: false };
+          });
+          if (!changed) return;
+          _safeSet({ cartItems: copy });
+        },
       };
     },
     {
@@ -141,3 +187,9 @@ export const useCartStore = create<CartStore>()(
 export const selectCartItems = (s: CartStore) => s.cartItems;
 export const selectCartCount = (s: CartStore) =>
   s.cartItems.reduce((sum, item) => sum + item.qty, 0);
+export const selectSelectedItems = (s: CartStore) => 
+  s.cartItems.filter(item => item.selected);
+export const selectSelectedCount = (s: CartStore) =>
+  s.cartItems.reduce((sum, item) => sum + (item.selected ? item.qty : 0), 0);
+export const selectSelectedTotal = (s: CartStore) =>
+  s.cartItems.reduce((sum, item) => sum + (item.selected ? item.price * item.qty : 0), 0);

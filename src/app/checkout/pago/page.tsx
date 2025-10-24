@@ -100,22 +100,65 @@ export default function PagoPage() {
     <div className="max-w-4xl mx-auto p-6">
       <h1 className="text-2xl font-bold mb-6">Confirmar Pago</h1>
 
-      {/* Resumen de productos */}
-      <div className="bg-gray-50 rounded-lg p-4 mb-6">
-        <h2 className="font-semibold mb-2">Productos seleccionados:</h2>
-        <ul className="space-y-1">
-          {ids.map((id) => (
-            <li key={id} className="flex justify-between text-sm">
-              <span>Producto {id}</span>
-              <span>x1</span>
-            </li>
-          ))}
-        </ul>
-        <div className="mt-2 pt-2 border-t">
-          <div className="flex justify-between font-semibold">
-            <span>Total:</span>
-            <span>{formatCurrency(total)}</span>
-          </div>
+      {/* Tabla de productos */}
+      <div className="bg-white rounded-lg shadow overflow-hidden mb-6">
+        <div className="px-6 py-4 bg-gray-50 border-b">
+          <h2 className="font-semibold">Productos a pagar</h2>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Producto
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Cantidad
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Precio
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Subtotal
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {useCheckoutStore.getState().checkoutItems
+                .filter((i) => i.selected)
+                .map((item) => (
+                  <tr key={item.id}>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">
+                          {item.title || `Producto ${item.id}`}
+                        </div>
+                        <div className="text-sm text-gray-500">ID: {item.id}</div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {item.qty ?? 1}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {formatCurrency(item.price ?? 0)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {formatCurrency((item.price ?? 0) * (item.qty ?? 1))}
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+            <tfoot className="bg-gray-50">
+              <tr>
+                <td colSpan={3} className="px-6 py-4 text-right text-sm font-medium text-gray-900">
+                  Total:
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                  {formatCurrency(total)}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
         </div>
       </div>
 

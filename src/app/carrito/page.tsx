@@ -1,6 +1,6 @@
 "use client";
 
-import { useCartStore, selectCartItems } from "@/lib/store/cartStore";
+import { useCartStore, selectCartItems, selectSelectedItems, selectSelectedCount, selectSelectedTotal } from "@/lib/store/cartStore";
 import { useCheckoutStore } from "@/lib/store/checkoutStore";
 import { formatCurrency } from "@/lib/utils/currency";
 import { Trash2, Plus, Minus } from "lucide-react";
@@ -12,9 +12,14 @@ import { ROUTES } from "@/lib/routes";
 
 export default function CarritoPage() {
   const cartItems = useCartStore(selectCartItems);
+  const selectedItems = useCartStore(selectSelectedItems);
+  const selectedCount = useCartStore(selectSelectedCount);
+  const selectedTotal = useCartStore(selectSelectedTotal);
   const setCartQty = useCartStore((state) => state.setCartQty);
   const removeFromCart = useCartStore((state) => state.removeFromCart);
-  const clearCart = useCartStore((state) => state.clearCart);
+  const toggleSelect = useCartStore((state) => state.toggleSelect);
+  const selectAll = useCartStore((state) => state.selectAll);
+  const deselectAll = useCartStore((state) => state.deselectAll);
   const ingestFromCart = useCheckoutStore((state) => state.ingestFromCart);
   const busy = useRef(false);
   const [user, setUser] = useState<unknown>(null);
@@ -33,21 +38,24 @@ export default function CarritoPage() {
   );
 
   const handleContinueToCheckout = useCallback(() => {
-    if (busy.current || !cartItems?.length) return;
+    if (busy.current || !selectedItems?.length) {
+      // Mostrar toast si no hay items seleccionados
+      if (!selectedItems?.length) {
+        alert("Selecciona al menos un producto para continuar");
+      }
+      return;
+    }
     busy.current = true;
 
-    // 1) Inyecta al checkout
-    ingestFromCart(cartItems, true);
+    // 1) Inyecta al checkout solo los seleccionados
+    ingestFromCart(selectedItems, true);
 
-    // 2) Limpia carrito
-    clearCart();
-
-    // 3) Navega sin bloquear la UI
+    // 2) Navega sin bloquear la UI
     startTransition(() => {
       router.push("/checkout");
       busy.current = false;
     });
-  }, [cartItems, ingestFromCart, clearCart, router]);
+  }, [selectedItems, ingestFromCart, router]);
 
   if (cartItems.length === 0) {
     return (
@@ -72,11 +80,40 @@ export default function CarritoPage() {
       <div className="grid lg:grid-cols-3 gap-8">
         {/* Items */}
         <div className="lg:col-span-2 space-y-4">
+          {/* Controles de selección */}
+          <div className="bg-white rounded-lg shadow p-4 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={selectAll}
+                className="text-sm text-blue-600 hover:underline"
+              >
+                Seleccionar todo
+              </button>
+              <button
+                onClick={deselectAll}
+                className="text-sm text-gray-600 hover:underline"
+              >
+                Ninguno
+              </button>
+            </div>
+            <div className="text-sm text-gray-600">
+              {selectedCount} de {cartItems.length} productos seleccionados
+            </div>
+          </div>
+
           {cartItems.map((item) => (
             <div
               key={item.id}
               className="bg-white rounded-lg shadow p-6 flex gap-4"
             >
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={item.selected}
+                  onChange={() => toggleSelect(item.id, item.variantId)}
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+              </div>
               <div className="flex-1">
                 <h3 className="font-semibold mb-1">{item.title}</h3>
                 <p className="text-sm text-gray-500">ID: {item.id}</p>
@@ -125,9 +162,13 @@ export default function CarritoPage() {
 
             <div className="space-y-2 mb-4">
               <div className="flex justify-between">
+                <span className="text-gray-600">Productos seleccionados</span>
+                <span className="font-medium">{selectedCount}</span>
+              </div>
+              <div className="flex justify-between">
                 <span className="text-gray-600">Subtotal</span>
                 <span className="font-medium">
-                  {formatCurrency(cartSubtotal)}
+                  {formatCurrency(selectedTotal)}
                 </span>
               </div>
               <div className="flex justify-between text-sm text-gray-500">
@@ -139,32 +180,25 @@ export default function CarritoPage() {
             <div className="border-t pt-4 mb-6">
               <div className="flex justify-between text-lg font-bold">
                 <span>Total estimado</span>
-                <span>{formatCurrency(cartSubtotal)}</span>
+                <span>{formatCurrency(selectedTotal)}</span>
               </div>
             </div>
 
-            {user ? (
-              <button
-                onClick={handleContinueToCheckout}
-                disabled={busy.current}
-                className="w-full btn btn-primary block text-center"
-                aria-busy={busy.current}
-              >
-                <span>{busy.current ? "Procesando..." : "Continuar al Checkout"}</span>
-              </button>
-            ) : (
-              <div>
-                <p className="text-sm text-gray-600 mb-3 text-center">
-                  Inicia sesión para continuar
-                </p>
-                <Link
-                  href={ROUTES.cuenta()}
-                  className="w-full btn btn-primary block text-center"
-                >
-                  <span>Iniciar Sesión</span>
-                </Link>
-              </div>
-            )}
+            <button
+              onClick={handleContinueToCheckout}
+              disabled={busy.current || selectedCount === 0}
+              className="w-full btn btn-primary block text-center disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-busy={busy.current}
+            >
+              <span>
+                {busy.current 
+                  ? "Procesando..." 
+                  : selectedCount === 0 
+                    ? "Selecciona productos" 
+                    : `Continuar al Checkout (${selectedCount})`
+                }
+              </span>
+            </button>
 
             <Link
               href={ROUTES.destacados()}

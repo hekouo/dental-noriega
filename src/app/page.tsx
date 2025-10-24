@@ -4,6 +4,7 @@ import { ShoppingBag, Package, Award, Truck } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
 import { loadFeatured } from "@/lib/data/loadFeatured";
 import FeaturedGrid from "@/components/FeaturedGrid";
+import RecentlyViewedCarousel from "@/components/RecentlyViewedCarousel";
 
 // Dynamic import para componente no crítico
 const FinalThanks = dynamic(() => import("@/components/FinalThanks"), {
@@ -62,6 +63,13 @@ export default async function HomePage() {
           </div>
         </section>
       )}
+
+      {/* Productos Vistos Recientemente */}
+      <section className="py-16 px-4 bg-gray-50">
+        <div className="max-w-6xl mx-auto">
+          <RecentlyViewedCarousel />
+        </div>
+      </section>
 
       {/* Features */}
       <section className="py-16 px-4 bg-gray-50">
