@@ -1,86 +1,97 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { useCheckout } from "@/lib/store/checkoutStore";
 import { useCartStore } from "@/lib/store/cartStore";
 
-type AnyItem = {
-  id?: string;
-  title?: string;
-  name?: string;
-  price?: number;
-  qty?: number;
-  unitAmountCents?: number;
-  quantity?: number;
-  image?: string;
-  imageResolved?: string;
-  sectionSlug?: string;
-  slug?: string;
-};
-
-function normalize(cartItems: AnyItem[]) {
-  return (cartItems ?? []).map((it) => ({
-    id: String(
-      it.id ??
-        it.slug ??
-        (typeof crypto !== "undefined" ? crypto.randomUUID() : Math.random()),
-    ),
-    title: String(it.title ?? it.name ?? "Producto"),
-    price: Number(
-      it.price ??
-        (Number.isFinite(it.unitAmountCents)
-          ? Number(it.unitAmountCents) / 100
-          : 0),
-    ),
-    qty: Number(it.qty ?? it.quantity ?? 1),
-    image: it.image ?? it.imageResolved,
-    sectionSlug: it.sectionSlug,
-    slug: it.slug,
-  }));
-}
-
 export default function CheckoutIndex() {
   const { items, setItems } = useCheckout();
 
-  // acciones del carrito real
-  const removeFromCart = useCartStore((s: any) => s.remove);
-  const clearCart = useCartStore((s: any) => s.clear);
-  const setQty = useCartStore((s: any) =>
-    typeof s?.setQty === "function" ? s.setQty : null,
-  );
-
+  // Cargar del cartStore solo si el checkout está vacío
   useEffect(() => {
-    const sync = () => {
-      const cart = (useCartStore.getState?.().items ?? []) as AnyItem[];
-      setItems(normalize(cart));
-    };
-
-    // primera carga si checkout está vacío
-    if (items.length === 0) sync();
-
-    // suscripción con 1 callback (sin subscribeWithSelector)
-    const unsub = useCartStore.subscribe?.((state: any, prevState: any) => {
-      if (state?.items !== prevState?.items) {
-        sync();
-      }
-    });
-
-    return () => {
-      try {
-        unsub?.();
-      } catch {}
-    };
+    if (items.length > 0) return;
+    const cartItems = (useCartStore?.getState?.().items ?? []) as any[];
+    if (Array.isArray(cartItems) && cartItems.length) {
+      const normalized = cartItems.map((it) => ({
+        id: String(it.id ?? it.slug ?? crypto.randomUUID()),
+        title: String(it.title ?? it.name ?? "Producto"),
+        price: Number(
+          it.price ??
+            (Number.isFinite(it.unitAmountCents)
+              ? Number(it.unitAmountCents) / 100
+              : 0),
+        ),
+        qty: Number(it.qty ?? it.quantity ?? 1),
+        image: it.image ?? it.imageResolved,
+      }));
+      setItems(normalized);
+    }
   }, [items.length, setItems]);
 
+  // Total en pesos
   const total = useMemo(
-    () =>
-      items.reduce(
-        (a: number, it: any) =>
-          a + (Number(it.price) || 0) * (Number(it.qty) || 1),
-        0,
-      ),
+    () => items.reduce((a, it) => a + (it.price ?? 0) * (it.qty ?? 1), 0),
     [items],
+  );
+
+  // Helpers contra el cartStore (tolerantes a nombres distintos)
+  const syncRemove = useCallback((id: string) => {
+    const api: any = useCartStore?.getState?.();
+    if (!api) return;
+    const result = api.remove?.(id) || api.removeItem?.(id) || api.delete?.(id);
+    return result;
+  }, []);
+
+  const syncSetQty = useCallback((id: string, qty: number) => {
+    const api: any = useCartStore?.getState?.();
+    if (!api) return;
+    const result =
+      api.setQty?.(id, qty) ||
+      api.updateQty?.(id, qty) ||
+      api.changeQty?.(id, qty);
+    return result;
+  }, []);
+
+  const handleRemove = useCallback(
+    (id: string) => {
+      // 1) checkout
+      setItems(items.filter((x) => x.id !== id));
+      // 2) cart
+      try {
+        syncRemove(id);
+      } catch {
+        /* ignore cart sync errors */
+      }
+    },
+    [items, setItems, syncRemove],
+  );
+
+  const handleInc = useCallback(
+    (id: string) => {
+      setItems(items.map((x) => (x.id === id ? { ...x, qty: x.qty + 1 } : x)));
+      try {
+        const next = (items.find((x) => x.id === id)?.qty ?? 1) + 1;
+        syncSetQty(id, next);
+      } catch {
+        /* ignore cart sync errors */
+      }
+    },
+    [items, setItems, syncSetQty],
+  );
+
+  const handleDec = useCallback(
+    (id: string) => {
+      const cur = items.find((x) => x.id === id)?.qty ?? 1;
+      const next = Math.max(1, cur - 1);
+      setItems(items.map((x) => (x.id === id ? { ...x, qty: next } : x)));
+      try {
+        syncSetQty(id, next);
+      } catch {
+        /* ignore cart sync errors */
+      }
+    },
+    [items, setItems, syncSetQty],
   );
 
   return (
@@ -99,58 +110,41 @@ export default function CheckoutIndex() {
       ) : (
         <>
           <ul className="mt-4 divide-y">
-            {items.map((it: any) => (
+            {items.map((it) => (
               <li
                 key={it.id}
-                className="py-3 flex items-start justify-between gap-4"
+                className="py-3 flex items-center justify-between gap-3"
               >
-                <div className="min-w-0">
-                  <div className="font-medium truncate">{it.title}</div>
-                  <div className="text-sm text-gray-500">
-                    ${(Number(it.price) || 0).toFixed(2)} MXN
-                  </div>
-
-                  <div className="mt-2 flex items-center gap-2">
-                    {setQty ? (
-                      <>
-                        <button
-                          type="button"
-                          className="px-2 py-1 border rounded"
-                          onClick={() =>
-                            setQty(it.id, Math.max(1, (it.qty ?? 1) - 1))
-                          }
-                        >
-                          -
-                        </button>
-                        <span className="w-8 text-center">{it.qty ?? 1}</span>
-                        <button
-                          type="button"
-                          className="px-2 py-1 border rounded"
-                          onClick={() => setQty(it.id, (it.qty ?? 1) + 1)}
-                        >
-                          +
-                        </button>
-                      </>
-                    ) : (
-                      <span className="text-xs text-gray-500">
-                        Cant: {it.qty ?? 1}
-                      </span>
-                    )}
-
+                <div className="flex flex-col">
+                  <span className="font-medium">{it.title}</span>
+                  <div className="mt-1 flex items-center gap-2 text-sm">
                     <button
                       type="button"
-                      className="ml-4 text-red-600 text-sm underline"
-                      onClick={() => removeFromCart?.(it.id)}
+                      onClick={() => handleDec(it.id)}
+                      className="rounded border px-2"
+                      aria-label="Disminuir"
+                    >
+                      −
+                    </button>
+                    <span>{it.qty}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleInc(it.id)}
+                      className="rounded border px-2"
+                      aria-label="Aumentar"
+                    >
+                      +
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRemove(it.id)}
+                      className="ml-3 text-red-600 underline"
                     >
                       Eliminar
                     </button>
                   </div>
                 </div>
-
-                <div className="shrink-0 font-medium">
-                  ${(Number(it.price || 0) * Number(it.qty || 1)).toFixed(2)}{" "}
-                  MXN
-                </div>
+                <span>${((it.price ?? 0) * (it.qty ?? 1)).toFixed(2)} MXN</span>
               </li>
             ))}
           </ul>
@@ -160,24 +154,12 @@ export default function CheckoutIndex() {
             <span>${total.toFixed(2)} MXN</span>
           </div>
 
-          <div className="mt-6 flex gap-3">
-            <Link
-              href="/checkout/datos"
-              className="inline-block flex-1 rounded-lg border px-4 py-2 text-center"
-            >
-              Continuar
-            </Link>
-
-            {clearCart && (
-              <button
-                type="button"
-                className="rounded-lg border px-4 py-2"
-                onClick={() => clearCart()}
-              >
-                Vaciar carrito
-              </button>
-            )}
-          </div>
+          <Link
+            href="/checkout/datos"
+            className="mt-6 inline-block w-full rounded-lg border px-4 py-2 text-center"
+          >
+            Continuar
+          </Link>
         </>
       )}
     </main>
