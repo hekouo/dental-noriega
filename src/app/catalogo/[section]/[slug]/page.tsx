@@ -1,6 +1,7 @@
 // src/app/catalogo/[section]/[slug]/page.tsx
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Metadata } from "next";
 import { loadProductBySlug } from "@/lib/data/catalog-sections";
 import { formatPrice } from "@/lib/utils/catalog";
 import { pointsFor, getPointsRate } from "@/lib/utils/points";
@@ -12,6 +13,41 @@ import PointsBadge from "@/components/PointsBadge";
 export const revalidate = 300; // Cache 5 minutos
 
 type Props = { params: { section: string; slug: string } };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const data = await loadProductBySlug(params.section, params.slug);
+
+  if (!data) {
+    return {
+      title: "Producto no encontrado",
+    };
+  }
+
+  const { product, section } = data;
+  const title = `${product.title} - ${section.sectionName} | Depósito Dental Noriega`;
+  const description =
+    product.description ||
+    `Compra ${product.title} en ${section.sectionName}. Precio: ${formatPrice(product.price)}. Envío gratis.`;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      images: product.image
+        ? [
+            {
+              url: product.image,
+              width: 800,
+              height: 600,
+              alt: product.title,
+            },
+          ]
+        : [],
+    },
+  };
+}
 
 export default async function ProductPage({ params }: Props) {
   const data = await loadProductBySlug(params.section, params.slug);

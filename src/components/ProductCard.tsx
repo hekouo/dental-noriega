@@ -3,7 +3,8 @@
 import { formatCurrency } from "@/lib/utils/currency";
 import { pointsFor } from "@/lib/utils/points";
 import { useCartStore } from "@/lib/store/cartStore";
-import { ShoppingCart } from "lucide-react";
+import { useCheckoutStore } from "@/lib/store/checkoutStore";
+import { ShoppingCart, CreditCard } from "lucide-react";
 import { useState } from "react";
 import ProductImage from "@/components/ProductImage";
 import PointsBadge from "@/components/PointsBadge";
@@ -24,12 +25,25 @@ export function ProductCard({
   image,
 }: ProductCardProps) {
   const addToCart = useCartStore((state) => state.addToCart);
+  const upsertSingleToCheckout = useCheckoutStore(
+    (state) => state.upsertSingleToCheckout,
+  );
   const [isAdding, setIsAdding] = useState(false);
+  const [isAddingToCheckout, setIsAddingToCheckout] = useState(false);
 
   const handleAddToCart = () => {
     setIsAdding(true);
-    addToCart({ id: sku, title: name, price, qty: 1 });
+    addToCart({ id: sku, title: name, price, qty: 1, imageUrl: image });
     setTimeout(() => setIsAdding(false), 1000);
+  };
+
+  const handleAddToCheckout = () => {
+    setIsAddingToCheckout(true);
+    upsertSingleToCheckout(
+      { id: sku, title: name, price, qty: 1, imageUrl: image },
+      true,
+    );
+    setTimeout(() => setIsAddingToCheckout(false), 1000);
   };
 
   const points = pointsFor(price, 1);
@@ -68,14 +82,25 @@ export function ProductCard({
           </span>
         </div>
 
-        <button
-          onClick={handleAddToCart}
-          disabled={isAdding}
-          className="w-full btn btn-primary flex items-center justify-center gap-2 disabled:opacity-50"
-        >
-          <ShoppingCart size={18} />
-          {isAdding ? "Agregado!" : "Agregar al Carrito"}
-        </button>
+        <div className="space-y-2">
+          <button
+            onClick={handleAddToCart}
+            disabled={isAdding}
+            className="w-full btn btn-primary flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            <ShoppingCart size={18} />
+            {isAdding ? "Agregado!" : "Agregar al Carrito"}
+          </button>
+
+          <button
+            onClick={handleAddToCheckout}
+            disabled={isAddingToCheckout}
+            className="w-full btn btn-secondary flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            <CreditCard size={18} />
+            {isAddingToCheckout ? "Agregado!" : "Añadir al Checkout"}
+          </button>
+        </div>
       </div>
     </div>
   );

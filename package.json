@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "node scripts/kill-port.cjs && rimraf .next",
     "dev": "next dev -p 3002",
+    "fresh": "node scripts/kill-port.cjs && rimraf .next && next dev -p 3002",
     "build": "next build",
     "start": "next start -p 3002",
     "lint": "eslint .",
@@ -76,6 +78,7 @@
     "noop": "^1.0.1",
     "postcss": "^8.4.47",
     "prettier": "^3.6.2",
+    "rimraf": "^6.0.1",
     "tailwindcss": "^3.4.14",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "5",
