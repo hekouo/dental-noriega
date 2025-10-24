@@ -37,9 +37,6 @@ export default function CheckoutIndex() {
   const selectedTotal = useCheckoutStore(selectSelectedTotal);
 
   // Acciones del store
-  const toggleCheckoutSelect = useCheckoutStore((s) => s.toggleCheckoutSelect);
-  const setCheckoutQty = useCheckoutStore((s) => s.setCheckoutQty);
-  const removeFromCheckout = useCheckoutStore((s) => s.removeFromCheckout);
   const selectAllCheckout = useCheckoutStore((s) => s.selectAllCheckout);
   const deselectAllCheckout = useCheckoutStore((s) => s.deselectAllCheckout);
   const clearCheckout = useCheckoutStore((s) => s.clearCheckout);
@@ -50,22 +47,6 @@ export default function CheckoutIndex() {
     [checkoutItems.length],
   );
   const hasSelected = useMemo(() => selectedCount > 0, [selectedCount]);
-
-  // Handlers
-  const handleToggle = (item: (typeof checkoutItems)[0]) => {
-    const key = `${item.id}:${item.variantId || "default"}`;
-    toggleCheckoutSelect(key);
-  };
-
-  const handleQtyChange = (item: (typeof checkoutItems)[0], qty: number) => {
-    const key = `${item.id}:${item.variantId || "default"}`;
-    setCheckoutQty(key, qty);
-  };
-
-  const handleRemove = (item: (typeof checkoutItems)[0]) => {
-    const key = `${item.id}:${item.variantId || "default"}`;
-    removeFromCheckout(key);
-  };
 
   const handleContinue = () => {
     if (hasSelected) {
@@ -124,10 +105,13 @@ export default function CheckoutIndex() {
         {checkoutItems.map((item) => (
           <CheckoutItemRow
             key={`${item.id}:${item.variantId || "default"}`}
-            item={item}
-            onToggle={() => handleToggle(item)}
-            onQtyChange={(qty) => handleQtyChange(item, qty)}
-            onRemove={() => handleRemove(item)}
+            id={item.id}
+            title={item.title}
+            price={item.price}
+            qty={item.qty}
+            selected={item.selected}
+            imageUrl={item.imageUrl}
+            variantId={item.variantId}
           />
         ))}
       </section>

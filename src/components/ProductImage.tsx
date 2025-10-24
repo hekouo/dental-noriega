@@ -19,7 +19,7 @@ export default function ProductImage({
   priority,
 }: Props) {
   const [broken, setBroken] = useState(false);
-  const finalSrc = broken ? "/img/products/placeholder.png" : resolved || src;
+  const finalSrc = broken ? "/images/fallback-product.png" : resolved || src;
 
   return (
     <Image

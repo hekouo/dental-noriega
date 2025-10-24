@@ -1,118 +1,74 @@
 "use client";
 
-import { useState } from "react";
 import Image from "next/image";
-import { Trash2 } from "lucide-react";
-import { CheckoutItem } from "@/lib/store/checkoutStore";
+import { useCheckoutStore } from "@/lib/store/checkoutStore";
 
 type Props = {
-  item: CheckoutItem;
-  onToggle: () => void;
-  onQtyChange: (qty: number) => void;
-  onRemove: () => void;
+  id: string;
+  title: string;
+  price: number;
+  qty: number;
+  selected: boolean;
+  imageUrl?: string;
+  variantId?: string | null;
 };
 
 export default function CheckoutItemRow({
-  item,
-  onToggle,
-  onQtyChange,
-  onRemove,
+  id,
+  title,
+  price,
+  qty,
+  selected,
+  imageUrl,
+  variantId,
 }: Props) {
-  const [localQty, setLocalQty] = useState(item.qty);
+  const toggle = useCheckoutStore((s) => s.toggleCheckoutSelect);
+  const setQty = useCheckoutStore((s) => s.setCheckoutQty);
+  const remove = useCheckoutStore((s) => s.removeFromCheckout);
 
-  const handleQtyChange = (newQty: number) => {
-    const validQty = Math.max(1, newQty);
-    setLocalQty(validQty);
-    onQtyChange(validQty);
-  };
-
-  const handleIncrement = () => {
-    handleQtyChange(localQty + 1);
-  };
-
-  const handleDecrement = () => {
-    handleQtyChange(localQty - 1);
-  };
-
-  const subtotal = item.price * localQty;
+  const onToggle = () => toggle(id);
+  const onQtyPlus = () => setQty(id, qty + 1);
+  const onQtyMinus = () => setQty(id, Math.max(1, qty - 1));
+  const onRemove = () => remove(id);
 
   return (
-    <div className="flex items-center gap-4 rounded-xl border p-4">
-      {/* Checkbox */}
-      <input
-        type="checkbox"
-        checked={item.selected}
-        onChange={onToggle}
-        className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-      />
-
-      {/* Imagen */}
-      <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg bg-gray-100">
-        {item.imageUrl ? (
+    <div className="grid grid-cols-[auto_1fr_auto] gap-4 items-center py-3 border-b">
+      <input type="checkbox" checked={selected} onChange={onToggle} />
+      <div className="flex items-center gap-3">
+        <div className="relative w-16 h-16 bg-neutral-100 rounded">
           <Image
-            src={item.imageUrl}
-            alt={item.title}
+            src={imageUrl || "/images/fallback-product.png"}
+            alt={title}
             fill
-            className="object-cover"
-            sizes="80px"
+            sizes="64px"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src =
+                "/images/fallback-product.png";
+            }}
           />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-gray-400">
-            <span className="text-xs">Sin imagen</span>
-          </div>
-        )}
+        </div>
+        <div>
+          <div className="text-sm font-medium">{title}</div>
+          <div className="text-xs text-neutral-500">#{variantId || "std"}</div>
+        </div>
       </div>
-
-      {/* Información del producto */}
-      <div className="flex-1 min-w-0">
-        <h3 className="font-medium text-gray-900 truncate">{item.title}</h3>
-        <p className="text-sm text-gray-500">
-          ${item.price.toFixed(2)} MXN c/u
-        </p>
-        {item.variantId && (
-          <p className="text-xs text-gray-400">Variante: {item.variantId}</p>
-        )}
-      </div>
-
-      {/* Selector de cantidad */}
-      <div className="flex items-center gap-2">
-        <button
-          onClick={handleDecrement}
-          className="h-8 w-8 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50"
-          disabled={localQty <= 1}
-        >
-          -
-        </button>
-        <input
-          type="number"
-          min="1"
-          value={localQty}
-          onChange={(e) => handleQtyChange(parseInt(e.target.value) || 1)}
-          className="w-16 text-center border border-gray-300 rounded px-2 py-1"
-        />
-        <button
-          onClick={handleIncrement}
-          className="h-8 w-8 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50"
-        >
-          +
+      <div className="flex items-center gap-3">
+        <div className="flex items-center border rounded">
+          <button className="px-2" onClick={onQtyMinus}>
+            -
+          </button>
+          <div className="px-3 tabular-nums">{qty}</div>
+          <button className="px-2" onClick={onQtyPlus}>
+            +
+          </button>
+        </div>
+        <div className="w-24 text-right tabular-nums">
+          ${(price * qty).toFixed(2)}
+        </div>
+        <button className="text-red-600" onClick={onRemove}>
+          Eliminar
         </button>
       </div>
-
-      {/* Subtotal */}
-      <div className="text-right">
-        <p className="font-semibold text-gray-900">
-          ${subtotal.toFixed(2)} MXN
-        </p>
-      </div>
-
-      {/* Botón eliminar */}
-      <button
-        onClick={onRemove}
-        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-        title="Eliminar del checkout"
-      >
-        <Trash2 size={20} />
-      </button>
     </div>
   );
 }
