@@ -1,11 +1,9 @@
-import { shallow } from "zustand/shallow";
 import { useCheckoutStore } from "./checkoutStore";
 
-export const useSelectedIds = () =>
-  useCheckoutStore(
-    (s) => s.checkoutItems.filter((i) => i.selected).map((i) => i.id),
-    shallow,
-  );
+export const useSelectedIds = () => {
+  const checkoutItems = useCheckoutStore((s) => s.checkoutItems);
+  return checkoutItems.filter((i) => i.selected).map((i) => i.id);
+};
 
 export const useSelectedCount = () =>
   useCheckoutStore((s) =>

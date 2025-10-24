@@ -8,12 +8,17 @@ import WhatsappBubble from "@/components/WhatsappBubble";
 import CartBubble from "@/components/CartBubble";
 import { ToothAccountMenu } from "@/components/ToothAccountMenu";
 import { ROUTES } from "@/lib/routes";
-import "@/lib/store/checkoutDevGuard";
 import { Search } from "lucide-react";
 
 const ConsultarDrawer = dynamic(() => import("@/components/ConsultarDrawer"), {
   ssr: false,
 });
+const CheckoutDevGuard = dynamic(
+  () => import("@/components/CheckoutDevGuard"),
+  {
+    ssr: false,
+  },
+);
 const SiteFooter = dynamic(() => import("@/components/SiteFooter"), {
   ssr: false,
 });
@@ -55,6 +60,7 @@ export default function RootLayout({
       <body
         className={`${inter.className} min-h-screen bg-white text-gray-900 flex flex-col`}
       >
+        <CheckoutDevGuard />
         <header className="border-b bg-white sticky top-0 z-40">
           <nav className="max-w-6xl mx-auto flex items-center justify-between p-4 gap-4">
             <Link

@@ -1,6 +1,6 @@
 "use client";
-import { createWithEqualityFn } from "zustand/traditional";
-import { shallow } from "zustand/shallow";
+
+import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 
 // Tipos
@@ -41,7 +41,7 @@ type State = {
   clearCheckout: () => void;
 };
 
-export const useCheckoutStore = createWithEqualityFn<State>()(
+export const useCheckoutStore = create<State>()(
   persist(
     (set, _get) => ({
       checkoutItems: [],
@@ -53,23 +53,23 @@ export const useCheckoutStore = createWithEqualityFn<State>()(
             return {
               checkoutItems: [
                 ...state.checkoutItems,
-                { ...item, selected } as CheckoutItem,
+                { ...item, qty: item.qty ?? 1, selected } as CheckoutItem,
               ],
             };
           }
           const curr = state.checkoutItems[idx];
-          const updated = {
+          const nextItem = {
             ...curr,
             qty: (curr.qty ?? 0) + (item.qty ?? 1),
             selected,
           };
           if (
-            updated.qty === curr.qty &&
-            !!updated.selected === !!curr.selected
+            nextItem.qty === curr.qty &&
+            !!nextItem.selected === !!curr.selected
           )
             return state;
           const next = state.checkoutItems.slice();
-          next[idx] = updated;
+          next[idx] = nextItem;
           return { checkoutItems: next };
         });
       },
@@ -185,13 +185,12 @@ export const useCheckoutStore = createWithEqualityFn<State>()(
     {
       name: "checkout",
       storage: createJSONStorage(() => localStorage),
-      onRehydrateStorage: () => (_state) => {
-        // No escribir aquí sin condición estricta
-      },
+      // Importante: no escribir durante rehidratación para evitar loops
+      onRehydrateStorage: () => () => {},
       partialize: (s) => ({ checkoutItems: s.checkoutItems }),
+      version: 1,
     },
   ),
-  shallow,
 );
 
 // Selectores primitivos
