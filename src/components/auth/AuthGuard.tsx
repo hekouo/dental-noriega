@@ -9,7 +9,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<unknown>(null);
   const router = useRouter();
-  const loadFromSupabase = useCartStore((state) => state.loadFromSupabase);
+  // loadFromSupabase removido del store simplificado
 
   useEffect(() => {
     const supabase = createClient();
@@ -19,12 +19,11 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         router.push("/cuenta");
       } else {
         setUser(user);
-        // Cargar carrito desde Supabase
-        loadFromSupabase(user.id);
+        // Cargar carrito desde Supabase - removido del store simplificado
       }
       setIsLoading(false);
     });
-  }, [router, loadFromSupabase]);
+  }, [router]);
 
   if (isLoading) {
     return (
