@@ -1,5 +1,4 @@
 "use client";
-import { useRouter } from "next/navigation";
 import { useCartStore } from "@/lib/store/cartStore";
 
 type Props = {
@@ -13,7 +12,7 @@ type Props = {
   children?: React.ReactNode;
 };
 
-export default function BuyNowButton({
+export default function AddToCheckoutBtn({
   productId,
   productTitle,
   productPrice,
@@ -23,8 +22,7 @@ export default function BuyNowButton({
   className,
   children,
 }: Props) {
-  const router = useRouter();
-  // Solo funciones, lectura primitiva
+  // Selector PRIMITIVO: nada de objetos/arrays
   const upsertCheckoutFromCart = useCartStore((s) => s.upsertCheckoutFromCart);
 
   const onClick = () => {
@@ -36,12 +34,11 @@ export default function BuyNowButton({
       variantId: variantId || undefined,
       imageUrl,
     });
-    router.push("/checkout");
   };
 
   return (
     <button type="button" className={className} onClick={onClick}>
-      {children ?? "Comprar ahora"}
+      {children ?? "Añadir al checkout"}
     </button>
   );
 }

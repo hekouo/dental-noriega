@@ -2,10 +2,11 @@
 import { useState } from "react";
 import { User2 } from "lucide-react";
 import Link from "next/link";
-import { useCartStore, selectBadgeQty } from "@/lib/store/cartStore";
+import { useCartStore, selectCartItems } from "@/lib/store/cartStore";
 
 export function ToothAccountMenu() {
-  const qty = useCartStore(selectBadgeQty);
+  const cartItems = useCartStore(selectCartItems);
+  const qty = cartItems.reduce((sum, item) => sum + item.qty, 0);
   const [open, setOpen] = useState(false);
   const [toothOk, setToothOk] = useState(true);
 

@@ -23,12 +23,12 @@ export function ProductCard({
   description,
   image,
 }: ProductCardProps) {
-  const addItem = useCartStore((state) => state.addItem);
+  const addToCart = useCartStore((state) => state.addToCart);
   const [isAdding, setIsAdding] = useState(false);
 
   const handleAddToCart = () => {
     setIsAdding(true);
-    addItem({ id: sku, title: name, price, qty: 1 });
+    addToCart({ id: sku, title: name, price, qty: 1 });
     setTimeout(() => setIsAdding(false), 1000);
   };
 

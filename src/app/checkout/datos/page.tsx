@@ -4,14 +4,11 @@ import { useMemo } from "react";
 import { useCartStore } from "@/lib/store/cartStore";
 
 export default function DatosPage() {
-  const items = useCartStore((s) => s.items);
-  const overrideItems = useCartStore((s) => s.overrideItems);
+  const checkoutItems = useCartStore((s) => s.checkoutItems);
 
   const visibleItems = useMemo(() => {
-    const src =
-      overrideItems && overrideItems.length > 0 ? overrideItems : items;
-    return src ?? [];
-  }, [overrideItems, items]);
+    return checkoutItems.filter((item) => item.selected);
+  }, [checkoutItems]);
 
   if (!visibleItems || visibleItems.length === 0) {
     return (

@@ -7,6 +7,7 @@ type Props = {
   productPrice: number;
   qty?: number;
   variantId?: string | null;
+  imageUrl?: string;
   className?: string;
   children?: React.ReactNode;
 };
@@ -17,18 +18,21 @@ export default function AddToCartBtn({
   productPrice,
   qty = 1,
   variantId,
+  imageUrl,
   className,
   children,
 }: Props) {
   // Selector PRIMITIVO: nada de objetos/arrays
-  const addItem = useCartStore((s) => s.addItem);
+  const addToCart = useCartStore((s) => s.addToCart);
 
   const onClick = () => {
-    addItem({
-      id: variantId ?? productId,
+    addToCart({
+      id: productId,
       title: productTitle,
       price: productPrice,
       qty,
+      variantId: variantId || undefined,
+      imageUrl,
     });
   };
 

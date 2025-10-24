@@ -9,10 +9,9 @@ import { createClient } from "@/lib/supabase/client";
 import { ROUTES } from "@/lib/routes";
 
 export default function CarritoPage() {
-  const items = useCartStore((state) => state.items);
-  const updateQty = useCartStore((state) => state.updateQty);
-  const removeItem = useCartStore((state) => state.removeItem);
-  const subtotal = useCartStore((state) => state.subtotal);
+  const cartItems = useCartStore((state) => state.cartItems);
+  const setCartQty = useCartStore((state) => state.setCartQty);
+  const removeFromCart = useCartStore((state) => state.removeFromCart);
   const [user, setUser] = useState<unknown>(null);
 
   useEffect(() => {
@@ -20,9 +19,12 @@ export default function CarritoPage() {
     supabase.auth.getUser().then(({ data: { user } }) => setUser(user));
   }, []);
 
-  const cartSubtotal = subtotal();
+  const cartSubtotal = cartItems.reduce(
+    (sum, item) => sum + item.price * item.qty,
+    0,
+  );
 
-  if (items.length === 0) {
+  if (cartItems.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4">
         <div className="text-center">
@@ -45,7 +47,7 @@ export default function CarritoPage() {
       <div className="grid lg:grid-cols-3 gap-8">
         {/* Items */}
         <div className="lg:col-span-2 space-y-4">
-          {items.map((item) => (
+          {cartItems.map((item) => (
             <div
               key={item.id}
               className="bg-white rounded-lg shadow p-6 flex gap-4"
@@ -60,7 +62,9 @@ export default function CarritoPage() {
 
               <div className="flex items-center gap-3">
                 <button
-                  onClick={() => updateQty(item.id, item.qty - 1)}
+                  onClick={() =>
+                    setCartQty(item.id, item.variantId, item.qty - 1)
+                  }
                   className="p-1 hover:bg-gray-100 rounded"
                   aria-label="Disminuir cantidad"
                 >
@@ -68,7 +72,9 @@ export default function CarritoPage() {
                 </button>
                 <span className="w-12 text-center font-medium">{item.qty}</span>
                 <button
-                  onClick={() => updateQty(item.id, item.qty + 1)}
+                  onClick={() =>
+                    setCartQty(item.id, item.variantId, item.qty + 1)
+                  }
                   className="p-1 hover:bg-gray-100 rounded"
                   aria-label="Aumentar cantidad"
                 >
@@ -77,7 +83,7 @@ export default function CarritoPage() {
               </div>
 
               <button
-                onClick={() => removeItem(item.id)}
+                onClick={() => removeFromCart(item.id, item.variantId)}
                 className="text-red-600 hover:bg-red-50 p-2 rounded"
                 aria-label="Eliminar producto"
               >
@@ -95,7 +101,9 @@ export default function CarritoPage() {
             <div className="space-y-2 mb-4">
               <div className="flex justify-between">
                 <span className="text-gray-600">Subtotal</span>
-                <span className="font-medium">{formatCurrency(cartSubtotal)}</span>
+                <span className="font-medium">
+                  {formatCurrency(cartSubtotal)}
+                </span>
               </div>
               <div className="flex justify-between text-sm text-gray-500">
                 <span>Envío</span>
