@@ -3,16 +3,22 @@ import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { DatosSchema, type DatosInput } from "@/lib/validations/checkout";
-import { useCartStore, selectCartCore } from "@/lib/store/cartStore";
+import {
+  useCartStore,
+  selectItems,
+  selectMode,
+  selectOverride,
+} from "@/lib/store/cartStore";
 import { useRouter } from "next/navigation";
 
 export default function DatosPage() {
-  const { items, checkoutMode, overrideItems } = useCartStore(selectCartCore);
+  const items = useCartStore(selectItems);
+  const checkoutMode = useCartStore(selectMode);
+  const overrideItems = useCartStore(selectOverride);
   const router = useRouter();
 
-  const visibleItems = checkoutMode === 'buy-now' && overrideItems?.length
-    ? overrideItems
-    : items;
+  const visibleItems =
+    checkoutMode === "buy-now" && overrideItems?.length ? overrideItems : items;
 
   // Redirección en effect (no durante render)
   useEffect(() => {
@@ -41,7 +47,7 @@ export default function DatosPage() {
 
   function onSubmit(values: DatosInput) {
     // Guardar datos en localStorage temporalmente
-    localStorage.setItem('checkout-datos', JSON.stringify(values));
+    localStorage.setItem("checkout-datos", JSON.stringify(values));
     router.push("/checkout/pago");
   }
 

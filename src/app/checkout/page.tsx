@@ -4,18 +4,26 @@ import { useMemo } from "react";
 import Link from "next/link";
 import {
   useCartStore,
-  selectCartCore,
-  selectCartOps,
+  selectItems,
+  selectMode,
+  selectOverride,
+  selectOps,
 } from "@/lib/store/cartStore";
-import { shallow } from "zustand/shallow";
 
 export default function CheckoutIndex() {
-  const { items, checkoutMode, overrideItems } = useCartStore(selectCartCore);
-  const { updateQty, removeItem, setCheckoutMode, setOverrideItems, addItem } =
-    useCartStore(selectCartOps);
+  const items = useCartStore(selectItems);
+  const checkoutMode = useCartStore(selectMode);
+  const overrideItems = useCartStore(selectOverride);
+  const { addItem, updateQty, removeItem, setCheckoutMode, setOverrideItems } =
+    useCartStore(selectOps);
 
-  const visibleItems =
-    checkoutMode === "buy-now" && overrideItems?.length ? overrideItems : items;
+  const visibleItems = useMemo(
+    () =>
+      checkoutMode === "buy-now" && overrideItems?.length
+        ? overrideItems
+        : items,
+    [checkoutMode, overrideItems, items],
+  );
 
   // Acciones en modo cart
   const removeOne = (id: string) => {

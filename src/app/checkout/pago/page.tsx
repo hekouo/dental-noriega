@@ -4,16 +4,24 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PagoSchema, type PagoInput } from "@/lib/validations/checkout";
-import { useCartStore, selectCartCore, selectCartOps } from "@/lib/store/cartStore";
+import {
+  useCartStore,
+  selectItems,
+  selectMode,
+  selectOverride,
+  selectOps,
+} from "@/lib/store/cartStore";
 
 export default function PagoPage() {
-  const { items, checkoutMode, overrideItems } = useCartStore(selectCartCore);
-  const { clearCart, setCheckoutMode, setOverrideItems } = useCartStore(selectCartOps);
+  const items = useCartStore(selectItems);
+  const checkoutMode = useCartStore(selectMode);
+  const overrideItems = useCartStore(selectOverride);
+  const { clearCart, setCheckoutMode, setOverrideItems } =
+    useCartStore(selectOps);
   const router = useRouter();
 
-  const visibleItems = checkoutMode === 'buy-now' && overrideItems?.length
-    ? overrideItems
-    : items;
+  const visibleItems =
+    checkoutMode === "buy-now" && overrideItems?.length ? overrideItems : items;
 
   // Redirección en effect (no durante render)
   useEffect(() => {
@@ -28,8 +36,8 @@ export default function PagoPage() {
   async function onSubmit(values: PagoInput) {
     try {
       // Obtener datos del localStorage
-      const datos = JSON.parse(localStorage.getItem('checkout-datos') || '{}');
-      
+      const datos = JSON.parse(localStorage.getItem("checkout-datos") || "{}");
+
       const res = await fetch("/api/orders/mock", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -40,12 +48,12 @@ export default function PagoPage() {
         throw new Error(data?.error || "Error al crear orden mock");
 
       // limpia checkout y carrito ANTES de navegar
-      if (checkoutMode === 'cart') {
+      if (checkoutMode === "cart") {
         clearCart();
       } else {
         // En modo buy-now, limpiar overrideItems
         setOverrideItems(null);
-        setCheckoutMode('cart');
+        setCheckoutMode("cart");
       }
 
       // evita history rara

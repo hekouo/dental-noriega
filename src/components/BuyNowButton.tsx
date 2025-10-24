@@ -1,6 +1,6 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { useCartStore, selectCartOps } from "@/lib/store/cartStore";
+import { useCartStore, selectOps } from "@/lib/store/cartStore";
 
 type Props = {
   product: {
@@ -17,7 +17,7 @@ type Props = {
 };
 
 export default function BuyNowButton({ product, sectionSlug, qty }: Props) {
-  const { setCheckoutMode, setOverrideItems } = useCartStore(selectCartOps);
+  const { setCheckoutMode, setOverrideItems } = useCartStore(selectOps);
   const router = useRouter();
 
   const handle = () => {
