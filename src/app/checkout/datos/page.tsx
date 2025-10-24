@@ -2,14 +2,11 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import {
-  useCheckoutStore,
-  selectSelectedItems,
-} from "@/lib/store/checkoutStore";
+import { useSelectedIds } from "@/lib/store/checkoutSelectors";
 import { createClient } from "@/lib/supabase/client";
 
 function DatosPageContent() {
-  const visibleItems = useCheckoutStore(selectSelectedItems);
+  const selectedIds = useSelectedIds();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -102,7 +99,7 @@ function DatosPageContent() {
     }
   };
 
-  if (!visibleItems || visibleItems.length === 0) {
+  if (!selectedIds || selectedIds.length === 0) {
     return (
       <section className="mx-auto max-w-3xl p-6 text-center">
         <h1 className="text-2xl font-semibold">No hay nada para procesar</h1>
@@ -119,10 +116,10 @@ function DatosPageContent() {
       <div className="bg-gray-50 rounded-lg p-4">
         <h2 className="font-semibold mb-2">Productos seleccionados:</h2>
         <ul className="space-y-1">
-          {visibleItems.map((it) => (
-            <li key={it.id} className="flex justify-between text-sm">
-              <span>{it.title}</span>
-              <span>x{it.qty}</span>
+          {selectedIds.map((id) => (
+            <li key={id} className="flex justify-between text-sm">
+              <span>Producto {id}</span>
+              <span>x1</span>
             </li>
           ))}
         </ul>

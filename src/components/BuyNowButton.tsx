@@ -23,29 +23,28 @@ export default function BuyNowButton({
   className,
   children,
 }: Props) {
-  const router = useRouter();
-  // Solo funciones, lectura primitiva
-  const upsertSingleToCheckout = useCheckoutStore(
-    (s) => s.upsertSingleToCheckout,
-  );
-
-  const onClick = () => {
-    upsertSingleToCheckout(
-      {
-        id: productId,
-        title: productTitle,
-        price: productPrice,
-        qty,
-        variantId: variantId || undefined,
-        imageUrl,
-      },
-      true,
-    );
-    router.push("/checkout/pago");
-  };
+  const push = useRouter().push;
+  const upsert = useCheckoutStore((s) => s.upsertSingleToCheckout);
 
   return (
-    <button type="button" className={className} onClick={onClick}>
+    <button
+      type="button"
+      className={className}
+      onClick={() => {
+        upsert(
+          {
+            id: productId,
+            title: productTitle,
+            price: productPrice,
+            qty: qty ?? 1,
+            variantId: variantId || undefined,
+            imageUrl,
+          },
+          true,
+        );
+        push("/checkout/pago");
+      }}
+    >
       {children ?? "Comprar ahora"}
     </button>
   );

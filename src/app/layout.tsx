@@ -8,6 +8,7 @@ import WhatsappBubble from "@/components/WhatsappBubble";
 import CartBubble from "@/components/CartBubble";
 import { ToothAccountMenu } from "@/components/ToothAccountMenu";
 import { ROUTES } from "@/lib/routes";
+import "@/lib/store/checkoutDevGuard";
 import { Search } from "lucide-react";
 
 const ConsultarDrawer = dynamic(() => import("@/components/ConsultarDrawer"), {
