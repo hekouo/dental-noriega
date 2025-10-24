@@ -102,7 +102,6 @@ function CartDrawer({ onClose }: { onClose: () => void }) {
               <div className="h-16 w-16 bg-gray-100 rounded overflow-hidden relative flex-shrink-0">
                 <img
                   src={
-                    it.imageResolved ||
                     it.image ||
                     "/img/products/placeholder.png"
                   }

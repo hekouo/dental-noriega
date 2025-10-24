@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 
 export default function ToothAccountMenu() {
   const badge = useCartStore(selectBadgeQty);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<unknown>(null);
 
   useEffect(() => {
     const s = createClient();

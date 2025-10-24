@@ -135,7 +135,7 @@ export const useCartStore = create<CartState>()(
 
         if (cart?.cart_items) {
           const localItems = get().items;
-          const supabaseItems = cart.cart_items.map((item: any) => ({
+          const supabaseItems = cart.cart_items.map((item: { sku: string; name: string; price: number; qty: number }) => ({
             id: item.sku,
             title: item.name,
             price: Number(item.price),

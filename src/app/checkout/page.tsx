@@ -2,11 +2,11 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { useCartStore, selectCartCore, selectCartOps, type CartItem } from "@/lib/store/cartStore";
+import { useCartStore, selectCartCore, selectCartOps } from "@/lib/store/cartStore";
 
 export default function CheckoutIndex() {
   const { items, checkoutMode, overrideItems } = useCartStore(selectCartCore);
-  const { updateQty, removeItem, clearCart, setCheckoutMode, setOverrideItems, addItem } =
+  const { updateQty, removeItem, setCheckoutMode, setOverrideItems, addItem } =
     useCartStore(selectCartOps);
 
   const visibleItems = checkoutMode === 'buy-now' && overrideItems?.length
