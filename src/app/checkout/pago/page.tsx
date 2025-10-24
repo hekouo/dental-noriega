@@ -1,111 +1,42 @@
 "use client";
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { PagoSchema, type PagoInput } from "@/lib/validations/checkout";
-import {
-  useCartStore,
-  selectItems,
-  selectMode,
-  selectOverride,
-  selectOps,
-} from "@/lib/store/cartStore";
+
+import { useMemo } from "react";
+import { useCartStore } from "@/lib/store/cartStore";
 
 export default function PagoPage() {
-  const items = useCartStore(selectItems);
-  const checkoutMode = useCartStore(selectMode);
-  const overrideItems = useCartStore(selectOverride);
-  const { clearCart, setCheckoutMode, setOverrideItems } =
-    useCartStore(selectOps);
-  const router = useRouter();
+  const items = useCartStore((s) => s.items);
+  const overrideItems = useCartStore((s) => s.overrideItems);
 
-  const visibleItems =
-    checkoutMode === "buy-now" && overrideItems?.length ? overrideItems : items;
+  const visibleItems = useMemo(() => {
+    const src =
+      overrideItems && overrideItems.length > 0 ? overrideItems : items;
+    return src ?? [];
+  }, [overrideItems, items]);
 
-  // Redirección en effect (no durante render)
-  useEffect(() => {
-    if (!visibleItems.length) router.replace("/checkout");
-  }, [visibleItems.length, router]);
-
-  const form = useForm<PagoInput>({
-    resolver: zodResolver(PagoSchema),
-    defaultValues: { method: "card-mock" },
-  });
-
-  async function onSubmit(values: PagoInput) {
-    try {
-      // Obtener datos del localStorage
-      const datos = JSON.parse(localStorage.getItem("checkout-datos") || "{}");
-
-      const res = await fetch("/api/orders/mock", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: visibleItems, datos, payment: values }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data?.id)
-        throw new Error(data?.error || "Error al crear orden mock");
-
-      // limpia checkout y carrito ANTES de navegar
-      if (checkoutMode === "cart") {
-        clearCart();
-      } else {
-        // En modo buy-now, limpiar overrideItems
-        setOverrideItems(null);
-        setCheckoutMode("cart");
-      }
-
-      // evita history rara
-      router.replace(
-        `/checkout/gracias?order=${encodeURIComponent(String(data.id))}`,
-      );
-    } catch (e) {
-      console.error(e);
-      alert("No se pudo confirmar el pago simulado.");
-    }
+  if (!visibleItems || visibleItems.length === 0) {
+    return (
+      <section className="mx-auto max-w-3xl p-6 text-center">
+        <h1 className="text-2xl font-semibold">No hay nada para pagar</h1>
+        <p className="opacity-70 mt-2">Vuelve al carrito y agrega productos.</p>
+      </section>
+    );
   }
 
-  if (!visibleItems.length) return null;
-
   return (
-    <main className="max-w-2xl mx-auto p-6">
-      <h1 className="text-xl font-semibold">Pago</h1>
-      <form className="mt-4 grid gap-3" onSubmit={form.handleSubmit(onSubmit)}>
-        <label className="flex items-center gap-2">
-          <input
-            type="radio"
-            value="card-mock"
-            {...form.register("method")}
-            defaultChecked
-          />
-          <span>Tarjeta (simulado)</span>
-        </label>
-        <label className="flex items-center gap-2">
-          <input type="radio" value="oxxo-mock" {...form.register("method")} />
-          <span>OXXO (simulado)</span>
-        </label>
-        <label className="flex items-center gap-2">
-          <input
-            type="radio"
-            value="transfer-mock"
-            {...form.register("method")}
-          />
-          <span>Transferencia (simulado)</span>
-        </label>
-
-        <label className="flex items-center gap-2 mt-2">
-          <input type="checkbox" {...form.register("agree")} />
-          <span>Acepto términos y política de privacidad</span>
-        </label>
-        <span className="text-xs text-red-600">
-          {form.formState.errors.agree?.message}
-        </span>
-
-        <button className="mt-2 rounded-lg border px-4 py-2">
-          Confirmar pedido
-        </button>
-      </form>
+    <main className="mx-auto max-w-3xl p-6 space-y-6">
+      <h1 className="text-2xl font-semibold">Pago</h1>
+      <ul className="space-y-2">
+        {visibleItems.map((it) => (
+          <li
+            key={it.id}
+            className="flex items-center justify-between rounded-xl border p-4"
+          >
+            <span>{it.title ?? it.id}</span>
+            <span className="opacity-70">x{it.qty ?? 1}</span>
+          </li>
+        ))}
+      </ul>
+      {/* Botón de confirmar pago va aquí. Nada de efectos que alteren el store. */}
     </main>
   );
 }

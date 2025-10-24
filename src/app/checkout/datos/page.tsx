@@ -1,97 +1,42 @@
 "use client";
-import { useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { DatosSchema, type DatosInput } from "@/lib/validations/checkout";
-import {
-  useCartStore,
-  selectItems,
-  selectMode,
-  selectOverride,
-} from "@/lib/store/cartStore";
-import { useRouter } from "next/navigation";
+
+import { useMemo } from "react";
+import { useCartStore } from "@/lib/store/cartStore";
 
 export default function DatosPage() {
-  const items = useCartStore(selectItems);
-  const checkoutMode = useCartStore(selectMode);
-  const overrideItems = useCartStore(selectOverride);
-  const router = useRouter();
+  const items = useCartStore((s) => s.items);
+  const overrideItems = useCartStore((s) => s.overrideItems);
 
-  const visibleItems =
-    checkoutMode === "buy-now" && overrideItems?.length ? overrideItems : items;
+  const visibleItems = useMemo(() => {
+    const src =
+      overrideItems && overrideItems.length > 0 ? overrideItems : items;
+    return src ?? [];
+  }, [overrideItems, items]);
 
-  // Redirección en effect (no durante render)
-  useEffect(() => {
-    if (!visibleItems.length) router.replace("/checkout");
-  }, [visibleItems.length, router]);
-
-  const form = useForm<DatosInput>({
-    resolver: zodResolver(DatosSchema),
-    defaultValues: {
-      fullName: "",
-      email: "",
-      phone: "",
-      street: "",
-      extNumber: "",
-      intNumber: "",
-      neighborhood: "",
-      postalCode: "",
-      city: "",
-      state: "",
-      notes: "",
-    },
-  });
-
-  // Mientras redirige, no pintes nada
-  if (!visibleItems.length) return null;
-
-  function onSubmit(values: DatosInput) {
-    // Guardar datos en localStorage temporalmente
-    localStorage.setItem("checkout-datos", JSON.stringify(values));
-    router.push("/checkout/pago");
+  if (!visibleItems || visibleItems.length === 0) {
+    return (
+      <section className="mx-auto max-w-3xl p-6 text-center">
+        <h1 className="text-2xl font-semibold">No hay nada para procesar</h1>
+        <p className="opacity-70 mt-2">Vuelve al carrito y agrega productos.</p>
+      </section>
+    );
   }
 
   return (
-    <main className="max-w-2xl mx-auto p-6">
-      <h1 className="text-xl font-semibold">Datos de envío</h1>
-      <form className="mt-4 grid gap-3" onSubmit={form.handleSubmit(onSubmit)}>
-        {(
-          [
-            ["fullName", "Nombre completo"],
-            ["email", "Email"],
-            ["phone", "Teléfono"],
-            ["street", "Calle"],
-            ["extNumber", "No. exterior"],
-            ["intNumber", "No. interior (opcional)"],
-            ["neighborhood", "Colonia"],
-            ["postalCode", "C.P."],
-            ["city", "Ciudad"],
-            ["state", "Estado"],
-          ] as const
-        ).map(([name, label]) => (
-          <label key={name} className="grid gap-1">
-            <span className="text-sm">{label}</span>
-            <input
-              className="border rounded px-3 py-2"
-              {...form.register(name)}
-            />
-            <span className="text-xs text-red-600">
-              {form.formState.errors[name]?.message as string | undefined}
-            </span>
-          </label>
+    <main className="mx-auto max-w-3xl p-6 space-y-6">
+      <h1 className="text-2xl font-semibold">Datos de Envío</h1>
+      <ul className="space-y-2">
+        {visibleItems.map((it) => (
+          <li
+            key={it.id}
+            className="flex items-center justify-between rounded-xl border p-4"
+          >
+            <span>{it.title ?? it.id}</span>
+            <span className="opacity-70">x{it.qty ?? 1}</span>
+          </li>
         ))}
-        <label className="grid gap-1">
-          <span className="text-sm">Notas (opcional)</span>
-          <textarea
-            className="border rounded px-3 py-2"
-            rows={3}
-            {...form.register("notes")}
-          />
-        </label>
-        <button className="mt-2 rounded-lg border px-4 py-2">
-          Continuar a pago
-        </button>
-      </form>
+      </ul>
+      {/* Formulario de datos va aquí. Nada de efectos que alteren el store. */}
     </main>
   );
 }

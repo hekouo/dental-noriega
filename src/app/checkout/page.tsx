@@ -1,159 +1,56 @@
 "use client";
 
 import { useMemo } from "react";
-import Link from "next/link";
-import {
-  useCartStore,
-  selectItems,
-  selectMode,
-  selectOverride,
-  selectOps,
-} from "@/lib/store/cartStore";
+import { useCartStore } from "@/lib/store/cartStore";
+
+function EmptyCart() {
+  return (
+    <section className="mx-auto max-w-3xl p-6 text-center">
+      <h1 className="text-2xl font-semibold">Tu carrito está vacío</h1>
+      <p className="opacity-70 mt-2">
+        Agrega productos para continuar al pago.
+      </p>
+    </section>
+  );
+}
 
 export default function CheckoutIndex() {
-  const items = useCartStore(selectItems);
-  const checkoutMode = useCartStore(selectMode);
-  const overrideItems = useCartStore(selectOverride);
-  const { addItem, updateQty, removeItem, setCheckoutMode, setOverrideItems } =
-    useCartStore(selectOps);
+  // SOLO selectores primitivos: nada de objetos/arrays del selector
+  const items = useCartStore((s) => s.items);
+  const overrideItems = useCartStore((s) => s.overrideItems);
+  const checkoutMode = useCartStore((s) => s.checkoutMode);
 
-  const visibleItems = useMemo(
-    () =>
-      checkoutMode === "buy-now" && overrideItems && overrideItems.length > 0
-        ? overrideItems
-        : items,
-    [checkoutMode, overrideItems, items],
-  );
+  // Derivado MEMO sin crear objetos nuevos innecesarios
+  const visibleItems = useMemo(() => {
+    const src =
+      overrideItems && overrideItems.length > 0 ? overrideItems : items;
+    return src ?? [];
+  }, [overrideItems, items]);
 
-  // Acciones en modo cart
-  const removeOne = (id: string) => {
-    if (checkoutMode === "cart") {
-      removeItem(id);
-    } else {
-      // Modo buy-now: modificar overrideItems
-      setOverrideItems((overrideItems ?? []).filter((i) => i.id !== id));
-    }
-  };
-
-  const inc = (id: string) => {
-    if (checkoutMode === "cart") {
-      const item = items.find((i) => i.id === id);
-      if (item) updateQty(id, item.qty + 1);
-    } else {
-      // Modo buy-now: modificar overrideItems
-      setOverrideItems(
-        (overrideItems ?? []).map((i) =>
-          i.id === id ? { ...i, qty: i.qty + 1 } : i,
-        ),
-      );
-    }
-  };
-
-  const dec = (id: string) => {
-    if (checkoutMode === "cart") {
-      const item = items.find((i) => i.id === id);
-      if (item) updateQty(id, Math.max(1, item.qty - 1));
-    } else {
-      // Modo buy-now: modificar overrideItems
-      setOverrideItems(
-        (overrideItems ?? []).map((i) =>
-          i.id === id ? { ...i, qty: Math.max(1, i.qty - 1) } : i,
-        ),
-      );
-    }
-  };
-
-  // Botón "Mover al carrito" (solo en modo buy-now)
-  const commitOverrideToCart = () => {
-    (overrideItems ?? []).forEach((i) => addItem(i));
-    setOverrideItems(null);
-    setCheckoutMode("cart");
-  };
-
-  const total = useMemo(
-    () => visibleItems.reduce((a, it) => a + it.price * it.qty, 0),
-    [visibleItems],
-  );
+  // Prohibido: setear store aquí o redirigir en effects.
+  if (!visibleItems || visibleItems.length === 0) {
+    return <EmptyCart />;
+  }
 
   return (
-    <main className="max-w-2xl mx-auto p-6">
-      <h1 className="text-xl font-semibold">Checkout</h1>
+    <main className="mx-auto max-w-4xl p-6 space-y-6">
+      <header>
+        <h1 className="text-2xl font-semibold">Checkout</h1>
+        <p className="opacity-70 text-sm">Modo: {checkoutMode ?? "cart"}</p>
+      </header>
 
-      {visibleItems.length === 0 ? (
-        <div className="mt-6 rounded-lg border p-4">
-          <p className="text-sm">Tu checkout está vacío.</p>
-          <Link href="/catalogo" className="mt-3 inline-block underline">
-            Ir al catálogo
-          </Link>
-        </div>
-      ) : (
-        <>
-          {/* Indicador de modo */}
-          {checkoutMode === "buy-now" && (
-            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-sm text-yellow-800">
-                Modo "Comprar ahora" - Estos items no están en tu carrito
-              </p>
-              <button
-                onClick={commitOverrideToCart}
-                className="mt-2 text-sm text-yellow-700 underline hover:text-yellow-900"
-              >
-                Mover al carrito
-              </button>
+      <section className="space-y-3">
+        {visibleItems.map((it) => (
+          <article key={it.id} className="rounded-xl border p-4">
+            <div className="flex items-center justify-between">
+              <div className="font-medium">{it.title ?? it.id}</div>
+              <div className="opacity-70">x{it.qty ?? 1}</div>
             </div>
-          )}
+          </article>
+        ))}
+      </section>
 
-          <ul className="mt-4 divide-y">
-            {visibleItems.map((it) => (
-              <li
-                key={it.id}
-                className="py-3 flex items-center justify-between gap-3"
-              >
-                <div className="flex-1">
-                  <div className="font-medium">{it.title}</div>
-                  <div className="text-sm text-gray-600">x{it.qty}</div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    className="border rounded px-2"
-                    onClick={() => dec(it.id)}
-                  >
-                    -
-                  </button>
-                  <span className="w-8 text-center">{it.qty}</span>
-                  <button
-                    className="border rounded px-2"
-                    onClick={() => inc(it.id)}
-                  >
-                    +
-                  </button>
-                  <span className="w-24 text-right">
-                    ${(it.price * it.qty).toFixed(2)} MXN
-                  </span>
-                  <button
-                    className="ml-2 text-red-600"
-                    onClick={() => removeOne(it.id)}
-                  >
-                    Eliminar
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-
-          <div className="flex justify-between mt-4 font-semibold">
-            <span>Total</span>
-            <span>${total.toFixed(2)} MXN</span>
-          </div>
-
-          <Link
-            href="/checkout/datos"
-            className="mt-6 inline-block w-full rounded-lg border px-4 py-2 text-center"
-          >
-            Continuar
-          </Link>
-        </>
-      )}
+      {/* Nada de mutaciones aquí. Los botones que mutan van en componentes aparte y usan handlers de click. */}
     </main>
   );
 }
