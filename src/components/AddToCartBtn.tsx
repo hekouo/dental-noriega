@@ -6,20 +6,22 @@ import { useCartStore } from "@/lib/store/cartStore";
 
 type Props = {
   product: {
+    id?: string;
     title: string;
     price: number; // en pesos
     image?: string;
     imageResolved?: string;
     slug: string;
+    code?: string;
   };
-  sectionSlug: string;
+  sectionSlug?: string;
   qty?: number; // opcional, default 1
   className?: string;
 };
 
 export function AddToCartBtn({
   product,
-  sectionSlug,
+  sectionSlug = "general",
   qty = 1,
   className,
 }: Props) {
@@ -37,7 +39,7 @@ export function AddToCartBtn({
     const quantity = Math.max(1, Math.floor(qty || 1));
 
     addItem({
-      sku: `${sectionSlug}/${product.slug}`,
+      sku: product.id || `${sectionSlug}/${product.slug}`,
       name: product.title,
       price, // pesos
       qty: quantity,

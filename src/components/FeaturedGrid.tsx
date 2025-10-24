@@ -10,12 +10,14 @@ import { AddToCartBtn } from "@/components/AddToCartBtn";
 import { ROUTES } from "@/lib/routes";
 
 export type FeaturedCard = {
+  id?: string;
   title: string;
   price: number;
   image?: string;
   imageResolved?: string;
   slug: string;
   sectionSlug: string;
+  code?: string;
 };
 
 type Props = { products: FeaturedCard[]; title?: string };
@@ -43,7 +45,7 @@ export default function FeaturedGrid({
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
           {products.map((p, idx) => (
             <article
-              key={`${p.sectionSlug}/${p.slug}`}
+              key={p.id || `${p.sectionSlug}/${p.slug}`}
               className="border rounded-xl p-3 hover:shadow-lg transition-shadow"
             >
               <Link
@@ -81,11 +83,13 @@ export default function FeaturedGrid({
                 />
                 <AddToCartBtn
                   product={{
+                    id: p.id,
                     title: p.title,
                     price: p.price,
                     imageResolved: p.imageResolved,
                     image: p.image,
                     slug: p.slug,
+                    code: p.code,
                   }}
                   sectionSlug={p.sectionSlug}
                   qty={getQty(p.slug)}
