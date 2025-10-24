@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ShoppingCart } from "lucide-react";
-import { useCart } from "@/components/CartProvider";
+import { useCartStore } from "@/lib/store/cartStore";
 
 type Props = {
   product: {
@@ -23,7 +23,7 @@ export function AddToCartBtn({
   qty = 1,
   className,
 }: Props) {
-  const { add } = useCart();
+  const addItem = useCartStore((state) => state.addItem);
   const [isAdding, setIsAdding] = useState(false);
 
   const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -36,15 +36,11 @@ export function AddToCartBtn({
     const price = Number.isFinite(product.price) ? Number(product.price) : 0;
     const quantity = Math.max(1, Math.floor(qty || 1));
 
-    add({
-      id: `${sectionSlug}/${product.slug}`,
-      title: product.title,
+    addItem({
+      sku: `${sectionSlug}/${product.slug}`,
+      name: product.title,
       price, // pesos
-      image: product.image ?? product.imageResolved,
-      imageResolved: product.imageResolved,
       qty: quantity,
-      sectionSlug,
-      slug: product.slug,
     });
 
     // feedback rápido

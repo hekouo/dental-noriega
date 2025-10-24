@@ -3,91 +3,66 @@
 import { useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useCheckout } from "@/lib/store/checkoutStore";
-import { useCartStore } from "@/lib/store/cartStore";
-
-type AnyItem = {
-  id?: string;
-  title?: string;
-  name?: string;
-  price?: number;
-  qty?: number;
-  unitAmountCents?: number;
-  quantity?: number;
-  image?: string;
-  imageResolved?: string;
-  sectionSlug?: string;
-  slug?: string;
-};
+import { useCartStore, type CartItem } from "@/lib/store/cartStore";
 
 export default function CheckoutIndex() {
   const { items, setItems } = useCheckout();
   const cart = useCartStore();
   const importedRef = useRef(false);
+  const clearedRef = useRef(false);
 
+  // Importación única del carrito al checkout
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (items.length > 0) return;
     if (importedRef.current) return;
-    if (sessionStorage.getItem("checkout-imported") === "1") return;
 
-    const cartItems: AnyItem[] = Array.isArray(cart.items)
-      ? (cart.items as AnyItem[])
-      : [];
-    if (!cartItems.length) return;
+    const already = sessionStorage.getItem("checkout-imported") === "1";
+    if (!already && items.length === 0) {
+      // 1) Importar una sola vez desde cartStore
+      const cartItems: CartItem[] = cart.items;
 
-    const normalized = cartItems.map((it) => ({
-      id: String(it.id ?? it.slug ?? crypto.randomUUID()),
-      title: String(it.title ?? it.name ?? "Producto"),
-      price: Number(
-        it.price ??
-          (Number.isFinite(it.unitAmountCents)
-            ? Number(it.unitAmountCents) / 100
-            : 0),
-      ),
-      qty: Number(it.qty ?? it.quantity ?? 1),
-      image: it.image ?? it.imageResolved,
-      sectionSlug: it.sectionSlug,
-      slug: it.slug,
-    }));
-    setItems(normalized);
+      if (cartItems.length > 0) {
+        setItems(cartItems);
+      }
+      sessionStorage.setItem("checkout-imported", "1");
+    }
     importedRef.current = true;
-    sessionStorage.setItem("checkout-imported", "1");
-  }, [items.length, setItems, cart.items]);
+  }, [setItems, cart.items, items.length]);
 
-  const removeOne = (id: string) => {
-    setItems(items.filter((x) => String(x.id) !== String(id)));
-    cart.removeItem(id);
+  const removeOne = (sku: string) => {
+    setItems(items.filter((x) => x.sku !== sku));
+    cart.removeItem(sku);
   };
 
-  const inc = (id: string) => {
+  const inc = (sku: string) => {
     const next = items.map((x) =>
-      String(x.id) === String(id) ? { ...x, qty: (x.qty ?? 1) + 1 } : x,
+      x.sku === sku ? { ...x, qty: x.qty + 1 } : x,
     );
     setItems(next);
-    const it = next.find((i) => String(i.id) === String(id));
-    cart.updateQuantity(id, it?.qty ?? 1);
+    const it = next.find((i) => i.sku === sku);
+    cart.updateQuantity(sku, it?.qty ?? 1);
   };
 
-  const dec = (id: string) => {
-    const prev = items.find((x) => String(x.id) === String(id));
+  const dec = (sku: string) => {
+    const prev = items.find((x) => x.sku === sku);
     const nextQty = Math.max(1, (prev?.qty ?? 1) - 1);
-    const next = items.map((x) =>
-      String(x.id) === String(id) ? { ...x, qty: nextQty } : x,
-    );
+    const next = items.map((x) => (x.sku === sku ? { ...x, qty: nextQty } : x));
     setItems(next);
-    cart.updateQuantity(id, nextQty);
+    cart.updateQuantity(sku, nextQty);
   };
 
+  // Cuando el usuario vacíe el checkout, limpiar el carrito SOLO una vez
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (items.length === 0) {
-      cart.clearCart(); // asegurar que limpias persistencia
-      sessionStorage.setItem("checkout-imported", "1");
+    if (items.length === 0 && !clearedRef.current) {
+      // Asegúrate de no estar dentro de un subscribe que reaccione al set de abajo
+      cart.clearCart();
+      clearedRef.current = true;
     }
   }, [items.length, cart]);
 
   const total = useMemo(
-    () => items.reduce((a, it) => a + (it.price ?? 0) * (it.qty ?? 1), 0),
+    () => items.reduce((a, it) => a + it.price * it.qty, 0),
     [items],
   );
 
@@ -107,33 +82,33 @@ export default function CheckoutIndex() {
           <ul className="mt-4 divide-y">
             {items.map((it) => (
               <li
-                key={String(it.id)}
+                key={it.sku}
                 className="py-3 flex items-center justify-between gap-3"
               >
                 <div className="flex-1">
-                  <div className="font-medium">{it.title}</div>
-                  <div className="text-sm text-gray-600">x{it.qty ?? 1}</div>
+                  <div className="font-medium">{it.name}</div>
+                  <div className="text-sm text-gray-600">x{it.qty}</div>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
                     className="border rounded px-2"
-                    onClick={() => dec(String(it.id))}
+                    onClick={() => dec(it.sku)}
                   >
                     -
                   </button>
-                  <span className="w-8 text-center">{it.qty ?? 1}</span>
+                  <span className="w-8 text-center">{it.qty}</span>
                   <button
                     className="border rounded px-2"
-                    onClick={() => inc(String(it.id))}
+                    onClick={() => inc(it.sku)}
                   >
                     +
                   </button>
                   <span className="w-24 text-right">
-                    ${((it.price ?? 0) * (it.qty ?? 1)).toFixed(2)} MXN
+                    ${(it.price * it.qty).toFixed(2)} MXN
                   </span>
                   <button
                     className="ml-2 text-red-600"
-                    onClick={() => removeOne(String(it.id))}
+                    onClick={() => removeOne(it.sku)}
                   >
                     Eliminar
                   </button>

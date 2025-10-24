@@ -56,7 +56,8 @@ export const useCartStore = create<CartState>()(
         }));
       },
 
-      clearCart: () => set({ items: [] }),
+      clearCart: () =>
+        set((state) => (state.items.length ? { items: [] } : state)),
 
       syncWithSupabase: async (userId) => {
         const supabase = createClient();
@@ -149,3 +150,12 @@ export const useCartStore = create<CartState>()(
     },
   ),
 );
+
+// Selectores estables para evitar re-renders innecesarios
+export const selectCartItems = (s: CartState) => s.items;
+export const selectCartActions = (s: CartState) => ({
+  addItem: s.addItem,
+  removeItem: s.removeItem,
+  updateQuantity: s.updateQuantity,
+  clearCart: s.clearCart,
+});

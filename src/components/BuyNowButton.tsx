@@ -20,14 +20,10 @@ export default function BuyNowButton({ product, sectionSlug, qty }: Props) {
 
   const handle = () => {
     const item = {
-      id: `${sectionSlug}/${product.slug}`,
-      title: product.title,
+      sku: `${sectionSlug}/${product.slug}`,
+      name: product.title,
       price: product.price,
-      image: product.image,
-      imageResolved: product.imageResolved,
       qty: Math.max(1, qty || 1),
-      sectionSlug,
-      slug: product.slug,
     };
     setItems([item]);
     router.push("/checkout");
@@ -35,11 +31,25 @@ export default function BuyNowButton({ product, sectionSlug, qty }: Props) {
 
   return (
     <button
+      type="button"
       onClick={handle}
-      className="px-4 py-2 rounded-lg font-semibold"
-      style={{ backgroundColor: "#D4AF37", color: "#1f2937" }}
+      className={[
+        // base
+        "relative inline-flex items-center justify-center rounded-2xl px-4 py-3 text-sm font-semibold",
+        "focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-yellow-500",
+        // color/gradiente
+        "bg-gradient-to-b from-yellow-300 to-yellow-600 text-neutral-900",
+        // 3D/relieve
+        "shadow-[0_6px_0_0_rgba(161,98,7,1),0_12px_24px_rgba(0,0,0,0.25)]",
+        // borde brillante sutil
+        "ring-1 ring-inset ring-yellow-700/40",
+        // interacción
+        "active:translate-y-[2px] active:shadow-[0_4px_0_0_rgba(161,98,7,1),0_8px_16px_rgba(0,0,0,0.2)]",
+        "transition-transform",
+      ].join(" ")}
+      aria-label="Comprar ahora"
     >
-      Comprar ya
+      Comprar ahora
     </button>
   );
 }

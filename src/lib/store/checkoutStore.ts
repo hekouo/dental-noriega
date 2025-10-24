@@ -3,7 +3,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { DatosInput, PagoInput } from "@/lib/validations/checkout";
-import type { CartItem } from "@/lib/cart/types";
+import type { CartItem } from "@/lib/store/cartStore";
 
 type CheckoutState = {
   items: CartItem[];
