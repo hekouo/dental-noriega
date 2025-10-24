@@ -1,10 +1,9 @@
-"use client";
-import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { notFound } from "next/navigation";
 import Link from "next/link";
-import { supabase } from "@/lib/supabase/client";
+import { createClient } from "@supabase/supabase-js";
 import { formatCurrency } from "@/lib/utils/currency";
 import { ROUTES } from "@/lib/routes";
+import { CheckCircle } from "lucide-react";
 
 type Order = {
   id: string;
@@ -14,142 +13,115 @@ type Order = {
   created_at: string;
 };
 
-export default function GraciasPage() {
-  const searchParams = useSearchParams();
-  const orderId = searchParams?.get("orden");
-  const [order, setOrder] = useState<Order | null>(null);
-  const [loading, setLoading] = useState(true);
+type OrderItem = {
+  id: string;
+  name: string;
+  qty: number;
+  price: number;
+  subtotal: number;
+};
 
-  useEffect(() => {
-    if (!orderId) {
-      setLoading(false);
-      return;
-    }
+type Props = {
+  searchParams: { orden?: string };
+};
 
-    const fetchOrder = async () => {
-      try {
-        const { data, error } = await supabase
-          .from("orders")
-          .select("*")
-          .eq("id", orderId)
-          .single();
+async function fetchOrder(orderId: string) {
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
 
-        if (error) {
-          console.error("Error fetching order:", error);
-        } else {
-          setOrder(data);
-        }
-      } catch (err) {
-        console.error("Error:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const { data: order, error: orderError } = await supabase
+    .from("orders")
+    .select("*")
+    .eq("id", orderId)
+    .single();
 
-    fetchOrder();
-  }, [orderId]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando información de tu orden...</p>
-        </div>
-      </div>
-    );
+  if (orderError || !order) {
+    return null;
   }
 
-  return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="max-w-2xl mx-auto text-center">
-        <div className="mb-8">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg
-              className="w-8 h-8 text-green-600"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M5 13l4 4L19 7"
-              />
-            </svg>
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            ¡Gracias por tu compra!
-          </h1>
-          <p className="text-gray-600">
-            Tu orden ha sido procesada exitosamente
-          </p>
-        </div>
+  const { data: items, error: itemsError } = await supabase
+    .from("order_items")
+    .select("*")
+    .eq("order_id", orderId);
 
-        {order && (
-          <div className="bg-gray-50 rounded-lg p-6 mb-8 text-left">
-            <h2 className="text-lg font-semibold mb-4">Detalles de tu orden</h2>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Número de orden:</span>
-                <span className="font-mono">{order.id.slice(0, 8)}...</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Cliente:</span>
-                <span>{order.customer_name}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Email:</span>
-                <span>{order.customer_email}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Total:</span>
-                <span className="font-semibold">{formatCurrency(order.total)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Fecha:</span>
-                <span>{new Date(order.created_at).toLocaleDateString()}</span>
-              </div>
-            </div>
+  return {
+    order,
+    items: items || []
+  };
+}
+
+export default async function GraciasPage({ searchParams }: Props) {
+  const orderId = searchParams.orden;
+
+  if (!orderId) {
+    return notFound();
+  }
+
+  const orderData = await fetchOrder(orderId);
+
+  if (!orderData) {
+    return notFound();
+  }
+
+  const { order, items } = orderData;
+
+  return (
+    <section className="mx-auto max-w-2xl p-6 text-center bg-white rounded-lg shadow-lg mt-10">
+      <CheckCircle size={64} className="text-green-500 mx-auto mb-6" />
+      <h1 className="text-3xl font-bold mb-4 text-gray-800">
+        ¡Gracias por tu compra!
+      </h1>
+      <p className="text-gray-600 mb-6">
+        Tu orden ha sido procesada exitosamente.
+      </p>
+
+      <div className="space-y-2 mb-6 text-left border-t border-b py-4">
+        <p>
+          <span className="font-semibold">Número de Orden:</span>{" "}
+          <span className="font-mono bg-gray-100 px-2 py-1 rounded">
+            {order.id}
+          </span>
+        </p>
+        <p>
+          <span className="font-semibold">Cliente:</span> {order.customer_name}
+        </p>
+        <p>
+          <span className="font-semibold">Email:</span> {order.customer_email}
+        </p>
+        
+        {/* Items de la orden */}
+        {items.length > 0 && (
+          <div className="mt-4">
+            <h3 className="font-semibold mb-2">Productos:</h3>
+            <ul className="space-y-1">
+              {items.map((item) => (
+                <li key={item.id} className="text-sm">
+                  {item.name} x {item.qty} - {formatCurrency(item.subtotal)}
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 
-        <div className="space-y-4">
-          <p className="text-gray-600">
-            Te contactaremos pronto para coordinar la entrega de tu pedido.
-          </p>
-          
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              href={ROUTES.destacados()}
-              className="btn btn-primary"
-            >
-              Seguir Comprando
-            </Link>
-            <Link
-              href={ROUTES.home()}
-              className="btn btn-outline"
-            >
-              Ir al Inicio
-            </Link>
-          </div>
-        </div>
-
-        <div className="mt-8 pt-6 border-t border-gray-200">
-          <p className="text-sm text-gray-500">
-            ¿Tienes alguna pregunta?{" "}
-            <a
-              href="https://wa.me/525531033715"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-600 hover:underline"
-            >
-              Contáctanos por WhatsApp
-            </a>
-          </p>
-        </div>
+        <p className="text-2xl font-bold text-primary-600">
+          <span className="font-semibold">Total:</span>{" "}
+          {formatCurrency(order.total)}
+        </p>
+        <p className="text-sm text-gray-500">
+          Fecha: {new Date(order.created_at).toLocaleDateString()}
+        </p>
       </div>
-    </div>
+
+      <div className="flex flex-col sm:flex-row justify-center gap-4 mt-8">
+        <Link href={ROUTES.destacados()} className="btn btn-primary">
+          <span>Seguir Comprando</span>
+        </Link>
+        <Link href={ROUTES.home()} className="btn btn-secondary">
+          <span>Ir al Inicio</span>
+        </Link>
+      </div>
+    </section>
   );
 }

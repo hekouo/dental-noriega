@@ -12,6 +12,7 @@ import PointsBadge from "@/components/PointsBadge";
 import { normalizeImageUrl } from "@/lib/img/normalizeImageUrl";
 import RecentlyViewed from "@/components/RecentlyViewed";
 import RecentlyViewedTracker from "@/components/RecentlyViewedTracker";
+import ProductResolver from "@/components/ProductResolver";
 
 export const revalidate = 300; // Cache 5 minutos
 
@@ -62,9 +63,10 @@ export default async function ProductPage({ params }: Props) {
   const { section, product } = data;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <RecentlyViewedTracker slug={params.slug} />
-      <div className="max-w-7xl mx-auto px-4 py-8">
+    <ProductResolver section={params.section} slug={params.slug}>
+      <div className="min-h-screen bg-gray-50">
+        <RecentlyViewedTracker slug={params.slug} />
+        <div className="max-w-7xl mx-auto px-4 py-8">
         <Link
           href={ROUTES.section(section.sectionSlug)}
           className="text-primary-600 hover:text-primary-700 mb-4 inline-block"
@@ -139,7 +141,8 @@ export default async function ProductPage({ params }: Props) {
         
         {/* Vistos Recientemente */}
         <RecentlyViewed />
+        </div>
       </div>
-    </div>
+    </ProductResolver>
   );
 }

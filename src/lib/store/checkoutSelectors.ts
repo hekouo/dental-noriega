@@ -5,6 +5,11 @@ export const useSelectedIds = () => {
   return checkoutItems.filter((i) => i.selected).map((i) => i.id);
 };
 
+export const useSelectedItems = () => {
+  const checkoutItems = useCheckoutStore((s) => s.checkoutItems);
+  return checkoutItems.filter((i) => i.selected);
+};
+
 export const useSelectedCount = () =>
   useCheckoutStore((s) =>
     s.checkoutItems.reduce((a, i) => a + (i.selected ? 1 : 0), 0),

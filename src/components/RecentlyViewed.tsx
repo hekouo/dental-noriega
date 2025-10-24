@@ -43,14 +43,14 @@ export default function RecentlyViewed() {
 
           for (const section of sections) {
             const data = await resolveProductClient(section, slug);
-            if (data) {
+            if (data && data.ok) {
               return {
                 id: slug,
                 title: data.product.title,
                 price: data.product.price,
                 image: data.product.image,
-                sectionSlug: section,
-                slug: slug
+                sectionSlug: data.section,
+                slug: data.slug
               };
             }
           }

@@ -61,7 +61,7 @@ export async function resolveProduct(section: string, slug: string) {
   }
 
   // 6) nada
-  if (process.env.NODE_ENV === "development") {
+  if (process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_DEBUG === "1") {
     console.warn("[PDP] Not found", {
       section,
       slug,

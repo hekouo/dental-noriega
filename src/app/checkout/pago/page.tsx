@@ -5,17 +5,19 @@ import { useForm } from "react-hook-form";
 import {
   useHasSelected,
   useSelectedTotal,
-  useSelectedIds,
+  useSelectedItems,
 } from "@/lib/store/checkoutSelectors";
 import { useCheckoutStore } from "@/lib/store/checkoutStore";
 import { formatCurrency } from "@/lib/utils/currency";
-import { supabase } from "@/lib/supabase/client";
+import { createOrderAction } from "@/lib/actions/createOrder";
 
 type FormValues = {
   name: string;
   email: string;
   phone?: string;
   address?: string;
+  city?: string;
+  country?: string;
   paymentMethod: string;
 };
 
@@ -23,7 +25,7 @@ export default function PagoPage() {
   const router = useRouter();
   const hasSelected = useHasSelected();
   const total = useSelectedTotal();
-  const ids = useSelectedIds();
+  const selectedItems = useSelectedItems();
   const clearCheckout = useCheckoutStore((s) => s.clearCheckout);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,44 +54,31 @@ export default function PagoPage() {
     setError(null);
 
     try {
-      const items = useCheckoutStore.getState().checkoutItems.filter((i) => i.selected);
-      const subtotal = items.reduce((a, i) => a + (i.price ?? 0) * (i.qty ?? 1), 0);
-      const totalAmount = subtotal; // impuestos/descuentos si aplica
+      const result = await createOrderAction({
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        address: data.address,
+        city: data.city,
+        country: data.country,
+        paymentMethod: data.paymentMethod,
+        items: selectedItems.map(item => ({
+          id: item.id,
+          title: item.title,
+          price: item.price,
+          qty: item.qty
+        }))
+      });
 
-      const { data: order, error: orderErr } = await supabase
-        .from("orders")
-        .insert([
-          {
-            customer_name: data.name,
-            customer_email: data.email,
-            customer_phone: data.phone ?? null,
-            address: data.address ?? null,
-            payment_method: data.paymentMethod,
-            subtotal,
-            total: totalAmount,
-          },
-        ])
-        .select()
-        .single();
-
-      if (orderErr || !order) throw orderErr ?? new Error("No order returned");
-
-      const payload = items.map((i) => ({
-        order_id: order.id,
-        product_id: i.id,
-        name: i.title,
-        qty: i.qty ?? 1,
-        price: i.price ?? 0,
-      }));
-
-      const { error: itemsErr } = await supabase.from("order_items").insert(payload);
-      if (itemsErr) throw itemsErr;
+      if (!result.success) {
+        throw new Error(result.error || "Failed to create order");
+      }
 
       clearCheckout();
-      router.replace(`/checkout/gracias?orden=${order.id}`);
-    } catch (e) {
+      router.replace(`/checkout/gracias?orden=${result.orderId}`);
+    } catch (e: any) {
       console.error(e);
-      setError("No se pudo procesar el pago. Intenta de nuevo.");
+      setError(e.message || "No se pudo procesar el pago. Intenta de nuevo.");
     } finally {
       setSending(false);
       sendingRef.current = false;
@@ -104,10 +93,10 @@ export default function PagoPage() {
       <div className="bg-gray-50 rounded-lg p-4 mb-6">
         <h2 className="font-semibold mb-2">Productos seleccionados:</h2>
         <ul className="space-y-1">
-          {ids.map((id) => (
-            <li key={id} className="flex justify-between text-sm">
-              <span>Producto {id}</span>
-              <span>x1</span>
+          {selectedItems.map((item) => (
+            <li key={item.id} className="flex justify-between text-sm">
+              <span>{item.title}</span>
+              <span>x{item.qty}</span>
             </li>
           ))}
         </ul>
