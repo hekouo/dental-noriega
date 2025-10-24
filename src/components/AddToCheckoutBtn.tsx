@@ -28,17 +28,14 @@ export default function AddToCheckoutBtn({
   );
 
   const onClick = () => {
-    upsertSingleToCheckout(
-      {
-        id: productId,
-        title: productTitle,
-        price: productPrice,
-        qty,
-        variantId: variantId || undefined,
-        imageUrl,
-      },
-      true,
-    );
+    upsertSingleToCheckout({
+      id: productId,
+      title: productTitle,
+      price: productPrice,
+      qty,
+      variantId: variantId || undefined,
+      imageUrl,
+    });
   };
 
   return (

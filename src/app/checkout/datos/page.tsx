@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSelectedIds } from "@/lib/store/checkoutSelectors";
-import { createClient } from "@/lib/supabase/client";
+import { supabase } from "@/lib/supabase/client";
 
 function DatosPageContent() {
   const selectedIds = useSelectedIds();
@@ -24,7 +24,6 @@ function DatosPageContent() {
 
   useEffect(() => {
     const loadUserData = async () => {
-      const supabase = createClient();
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -68,7 +67,6 @@ function DatosPageContent() {
     setIsLoading(true);
 
     try {
-      const supabase = createClient();
 
       // Upsert en la tabla profiles
       const { error } = await supabase.from("profiles").upsert({

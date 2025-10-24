@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AuthGuard } from "@/components/auth/AuthGuard";
-import { createClient } from "@/lib/supabase/client";
+import { supabase } from "@/lib/supabase/client";
 import { Plus, Edit, Trash2 } from "lucide-react";
 
 export default function DireccionesPage() {
@@ -16,7 +16,6 @@ export default function DireccionesPage() {
   }, []);
 
   const loadAddresses = async () => {
-    const supabase = createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -36,7 +35,6 @@ export default function DireccionesPage() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const supabase = createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -81,7 +79,6 @@ export default function DireccionesPage() {
   const handleDelete = async (id: string) => {
     if (!confirm("¿Eliminar esta dirección?")) return;
 
-    const supabase = createClient();
     await supabase.from("addresses").delete().eq("id", id);
     loadAddresses();
   };

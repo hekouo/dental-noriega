@@ -6,35 +6,48 @@ import { formatCurrency } from "@/lib/utils/currency";
 import { Trash2, Plus, Minus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { useEffect, useState, useCallback, useRef, startTransition } from "react";
+import { supabase } from "@/lib/supabase/client";
 import { ROUTES } from "@/lib/routes";
 
 export default function CarritoPage() {
   const cartItems = useCartStore(selectCartItems);
   const setCartQty = useCartStore((state) => state.setCartQty);
   const removeFromCart = useCartStore((state) => state.removeFromCart);
-  const upsertCheckoutFromCart = useCheckoutStore(
-    (state) => state.upsertCheckoutFromCart,
-  );
+  const clearCart = useCartStore((state) => state.clearCart);
+  const ingestFromCart = useCheckoutStore((state) => state.ingestFromCart);
+  const busy = useRef(false);
   const [user, setUser] = useState<unknown>(null);
   const router = useRouter();
 
   useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user } }) => setUser(user));
-  }, []);
+    supabase.auth.getUser().then(({ data: { user } }: { data: { user: any } }) => setUser(user));
+    
+    // Prefetch checkout page for faster navigation
+    router.prefetch("/checkout");
+  }, [router]);
 
   const cartSubtotal = cartItems.reduce(
     (sum, item) => sum + item.price * item.qty,
     0,
   );
 
-  const handleContinueToCheckout = () => {
-    if (!cartItems?.length) return;
-    upsertCheckoutFromCart(cartItems, true);
-    router.push("/checkout");
-  };
+  const handleContinueToCheckout = useCallback(() => {
+    if (busy.current || !cartItems?.length) return;
+    busy.current = true;
+
+    // 1) Inyecta al checkout
+    ingestFromCart(cartItems, true);
+
+    // 2) Limpia carrito
+    clearCart();
+
+    // 3) Navega sin bloquear la UI
+    startTransition(() => {
+      router.push("/checkout");
+      busy.current = false;
+    });
+  }, [cartItems, ingestFromCart, clearCart, router]);
 
   if (cartItems.length === 0) {
     return (
@@ -133,9 +146,11 @@ export default function CarritoPage() {
             {user ? (
               <button
                 onClick={handleContinueToCheckout}
+                disabled={busy.current}
                 className="w-full btn btn-primary block text-center"
+                aria-busy={busy.current}
               >
-                <span>Continuar al Checkout</span>
+                <span>{busy.current ? "Procesando..." : "Continuar al Checkout"}</span>
               </button>
             ) : (
               <div>

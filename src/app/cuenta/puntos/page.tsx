@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ComponentType, type SVGProps } from "react";
 import { AuthGuard } from "@/components/auth/AuthGuard";
-import { createClient } from "@/lib/supabase/client";
+import { supabase } from "@/lib/supabase/client";
 import { calculatePointsValue } from "@/lib/utils/currency";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -46,7 +46,6 @@ export default function PuntosPage() {
   }, []);
 
   const loadData = async () => {
-    const supabase = createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();

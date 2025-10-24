@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AuthGuard } from "@/components/auth/AuthGuard";
-import { createClient } from "@/lib/supabase/client";
+import { supabase } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/utils/currency";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -32,7 +32,6 @@ export default function PedidosPage() {
   }, []);
 
   const loadOrders = async () => {
-    const supabase = createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();

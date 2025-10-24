@@ -29,16 +29,15 @@ type Item = {
 
 type State = {
   checkoutItems: CheckoutItem[];
-  upsertSingleToCheckout: (item: Item, selected?: boolean) => void;
-  upsertCheckoutFromCart: (items: Item[], selected?: boolean) => void;
-  removeSelected: () => void;
+  ingestFromCart: (cartItems: Item[], clearCart?: boolean) => void;
+  upsertSingleToCheckout: (item: Item) => void;
+  clearCheckout: () => void;
   toggleCheckoutSelect: (productId: string) => void;
   setCheckoutQty: (productId: string, qty: number) => void;
   removeFromCheckout: (productId: string) => void;
   selectAllCheckout: () => void;
   deselectAllCheckout: () => void;
   clearSelectedFromCheckout: () => void;
-  clearCheckout: () => void;
 };
 
 export const useCheckoutStore = create<State>()(
@@ -46,14 +45,37 @@ export const useCheckoutStore = create<State>()(
     (set, _get) => ({
       checkoutItems: [],
 
-      upsertSingleToCheckout: (item, selected = true) => {
+      ingestFromCart: (cartItems, clearCart = true) => {
+        set((s) => {
+          if (!cartItems?.length) return s;
+          const byId = new Map(s.checkoutItems.map((i) => [i.id, i]));
+          let changed = false;
+          for (const it of cartItems) {
+            const prev = byId.get(it.id);
+            if (!prev) {
+              byId.set(it.id, { ...it, selected: true } as CheckoutItem);
+              changed = true;
+            } else {
+              const mergedQty = (prev.qty ?? 1) + (it.qty ?? 1);
+              if (mergedQty !== prev.qty || !prev.selected) {
+                byId.set(it.id, { ...prev, qty: mergedQty, selected: true });
+                changed = true;
+              }
+            }
+          }
+          if (!changed) return s;
+          return { ...s, checkoutItems: Array.from(byId.values()) };
+        });
+      },
+
+      upsertSingleToCheckout: (item) => {
         set((state) => {
           const idx = state.checkoutItems.findIndex((i) => i.id === item.id);
           if (idx === -1) {
             return {
               checkoutItems: [
                 ...state.checkoutItems,
-                { ...item, qty: item.qty ?? 1, selected } as CheckoutItem,
+                { ...item, qty: item.qty ?? 1, selected: true } as CheckoutItem,
               ],
             };
           }
@@ -61,7 +83,7 @@ export const useCheckoutStore = create<State>()(
           const nextItem = {
             ...curr,
             qty: (curr.qty ?? 0) + (item.qty ?? 1),
-            selected,
+            selected: true,
           };
           if (
             nextItem.qty === curr.qty &&
@@ -74,40 +96,10 @@ export const useCheckoutStore = create<State>()(
         });
       },
 
-      upsertCheckoutFromCart: (items, selected = true) => {
+      clearCheckout: () => {
         set((state) => {
-          const map = new Map(state.checkoutItems.map((i) => [i.id, i]));
-          let changed = false;
-          for (const c of items) {
-            const prev = map.get(c.id);
-            if (!prev) {
-              map.set(c.id, { ...c, selected } as CheckoutItem);
-              changed = true;
-            } else {
-              const merged = {
-                ...prev,
-                qty: (prev.qty ?? 0) + (c.qty ?? 0),
-                selected,
-              };
-              if (
-                merged.qty !== prev.qty ||
-                !!merged.selected !== !!prev.selected
-              ) {
-                map.set(c.id, merged);
-                changed = true;
-              }
-            }
-          }
-          if (!changed) return state;
-          return { checkoutItems: Array.from(map.values()) };
-        });
-      },
-
-      removeSelected: () => {
-        set((state) => {
-          const next = state.checkoutItems.filter((i) => !i.selected);
-          if (next.length === state.checkoutItems.length) return state;
-          return { checkoutItems: next };
+          if (state.checkoutItems.length === 0) return state;
+          return { checkoutItems: [] };
         });
       },
 
@@ -174,18 +166,10 @@ export const useCheckoutStore = create<State>()(
           return { checkoutItems: next };
         });
       },
-
-      clearCheckout: () => {
-        set((state) => {
-          if (state.checkoutItems.length === 0) return state;
-          return { checkoutItems: [] };
-        });
-      },
     }),
     {
       name: "checkout",
       storage: createJSONStorage(() => localStorage),
-      // Importante: no escribir durante rehidratación para evitar loops
       onRehydrateStorage: () => () => {},
       partialize: (s) => ({ checkoutItems: s.checkoutItems }),
       version: 1,

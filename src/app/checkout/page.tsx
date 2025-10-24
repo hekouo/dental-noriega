@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -31,6 +31,7 @@ function EmptyCheckout() {
 
 export default function CheckoutIndex() {
   const router = useRouter();
+  const did = useRef(false);
 
   // Selectores primitivos
   const checkoutItems = useCheckoutStore(selectCheckoutItems);
@@ -41,6 +42,15 @@ export default function CheckoutIndex() {
   const selectAllCheckout = useCheckoutStore((s) => s.selectAllCheckout);
   const deselectAllCheckout = useCheckoutStore((s) => s.deselectAllCheckout);
   const clearCheckout = useCheckoutStore((s) => s.clearCheckout);
+
+  // Redirect once if no items
+  useEffect(() => {
+    if (did.current) return;
+    if (checkoutItems.length === 0) {
+      did.current = true;
+      router.replace("/carrito");
+    }
+  }, [checkoutItems.length, router]);
 
   // Derivado local
   const hasItems = useMemo(

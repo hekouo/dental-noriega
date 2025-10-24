@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { supabase } from "@/lib/supabase/client";
 import { useCartStore } from "@/lib/store/cartStore";
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
@@ -12,7 +12,6 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   // loadFromSupabase removido del store simplificado
 
   useEffect(() => {
-    const supabase = createClient();
 
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) {

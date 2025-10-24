@@ -39,10 +39,7 @@ export const ProductCard = memo(function ProductCard({
 
   const handleAddToCheckout = () => {
     setIsAddingToCheckout(true);
-    upsertSingleToCheckout(
-      { id: sku, title: name, price, qty: 1, imageUrl: image },
-      true,
-    );
+    upsertSingleToCheckout({ id: sku, title: name, price, qty: 1, imageUrl: image });
     setTimeout(() => setIsAddingToCheckout(false), 1000);
   };
 
