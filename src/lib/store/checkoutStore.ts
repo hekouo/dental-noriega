@@ -90,33 +90,45 @@ export const useCheckoutStore = create<CheckoutStore>()(
         // Acciones principales
         upsertCheckoutFromCart: (items, makeSelected) => {
           _tripwire("upsertCheckoutFromCart", { items, makeSelected });
-          const checkoutItems = get().checkoutItems;
+          const state = get();
 
-          const next = [...checkoutItems];
+          // Usar Map para merge más eficiente
+          const map = new Map(
+            state.checkoutItems.map((i) => [getKey(i.id, i.variantId), i]),
+          );
 
-          items.forEach((newItem) => {
-            const key = getKey(newItem.id, newItem.variantId);
-            const existingIndex = next.findIndex(
-              (x) => getKey(x.id, x.variantId) === key,
-            );
-
-            if (existingIndex >= 0) {
-              // Actualizar existente
-              next[existingIndex] = {
-                ...next[existingIndex],
-                qty: next[existingIndex].qty + newItem.qty,
-                selected: makeSelected,
-              };
-            } else {
-              // Agregar nuevo
-              next.push({
-                ...newItem,
+          for (const c of items) {
+            const key = getKey(c.id, c.variantId);
+            const prev = map.get(key);
+            if (prev) {
+              map.set(key, {
+                ...prev,
+                qty: prev.qty + c.qty,
                 selected: makeSelected,
               });
+            } else {
+              map.set(key, { ...c, selected: makeSelected });
             }
-          });
+          }
 
-          if (next === checkoutItems) return;
+          const next = Array.from(map.values());
+
+          // Verificar si realmente cambió algo
+          if (
+            next.length === state.checkoutItems.length &&
+            next.every((n, i) => {
+              const o = state.checkoutItems[i];
+              return (
+                o &&
+                o.id === n.id &&
+                o.qty === n.qty &&
+                o.selected === n.selected
+              );
+            })
+          ) {
+            return; // No hay cambios, no actualizar
+          }
+
           _safeSet({ checkoutItems: next });
         },
 

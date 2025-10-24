@@ -1,5 +1,6 @@
 import removeAccents from "remove-accents";
 import { loadProductBySlug } from "./catalog-sections";
+import { guessSectionForFeaturedSlug } from "@/lib/catalog/featuredSection";
 
 function normSlug(s: string) {
   return removeAccents(s.toLowerCase().trim())
@@ -27,21 +28,37 @@ export async function resolveProduct(section: string, slug: string) {
   const exact = await tryLoadProduct(s, g, "Exact match");
   if (exact) return exact;
 
-  // 2) búsqueda por slug normalizado solo
+  // 2) si viene de destacados, probar sección adivinada por heurística
+  const guessed = guessSectionForFeaturedSlug(g, s);
+  if (guessed !== s) {
+    const guessedMatch = await tryLoadProduct(
+      guessed,
+      g,
+      "Guessed section match",
+    );
+    if (guessedMatch) return guessedMatch;
+  }
+
+  // 3) búsqueda por slug normalizado solo
   if (s !== section || g !== slug) {
     const normalized = await tryLoadProduct(section, g, "Slug-only match");
     if (normalized) return normalized;
   }
 
-  // 3) fallback por id si slug parece id
+  // 4) fallback por id si slug parece id
   if (/^[a-z0-9_-]{8,}$/.test(g)) {
     const byId = await tryLoadProduct(section, g, "ID match");
     if (byId) return byId;
   }
 
-  // 4) nada
+  // 5) nada
   if (process.env.NODE_ENV === "development") {
-    console.warn("[PDP] Not found", { section, slug, normalized: { s, g } });
+    console.warn("[PDP] Not found", {
+      section,
+      slug,
+      normalized: { s, g },
+      guessed,
+    });
   }
 
   return null;

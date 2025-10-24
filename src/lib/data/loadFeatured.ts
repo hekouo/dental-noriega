@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { parse } from "csv-parse/sync";
+import { guessSectionForFeaturedSlug } from "@/lib/catalog/featuredSection";
 
 export type FeaturedCsv = {
   Title: string;
@@ -58,17 +59,11 @@ function getRealSlug(
     return SLUG_MAPPING[generatedSlug];
   }
 
-  // Para "ARCO NITI RECTANGULAR PAQUETE CON 10", usar el slug real
-  if (title === "ARCO NITI RECTANGULAR PAQUETE CON 10") {
-    return {
-      section: "ortodoncia-arcos-y-resortes",
-      slug: "arco-niti-rectangular-paquete-con-10",
-    };
-  }
+  // Usar heurística para adivinar la sección correcta
+  const sectionSlug = guessSectionForFeaturedSlug(generatedSlug);
 
-  // Para otros productos, usar la sección por defecto y el slug generado
   return {
-    section: "consumibles-y-profilaxis",
+    section: sectionSlug,
     slug: generatedSlug,
   };
 }
