@@ -1,97 +1,94 @@
 "use client";
 
-import { useEffect, useMemo, useCallback } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useCheckout } from "@/lib/store/checkoutStore";
 import { useCartStore } from "@/lib/store/cartStore";
 
+type AnyItem = {
+  id?: string;
+  title?: string;
+  name?: string;
+  price?: number;
+  qty?: number;
+  unitAmountCents?: number;
+  quantity?: number;
+  image?: string;
+  imageResolved?: string;
+  sectionSlug?: string;
+  slug?: string;
+};
+
 export default function CheckoutIndex() {
   const { items, setItems } = useCheckout();
+  const cart = useCartStore();
+  const importedRef = useRef(false);
 
-  // Cargar del cartStore solo si el checkout está vacío
   useEffect(() => {
+    if (typeof window === "undefined") return;
     if (items.length > 0) return;
-    const cartItems = (useCartStore?.getState?.().items ?? []) as any[];
-    if (Array.isArray(cartItems) && cartItems.length) {
-      const normalized = cartItems.map((it) => ({
-        id: String(it.id ?? it.slug ?? crypto.randomUUID()),
-        title: String(it.title ?? it.name ?? "Producto"),
-        price: Number(
-          it.price ??
-            (Number.isFinite(it.unitAmountCents)
-              ? Number(it.unitAmountCents) / 100
-              : 0),
-        ),
-        qty: Number(it.qty ?? it.quantity ?? 1),
-        image: it.image ?? it.imageResolved,
-      }));
-      setItems(normalized);
-    }
-  }, [items.length, setItems]);
+    if (importedRef.current) return;
+    if (sessionStorage.getItem("checkout-imported") === "1") return;
 
-  // Total en pesos
+    const cartItems: AnyItem[] = Array.isArray(cart.items)
+      ? (cart.items as AnyItem[])
+      : [];
+    if (!cartItems.length) return;
+
+    const normalized = cartItems.map((it) => ({
+      id: String(it.id ?? it.slug ?? crypto.randomUUID()),
+      title: String(it.title ?? it.name ?? "Producto"),
+      price: Number(
+        it.price ??
+          (Number.isFinite(it.unitAmountCents)
+            ? Number(it.unitAmountCents) / 100
+            : 0),
+      ),
+      qty: Number(it.qty ?? it.quantity ?? 1),
+      image: it.image ?? it.imageResolved,
+      sectionSlug: it.sectionSlug,
+      slug: it.slug,
+    }));
+    setItems(normalized);
+    importedRef.current = true;
+    sessionStorage.setItem("checkout-imported", "1");
+  }, [items.length, setItems, cart.items]);
+
+  const removeOne = (id: string) => {
+    setItems(items.filter((x) => String(x.id) !== String(id)));
+    cart.removeItem(id);
+  };
+
+  const inc = (id: string) => {
+    const next = items.map((x) =>
+      String(x.id) === String(id) ? { ...x, qty: (x.qty ?? 1) + 1 } : x,
+    );
+    setItems(next);
+    const it = next.find((i) => String(i.id) === String(id));
+    cart.updateQuantity(id, it?.qty ?? 1);
+  };
+
+  const dec = (id: string) => {
+    const prev = items.find((x) => String(x.id) === String(id));
+    const nextQty = Math.max(1, (prev?.qty ?? 1) - 1);
+    const next = items.map((x) =>
+      String(x.id) === String(id) ? { ...x, qty: nextQty } : x,
+    );
+    setItems(next);
+    cart.updateQuantity(id, nextQty);
+  };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (items.length === 0) {
+      cart.clearCart(); // asegurar que limpias persistencia
+      sessionStorage.setItem("checkout-imported", "1");
+    }
+  }, [items.length, cart]);
+
   const total = useMemo(
     () => items.reduce((a, it) => a + (it.price ?? 0) * (it.qty ?? 1), 0),
     [items],
-  );
-
-  // Helpers contra el cartStore (tolerantes a nombres distintos)
-  const syncRemove = useCallback((id: string) => {
-    const api: any = useCartStore?.getState?.();
-    if (!api) return;
-    const result = api.remove?.(id) || api.removeItem?.(id) || api.delete?.(id);
-    return result;
-  }, []);
-
-  const syncSetQty = useCallback((id: string, qty: number) => {
-    const api: any = useCartStore?.getState?.();
-    if (!api) return;
-    const result =
-      api.setQty?.(id, qty) ||
-      api.updateQty?.(id, qty) ||
-      api.changeQty?.(id, qty);
-    return result;
-  }, []);
-
-  const handleRemove = useCallback(
-    (id: string) => {
-      // 1) checkout
-      setItems(items.filter((x) => x.id !== id));
-      // 2) cart
-      try {
-        syncRemove(id);
-      } catch {
-        /* ignore cart sync errors */
-      }
-    },
-    [items, setItems, syncRemove],
-  );
-
-  const handleInc = useCallback(
-    (id: string) => {
-      setItems(items.map((x) => (x.id === id ? { ...x, qty: x.qty + 1 } : x)));
-      try {
-        const next = (items.find((x) => x.id === id)?.qty ?? 1) + 1;
-        syncSetQty(id, next);
-      } catch {
-        /* ignore cart sync errors */
-      }
-    },
-    [items, setItems, syncSetQty],
-  );
-
-  const handleDec = useCallback(
-    (id: string) => {
-      const cur = items.find((x) => x.id === id)?.qty ?? 1;
-      const next = Math.max(1, cur - 1);
-      setItems(items.map((x) => (x.id === id ? { ...x, qty: next } : x)));
-      try {
-        syncSetQty(id, next);
-      } catch {
-        /* ignore cart sync errors */
-      }
-    },
-    [items, setItems, syncSetQty],
   );
 
   return (
@@ -100,9 +97,7 @@ export default function CheckoutIndex() {
 
       {items.length === 0 ? (
         <div className="mt-6 rounded-lg border p-4">
-          <p className="text-sm">
-            Tu checkout está vacío. Abre el carrito y agrega productos.
-          </p>
+          <p className="text-sm">Tu checkout está vacío.</p>
           <Link href="/catalogo" className="mt-3 inline-block underline">
             Ir al catálogo
           </Link>
@@ -112,39 +107,37 @@ export default function CheckoutIndex() {
           <ul className="mt-4 divide-y">
             {items.map((it) => (
               <li
-                key={it.id}
+                key={String(it.id)}
                 className="py-3 flex items-center justify-between gap-3"
               >
-                <div className="flex flex-col">
-                  <span className="font-medium">{it.title}</span>
-                  <div className="mt-1 flex items-center gap-2 text-sm">
-                    <button
-                      type="button"
-                      onClick={() => handleDec(it.id)}
-                      className="rounded border px-2"
-                      aria-label="Disminuir"
-                    >
-                      −
-                    </button>
-                    <span>{it.qty}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleInc(it.id)}
-                      className="rounded border px-2"
-                      aria-label="Aumentar"
-                    >
-                      +
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleRemove(it.id)}
-                      className="ml-3 text-red-600 underline"
-                    >
-                      Eliminar
-                    </button>
-                  </div>
+                <div className="flex-1">
+                  <div className="font-medium">{it.title}</div>
+                  <div className="text-sm text-gray-600">x{it.qty ?? 1}</div>
                 </div>
-                <span>${((it.price ?? 0) * (it.qty ?? 1)).toFixed(2)} MXN</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    className="border rounded px-2"
+                    onClick={() => dec(String(it.id))}
+                  >
+                    -
+                  </button>
+                  <span className="w-8 text-center">{it.qty ?? 1}</span>
+                  <button
+                    className="border rounded px-2"
+                    onClick={() => inc(String(it.id))}
+                  >
+                    +
+                  </button>
+                  <span className="w-24 text-right">
+                    ${((it.price ?? 0) * (it.qty ?? 1)).toFixed(2)} MXN
+                  </span>
+                  <button
+                    className="ml-2 text-red-600"
+                    onClick={() => removeOne(String(it.id))}
+                  >
+                    Eliminar
+                  </button>
+                </div>
               </li>
             ))}
           </ul>

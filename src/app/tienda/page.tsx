@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { getFeaturedProducts } from "@/lib/data/featured";
 import FeaturedGrid from "@/components/FeaturedGrid";
+import { getFeaturedProducts } from "@/lib/data/featured";
 
 const categories = [
   { title: "Consumibles y Profilaxis", href: "/tienda/consumibles" },
@@ -18,8 +18,18 @@ const categories = [
   },
 ];
 
+export const revalidate = 300;
+
 export default async function TiendaPage() {
   const featured = await getFeaturedProducts(8);
+  const mapped = featured.map(({ sectionSlug, item }) => ({
+    title: item.title,
+    price: item.price,
+    image: item.image,
+    imageResolved: item.imageResolved,
+    slug: item.slug,
+    sectionSlug,
+  }));
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-gradient-to-r from-primary-600 to-primary-800 text-white py-12">
@@ -29,18 +39,9 @@ export default async function TiendaPage() {
         </div>
       </div>
 
-      {/* Productos Destacados */}
-      <div className="max-w-7xl mx-auto px-4 py-12">
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">
-            Productos Destacados
-          </h2>
-          <p className="text-gray-600">Nuestros productos más populares</p>
-        </div>
-        <FeaturedGrid items={featured} />
-      </div>
+      <FeaturedGrid products={mapped} title="Destacados" />
 
-      <div className="max-w-7xl mx-auto px-4 py-12">
+      <div className="max-w-7xl mx-auto px-4 pb-12">
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {categories.map((category) => (
             <Link
