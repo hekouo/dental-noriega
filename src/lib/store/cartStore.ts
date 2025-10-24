@@ -35,62 +35,107 @@ const initial: State = { items: [], checkoutMode: "cart", overrideItems: null };
 
 export const useCartStore = create<CartStore>()(
   persist(
-    (set, get) => ({
-      ...initial,
+    (set, get) => {
+      // Tripwire de desarrollo (solo en dev)
+      let _lastTick = 0;
+      let _opsThisTick = 0;
+      function _tripwire(op: string, payload?: unknown) {
+        if (process.env.NODE_ENV === "development") {
+          const now = Date.now();
+          if (now - _lastTick > 250) {
+            _lastTick = now;
+            _opsThisTick = 0;
+          }
+          _opsThisTick++;
+          if (_opsThisTick > 8) {
+            // demasiadas mutaciones en <250ms
+            // eslint-disable-next-line no-console
+            console.groupCollapsed(
+              `[TRIPWIRE] Mutaciones excesivas: ${_opsThisTick} en <250ms`,
+            );
+            // eslint-disable-next-line no-console
+            console.trace(`Acción: ${op}`, payload);
+            // eslint-disable-next-line no-console
+            console.groupEnd();
+          }
+        }
+      }
 
-      addItem: (it) => {
-        const items = get().items;
-        const idx = items.findIndex((x) => x.id === it.id);
-        let next: CartItem[];
-        if (idx >= 0)
-          next = items.map((x, i) =>
-            i === idx ? { ...x, qty: x.qty + it.qty } : x,
-          );
-        else next = [...items, it];
-        if (next === items) return;
-        set({ items: next });
-      },
+      // Hotfix anti-reentrada (solo en dev)
+      let _setting = false;
+      function _safeSet(partial: Partial<State>) {
+        if (process.env.NODE_ENV === "development" && _setting) return; // evita reentrada inmediata
+        if (process.env.NODE_ENV === "development") _setting = true;
+        try {
+          set(partial);
+        } finally {
+          if (process.env.NODE_ENV === "development") _setting = false;
+        }
+      }
 
-      updateQty: (id, qty) => {
-        const items = get().items;
-        const next = items.map((x) => (x.id === id ? { ...x, qty } : x));
-        if (next === items) return;
-        set({ items: next });
-      },
+      return {
+        ...initial,
 
-      removeItem: (id) => {
-        const items = get().items;
-        const next = items.filter((x) => x.id !== id);
-        if (next === items) return;
-        set({ items: next });
-      },
+        addItem: (it) => {
+          _tripwire("addItem", it);
+          const items = get().items;
+          const idx = items.findIndex((x) => x.id === it.id);
+          let next: CartItem[];
+          if (idx >= 0)
+            next = items.map((x, i) =>
+              i === idx ? { ...x, qty: x.qty + it.qty } : x,
+            );
+          else next = [...items, it];
+          if (next === items) return;
+          _safeSet({ items: next });
+        },
 
-      setCheckoutMode: (m) => {
-        if (get().checkoutMode === m) return;
-        set({ checkoutMode: m });
-      },
+        updateQty: (id, qty) => {
+          _tripwire("updateQty", { id, qty });
+          const items = get().items;
+          const next = items.map((x) => (x.id === id ? { ...x, qty } : x));
+          if (next === items) return;
+          _safeSet({ items: next });
+        },
 
-      setOverrideItems: (arr) => {
-        const prev = get().overrideItems;
-        const sameLen = (prev?.length ?? 0) === (arr?.length ?? 0);
-        const same =
-          sameLen &&
-          (prev ?? []).every((p, i) => {
-            const q = (arr ?? [])[i];
-            return q && q.id === p.id && q.qty === p.qty;
-          });
-        if (same) return;
-        set({ overrideItems: arr });
-      },
+        removeItem: (id) => {
+          _tripwire("removeItem", { id });
+          const items = get().items;
+          const next = items.filter((x) => x.id !== id);
+          if (next === items) return;
+          _safeSet({ items: next });
+        },
 
-      clearCart: () => {
-        if (get().items.length === 0) return;
-        set({ items: [] });
-      },
+        setCheckoutMode: (m) => {
+          _tripwire("setCheckoutMode", m);
+          if (get().checkoutMode === m) return;
+          _safeSet({ checkoutMode: m });
+        },
 
-      totalQty: () => get().items.reduce((n, x) => n + x.qty, 0),
-      subtotal: () => get().items.reduce((n, x) => n + x.price * x.qty, 0),
-    }),
+        setOverrideItems: (arr) => {
+          _tripwire("setOverrideItems", arr);
+          const prev = get().overrideItems;
+          const sameLen = (prev?.length ?? 0) === (arr?.length ?? 0);
+          const same =
+            sameLen &&
+            (prev ?? []).every((p, i) => {
+              const q = (arr ?? [])[i];
+              return q && q.id === p.id && q.qty === p.qty;
+            });
+          if (same) return;
+          _safeSet({ overrideItems: arr });
+        },
+
+        clearCart: () => {
+          _tripwire("clearCart");
+          if (get().items.length === 0) return;
+          _safeSet({ items: [] });
+        },
+
+        totalQty: () => get().items.reduce((n, x) => n + x.qty, 0),
+        subtotal: () => get().items.reduce((n, x) => n + x.price * x.qty, 0),
+      };
+    },
     {
       name: "cart-v1",
       storage: createJSONStorage(() => localStorage),
