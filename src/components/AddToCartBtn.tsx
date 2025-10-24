@@ -33,6 +33,7 @@ export default function AddToCartBtn({
       qty,
       variantId: variantId || undefined,
       imageUrl,
+      selected: true,
     });
   };
 

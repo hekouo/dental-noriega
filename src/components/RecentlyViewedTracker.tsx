@@ -1,37 +1,19 @@
 "use client";
-
-import { useRecentlyViewed } from "@/hooks/useRecentlyViewed";
 import { useEffect } from "react";
+import { useRecentlyViewed } from "@/lib/hooks/useRecentlyViewed";
 
 type Props = {
   slug: string;
-  title: string;
-  section: string;
-  sectionSlug: string;
-  price: number;
-  image?: string;
 };
 
-export function RecentlyViewedTracker({
-  slug,
-  title,
-  section,
-  sectionSlug,
-  price,
-  image,
-}: Props) {
-  const { addItem } = useRecentlyViewed();
+export default function RecentlyViewedTracker({ slug }: Props) {
+  const { push } = useRecentlyViewed();
 
   useEffect(() => {
-    addItem({
-      slug,
-      title,
-      section,
-      sectionSlug,
-      price,
-      image,
-    });
-  }, [addItem, slug, title, section, sectionSlug, price, image]);
+    if (slug) {
+      push(slug);
+    }
+  }, [slug, push]);
 
-  return null; // Este componente no renderiza nada
+  return null;
 }

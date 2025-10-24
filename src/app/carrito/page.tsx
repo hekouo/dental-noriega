@@ -17,6 +17,7 @@ export default function CarritoPage() {
   const selectedTotal = useCartStore(selectSelectedTotal);
   const setCartQty = useCartStore((state) => state.setCartQty);
   const removeFromCart = useCartStore((state) => state.removeFromCart);
+  const clearCart = useCartStore((state) => state.clearCart);
   const toggleSelect = useCartStore((state) => state.toggleSelect);
   const selectAll = useCartStore((state) => state.selectAll);
   const deselectAll = useCartStore((state) => state.deselectAll);
@@ -110,7 +111,7 @@ export default function CarritoPage() {
                 <input
                   type="checkbox"
                   checked={item.selected}
-                  onChange={() => toggleSelect(item.id, item.variantId)}
+                  onChange={() => toggleSelect(item.id)}
                   className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
               </div>
@@ -178,10 +179,10 @@ export default function CarritoPage() {
             </div>
 
             <div className="border-t pt-4 mb-6">
-              <div className="flex justify-between text-lg font-bold">
-                <span>Total estimado</span>
-                <span>{formatCurrency(selectedTotal)}</span>
-              </div>
+            <div className="flex justify-between text-lg font-bold">
+              <span>Total estimado</span>
+              <span>{formatCurrency(selectedTotal)}</span>
+            </div>
             </div>
 
             <button

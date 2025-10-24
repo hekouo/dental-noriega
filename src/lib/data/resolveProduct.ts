@@ -4,7 +4,9 @@ import { guessSectionForFeaturedSlug } from "@/lib/catalog/featuredSection";
 import { normalizeSlug, autocorrect } from "@/lib/utils/slug";
 
 function normSlug(s: string) {
-  return normalizeSlug(s);
+  return removeAccents(s.toLowerCase().trim())
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "");
 }
 
 async function tryLoadProduct(section: string, slug: string, context: string) {
@@ -44,17 +46,17 @@ export async function resolveProduct(section: string, slug: string) {
     if (normalized) return normalized;
   }
 
-  // 4) fallback por id si slug parece id
+  // 4) autocorrección de typos comunes
+  const corrected = autocorrect(g);
+  if (corrected !== g) {
+    const correctedMatch = await tryLoadProduct(s, corrected, "Autocorrect match");
+    if (correctedMatch) return correctedMatch;
+  }
+
+  // 5) fallback por id si slug parece id
   if (/^[a-z0-9_-]{8,}$/.test(g)) {
     const byId = await tryLoadProduct(section, g, "ID match");
     if (byId) return byId;
-  }
-
-  // 5) búsqueda fuzzy con autocorrección
-  const corrected = autocorrect(g);
-  if (corrected !== g) {
-    const fuzzyMatch = await tryLoadProduct(section, corrected, "Fuzzy match");
-    if (fuzzyMatch) return { ...fuzzyMatch, correctedSlug: corrected };
   }
 
   // 6) nada

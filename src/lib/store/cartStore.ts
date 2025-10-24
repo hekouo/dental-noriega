@@ -18,11 +18,11 @@ type CartState = {
 };
 
 type CartActions = {
-  addToCart: (item: Omit<CartItem, 'selected'>) => void;
+  addToCart: (item: CartItem) => void;
   removeFromCart: (id: string, variantId?: string) => void;
   setCartQty: (id: string, variantId: string | undefined, qty: number) => void;
   clearCart: () => void;
-  toggleSelect: (id: string, variantId?: string) => void;
+  toggleSelect: (id: string) => void;
   selectAll: () => void;
   deselectAll: () => void;
 };
@@ -129,17 +129,14 @@ export const useCartStore = create<CartStore>()(
           _safeSet({ cartItems: [] });
         },
 
-        toggleSelect: (id, variantId) => {
-          _tripwire("toggleSelect", { id, variantId });
+        toggleSelect: (id) => {
+          _tripwire("toggleSelect", { id });
           const cartItems = get().cartItems;
-          const key = getKey(id, variantId);
-          const idx = cartItems.findIndex((x) => getKey(x.id, x.variantId) === key);
+          const idx = cartItems.findIndex((i) => i.id === id);
           if (idx === -1) return;
-          
           const it = cartItems[idx];
           const next = { ...it, selected: !it.selected };
           if (next.selected === it.selected) return;
-          
           const copy = cartItems.slice();
           copy[idx] = next;
           _safeSet({ cartItems: copy });
@@ -187,9 +184,7 @@ export const useCartStore = create<CartStore>()(
 export const selectCartItems = (s: CartStore) => s.cartItems;
 export const selectCartCount = (s: CartStore) =>
   s.cartItems.reduce((sum, item) => sum + item.qty, 0);
-export const selectSelectedItems = (s: CartStore) => 
-  s.cartItems.filter(item => item.selected);
-export const selectSelectedCount = (s: CartStore) =>
-  s.cartItems.reduce((sum, item) => sum + (item.selected ? item.qty : 0), 0);
+export const selectSelectedItems = (s: CartStore) => s.cartItems.filter(i => i.selected);
+export const selectSelectedCount = (s: CartStore) => s.cartItems.filter(i => i.selected).length;
 export const selectSelectedTotal = (s: CartStore) =>
   s.cartItems.reduce((sum, item) => sum + (item.selected ? item.price * item.qty : 0), 0);

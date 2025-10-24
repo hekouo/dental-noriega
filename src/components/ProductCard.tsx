@@ -33,7 +33,7 @@ export const ProductCard = memo(function ProductCard({
 
   const handleAddToCart = () => {
     setIsAdding(true);
-    addToCart({ id: sku, title: name, price, qty: 1, imageUrl: image });
+    addToCart({ id: sku, title: name, price, qty: 1, imageUrl: image, selected: true });
     setTimeout(() => setIsAdding(false), 1000);
   };
 
