@@ -1,60 +1,47 @@
+import removeAccents from "remove-accents";
 import { loadProductBySlug } from "./catalog-sections";
 
-export async function resolveProduct(section: string, slug: string) {
-  // 1) buscar exacto por sección+slug
+function normSlug(s: string) {
+  return removeAccents(s.toLowerCase().trim())
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "");
+}
+
+async function tryLoadProduct(section: string, slug: string, context: string) {
   try {
-    const exact = await loadProductBySlug(section, slug);
-    if (exact) return exact;
+    const result = await loadProductBySlug(section, slug);
+    if (result) return result;
   } catch (error) {
     if (process.env.NODE_ENV === "development") {
-      console.warn("[PDP] Exact match failed", { section, slug, error });
+      console.warn(`[PDP] ${context} failed`, { section, slug, error });
     }
   }
+  return null;
+}
 
-  // 2) si falla, intentar sin tildes / lower / hyphen normalization
-  const normalizedSection = section
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/\s+/g, "-");
+export async function resolveProduct(section: string, slug: string) {
+  const s = normSlug(section);
+  const g = normSlug(slug);
 
-  const normalizedSlug = slug
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/\s+/g, "-");
+  // 1) exact match por section+slug
+  const exact = await tryLoadProduct(s, g, "Exact match");
+  if (exact) return exact;
 
-  if (normalizedSection !== section || normalizedSlug !== slug) {
-    try {
-      const normalized = await loadProductBySlug(
-        normalizedSection,
-        normalizedSlug,
-      );
-      if (normalized) return normalized;
-    } catch (error) {
-      if (process.env.NODE_ENV === "development") {
-        console.warn("[PDP] Normalized match failed", {
-          normalizedSection,
-          normalizedSlug,
-          error,
-        });
-      }
-    }
+  // 2) búsqueda por slug normalizado solo
+  if (s !== section || g !== slug) {
+    const normalized = await tryLoadProduct(section, g, "Slug-only match");
+    if (normalized) return normalized;
   }
 
-  // 3) si aún falla, buscar solo por slug (en todas las secciones)
-  // Esto requeriría una función que busque en todas las secciones
-  // Por ahora, devolvemos null
-
-  // 4) último recurso: por id si slug==id
-  if (/^[A-Z0-9-_]+$/i.test(slug)) {
-    // Si el slug parece un ID, podríamos intentar buscar por ID
-    // Pero esto requeriría una función específica
+  // 3) fallback por id si slug parece id
+  if (/^[a-z0-9_-]{8,}$/.test(g)) {
+    const byId = await tryLoadProduct(section, g, "ID match");
+    if (byId) return byId;
   }
 
-  // devolver null si definitivamente no existe
+  // 4) nada
   if (process.env.NODE_ENV === "development") {
-    console.warn("[PDP] Not found", { section, slug });
+    console.warn("[PDP] Not found", { section, slug, normalized: { s, g } });
   }
 
   return null;

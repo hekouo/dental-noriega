@@ -5,7 +5,7 @@ import { pointsFor } from "@/lib/utils/points";
 import { useCartStore } from "@/lib/store/cartStore";
 import { useCheckoutStore } from "@/lib/store/checkoutStore";
 import { ShoppingCart, CreditCard } from "lucide-react";
-import { useState } from "react";
+import { useState, memo } from "react";
 import ProductImage from "@/components/ProductImage";
 import PointsBadge from "@/components/PointsBadge";
 
@@ -17,7 +17,7 @@ interface ProductCardProps {
   image?: string;
 }
 
-export function ProductCard({
+export const ProductCard = memo(function ProductCard({
   sku,
   name,
   price,
@@ -104,4 +104,4 @@ export function ProductCard({
       </div>
     </div>
   );
-}
+});

@@ -47,6 +47,9 @@ importers:
       react-hook-form:
         specifier: ^7.65.0
         version: 7.65.0(react@18.3.1)
+      remove-accents:
+        specifier: ^0.5.0
+        version: 0.5.0
       stripe:
         specifier: ^17.7.0
         version: 17.7.0
@@ -4142,6 +4145,9 @@ packages:
   regexp.prototype.flags@1.5.4:
     resolution: {integrity: sha512-dYqgNSZbDwkaJ2ceRd9ojCGjBq+mOm9LmtXnAnEGyHhN/5R7iDW2TRw3h+o/jCFxus3P2LfWIIiwowAjANm7IA==}
     engines: {node: '>= 0.4'}
+
+  remove-accents@0.5.0:
+    resolution: {integrity: sha512-8g3/Otx1eJaVD12e31UbJj1YzdtVvzH85HV7t+9MJYk/u3XmkOUJ5Ys9wQrf9PCPK8+xn4ymzqYCiZl6QWKn+A==}
 
   requestidlecallback@0.3.0:
     resolution: {integrity: sha512-TWHFkT7S9p7IxLC5A1hYmAYQx2Eb9w1skrXmQ+dS1URyvR8tenMLl4lHbqEOUnpEYxNKpkVMXUgknVpBZWXXfQ==}
@@ -9514,6 +9520,8 @@ snapshots:
       get-proto: 1.0.1
       gopd: 1.2.0
       set-function-name: 2.0.2
+
+  remove-accents@0.5.0: {}
 
   requestidlecallback@0.3.0: {}
 
