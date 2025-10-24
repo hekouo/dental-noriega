@@ -2,7 +2,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 
-// 1.1 Tipos
+// Tipos
 export type CartItem = {
   id: string;
   title: string;
@@ -12,41 +12,21 @@ export type CartItem = {
   qty: number;
 };
 
-export type CheckoutItem = CartItem & {
-  selected: boolean;
-};
-
 type CartState = {
-  // Carrito: libre para llenar/vaciar sin afectar checkout
   cartItems: CartItem[];
-
-  // Checkout: conserva sus propios ítems seleccionados
-  checkoutItems: CheckoutItem[];
 };
 
 type CartActions = {
-  // Acciones de carrito
   addToCart: (item: CartItem) => void;
   removeFromCart: (id: string, variantId?: string) => void;
   setCartQty: (id: string, variantId: string | undefined, qty: number) => void;
   clearCart: () => void;
-
-  // Acciones de checkout
-  upsertCheckoutFromCart: (item: CartItem | CartItem[]) => void;
-  toggleCheckoutSelect: (key: string) => void;
-  setCheckoutQty: (key: string, qty: number) => void;
-  removeFromCheckout: (key: string) => void;
-  clearUnselected: () => void;
-  clearCheckout: () => void;
-  selectAllCheckout: () => void;
-  deselectAllCheckout: () => void;
 };
 
 export type CartStore = CartState & CartActions;
 
 const initial: CartState = {
   cartItems: [],
-  checkoutItems: [],
 };
 
 // Helper para generar key única
@@ -144,120 +124,20 @@ export const useCartStore = create<CartStore>()(
           if (get().cartItems.length === 0) return;
           _safeSet({ cartItems: [] });
         },
-
-        // Acciones de checkout
-        upsertCheckoutFromCart: (item) => {
-          _tripwire("upsertCheckoutFromCart", item);
-          const items = Array.isArray(item) ? item : [item];
-          const checkoutItems = get().checkoutItems;
-
-          const next = [...checkoutItems];
-
-          items.forEach((newItem) => {
-            const key = getKey(newItem.id, newItem.variantId);
-            const existingIndex = next.findIndex(
-              (x) => getKey(x.id, x.variantId) === key,
-            );
-
-            if (existingIndex >= 0) {
-              // Actualizar existente
-              next[existingIndex] = {
-                ...next[existingIndex],
-                qty: next[existingIndex].qty + newItem.qty,
-                selected: true, // Marcar como seleccionado
-              };
-            } else {
-              // Agregar nuevo
-              next.push({
-                ...newItem,
-                selected: true,
-              });
-            }
-          });
-
-          if (next === checkoutItems) return;
-          _safeSet({ checkoutItems: next });
-        },
-
-        toggleCheckoutSelect: (key) => {
-          _tripwire("toggleCheckoutSelect", key);
-          const checkoutItems = get().checkoutItems;
-          const next = checkoutItems.map((x) =>
-            getKey(x.id, x.variantId) === key
-              ? { ...x, selected: !x.selected }
-              : x,
-          );
-          if (next === checkoutItems) return;
-          _safeSet({ checkoutItems: next });
-        },
-
-        setCheckoutQty: (key, qty) => {
-          _tripwire("setCheckoutQty", { key, qty });
-          const checkoutItems = get().checkoutItems;
-          const next = checkoutItems.map((x) =>
-            getKey(x.id, x.variantId) === key ? { ...x, qty } : x,
-          );
-          if (next === checkoutItems) return;
-          _safeSet({ checkoutItems: next });
-        },
-
-        removeFromCheckout: (key) => {
-          _tripwire("removeFromCheckout", key);
-          const checkoutItems = get().checkoutItems;
-          const next = checkoutItems.filter(
-            (x) => getKey(x.id, x.variantId) !== key,
-          );
-          if (next === checkoutItems) return;
-          _safeSet({ checkoutItems: next });
-        },
-
-        clearUnselected: () => {
-          _tripwire("clearUnselected");
-          const checkoutItems = get().checkoutItems;
-          const next = checkoutItems.filter((x) => x.selected);
-          if (next === checkoutItems) return;
-          _safeSet({ checkoutItems: next });
-        },
-
-        clearCheckout: () => {
-          _tripwire("clearCheckout");
-          if (get().checkoutItems.length === 0) return;
-          _safeSet({ checkoutItems: [] });
-        },
-
-        selectAllCheckout: () => {
-          _tripwire("selectAllCheckout");
-          const checkoutItems = get().checkoutItems;
-          const next = checkoutItems.map((x) => ({ ...x, selected: true }));
-          if (next === checkoutItems) return;
-          _safeSet({ checkoutItems: next });
-        },
-
-        deselectAllCheckout: () => {
-          _tripwire("deselectAllCheckout");
-          const checkoutItems = get().checkoutItems;
-          const next = checkoutItems.map((x) => ({ ...x, selected: false }));
-          if (next === checkoutItems) return;
-          _safeSet({ checkoutItems: next });
-        },
       };
     },
     {
-      name: "cart-v2",
+      name: "cart-v3",
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => ({
         cartItems: s.cartItems,
-        checkoutItems: s.checkoutItems,
       }),
       // Nada de onRehydrateStorage
     },
   ),
 );
 
-// 1.3 Selectores primitivos exportables
+// Selectores primitivos exportables
 export const selectCartItems = (s: CartStore) => s.cartItems;
-export const selectCheckoutItems = (s: CartStore) => s.checkoutItems;
-export const selectCheckoutSelectedCount = (s: CartStore) =>
-  s.checkoutItems.filter((i) => i.selected).length;
-export const selectCheckoutSelectedTotal = (s: CartStore) =>
-  s.checkoutItems.reduce((a, i) => (i.selected ? a + i.price * i.qty : a), 0);
+export const selectCartCount = (s: CartStore) =>
+  s.cartItems.reduce((sum, item) => sum + item.qty, 0);

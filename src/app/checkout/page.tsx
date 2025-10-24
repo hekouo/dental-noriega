@@ -4,11 +4,11 @@ import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  useCartStore,
+  useCheckoutStore,
   selectCheckoutItems,
-  selectCheckoutSelectedCount,
-  selectCheckoutSelectedTotal,
-} from "@/lib/store/cartStore";
+  selectSelectedCount,
+  selectSelectedTotal,
+} from "@/lib/store/checkoutStore";
 import CheckoutItemRow from "@/components/CheckoutItemRow";
 
 function EmptyCheckout() {
@@ -32,17 +32,17 @@ export default function CheckoutIndex() {
   const router = useRouter();
 
   // Selectores primitivos
-  const checkoutItems = useCartStore(selectCheckoutItems);
-  const selectedCount = useCartStore(selectCheckoutSelectedCount);
-  const selectedTotal = useCartStore(selectCheckoutSelectedTotal);
+  const checkoutItems = useCheckoutStore(selectCheckoutItems);
+  const selectedCount = useCheckoutStore(selectSelectedCount);
+  const selectedTotal = useCheckoutStore(selectSelectedTotal);
 
   // Acciones del store
-  const toggleCheckoutSelect = useCartStore((s) => s.toggleCheckoutSelect);
-  const setCheckoutQty = useCartStore((s) => s.setCheckoutQty);
-  const removeFromCheckout = useCartStore((s) => s.removeFromCheckout);
-  const selectAllCheckout = useCartStore((s) => s.selectAllCheckout);
-  const deselectAllCheckout = useCartStore((s) => s.deselectAllCheckout);
-  const clearCheckout = useCartStore((s) => s.clearCheckout);
+  const toggleCheckoutSelect = useCheckoutStore((s) => s.toggleCheckoutSelect);
+  const setCheckoutQty = useCheckoutStore((s) => s.setCheckoutQty);
+  const removeFromCheckout = useCheckoutStore((s) => s.removeFromCheckout);
+  const selectAllCheckout = useCheckoutStore((s) => s.selectAllCheckout);
+  const deselectAllCheckout = useCheckoutStore((s) => s.deselectAllCheckout);
+  const clearCheckout = useCheckoutStore((s) => s.clearCheckout);
 
   // Derivado local
   const hasItems = useMemo(

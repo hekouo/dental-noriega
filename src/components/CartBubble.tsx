@@ -2,14 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { ShoppingCart, X, Trash2 } from "lucide-react";
-import { useCartStore, selectCartItems } from "@/lib/store/cartStore";
+import {
+  useCartStore,
+  selectCartItems,
+  selectCartCount,
+} from "@/lib/store/cartStore";
 import { formatPrice } from "@/lib/utils/catalog";
 import Link from "next/link";
 import FAB from "@/components/FAB";
 
 export default function CartBubble() {
-  const cartItems = useCartStore(selectCartItems);
-  const count = cartItems.reduce((sum, item) => sum + item.qty, 0);
+  const count = useCartStore(selectCartCount);
   const [open, setOpen] = useState(false);
 
   return (

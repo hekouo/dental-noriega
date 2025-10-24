@@ -1,6 +1,6 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { useCartStore } from "@/lib/store/cartStore";
+import { useCheckoutStore } from "@/lib/store/checkoutStore";
 
 type Props = {
   productId: string;
@@ -25,18 +25,23 @@ export default function BuyNowButton({
 }: Props) {
   const router = useRouter();
   // Solo funciones, lectura primitiva
-  const upsertCheckoutFromCart = useCartStore((s) => s.upsertCheckoutFromCart);
+  const upsertSingleToCheckout = useCheckoutStore(
+    (s) => s.upsertSingleToCheckout,
+  );
 
   const onClick = () => {
-    upsertCheckoutFromCart({
-      id: productId,
-      title: productTitle,
-      price: productPrice,
-      qty,
-      variantId: variantId || undefined,
-      imageUrl,
-    });
-    router.push("/checkout");
+    upsertSingleToCheckout(
+      {
+        id: productId,
+        title: productTitle,
+        price: productPrice,
+        qty,
+        variantId: variantId || undefined,
+        imageUrl,
+      },
+      true,
+    );
+    router.push("/checkout/pago");
   };
 
   return (

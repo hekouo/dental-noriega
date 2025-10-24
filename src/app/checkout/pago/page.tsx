@@ -1,27 +1,103 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { useCartStore, selectCheckoutItems } from "@/lib/store/cartStore";
+import {
+  useCheckoutStore,
+  selectSelectedItems,
+} from "@/lib/store/checkoutStore";
+import { createClient } from "@/lib/supabase/client";
 
 export default function PagoPage() {
-  const checkoutItems = useCartStore(selectCheckoutItems);
-
-  // Derivado local: solo los seleccionados
-  const selectedItems = useMemo(
-    () => checkoutItems.filter((i) => i.selected),
-    [checkoutItems],
+  const selectedItems = useCheckoutStore(selectSelectedItems);
+  const clearSelectedFromCheckout = useCheckoutStore(
+    (s) => s.clearSelectedFromCheckout,
   );
+  const [isProcessing, setIsProcessing] = useState(false);
+  const router = useRouter();
 
   const total = useMemo(
     () => selectedItems.reduce((sum, item) => sum + item.price * item.qty, 0),
     [selectedItems],
   );
 
-  const handleConfirmPayment = () => {
-    console.log("Confirmando pago para:", selectedItems);
-    // Aquí iría la lógica real de pago
-    alert("Pago simulado exitoso! (En desarrollo)");
+  const handleConfirmPayment = async () => {
+    if (isProcessing || selectedItems.length === 0) return;
+
+    setIsProcessing(true);
+
+    try {
+      const supabase = createClient();
+
+      // Verificar si el usuario está autenticado
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError || !user) {
+        // Redirigir a login si no está autenticado
+        router.push("/cuenta?return=/checkout/pago");
+        return;
+      }
+
+      // Verificar datos mínimos del usuario
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("name, email, phone, address, city")
+        .eq("id", user.id)
+        .single();
+
+      if (
+        profileError ||
+        !profile?.name ||
+        !profile?.email ||
+        !profile?.phone
+      ) {
+        // Redirigir a completar datos si faltan
+        router.push("/checkout/datos?return=/checkout/pago");
+        return;
+      }
+
+      // Crear la orden
+      const orderData = {
+        user_id: user.id,
+        items: selectedItems.map((item) => ({
+          id: item.id,
+          title: item.title,
+          price: item.price,
+          qty: item.qty,
+          variantId: item.variantId,
+        })),
+        total: total,
+        status: "pending",
+        created_at: new Date().toISOString(),
+      };
+
+      const { data: order, error: orderError } = await supabase
+        .from("orders")
+        .insert(orderData)
+        .select()
+        .single();
+
+      if (orderError) {
+        console.error("Error creating order:", orderError);
+        alert("Error al procesar el pago. Intenta de nuevo.");
+        return;
+      }
+
+      // Limpiar solo los productos seleccionados del checkout
+      clearSelectedFromCheckout();
+
+      // Redirigir a página de gracias
+      router.replace(`/checkout/gracias?orderId=${order.id}`);
+    } catch (error) {
+      console.error("Error in payment process:", error);
+      alert("Error al procesar el pago. Intenta de nuevo.");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   if (selectedItems.length === 0) {
@@ -119,9 +195,15 @@ export default function PagoPage() {
       <div className="flex justify-center pt-6">
         <button
           onClick={handleConfirmPayment}
-          className="px-8 py-4 rounded-xl font-semibold text-lg bg-green-600 text-white hover:bg-green-700 shadow-lg hover:shadow-xl transition-all"
+          disabled={isProcessing || selectedItems.length === 0}
+          className={[
+            "px-8 py-4 rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl transition-all",
+            isProcessing || selectedItems.length === 0
+              ? "bg-gray-400 text-gray-200 cursor-not-allowed"
+              : "bg-green-600 text-white hover:bg-green-700",
+          ].join(" ")}
         >
-          Confirmar Pago
+          {isProcessing ? "Procesando..." : "Confirmar Pago"}
         </button>
       </div>
     </main>

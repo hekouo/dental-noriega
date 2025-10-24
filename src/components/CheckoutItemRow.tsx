@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { Trash2 } from "lucide-react";
-import { CheckoutItem } from "@/lib/store/cartStore";
+import { CheckoutItem } from "@/lib/store/checkoutStore";
 
 type Props = {
   item: CheckoutItem;

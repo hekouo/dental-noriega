@@ -1,18 +1,24 @@
 "use client";
 
-import { useCartStore } from "@/lib/store/cartStore";
+import { useCartStore, selectCartItems } from "@/lib/store/cartStore";
+import { useCheckoutStore } from "@/lib/store/checkoutStore";
 import { formatCurrency } from "@/lib/utils/currency";
 import { Trash2, Plus, Minus } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { ROUTES } from "@/lib/routes";
 
 export default function CarritoPage() {
-  const cartItems = useCartStore((state) => state.cartItems);
+  const cartItems = useCartStore(selectCartItems);
   const setCartQty = useCartStore((state) => state.setCartQty);
   const removeFromCart = useCartStore((state) => state.removeFromCart);
+  const upsertCheckoutFromCart = useCheckoutStore(
+    (state) => state.upsertCheckoutFromCart,
+  );
   const [user, setUser] = useState<unknown>(null);
+  const router = useRouter();
 
   useEffect(() => {
     const supabase = createClient();
@@ -23,6 +29,12 @@ export default function CarritoPage() {
     (sum, item) => sum + item.price * item.qty,
     0,
   );
+
+  const handleContinueToCheckout = () => {
+    if (!cartItems?.length) return;
+    upsertCheckoutFromCart(cartItems, true);
+    router.push("/checkout");
+  };
 
   if (cartItems.length === 0) {
     return (
@@ -119,12 +131,12 @@ export default function CarritoPage() {
             </div>
 
             {user ? (
-              <Link
-                href="/checkout"
+              <button
+                onClick={handleContinueToCheckout}
                 className="w-full btn btn-primary block text-center"
               >
                 <span>Continuar al Checkout</span>
-              </Link>
+              </button>
             ) : (
               <div>
                 <p className="text-sm text-gray-600 mb-3 text-center">

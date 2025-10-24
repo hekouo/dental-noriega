@@ -69,7 +69,7 @@ export async function loadFeatured(limit?: number): Promise<FeaturedItem[]> {
         code: r.Code,
         badge: r.Badge,
         slug,
-        sectionSlug: "destacados", // Sección fija para destacados
+        sectionSlug: "consumibles-y-profilaxis", // Sección real del catálogo
       };
     });
 

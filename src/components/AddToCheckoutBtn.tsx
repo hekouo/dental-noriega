@@ -1,5 +1,5 @@
 "use client";
-import { useCartStore } from "@/lib/store/cartStore";
+import { useCheckoutStore } from "@/lib/store/checkoutStore";
 
 type Props = {
   productId: string;
@@ -23,17 +23,22 @@ export default function AddToCheckoutBtn({
   children,
 }: Props) {
   // Selector PRIMITIVO: nada de objetos/arrays
-  const upsertCheckoutFromCart = useCartStore((s) => s.upsertCheckoutFromCart);
+  const upsertSingleToCheckout = useCheckoutStore(
+    (s) => s.upsertSingleToCheckout,
+  );
 
   const onClick = () => {
-    upsertCheckoutFromCart({
-      id: productId,
-      title: productTitle,
-      price: productPrice,
-      qty,
-      variantId: variantId || undefined,
-      imageUrl,
-    });
+    upsertSingleToCheckout(
+      {
+        id: productId,
+        title: productTitle,
+        price: productPrice,
+        qty,
+        variantId: variantId || undefined,
+        imageUrl,
+      },
+      true,
+    );
   };
 
   return (
