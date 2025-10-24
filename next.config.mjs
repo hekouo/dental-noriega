@@ -2,16 +2,23 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     images: {
-      // Permite imágenes desde Google Photos/Drive renderizadas por lh3 y desde drive.google.com
+      domains: [
+        'drive.google.com',
+        'lh3.googleusercontent.com',
+        // por si acaso:
+        'googleusercontent.com',
+        'ggpht.com',
+        'i.imgur.com',
+      ],
       remotePatterns: [
+        { protocol: 'https', hostname: 'drive.google.com', pathname: '/uc*' },
+        { protocol: 'https', hostname: 'lh3.googleusercontent.com', pathname: '/**' },
         { protocol: "https", hostname: "**.googleusercontent.com" },
         { protocol: "https", hostname: "**.ggpht.com" },
         { protocol: "https", hostname: "**.supabase.co" },
         { protocol: "https", hostname: "**.supabase.in" }
       ],
-      formats: ["image/avif", "image/webp"]
-      // Alternativa simple:
-      // domains: ["lh3.googleusercontent.com", "drive.google.com"],
+      formats: ['image/avif', 'image/webp']
     },
   };
   

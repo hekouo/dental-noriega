@@ -67,7 +67,6 @@ export default async function CatalogoSectionPage({ params }: Props) {
                       <div className="relative w-full aspect-square bg-gray-100">
                         <ProductImage
                           src={item.image}
-                          resolved={item.imageResolved}
                           alt={item.title}
                           sizes="(min-width: 1280px) 20vw, (min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw"
                           priority={idx === 0} // LCP: primera imagen

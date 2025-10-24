@@ -56,7 +56,6 @@ export default function FeaturedGrid({
                 <div className="relative w-full aspect-[4/3] bg-gray-50 rounded-lg overflow-hidden mb-2">
                   <ProductImage
                     src={p.image ?? ""}
-                    resolved={p.imageResolved}
                     alt={p.title}
                     sizes="(min-width:1024px) 25vw, (min-width:768px) 33vw, 50vw"
                     priority={idx === 0}

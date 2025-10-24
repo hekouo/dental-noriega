@@ -25,6 +25,21 @@ export type FeaturedItem = {
   sectionSlug: string;
 };
 
+const VALID_SECTIONS = new Set([
+  "consumibles-y-profilaxis",
+  "equipos",
+  "instrumental-clinico",
+  "instrumental-ortodoncia",
+  "ortodoncia-accesorios-y-retenedores",
+  "ortodoncia-arcos-y-resortes",
+  "ortodoncia-brackets-y-tubos",
+]);
+
+function safeSectionSlug(s: string | undefined) {
+  const norm = (s || "").toLowerCase();
+  return VALID_SECTIONS.has(norm) ? norm : "consumibles-y-profilaxis";
+}
+
 export async function loadFeatured(limit?: number): Promise<FeaturedItem[]> {
   try {
     const filePath = path.join(
@@ -69,7 +84,7 @@ export async function loadFeatured(limit?: number): Promise<FeaturedItem[]> {
         code: r.Code,
         badge: r.Badge,
         slug,
-        sectionSlug: "consumibles-y-profilaxis", // Sección real del catálogo
+        sectionSlug: safeSectionSlug("consumibles-y-profilaxis"), // Sección real del catálogo
       };
     });
 

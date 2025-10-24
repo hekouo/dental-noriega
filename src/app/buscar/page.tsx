@@ -82,7 +82,6 @@ export default async function BuscarPage({ searchParams }: Props) {
                 <div className="relative w-full aspect-[4/3] bg-gray-50 rounded-lg overflow-hidden mb-2">
                   <ProductImage
                     src={it.image}
-                    resolved={it.imageResolved}
                     alt={it.title}
                     sizes="(min-width:1024px) 25vw, (min-width:768px) 33vw, 50vw"
                     priority={idx === 0}

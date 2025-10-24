@@ -10,6 +10,7 @@ import {
   selectSelectedTotal,
 } from "@/lib/store/checkoutStore";
 import CheckoutItemRow from "@/components/CheckoutItemRow";
+import CheckoutSummary from "@/components/CheckoutSummary";
 
 function EmptyCheckout() {
   return (
@@ -106,12 +107,6 @@ export default function CheckoutIndex() {
           <CheckoutItemRow
             key={`${item.id}:${item.variantId || "default"}`}
             id={item.id}
-            title={item.title}
-            price={item.price}
-            qty={item.qty}
-            selected={item.selected}
-            imageUrl={item.imageUrl}
-            variantId={item.variantId}
           />
         ))}
       </section>
@@ -133,6 +128,9 @@ export default function CheckoutIndex() {
             : "Selecciona al menos un producto"}
         </button>
       </div>
+
+      {/* Resumen sticky */}
+      <CheckoutSummary />
     </main>
   );
 }

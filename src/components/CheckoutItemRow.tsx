@@ -1,30 +1,43 @@
 "use client";
-
-import Image from "next/image";
 import { useCheckoutStore } from "@/lib/store/checkoutStore";
+import { useShallow } from "zustand/react/shallow";
+import ProductImage from "./ProductImage";
 
 type Props = {
   id: string;
-  title: string;
-  price: number;
-  qty: number;
-  selected: boolean;
-  imageUrl?: string;
-  variantId?: string | null;
 };
 
-export default function CheckoutItemRow({
-  id,
-  title,
-  price,
-  qty,
-  selected,
-  imageUrl,
-  variantId,
-}: Props) {
-  const toggle = useCheckoutStore((s) => s.toggleCheckoutSelect);
-  const setQty = useCheckoutStore((s) => s.setCheckoutQty);
-  const remove = useCheckoutStore((s) => s.removeFromCheckout);
+function useRowState(id: string) {
+  return useCheckoutStore(
+    useShallow((s) => {
+      const item = s.checkoutItems.find((it) => it.id === id);
+      return {
+        qty: item?.qty ?? 1,
+        selected: !!item?.selected,
+        price: item?.price ?? 0,
+        title: item?.title ?? "",
+        imageUrl: item?.imageUrl ?? null,
+        variantId: item?.variantId ?? null,
+        remove: s.removeFromCheckout,
+        setQty: s.setCheckoutQty,
+        toggle: s.toggleCheckoutSelect,
+      };
+    }),
+  );
+}
+
+export default function CheckoutItemRow({ id }: Props) {
+  const {
+    qty,
+    selected,
+    price,
+    title,
+    imageUrl,
+    variantId,
+    remove,
+    setQty,
+    toggle,
+  } = useRowState(id);
 
   const onToggle = () => toggle(id);
   const onQtyPlus = () => setQty(id, qty + 1);
@@ -36,15 +49,12 @@ export default function CheckoutItemRow({
       <input type="checkbox" checked={selected} onChange={onToggle} />
       <div className="flex items-center gap-3">
         <div className="relative w-16 h-16 bg-neutral-100 rounded">
-          <Image
-            src={imageUrl || "/images/fallback-product.png"}
+          <ProductImage
+            src={imageUrl}
             alt={title}
-            fill
+            width={64}
+            height={64}
             sizes="64px"
-            onError={(e) => {
-              (e.target as HTMLImageElement).src =
-                "/images/fallback-product.png";
-            }}
           />
         </div>
         <div>

@@ -1,41 +1,40 @@
 "use client";
-
 import Image from "next/image";
+import { normalizeImageUrl } from "@/lib/img/normalizeImageUrl";
 
 type Props = {
-  src: string;
-  resolved?: string;
-  alt: string;
-  sizes?: string;
+  src?: string | null;
+  alt?: string;
+  width?: number;
+  height?: number;
   priority?: boolean;
+  sizes?: string;
 };
 
 export default function ProductImage({
   src,
-  resolved,
-  alt,
-  sizes,
-  priority,
+  alt = "Producto",
+  width = 512,
+  height = 512,
+  priority = false,
+  sizes = "(max-width: 768px) 100vw, 33vw",
 }: Props) {
-  const finalSrc = resolved || src;
-
+  const url = normalizeImageUrl(src, Math.max(width, height));
   return (
     <Image
-      src={finalSrc}
-      alt={alt ?? "Producto"}
-      width={512}
-      height={512}
-      priority={priority ?? false}
-      sizes={
-        sizes ||
-        "(min-width:1280px) 25vw, (min-width:1024px) 33vw, (min-width:640px) 50vw, 100vw"
-      }
-      className="object-cover"
+      src={url}
+      alt={alt}
+      width={width}
+      height={height}
+      sizes={sizes}
+      priority={priority}
       onError={(e) => {
         const img = e.currentTarget as HTMLImageElement;
-        if (img.src.endsWith("/images/fallback-product.png")) return;
-        img.src = "/images/fallback-product.png";
+        if (!img.src.endsWith("/images/fallback-product.png")) {
+          img.src = "/images/fallback-product.png";
+        }
       }}
+      placeholder="empty"
     />
   );
 }

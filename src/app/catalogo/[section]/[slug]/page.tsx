@@ -2,20 +2,21 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
-import { loadProductBySlug } from "@/lib/data/catalog-sections";
+import { resolveProduct } from "@/lib/data/resolveProduct";
 import { formatPrice } from "@/lib/utils/catalog";
 import { pointsFor, getPointsRate } from "@/lib/utils/points";
 import { ROUTES } from "@/lib/routes";
 import { QuantitySelector } from "@/components/QuantitySelector";
 import ProductImage from "@/components/ProductImage";
 import PointsBadge from "@/components/PointsBadge";
+import { normalizeImageUrl } from "@/lib/img/normalizeImageUrl";
 
 export const revalidate = 300; // Cache 5 minutos
 
 type Props = { params: { section: string; slug: string } };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const data = await loadProductBySlug(params.section, params.slug);
+  const data = await resolveProduct(params.section, params.slug);
 
   if (!data) {
     return {
@@ -38,9 +39,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       images: product.image
         ? [
             {
-              url: product.image,
-              width: 800,
-              height: 600,
+              url: normalizeImageUrl(product.image, 1200),
+              width: 1200,
+              height: 900,
               alt: product.title,
             },
           ]
@@ -50,7 +51,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function ProductPage({ params }: Props) {
-  const data = await loadProductBySlug(params.section, params.slug);
+  const data = await resolveProduct(params.section, params.slug);
 
   if (!data) {
     return notFound();
@@ -74,7 +75,6 @@ export default async function ProductPage({ params }: Props) {
             <div className="relative w-full aspect-square bg-gray-100 rounded-xl overflow-hidden">
               <ProductImage
                 src={product.image}
-                resolved={product.imageResolved}
                 alt={product.title}
                 sizes="(min-width: 768px) 50vw, 100vw"
                 priority // LCP en ficha de producto
