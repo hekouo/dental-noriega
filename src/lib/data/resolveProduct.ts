@@ -1,3 +1,4 @@
+import "server-only";
 import removeAccents from "remove-accents";
 import { loadProductBySlug } from "./catalog-sections";
 import { guessSectionForFeaturedSlug } from "@/lib/catalog/featuredSection";

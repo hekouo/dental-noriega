@@ -1,4 +1,5 @@
 // src/lib/data/catalog-sections.ts
+import "server-only";
 import path from "path";
 import { promises as fs } from "fs";
 import { cache } from "react";

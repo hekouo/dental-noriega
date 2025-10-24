@@ -19,6 +19,12 @@ const CheckoutDevGuard = dynamic(
     ssr: false,
   },
 );
+const CartDevGuard = dynamic(
+  () => import("@/components/CartDevGuard"),
+  {
+    ssr: false,
+  },
+);
 const SiteFooter = dynamic(() => import("@/components/SiteFooter"), {
   ssr: false,
 });
@@ -150,6 +156,10 @@ export default function RootLayout({
         {/* Flotantes */}
         <CartBubble />
         <WhatsappBubble />
+        
+        {/* Dev Guards */}
+        <CheckoutDevGuard />
+        <CartDevGuard />
 
         {/* Footer */}
         <SiteFooter />

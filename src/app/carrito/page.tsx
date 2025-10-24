@@ -1,6 +1,7 @@
 "use client";
 
-import { useCartStore, selectCartItems, selectSelectedItems, selectSelectedCount, selectSelectedTotal } from "@/lib/store/cartStore";
+import { useCartStore } from "@/lib/store/cartStore";
+import { useCartItems, useSelectedItems, useSelectedCount, useSelectedTotal } from "@/lib/store/cartSelectors";
 import { useCheckoutStore } from "@/lib/store/checkoutStore";
 import { formatCurrency } from "@/lib/utils/currency";
 import { Trash2, Plus, Minus } from "lucide-react";
@@ -11,18 +12,17 @@ import { supabase } from "@/lib/supabase/client";
 import { ROUTES } from "@/lib/routes";
 
 export default function CarritoPage() {
-  const cartItems = useCartStore(selectCartItems);
-  const selectedItems = useCartStore(selectSelectedItems);
-  const selectedCount = useCartStore(selectSelectedCount);
-  const selectedTotal = useCartStore(selectSelectedTotal);
+  const busyRef = useRef(false);
+  const items = useCartItems();
+  const selectedCount = useSelectedCount();
+  const total = useSelectedTotal();
+  const selectedItems = useSelectedItems();
   const setCartQty = useCartStore((state) => state.setCartQty);
   const removeFromCart = useCartStore((state) => state.removeFromCart);
-  const clearCart = useCartStore((state) => state.clearCart);
   const toggleSelect = useCartStore((state) => state.toggleSelect);
   const selectAll = useCartStore((state) => state.selectAll);
   const deselectAll = useCartStore((state) => state.deselectAll);
-  const ingestFromCart = useCheckoutStore((state) => state.ingestFromCart);
-  const busy = useRef(false);
+  const ingestFromCart = useCheckoutStore.getState().ingestFromCart;
   const [user, setUser] = useState<unknown>(null);
   const router = useRouter();
 
@@ -33,32 +33,23 @@ export default function CarritoPage() {
     router.prefetch("/checkout");
   }, [router]);
 
-  const cartSubtotal = cartItems.reduce(
-    (sum, item) => sum + item.price * item.qty,
-    0,
-  );
-
-  const handleContinueToCheckout = useCallback(() => {
-    if (busy.current || !selectedItems?.length) {
-      // Mostrar toast si no hay items seleccionados
-      if (!selectedItems?.length) {
-        alert("Selecciona al menos un producto para continuar");
-      }
-      return;
+  const onContinuar = useCallback(() => {
+    if (busyRef.current) return;
+    if (selectedCount === 0) { 
+      alert("Selecciona al menos un producto para continuar"); 
+      return; 
     }
-    busy.current = true;
-
-    // 1) Inyecta al checkout solo los seleccionados
-    ingestFromCart(selectedItems, true);
-
-    // 2) Navega sin bloquear la UI
+    busyRef.current = true;
+    const selected = items.filter(i => i.selected);
+    // escribe UNA vez
+    ingestFromCart(selected, true);
     startTransition(() => {
       router.push("/checkout");
-      busy.current = false;
+      busyRef.current = false;
     });
-  }, [selectedItems, ingestFromCart, router]);
+  }, [selectedCount, items, ingestFromCart, router]);
 
-  if (cartItems.length === 0) {
+  if (items.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4">
         <div className="text-center">
@@ -98,11 +89,11 @@ export default function CarritoPage() {
               </button>
             </div>
             <div className="text-sm text-gray-600">
-              {selectedCount} de {cartItems.length} productos seleccionados
+              {selectedCount} de {items.length} productos seleccionados
             </div>
           </div>
 
-          {cartItems.map((item) => (
+          {items.map((item) => (
             <div
               key={item.id}
               className="bg-white rounded-lg shadow p-6 flex gap-4"
@@ -169,7 +160,7 @@ export default function CarritoPage() {
               <div className="flex justify-between">
                 <span className="text-gray-600">Subtotal</span>
                 <span className="font-medium">
-                  {formatCurrency(selectedTotal)}
+                  {formatCurrency(total)}
                 </span>
               </div>
               <div className="flex justify-between text-sm text-gray-500">
@@ -181,18 +172,18 @@ export default function CarritoPage() {
             <div className="border-t pt-4 mb-6">
             <div className="flex justify-between text-lg font-bold">
               <span>Total estimado</span>
-              <span>{formatCurrency(selectedTotal)}</span>
+              <span>{formatCurrency(total)}</span>
             </div>
             </div>
 
             <button
-              onClick={handleContinueToCheckout}
-              disabled={busy.current || selectedCount === 0}
+              onClick={onContinuar}
+              disabled={busyRef.current || selectedCount === 0}
               className="w-full btn btn-primary block text-center disabled:opacity-50 disabled:cursor-not-allowed"
-              aria-busy={busy.current}
+              aria-busy={busyRef.current}
             >
               <span>
-                {busy.current 
+                {busyRef.current 
                   ? "Procesando..." 
                   : selectedCount === 0 
                     ? "Selecciona productos" 

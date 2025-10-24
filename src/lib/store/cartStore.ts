@@ -131,41 +131,42 @@ export const useCartStore = create<CartStore>()(
 
         toggleSelect: (id) => {
           _tripwire("toggleSelect", { id });
-          const cartItems = get().cartItems;
-          const idx = cartItems.findIndex((i) => i.id === id);
-          if (idx === -1) return;
-          const it = cartItems[idx];
-          const next = { ...it, selected: !it.selected };
-          if (next.selected === it.selected) return;
-          const copy = cartItems.slice();
-          copy[idx] = next;
-          _safeSet({ cartItems: copy });
+          set(s => {
+            const idx = s.cartItems.findIndex(i => i.id === id);
+            if (idx < 0) return s;
+            const it = s.cartItems[idx];
+            const nextSelected = !it.selected;
+            if (nextSelected === it.selected) return s; // idempotencia
+            const copy = s.cartItems.slice();
+            copy[idx] = { ...it, selected: nextSelected };
+            return { ...s, cartItems: copy };
+          });
         },
 
         selectAll: () => {
           _tripwire("selectAll");
-          const cartItems = get().cartItems;
-          let changed = false;
-          const copy = cartItems.map((i) => {
-            if (i.selected) return i;
-            changed = true;
-            return { ...i, selected: true };
+          set(s => {
+            let changed = false;
+            const copy = s.cartItems.map(i => {
+              if (i.selected) return i;
+              changed = true;
+              return { ...i, selected: true };
+            });
+            return changed ? { ...s, cartItems: copy } : s;
           });
-          if (!changed) return;
-          _safeSet({ cartItems: copy });
         },
 
         deselectAll: () => {
           _tripwire("deselectAll");
-          const cartItems = get().cartItems;
-          let changed = false;
-          const copy = cartItems.map((i) => {
-            if (!i.selected) return i;
-            changed = true;
-            return { ...i, selected: false };
+          set(s => {
+            let changed = false;
+            const copy = s.cartItems.map(i => {
+              if (!i.selected) return i;
+              changed = true;
+              return { ...i, selected: false };
+            });
+            return changed ? { ...s, cartItems: copy } : s;
           });
-          if (!changed) return;
-          _safeSet({ cartItems: copy });
         },
       };
     },

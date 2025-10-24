@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRecentlyViewed } from "@/lib/hooks/useRecentlyViewed";
-import { resolveProduct } from "@/lib/data/resolveProduct";
+import { resolveProductClient } from "@/lib/data/resolveProduct.client";
 import ProductImage from "@/components/ProductImage";
 import { formatPrice } from "@/lib/utils/catalog";
 
@@ -42,7 +42,7 @@ export default function RecentlyViewed() {
           ];
 
           for (const section of sections) {
-            const data = await resolveProduct(section, slug);
+            const data = await resolveProductClient(section, slug);
             if (data) {
               return {
                 id: slug,
