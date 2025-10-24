@@ -11,7 +11,7 @@ import { ROUTES } from "@/lib/routes";
 export function TopNav() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [user, setUser] = useState<unknown>(null);
-  const itemCount = useCartStore((state) => state.getItemCount());
+  const itemCount = useCartStore((state) => state.totalQty());
   const router = useRouter();
 
   useEffect(() => {

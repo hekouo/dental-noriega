@@ -9,6 +9,7 @@ import { waLink } from "@/lib/site";
 import { MessageCircle, Package } from "lucide-react";
 import ProductImage from "@/components/ProductImage";
 import PointsBadge from "@/components/PointsBadge";
+import { AddToCartBtn } from "@/components/AddToCartBtn";
 
 export const revalidate = 300; // Cache 5 minutos
 
@@ -100,14 +101,27 @@ export default async function CatalogoSectionPage({ params }: Props) {
                       {formatPrice(item.price)}
                     </p>
 
-                    <div className="mt-auto">
+                    <div className="mt-auto space-y-2">
+                      <AddToCartBtn
+                        product={{
+                          title: item.title,
+                          price: item.price,
+                          image: item.image,
+                          imageResolved: item.imageResolved,
+                          slug: item.slug,
+                        }}
+                        sectionSlug={section.sectionSlug}
+                        qty={1}
+                        className="w-full btn btn-primary text-sm py-2 px-3 rounded-lg flex items-center justify-center gap-2 hover:opacity-90"
+                      />
+
                       <a
                         href={whatsappHref}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="w-full btn btn-primary text-sm py-2 px-3 rounded-lg flex items-center justify-center gap-2 hover:opacity-90"
+                        className="inline-flex items-center gap-2 text-sm underline opacity-80 hover:opacity-100"
                       >
-                        <MessageCircle size={16} />
+                        <MessageCircle size={14} />
                         <span>Consultar por WhatsApp</span>
                       </a>
                     </div>

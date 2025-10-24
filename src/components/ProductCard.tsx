@@ -28,7 +28,7 @@ export function ProductCard({
 
   const handleAddToCart = () => {
     setIsAdding(true);
-    addItem({ sku, name, price, qty: 1 });
+    addItem({ id: sku, title: name, price, qty: 1 });
     setTimeout(() => setIsAdding(false), 1000);
   };
 

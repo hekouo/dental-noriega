@@ -10,9 +10,9 @@ import { ROUTES } from "@/lib/routes";
 
 export default function CarritoPage() {
   const items = useCartStore((state) => state.items);
-  const updateQuantity = useCartStore((state) => state.updateQuantity);
+  const updateQty = useCartStore((state) => state.updateQty);
   const removeItem = useCartStore((state) => state.removeItem);
-  const getSubtotal = useCartStore((state) => state.getSubtotal);
+  const subtotal = useCartStore((state) => state.subtotal);
   const [user, setUser] = useState<unknown>(null);
 
   useEffect(() => {
@@ -20,7 +20,7 @@ export default function CarritoPage() {
     supabase.auth.getUser().then(({ data: { user } }) => setUser(user));
   }, []);
 
-  const subtotal = getSubtotal();
+  const cartSubtotal = subtotal();
 
   if (items.length === 0) {
     return (
@@ -47,12 +47,12 @@ export default function CarritoPage() {
         <div className="lg:col-span-2 space-y-4">
           {items.map((item) => (
             <div
-              key={item.sku}
+              key={item.id}
               className="bg-white rounded-lg shadow p-6 flex gap-4"
             >
               <div className="flex-1">
-                <h3 className="font-semibold mb-1">{item.name}</h3>
-                <p className="text-sm text-gray-500">SKU: {item.sku}</p>
+                <h3 className="font-semibold mb-1">{item.title}</h3>
+                <p className="text-sm text-gray-500">ID: {item.id}</p>
                 <p className="text-primary-600 font-bold mt-2">
                   {formatCurrency(item.price)}
                 </p>
@@ -60,7 +60,7 @@ export default function CarritoPage() {
 
               <div className="flex items-center gap-3">
                 <button
-                  onClick={() => updateQuantity(item.sku, item.qty - 1)}
+                  onClick={() => updateQty(item.id, item.qty - 1)}
                   className="p-1 hover:bg-gray-100 rounded"
                   aria-label="Disminuir cantidad"
                 >
@@ -68,7 +68,7 @@ export default function CarritoPage() {
                 </button>
                 <span className="w-12 text-center font-medium">{item.qty}</span>
                 <button
-                  onClick={() => updateQuantity(item.sku, item.qty + 1)}
+                  onClick={() => updateQty(item.id, item.qty + 1)}
                   className="p-1 hover:bg-gray-100 rounded"
                   aria-label="Aumentar cantidad"
                 >
@@ -77,7 +77,7 @@ export default function CarritoPage() {
               </div>
 
               <button
-                onClick={() => removeItem(item.sku)}
+                onClick={() => removeItem(item.id)}
                 className="text-red-600 hover:bg-red-50 p-2 rounded"
                 aria-label="Eliminar producto"
               >
@@ -95,7 +95,7 @@ export default function CarritoPage() {
             <div className="space-y-2 mb-4">
               <div className="flex justify-between">
                 <span className="text-gray-600">Subtotal</span>
-                <span className="font-medium">{formatCurrency(subtotal)}</span>
+                <span className="font-medium">{formatCurrency(cartSubtotal)}</span>
               </div>
               <div className="flex justify-between text-sm text-gray-500">
                 <span>Envío</span>
@@ -106,7 +106,7 @@ export default function CarritoPage() {
             <div className="border-t pt-4 mb-6">
               <div className="flex justify-between text-lg font-bold">
                 <span>Total estimado</span>
-                <span>{formatCurrency(subtotal)}</span>
+                <span>{formatCurrency(cartSubtotal)}</span>
               </div>
             </div>
 

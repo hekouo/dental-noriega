@@ -7,6 +7,7 @@ import { pointsFor } from "@/lib/utils/points";
 import { waLink } from "@/lib/site";
 import PointsBadge from "@/components/PointsBadge";
 import { AddToCartBtn } from "@/components/AddToCartBtn";
+import BuyNowButton from "@/components/BuyNowButton";
 
 type Props = {
   productTitle: string;
@@ -84,6 +85,12 @@ export function QuantitySelector({
 
       {/* Botones de acción */}
       <div className="flex flex-col gap-3">
+        <BuyNowButton
+          product={product}
+          sectionSlug={sectionSlug}
+          qty={quantity}
+        />
+
         <AddToCartBtn
           product={product}
           sectionSlug={sectionSlug}

@@ -2,11 +2,8 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { ShoppingBag, Package, Award, Truck } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
-import { getFeaturedProducts } from "@/lib/data/featured";
-import ProductImage from "@/components/ProductImage";
-import { formatPrice } from "@/lib/utils/catalog";
-import { pointsFor } from "@/lib/utils/points";
-import PointsBadge from "@/components/PointsBadge";
+import { loadFeatured } from "@/lib/data/loadFeatured";
+import FeaturedGrid from "@/components/FeaturedGrid";
 
 // Dynamic import para componente no crítico
 const FinalThanks = dynamic(() => import("@/components/FinalThanks"), {
@@ -16,7 +13,7 @@ const FinalThanks = dynamic(() => import("@/components/FinalThanks"), {
 export const revalidate = 300; // Cache 5 minutos
 
 export default async function HomePage() {
-  const featured = await getFeaturedProducts(8);
+  const featured = await loadFeatured(8);
 
   return (
     <main className="min-h-screen">
@@ -56,37 +53,7 @@ export default async function HomePage() {
                 Los mejores productos para tu consultorio
               </p>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-              {featured.map(({ sectionSlug, item }, idx) => (
-                <Link
-                  key={`${sectionSlug}-${item.slug}`}
-                  href={ROUTES.product(sectionSlug, item.slug)}
-                  prefetch={idx < 4} // Solo prefetch en primeros 4
-                  className="border rounded-xl p-3 hover:shadow-lg transition-shadow"
-                >
-                  <span className="block">
-                    <div className="relative w-full aspect-[4/3] bg-gray-50 rounded-lg overflow-hidden mb-2">
-                      <ProductImage
-                        src={item.image}
-                        resolved={item.imageResolved}
-                        alt={item.title}
-                        sizes="(min-width:1024px) 25vw, (min-width:768px) 33vw, 50vw"
-                        priority={idx === 0} // LCP: priorizar primera imagen
-                      />
-                    </div>
-                    <div className="flex items-start justify-between gap-2 mb-1">
-                      <h3 className="font-medium text-sm line-clamp-2 flex-1">
-                        {item.title}
-                      </h3>
-                      <PointsBadge points={pointsFor(item.price, 1)} />
-                    </div>
-                    <p className="text-primary-700 font-semibold">
-                      {formatPrice(item.price)}
-                    </p>
-                  </span>
-                </Link>
-              ))}
-            </div>
+            <FeaturedGrid products={featured} title="" />
             <div className="text-center mt-8">
               <Link href={ROUTES.catalogIndex()} className="btn btn-primary">
                 <span>Ver Todo el Catálogo</span>
