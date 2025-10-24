@@ -40,6 +40,39 @@ function safeSectionSlug(s: string | undefined) {
   return VALID_SECTIONS.has(norm) ? norm : "consumibles-y-profilaxis";
 }
 
+// Mapeo de slugs de destacados a slugs reales del dataset
+const SLUG_MAPPING: Record<string, { section: string; slug: string }> = {
+  "arco-niti-rectangular-paquete-con-10": {
+    section: "ortodoncia-arcos-y-resortes",
+    slug: "arco-niti-rectangular-paquete-con-10",
+  },
+  // Agregar más mapeos según sea necesario
+};
+
+function getRealSlug(
+  title: string,
+  generatedSlug: string,
+): { section: string; slug: string } {
+  // Si existe mapeo específico, usarlo
+  if (SLUG_MAPPING[generatedSlug]) {
+    return SLUG_MAPPING[generatedSlug];
+  }
+
+  // Para "ARCO NITI RECTANGULAR PAQUETE CON 10", usar el slug real
+  if (title === "ARCO NITI RECTANGULAR PAQUETE CON 10") {
+    return {
+      section: "ortodoncia-arcos-y-resortes",
+      slug: "arco-niti-rectangular-paquete-con-10",
+    };
+  }
+
+  // Para otros productos, usar la sección por defecto y el slug generado
+  return {
+    section: "consumibles-y-profilaxis",
+    slug: generatedSlug,
+  };
+}
+
 export async function loadFeatured(limit?: number): Promise<FeaturedItem[]> {
   try {
     const filePath = path.join(
@@ -74,6 +107,8 @@ export async function loadFeatured(limit?: number): Promise<FeaturedItem[]> {
         }
       }
 
+      const realSlug = getRealSlug(r.Title, slug);
+
       return {
         id: r.Code || `featured-${i}`,
         title: r.Title,
@@ -83,8 +118,8 @@ export async function loadFeatured(limit?: number): Promise<FeaturedItem[]> {
         imageResolved: imageUrl, // Para compatibilidad con ProductImage
         code: r.Code,
         badge: r.Badge,
-        slug,
-        sectionSlug: safeSectionSlug("consumibles-y-profilaxis"), // Sección real del catálogo
+        slug: realSlug.slug,
+        sectionSlug: realSlug.section,
       };
     });
 
