@@ -102,7 +102,15 @@ export function QuantitySelector({
           href={whatsappHref}
           target="_blank"
           rel="noopener noreferrer"
-          className="w-full btn bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg flex items-center justify-center gap-2"
+          className={[
+            "w-full relative inline-flex items-center justify-center rounded-2xl px-4 py-3 text-sm font-semibold gap-2",
+            "text-white bg-gradient-to-b from-emerald-500 to-emerald-700",
+            "shadow-[0_6px_0_0_rgba(4,120,87,1),0_12px_24px_rgba(0,0,0,0.25)]",
+            "ring-1 ring-inset ring-emerald-800/40",
+            "focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-emerald-500",
+            "active:translate-y-[2px] active:shadow-[0_4px_0_0_rgba(4,120,87,1),0_8px_16px_rgba(0,0,0,0.2)]",
+            "transition-transform",
+          ].join(" ")}
         >
           <MessageCircle size={20} />
           <span>Consultar por WhatsApp</span>

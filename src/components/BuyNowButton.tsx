@@ -30,8 +30,8 @@ export default function BuyNowButton({ product, sectionSlug, qty }: Props) {
       code: product.code,
       slug: product.slug,
     };
-    
-    setCheckoutMode('buy-now');
+
+    setCheckoutMode("buy-now");
     setOverrideItems([item]);
     router.push("/checkout");
   };
@@ -41,17 +41,12 @@ export default function BuyNowButton({ product, sectionSlug, qty }: Props) {
       type="button"
       onClick={handle}
       className={[
-        // base
         "relative inline-flex items-center justify-center rounded-2xl px-4 py-3 text-sm font-semibold",
-        "focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-yellow-500",
-        // color/gradiente
-        "bg-gradient-to-b from-yellow-300 to-yellow-600 text-neutral-900",
-        // 3D/relieve
-        "shadow-[0_6px_0_0_rgba(161,98,7,1),0_12px_24px_rgba(0,0,0,0.25)]",
-        // borde brillante sutil
-        "ring-1 ring-inset ring-yellow-700/40",
-        // interacción
-        "active:translate-y-[2px] active:shadow-[0_4px_0_0_rgba(161,98,7,1),0_8px_16px_rgba(0,0,0,0.2)]",
+        "text-white bg-gradient-to-b from-rose-500 to-rose-700",
+        "shadow-[0_6px_0_0_rgba(159,18,57,1),0_12px_24px_rgba(0,0,0,0.25)]",
+        "ring-1 ring-inset ring-rose-800/40",
+        "focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-rose-500",
+        "active:translate-y-[2px] active:shadow-[0_4px_0_0_rgba(159,18,57,1),0_8px_16px_rgba(0,0,0,0.2)]",
         "transition-transform",
       ].join(" ")}
       aria-label="Comprar ahora"

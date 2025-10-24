@@ -2,56 +2,64 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { useCartStore, selectCartCore, selectCartOps } from "@/lib/store/cartStore";
+import {
+  useCartStore,
+  selectCartCore,
+  selectCartOps,
+} from "@/lib/store/cartStore";
+import { shallow } from "zustand/shallow";
 
 export default function CheckoutIndex() {
   const { items, checkoutMode, overrideItems } = useCartStore(selectCartCore);
   const { updateQty, removeItem, setCheckoutMode, setOverrideItems, addItem } =
     useCartStore(selectCartOps);
 
-  const visibleItems = checkoutMode === 'buy-now' && overrideItems?.length
-    ? overrideItems
-    : items;
+  const visibleItems =
+    checkoutMode === "buy-now" && overrideItems?.length ? overrideItems : items;
 
   // Acciones en modo cart
   const removeOne = (id: string) => {
-    if (checkoutMode === 'cart') {
+    if (checkoutMode === "cart") {
       removeItem(id);
     } else {
       // Modo buy-now: modificar overrideItems
-      setOverrideItems((overrideItems ?? []).filter(i => i.id !== id));
+      setOverrideItems((overrideItems ?? []).filter((i) => i.id !== id));
     }
   };
 
   const inc = (id: string) => {
-    if (checkoutMode === 'cart') {
-      const item = items.find(i => i.id === id);
+    if (checkoutMode === "cart") {
+      const item = items.find((i) => i.id === id);
       if (item) updateQty(id, item.qty + 1);
     } else {
       // Modo buy-now: modificar overrideItems
-      setOverrideItems((overrideItems ?? []).map(i => 
-        i.id === id ? { ...i, qty: i.qty + 1 } : i
-      ));
+      setOverrideItems(
+        (overrideItems ?? []).map((i) =>
+          i.id === id ? { ...i, qty: i.qty + 1 } : i,
+        ),
+      );
     }
   };
 
   const dec = (id: string) => {
-    if (checkoutMode === 'cart') {
-      const item = items.find(i => i.id === id);
+    if (checkoutMode === "cart") {
+      const item = items.find((i) => i.id === id);
       if (item) updateQty(id, Math.max(1, item.qty - 1));
     } else {
       // Modo buy-now: modificar overrideItems
-      setOverrideItems((overrideItems ?? []).map(i => 
-        i.id === id ? { ...i, qty: Math.max(1, i.qty - 1) } : i
-      ));
+      setOverrideItems(
+        (overrideItems ?? []).map((i) =>
+          i.id === id ? { ...i, qty: Math.max(1, i.qty - 1) } : i,
+        ),
+      );
     }
   };
 
   // Botón "Mover al carrito" (solo en modo buy-now)
   const commitOverrideToCart = () => {
-    (overrideItems ?? []).forEach(i => addItem(i));
+    (overrideItems ?? []).forEach((i) => addItem(i));
     setOverrideItems(null);
-    setCheckoutMode('cart');
+    setCheckoutMode("cart");
   };
 
   const total = useMemo(
@@ -73,7 +81,7 @@ export default function CheckoutIndex() {
       ) : (
         <>
           {/* Indicador de modo */}
-          {checkoutMode === 'buy-now' && (
+          {checkoutMode === "buy-now" && (
             <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
               <p className="text-sm text-yellow-800">
                 Modo "Comprar ahora" - Estos items no están en tu carrito

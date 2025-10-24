@@ -16,7 +16,7 @@ export type CartItem = {
 type CartState = {
   items: CartItem[];
   // checkout mode: 'cart' usa items del carrito; 'buy-now' usa overrideItems
-  checkoutMode: 'cart' | 'buy-now';
+  checkoutMode: "cart" | "buy-now";
   overrideItems: CartItem[] | null;
 
   addItem: (item: CartItem) => void;
@@ -25,7 +25,7 @@ type CartState = {
   clearCart: () => void;
 
   // checkout helpers
-  setCheckoutMode: (mode: 'cart' | 'buy-now') => void;
+  setCheckoutMode: (mode: "cart" | "buy-now") => void;
   setOverrideItems: (items: CartItem[] | null) => void;
 
   // util
@@ -41,7 +41,7 @@ export const useCartStore = create<CartState>()(
   persist(
     (set, get) => ({
       items: [],
-      checkoutMode: 'cart',
+      checkoutMode: "cart",
       overrideItems: null,
 
       addItem: (item) => {
@@ -78,8 +78,21 @@ export const useCartStore = create<CartState>()(
         set((state) => (state.items.length ? { items: [] } : state)),
 
       // checkout helpers
-      setCheckoutMode: (mode) => set((state) => (state.checkoutMode === mode ? state : { checkoutMode: mode })),
-      setOverrideItems: (items) => set({ overrideItems: items }),
+      setCheckoutMode: (mode) =>
+        set((state) =>
+          state.checkoutMode === mode ? state : { checkoutMode: mode },
+        ),
+      setOverrideItems: (items) =>
+        set((state) => {
+          // Guarda anti-loop: solo actualizar si realmente cambió
+          if (
+            state.overrideItems === items ||
+            JSON.stringify(state.overrideItems) === JSON.stringify(items)
+          ) {
+            return state;
+          }
+          return { overrideItems: items };
+        }),
 
       // util
       totalQty: () => get().items.reduce((a, b) => a + b.qty, 0),
@@ -135,12 +148,19 @@ export const useCartStore = create<CartState>()(
 
         if (cart?.cart_items) {
           const localItems = get().items;
-          const supabaseItems = cart.cart_items.map((item: { sku: string; name: string; price: number; qty: number }) => ({
-            id: item.sku,
-            title: item.name,
-            price: Number(item.price),
-            qty: item.qty,
-          }));
+          const supabaseItems = cart.cart_items.map(
+            (item: {
+              sku: string;
+              name: string;
+              price: number;
+              qty: number;
+            }) => ({
+              id: item.sku,
+              title: item.name,
+              price: Number(item.price),
+              qty: item.qty,
+            }),
+          );
 
           // Fusionar: combinar cantidades si hay duplicados
           const merged = [...supabaseItems];
@@ -180,4 +200,5 @@ export const selectCartOps = (s: CartState) => ({
   setCheckoutMode: s.setCheckoutMode,
   setOverrideItems: s.setOverrideItems,
 });
-export const selectBadgeQty = (s: CartState) => s.items.reduce((a,b)=>a+b.qty,0);
+export const selectBadgeQty = (s: CartState) =>
+  s.items.reduce((a, b) => a + b.qty, 0);
