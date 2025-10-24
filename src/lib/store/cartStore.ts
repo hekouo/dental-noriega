@@ -2,37 +2,55 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { createClient } from "@/lib/supabase/client";
 
-export interface CartItem {
-  sku: string;
-  name: string;
+// Tipos
+export type CartItem = {
+  id: string;
+  title: string;
   price: number;
   qty: number;
-}
+  image?: string;
+  code?: string;
+  slug?: string;
+};
 
-interface CartState {
+type CartState = {
   items: CartItem[];
+  // checkout mode: 'cart' usa items del carrito; 'buy-now' usa overrideItems
+  checkoutMode: 'cart' | 'buy-now';
+  overrideItems: CartItem[] | null;
+
   addItem: (item: CartItem) => void;
-  removeItem: (sku: string) => void;
-  updateQuantity: (sku: string, qty: number) => void;
+  updateQty: (id: string, qty: number) => void;
+  removeItem: (id: string) => void;
   clearCart: () => void;
+
+  // checkout helpers
+  setCheckoutMode: (mode: 'cart' | 'buy-now') => void;
+  setOverrideItems: (items: CartItem[] | null) => void;
+
+  // util
+  totalQty: () => number;
+  subtotal: () => number;
+
+  // Supabase sync (mantener compatibilidad)
   syncWithSupabase: (userId: string) => Promise<void>;
   loadFromSupabase: (userId: string) => Promise<void>;
-  getSubtotal: () => number;
-  getItemCount: () => number;
-}
+};
 
 export const useCartStore = create<CartState>()(
   persist(
     (set, get) => ({
       items: [],
+      checkoutMode: 'cart',
+      overrideItems: null,
 
       addItem: (item) => {
         set((state) => {
-          const existingItem = state.items.find((i) => i.sku === item.sku);
+          const existingItem = state.items.find((i) => i.id === item.id);
           if (existingItem) {
             return {
               items: state.items.map((i) =>
-                i.sku === item.sku ? { ...i, qty: i.qty + item.qty } : i,
+                i.id === item.id ? { ...i, qty: i.qty + item.qty } : i,
               ),
             };
           }
@@ -40,24 +58,32 @@ export const useCartStore = create<CartState>()(
         });
       },
 
-      removeItem: (sku) => {
+      removeItem: (id) => {
         set((state) => ({
-          items: state.items.filter((i) => i.sku !== sku),
+          items: state.items.filter((i) => i.id !== id),
         }));
       },
 
-      updateQuantity: (sku, qty) => {
+      updateQty: (id, qty) => {
         if (qty <= 0) {
-          get().removeItem(sku);
+          get().removeItem(id);
           return;
         }
         set((state) => ({
-          items: state.items.map((i) => (i.sku === sku ? { ...i, qty } : i)),
+          items: state.items.map((i) => (i.id === id ? { ...i, qty } : i)),
         }));
       },
 
       clearCart: () =>
         set((state) => (state.items.length ? { items: [] } : state)),
+
+      // checkout helpers
+      setCheckoutMode: (mode) => set((state) => (state.checkoutMode === mode ? state : { checkoutMode: mode })),
+      setOverrideItems: (items) => set({ overrideItems: items }),
+
+      // util
+      totalQty: () => get().items.reduce((a, b) => a + b.qty, 0),
+      subtotal: () => get().items.reduce((a, b) => a + b.qty * b.price, 0),
 
       syncWithSupabase: async (userId) => {
         const supabase = createClient();
@@ -89,8 +115,8 @@ export const useCartStore = create<CartState>()(
           await supabase.from("cart_items").insert(
             items.map((item) => ({
               cart_id: cart.id,
-              sku: item.sku,
-              name: item.name,
+              sku: item.id, // Usar id como sku para compatibilidad
+              name: item.title,
               price: item.price,
               qty: item.qty,
             })),
@@ -110,8 +136,8 @@ export const useCartStore = create<CartState>()(
         if (cart?.cart_items) {
           const localItems = get().items;
           const supabaseItems = cart.cart_items.map((item: any) => ({
-            sku: item.sku,
-            name: item.name,
+            id: item.sku,
+            title: item.name,
             price: Number(item.price),
             qty: item.qty,
           }));
@@ -119,7 +145,7 @@ export const useCartStore = create<CartState>()(
           // Fusionar: combinar cantidades si hay duplicados
           const merged = [...supabaseItems];
           localItems.forEach((localItem) => {
-            const existing = merged.find((i) => i.sku === localItem.sku);
+            const existing = merged.find((i) => i.id === localItem.id);
             if (existing) {
               existing.qty += localItem.qty;
             } else {
@@ -133,17 +159,6 @@ export const useCartStore = create<CartState>()(
           await get().syncWithSupabase(userId);
         }
       },
-
-      getSubtotal: () => {
-        return get().items.reduce(
-          (sum, item) => sum + item.price * item.qty,
-          0,
-        );
-      },
-
-      getItemCount: () => {
-        return get().items.reduce((sum, item) => sum + item.qty, 0);
-      },
     }),
     {
       name: "cart-storage",
@@ -152,10 +167,17 @@ export const useCartStore = create<CartState>()(
 );
 
 // Selectores estables para evitar re-renders innecesarios
-export const selectCartItems = (s: CartState) => s.items;
-export const selectCartActions = (s: CartState) => ({
-  addItem: s.addItem,
-  removeItem: s.removeItem,
-  updateQuantity: s.updateQuantity,
-  clearCart: s.clearCart,
+export const selectCartCore = (s: CartState) => ({
+  items: s.items,
+  checkoutMode: s.checkoutMode,
+  overrideItems: s.overrideItems,
 });
+export const selectCartOps = (s: CartState) => ({
+  addItem: s.addItem,
+  updateQty: s.updateQty,
+  removeItem: s.removeItem,
+  clearCart: s.clearCart,
+  setCheckoutMode: s.setCheckoutMode,
+  setOverrideItems: s.setOverrideItems,
+});
+export const selectBadgeQty = (s: CartState) => s.items.reduce((a,b)=>a+b.qty,0);

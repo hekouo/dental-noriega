@@ -2,15 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { ShoppingCart, X, Trash2 } from "lucide-react";
-import { useCart } from "./CartProvider";
+import { useCartStore, selectBadgeQty } from "@/lib/store/cartStore";
 import { formatPrice } from "@/lib/utils/catalog";
 import Link from "next/link";
 import FAB from "@/components/FAB";
 
 export default function CartBubble() {
-  const { state } = useCart();
+  const count = useCartStore(selectBadgeQty);
   const [open, setOpen] = useState(false);
-  const count = state.items.reduce((n, i) => n + i.qty, 0);
 
   return (
     <>
@@ -37,8 +36,11 @@ export default function CartBubble() {
 }
 
 function CartDrawer({ onClose }: { onClose: () => void }) {
-  const { state, setQty, remove, clear } = useCart();
-  const total = state.items.reduce((s, i) => s + i.price * i.qty, 0);
+  const items = useCartStore((state) => state.items);
+  const updateQty = useCartStore((state) => state.updateQty);
+  const removeItem = useCartStore((state) => state.removeItem);
+  const clearCart = useCartStore((state) => state.clearCart);
+  const total = items.reduce((s, i) => s + i.price * i.qty, 0);
 
   useEffect(() => {
     document.body.classList.add("body-lock");
@@ -85,14 +87,14 @@ function CartDrawer({ onClose }: { onClose: () => void }) {
 
         {/* Items */}
         <div className="grow space-y-3 overflow-y-auto p-4">
-          {state.items.length === 0 && (
+          {items.length === 0 && (
             <div className="text-center py-12 text-gray-500">
               <ShoppingCart size={48} className="mx-auto mb-4 opacity-30" />
               <p>Aún no agregas productos.</p>
             </div>
           )}
 
-          {state.items.map((it) => (
+          {items.map((it) => (
             <div
               key={it.id}
               className="flex items-center gap-3 border rounded-lg p-3"
@@ -124,11 +126,11 @@ function CartDrawer({ onClose }: { onClose: () => void }) {
                     inputMode="numeric"
                     min={1}
                     value={it.qty}
-                    onChange={(e) => setQty(it.id, Number(e.target.value) || 1)}
+                    onChange={(e) => updateQty(it.id, Number(e.target.value) || 1)}
                     className="w-16 border rounded px-2 py-1 text-sm min-h-[44px]"
                   />
                   <button
-                    onClick={() => remove(it.id)}
+                    onClick={() => removeItem(it.id)}
                     className="ml-auto text-red-600 hover:bg-red-50 p-2 rounded min-h-[44px] min-w-[44px] flex items-center justify-center"
                     aria-label={`Eliminar ${it.title}`}
                   >
@@ -150,7 +152,7 @@ function CartDrawer({ onClose }: { onClose: () => void }) {
           </div>
           <div className="flex gap-2">
             <button
-              onClick={clear}
+              onClick={clearCart}
               className="border rounded-lg px-4 py-2 text-sm hover:bg-gray-100 min-h-[44px]"
             >
               <span>Vaciar</span>

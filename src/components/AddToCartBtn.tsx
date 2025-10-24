@@ -39,10 +39,13 @@ export function AddToCartBtn({
     const quantity = Math.max(1, Math.floor(qty || 1));
 
     addItem({
-      sku: product.id || `${sectionSlug}/${product.slug}`,
-      name: product.title,
+      id: product.id || `${sectionSlug}/${product.slug}`,
+      title: product.title,
       price, // pesos
       qty: quantity,
+      image: product.image,
+      code: product.code,
+      slug: product.slug,
     });
 
     // feedback rápido

@@ -1,76 +1,69 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
-import { useCheckout } from "@/lib/store/checkoutStore";
-import { useCartStore, type CartItem } from "@/lib/store/cartStore";
+import { useCartStore, selectCartCore, selectCartOps, type CartItem } from "@/lib/store/cartStore";
 
 export default function CheckoutIndex() {
-  const { items, setItems } = useCheckout();
-  const cart = useCartStore();
-  const importedRef = useRef(false);
-  const clearedRef = useRef(false);
+  const { items, checkoutMode, overrideItems } = useCartStore(selectCartCore);
+  const { updateQty, removeItem, clearCart, setCheckoutMode, setOverrideItems, addItem } =
+    useCartStore(selectCartOps);
 
-  // Importación única del carrito al checkout
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (importedRef.current) return;
+  const visibleItems = checkoutMode === 'buy-now' && overrideItems?.length
+    ? overrideItems
+    : items;
 
-    const already = sessionStorage.getItem("checkout-imported") === "1";
-    if (!already && items.length === 0) {
-      // 1) Importar una sola vez desde cartStore
-      const cartItems: CartItem[] = cart.items;
-
-      if (cartItems.length > 0) {
-        setItems(cartItems);
-      }
-      sessionStorage.setItem("checkout-imported", "1");
+  // Acciones en modo cart
+  const removeOne = (id: string) => {
+    if (checkoutMode === 'cart') {
+      removeItem(id);
+    } else {
+      // Modo buy-now: modificar overrideItems
+      setOverrideItems((overrideItems ?? []).filter(i => i.id !== id));
     }
-    importedRef.current = true;
-  }, [setItems, cart.items, items.length]);
-
-  const removeOne = (sku: string) => {
-    setItems(items.filter((x) => x.sku !== sku));
-    cart.removeItem(sku);
   };
 
-  const inc = (sku: string) => {
-    const next = items.map((x) =>
-      x.sku === sku ? { ...x, qty: x.qty + 1 } : x,
-    );
-    setItems(next);
-    const it = next.find((i) => i.sku === sku);
-    cart.updateQuantity(sku, it?.qty ?? 1);
-  };
-
-  const dec = (sku: string) => {
-    const prev = items.find((x) => x.sku === sku);
-    const nextQty = Math.max(1, (prev?.qty ?? 1) - 1);
-    const next = items.map((x) => (x.sku === sku ? { ...x, qty: nextQty } : x));
-    setItems(next);
-    cart.updateQuantity(sku, nextQty);
-  };
-
-  // Cuando el usuario vacíe el checkout, limpiar el carrito SOLO una vez
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (items.length === 0 && !clearedRef.current) {
-      // Asegúrate de no estar dentro de un subscribe que reaccione al set de abajo
-      cart.clearCart();
-      clearedRef.current = true;
+  const inc = (id: string) => {
+    if (checkoutMode === 'cart') {
+      const item = items.find(i => i.id === id);
+      if (item) updateQty(id, item.qty + 1);
+    } else {
+      // Modo buy-now: modificar overrideItems
+      setOverrideItems((overrideItems ?? []).map(i => 
+        i.id === id ? { ...i, qty: i.qty + 1 } : i
+      ));
     }
-  }, [items.length, cart]);
+  };
+
+  const dec = (id: string) => {
+    if (checkoutMode === 'cart') {
+      const item = items.find(i => i.id === id);
+      if (item) updateQty(id, Math.max(1, item.qty - 1));
+    } else {
+      // Modo buy-now: modificar overrideItems
+      setOverrideItems((overrideItems ?? []).map(i => 
+        i.id === id ? { ...i, qty: Math.max(1, i.qty - 1) } : i
+      ));
+    }
+  };
+
+  // Botón "Mover al carrito" (solo en modo buy-now)
+  const commitOverrideToCart = () => {
+    (overrideItems ?? []).forEach(i => addItem(i));
+    setOverrideItems(null);
+    setCheckoutMode('cart');
+  };
 
   const total = useMemo(
-    () => items.reduce((a, it) => a + it.price * it.qty, 0),
-    [items],
+    () => visibleItems.reduce((a, it) => a + it.price * it.qty, 0),
+    [visibleItems],
   );
 
   return (
     <main className="max-w-2xl mx-auto p-6">
       <h1 className="text-xl font-semibold">Checkout</h1>
 
-      {items.length === 0 ? (
+      {visibleItems.length === 0 ? (
         <div className="mt-6 rounded-lg border p-4">
           <p className="text-sm">Tu checkout está vacío.</p>
           <Link href="/catalogo" className="mt-3 inline-block underline">
@@ -79,27 +72,42 @@ export default function CheckoutIndex() {
         </div>
       ) : (
         <>
+          {/* Indicador de modo */}
+          {checkoutMode === 'buy-now' && (
+            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-sm text-yellow-800">
+                Modo "Comprar ahora" - Estos items no están en tu carrito
+              </p>
+              <button
+                onClick={commitOverrideToCart}
+                className="mt-2 text-sm text-yellow-700 underline hover:text-yellow-900"
+              >
+                Mover al carrito
+              </button>
+            </div>
+          )}
+
           <ul className="mt-4 divide-y">
-            {items.map((it) => (
+            {visibleItems.map((it) => (
               <li
-                key={it.sku}
+                key={it.id}
                 className="py-3 flex items-center justify-between gap-3"
               >
                 <div className="flex-1">
-                  <div className="font-medium">{it.name}</div>
+                  <div className="font-medium">{it.title}</div>
                   <div className="text-sm text-gray-600">x{it.qty}</div>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
                     className="border rounded px-2"
-                    onClick={() => dec(it.sku)}
+                    onClick={() => dec(it.id)}
                   >
                     -
                   </button>
                   <span className="w-8 text-center">{it.qty}</span>
                   <button
                     className="border rounded px-2"
-                    onClick={() => inc(it.sku)}
+                    onClick={() => inc(it.id)}
                   >
                     +
                   </button>
@@ -108,7 +116,7 @@ export default function CheckoutIndex() {
                   </span>
                   <button
                     className="ml-2 text-red-600"
-                    onClick={() => removeOne(it.sku)}
+                    onClick={() => removeOne(it.id)}
                   >
                     Eliminar
                   </button>

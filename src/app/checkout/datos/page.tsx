@@ -3,21 +3,25 @@ import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { DatosSchema, type DatosInput } from "@/lib/validations/checkout";
-import { useCheckout } from "@/lib/store/checkoutStore";
+import { useCartStore, selectCartCore } from "@/lib/store/cartStore";
 import { useRouter } from "next/navigation";
 
 export default function DatosPage() {
-  const { datos, setDatos, items } = useCheckout();
+  const { items, checkoutMode, overrideItems } = useCartStore(selectCartCore);
   const router = useRouter();
+
+  const visibleItems = checkoutMode === 'buy-now' && overrideItems?.length
+    ? overrideItems
+    : items;
 
   // Redirección en effect (no durante render)
   useEffect(() => {
-    if (!items.length) router.replace("/checkout");
-  }, [items.length, router]);
+    if (!visibleItems.length) router.replace("/checkout");
+  }, [visibleItems.length, router]);
 
   const form = useForm<DatosInput>({
     resolver: zodResolver(DatosSchema),
-    defaultValues: datos ?? {
+    defaultValues: {
       fullName: "",
       email: "",
       phone: "",
@@ -33,10 +37,11 @@ export default function DatosPage() {
   });
 
   // Mientras redirige, no pintes nada
-  if (!items.length) return null;
+  if (!visibleItems.length) return null;
 
   function onSubmit(values: DatosInput) {
-    setDatos(values);
+    // Guardar datos en localStorage temporalmente
+    localStorage.setItem('checkout-datos', JSON.stringify(values));
     router.push("/checkout/pago");
   }
 

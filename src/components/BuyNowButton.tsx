@@ -1,31 +1,38 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { useCheckout } from "@/lib/store/checkoutStore";
+import { useCartStore, selectCartOps } from "@/lib/store/cartStore";
 
 type Props = {
   product: {
+    id?: string;
     title: string;
     price: number;
     image?: string;
     imageResolved?: string;
     slug: string;
+    code?: string;
   };
   sectionSlug: string;
   qty: number;
 };
 
 export default function BuyNowButton({ product, sectionSlug, qty }: Props) {
-  const { setItems } = useCheckout();
+  const { setCheckoutMode, setOverrideItems } = useCartStore(selectCartOps);
   const router = useRouter();
 
   const handle = () => {
     const item = {
-      sku: `${sectionSlug}/${product.slug}`,
-      name: product.title,
+      id: product.id || `${sectionSlug}/${product.slug}`,
+      title: product.title,
       price: product.price,
       qty: Math.max(1, qty || 1),
+      image: product.image,
+      code: product.code,
+      slug: product.slug,
     };
-    setItems([item]);
+    
+    setCheckoutMode('buy-now');
+    setOverrideItems([item]);
     router.push("/checkout");
   };
 

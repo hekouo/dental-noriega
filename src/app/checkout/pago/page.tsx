@@ -1,26 +1,24 @@
 "use client";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useCheckout } from "@/lib/store/checkoutStore";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PagoSchema, type PagoInput } from "@/lib/validations/checkout";
-
-// IMPORTA tu store del carrito
-import { useCartStore } from "@/lib/store/cartStore";
+import { useCartStore, selectCartCore, selectCartOps } from "@/lib/store/cartStore";
 
 export default function PagoPage() {
-  const { items, datos, setPago, setOrderId, clearAll } = useCheckout();
+  const { items, checkoutMode, overrideItems } = useCartStore(selectCartCore);
+  const { clearCart, setCheckoutMode, setOverrideItems } = useCartStore(selectCartOps);
   const router = useRouter();
 
-  // función para limpiar carrito (toma clear o clearCart, según exista)
-  const clearCart =
-    useCartStore((s: any) => s.clear || s.clearCart || null) || null;
+  const visibleItems = checkoutMode === 'buy-now' && overrideItems?.length
+    ? overrideItems
+    : items;
 
   // Redirección en effect (no durante render)
   useEffect(() => {
-    if (!items.length || !datos) router.replace("/checkout");
-  }, [items.length, datos, router]);
+    if (!visibleItems.length) router.replace("/checkout");
+  }, [visibleItems.length, router]);
 
   const form = useForm<PagoInput>({
     resolver: zodResolver(PagoSchema),
@@ -28,22 +26,27 @@ export default function PagoPage() {
   });
 
   async function onSubmit(values: PagoInput) {
-    setPago(values);
     try {
+      // Obtener datos del localStorage
+      const datos = JSON.parse(localStorage.getItem('checkout-datos') || '{}');
+      
       const res = await fetch("/api/orders/mock", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items, datos, payment: values }),
+        body: JSON.stringify({ items: visibleItems, datos, payment: values }),
       });
       const data = await res.json();
       if (!res.ok || !data?.id)
         throw new Error(data?.error || "Error al crear orden mock");
 
-      setOrderId(String(data.id));
-
       // limpia checkout y carrito ANTES de navegar
-      clearAll();
-      if (clearCart) clearCart();
+      if (checkoutMode === 'cart') {
+        clearCart();
+      } else {
+        // En modo buy-now, limpiar overrideItems
+        setOverrideItems(null);
+        setCheckoutMode('cart');
+      }
 
       // evita history rara
       router.replace(
@@ -55,7 +58,7 @@ export default function PagoPage() {
     }
   }
 
-  if (!items.length || !datos) return null;
+  if (!visibleItems.length) return null;
 
   return (
     <main className="max-w-2xl mx-auto p-6">
