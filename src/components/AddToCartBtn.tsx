@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ShoppingCart } from "lucide-react";
-import { useCartStore } from "@/lib/store/cartStore";
+import { useCartStore, selectOps } from "@/lib/store/cartStore";
 
 type Props = {
   product: {
@@ -25,7 +25,7 @@ export function AddToCartBtn({
   qty = 1,
   className,
 }: Props) {
-  const addItem = useCartStore((state) => state.addItem);
+  const { addItem } = useCartStore(selectOps);
   const [isAdding, setIsAdding] = useState(false);
 
   const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {

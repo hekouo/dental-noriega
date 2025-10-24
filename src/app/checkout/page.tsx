@@ -19,7 +19,7 @@ export default function CheckoutIndex() {
 
   const visibleItems = useMemo(
     () =>
-      checkoutMode === "buy-now" && overrideItems?.length
+      checkoutMode === "buy-now" && overrideItems && overrideItems.length > 0
         ? overrideItems
         : items,
     [checkoutMode, overrideItems, items],
