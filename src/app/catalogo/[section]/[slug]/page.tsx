@@ -3,7 +3,8 @@ import { Metadata } from "next";
 import ProductResolver from "@/components/ProductResolver";
 import RecentlyViewedTracker from "@/components/RecentlyViewedTracker";
 
-export const revalidate = 300; // Cache 5 minutos
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 type Props = { params: { section: string; slug: string } };
 

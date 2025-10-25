@@ -1,11 +1,14 @@
 "use client";
 
+import { useState, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import ProductImage from "@/components/ProductImage";
 import PointsBadge from "@/components/PointsBadge";
 import { pointsFor } from "@/lib/utils/points";
 import { formatPrice } from "@/lib/utils/catalog";
-import AddToCartBtn from "@/components/AddToCartBtn";
+import { useCartStore } from "@/lib/store/cartStore";
+import QtyStepper from "@/components/QtyStepper";
 import { ROUTES } from "@/lib/routes";
 // Badge simple sin dependencias externas
 const Badge = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
@@ -49,6 +52,34 @@ export default function FeaturedCard({
 }: FeaturedCardProps) {
   const points = pointsFor(price);
   const imageUrl = imageResolved || image;
+  const [qty, setQty] = useState(1);
+  const busyRef = useRef(false);
+  const router = useRouter();
+  const addToCart = useCartStore((s) => s.addToCart);
+
+  const handleAddToCart = async () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    
+    try {
+      addToCart({
+        id: id || slug,
+        title,
+        price,
+        qty,
+        imageUrl,
+        selected: true
+      });
+    } finally {
+      busyRef.current = false;
+    }
+  };
+
+  const handlePrefetch = () => {
+    if (canonicalUrl) {
+      router.prefetch(canonicalUrl);
+    }
+  };
   
   // Solo mostrar badge "Agotado" si inStock es explícitamente false
   if (inStock === false) {
@@ -102,6 +133,7 @@ export default function FeaturedCard({
         href={canonicalUrl || ROUTES.product(sectionSlug, slug)}
         prefetch={false}
         className="block"
+        onMouseEnter={handlePrefetch}
       >
         <div className="aspect-square relative">
           <ProductImage
@@ -131,16 +163,21 @@ export default function FeaturedCard({
           <PointsBadge points={points} />
         </div>
         
-        <AddToCartBtn
-          productId={id || slug}
-          productTitle={title}
-          productPrice={price}
-          qty={1}
-          imageUrl={imageUrl}
-          className="w-full btn btn-primary btn-sm"
-        >
-          Agregar al carrito
-        </AddToCartBtn>
+        <div className="space-y-3">
+          <QtyStepper
+            value={qty}
+            onChange={setQty}
+            className="w-full"
+          />
+          
+          <button
+            onClick={handleAddToCart}
+            disabled={busyRef.current}
+            className="w-full btn btn-primary btn-sm"
+          >
+            {busyRef.current ? "Agregando..." : "Agregar al carrito"}
+          </button>
+        </div>
       </div>
     </div>
   );

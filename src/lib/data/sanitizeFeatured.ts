@@ -76,21 +76,35 @@ export async function sanitizeFeatured(limit?: number): Promise<SanitizedFeature
           }
         });
       } else {
-        // No hay alternativas, excluir del grid
-        if (process.env.NEXT_PUBLIC_DEBUG === "1") {
-          console.warn(`[SanitizeFeatured] No alternatives found for ${item.slug}, excluding from grid`);
-        }
-        continue; // Saltar este item
+        // No hay alternativas, usar fallback a búsqueda para no dejar grid vacío
+        const inStock = true; // Por defecto disponible
+        sanitized.push({
+          ...item,
+          resolved: false,
+          canonicalUrl: `/catalogo?query=${encodeURIComponent(item.slug)}`,
+          inStock,
+          fallback: {
+            section: "búsqueda",
+            slug: item.slug,
+            title: item.title
+          }
+        });
       }
     } catch (error) {
       if (process.env.NEXT_PUBLIC_DEBUG === "1") {
         console.warn(`[SanitizeFeatured] Error processing ${item.slug}:`, error);
       }
-      // En caso de error, asumir disponible por defecto
+      // En caso de error, usar fallback a búsqueda para no dejar grid vacío
       sanitized.push({
         ...item,
         resolved: false,
-        inStock: true // Por defecto disponible incluso con error
+        canonicalUrl: `/catalogo?query=${encodeURIComponent(item.slug)}`,
+        inStock: true, // Por defecto disponible incluso con error
+        fallback: {
+          section: "búsqueda",
+          slug: item.slug,
+          title: item.title
+        }
       });
     }
   }
