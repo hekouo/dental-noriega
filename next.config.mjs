@@ -10,7 +10,7 @@ const nextConfig = {
       { protocol: 'https', hostname: '**.supabase.co', pathname: '/storage/**' },
       { protocol: 'https', hostname: '**.supabase.in', pathname: '/storage/**' },
     ],
-    unoptimized: process.env.NEXT_IMAGE_UNOPTIMIZED === '1',
+    unoptimized: true,
   },
 };
 
