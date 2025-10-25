@@ -1,7 +1,10 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { resolveProductClient, type ResolveResult } from "@/lib/data/resolveProduct.client";
+import {
+  resolveProductClient,
+  type ResolveResult,
+} from "@/lib/data/resolveProduct.client";
 import Link from "next/link";
 import { ROUTES } from "@/lib/routes";
 import RecentlyViewed from "@/components/RecentlyViewed";
@@ -14,7 +17,9 @@ type Props = {
 
 export default function ProductResolver({ section, slug, children }: Props) {
   const router = useRouter();
-  const [resolveResult, setResolveResult] = useState<ResolveResult | null>(null);
+  const [resolveResult, setResolveResult] = useState<ResolveResult | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
   const redirectedRef = useRef(false); // Proteger contra ciclos de redirección
 
@@ -23,10 +28,10 @@ export default function ProductResolver({ section, slug, children }: Props) {
       try {
         const result = await resolveProductClient(section, slug);
         setResolveResult(result);
-        
+
         // Null-safety estricta
-        const { ok, redirectTo, suggestions = [] } = result as any ?? {};
-        
+        const { ok, redirectTo } = (result as any) ?? {};
+
         // Si hay redirect, hacer redirect automático (una sola vez)
         if (ok && redirectTo && !redirectedRef.current) {
           redirectedRef.current = true;
@@ -58,7 +63,7 @@ export default function ProductResolver({ section, slug, children }: Props) {
 
   if (resolveResult && !resolveResult.ok) {
     const suggestions = resolveResult?.suggestions ?? [];
-    
+
     return (
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-4xl mx-auto px-4 py-8">
@@ -69,10 +74,12 @@ export default function ProductResolver({ section, slug, children }: Props) {
             <p className="text-gray-600 mb-6">
               El producto que buscas no está disponible en este momento.
             </p>
-            
+
             {suggestions.length > 0 && (
               <div className="mb-8">
-                <h2 className="text-xl font-semibold mb-4">Quizás te interese:</h2>
+                <h2 className="text-xl font-semibold mb-4">
+                  Quizás te interese:
+                </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {suggestions.slice(0, 4).map((suggestion, index) => (
                     <Link
@@ -91,7 +98,7 @@ export default function ProductResolver({ section, slug, children }: Props) {
                 </div>
               </div>
             )}
-            
+
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href={ROUTES.catalogIndex()} className="btn btn-primary">
                 Ver Catálogo
@@ -101,7 +108,7 @@ export default function ProductResolver({ section, slug, children }: Props) {
               </Link>
             </div>
           </div>
-          
+
           <RecentlyViewed />
         </div>
       </div>
@@ -111,7 +118,7 @@ export default function ProductResolver({ section, slug, children }: Props) {
   // Si el producto se resolvió correctamente, mostrar el contenido
   if (resolveResult && resolveResult.ok && resolveResult.product) {
     const { product, section: resolvedSection } = resolveResult;
-    
+
     return (
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 py-8">
@@ -165,7 +172,7 @@ export default function ProductResolver({ section, slug, children }: Props) {
                 Especificaciones
               </h2>
               <ul className="list-disc list-inside space-y-2 text-gray-700">
-                <li>SKU: {product.id || 'N/A'}</li>
+                <li>SKU: {product.id || "N/A"}</li>
                 <li>Categoría: {resolvedSection}</li>
               </ul>
             </div>

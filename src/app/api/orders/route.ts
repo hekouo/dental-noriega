@@ -4,7 +4,10 @@ import { createClient } from "@supabase/supabase-js";
 export async function GET(req: Request) {
   // Solo en desarrollo
   if (process.env.NODE_ENV !== "development") {
-    return NextResponse.json({ error: "Not available in production" }, { status: 403 });
+    return NextResponse.json(
+      { error: "Not available in production" },
+      { status: 403 },
+    );
   }
 
   const { searchParams } = new URL(req.url);
@@ -16,7 +19,7 @@ export async function GET(req: Request) {
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
 
   try {
@@ -28,15 +31,15 @@ export async function GET(req: Request) {
       .single();
 
     if (orderError || !order) {
-      return NextResponse.json({ 
-        ok: false, 
+      return NextResponse.json({
+        ok: false,
         exists: false,
-        error: orderError?.message 
+        error: orderError?.message,
       });
     }
 
     // Contar items
-    const { count: itemsCount, error: countError } = await supabase
+    const { count: itemsCount } = await supabase
       .from("order_items")
       .select("*", { count: "exact", head: true })
       .eq("order_id", orderId);
@@ -48,14 +51,16 @@ export async function GET(req: Request) {
       total: order.total,
       status: order.status,
       customer_email: order.customer_email,
-      created_at: order.created_at
+      created_at: order.created_at,
     });
-
   } catch (error) {
     console.error("[API] Orders diagnostic error:", error);
-    return NextResponse.json({ 
-      ok: false, 
-      error: "Internal server error" 
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Internal server error",
+      },
+      { status: 500 },
+    );
   }
 }

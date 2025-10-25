@@ -1,181 +1,86 @@
+// src/components/FeaturedCard.tsx
 "use client";
-
-import { useState, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import ProductImage from "@/components/ProductImage";
-import PointsBadge from "@/components/PointsBadge";
-import { pointsFor } from "@/lib/utils/points";
-import { formatPrice } from "@/lib/utils/catalog";
-import { useCartStore } from "@/lib/store/cartStore";
-import QtyStepper from "@/components/QtyStepper";
-import { ROUTES } from "@/lib/routes";
-// Badge simple sin dependencias externas
-const Badge = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
-  <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${className}`}>
-    {children}
-  </span>
-);
+import { useRef, useState } from "react";
+import ImageWithFallback from "@/components/ui/ImageWithFallback";
+import QtyStepper from "@/components/ui/QtyStepper";
+import { useCartStore } from "@/lib/store/cartStore"; // ajustar import
 
-export type FeaturedCardProps = {
-  id?: string;
-  title: string;
-  price: number;
-  image?: string;
-  imageResolved?: string;
-  slug: string;
-  sectionSlug: string;
-  code?: string;
-  resolved: boolean;
-  canonicalUrl?: string;
-  inStock: boolean;
-  fallback?: {
-    section: string;
-    slug: string;
+type Props = {
+  item: {
+    canonicalUrl?: string;
     title: string;
+    price?: number; // centavos
+    imageUrl?: string;
+    inStock: boolean;
+    badge?: string;
   };
 };
 
-export default function FeaturedCard({
-  id,
-  title,
-  price,
-  image,
-  imageResolved,
-  slug,
-  sectionSlug,
-  code,
-  resolved,
-  canonicalUrl,
-  inStock,
-  fallback
-}: FeaturedCardProps) {
-  const points = pointsFor(price);
-  const imageUrl = imageResolved || image;
+export default function FeaturedCard({ item }: Props) {
+  const addToCart = useCartStore((s) => s.addToCart);
   const [qty, setQty] = useState(1);
   const busyRef = useRef(false);
-  const router = useRouter();
-  const addToCart = useCartStore((s) => s.addToCart);
+  const canBuy = item.inStock !== false && typeof item.price === "number";
 
-  const handleAddToCart = async () => {
-    if (busyRef.current) return;
+  function onAdd() {
+    if (!canBuy || busyRef.current) return;
     busyRef.current = true;
-    
-    try {
-      addToCart({
-        id: id || slug,
-        title,
-        price,
-        qty,
-        imageUrl,
-        selected: true
-      });
-    } finally {
-      busyRef.current = false;
-    }
-  };
-
-  const handlePrefetch = () => {
-    if (canonicalUrl) {
-      router.prefetch(canonicalUrl);
-    }
-  };
-  
-  // Solo mostrar badge "Agotado" si inStock es explícitamente false
-  if (inStock === false) {
-    return (
-      <div className="bg-white rounded-lg shadow-md overflow-hidden relative">
-        <div className="aspect-square relative">
-          <ProductImage
-            src={imageUrl}
-            alt={title}
-            width={300}
-            height={300}
-            sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
-          />
-          <Badge className="absolute top-2 right-2 bg-red-500">
-            Agotado
-          </Badge>
-        </div>
-        <div className="p-4">
-          <h3 className="font-semibold text-lg mb-2 line-clamp-2">
-            {title}
-          </h3>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-2xl font-bold text-primary-600">
-              {formatPrice(price)}
-            </span>
-            <PointsBadge points={points} />
-          </div>
-          <Link
-            href={ROUTES.section(sectionSlug)}
-            className="w-full btn btn-outline btn-sm"
-          >
-            Ver similares
-          </Link>
-        </div>
-      </div>
-    );
+    addToCart({
+      id: item.canonicalUrl || item.title,
+      title: item.title,
+      price: item.price!,
+      qty,
+      imageUrl: item.imageUrl,
+      selected: true,
+    });
+    setTimeout(() => (busyRef.current = false), 250);
+    console.info("✅ Agregado al carrito:", item.title, "x", qty);
   }
-  
-  // Si hay fallback, mostrar cintillo "Sugerido"
-  const showFallback = !resolved && fallback;
-  
+
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden relative">
-      {showFallback && (
-        <Badge className="absolute top-2 left-2 bg-blue-500 z-10">
-          Sugerido
-        </Badge>
-      )}
-      
-      <Link 
-        href={canonicalUrl || ROUTES.product(sectionSlug, slug)}
-        prefetch={false}
+    <div className="border rounded-xl overflow-hidden flex flex-col">
+      <Link
+        href={item.canonicalUrl || "#"}
+        onMouseEnter={() => {
+          if (item.canonicalUrl) {
+            fetch(item.canonicalUrl, { cache: "force-cache" }).catch(() => {});
+          }
+        }}
         className="block"
-        onMouseEnter={handlePrefetch}
       >
-        <div className="aspect-square relative">
-          <ProductImage
-            src={imageUrl}
-            alt={title}
-            width={300}
-            height={300}
-            sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+        <div className="aspect-square bg-gray-50">
+          <ImageWithFallback
+            src={item.imageUrl}
+            alt={item.title}
+            className="w-full h-full object-cover"
           />
         </div>
       </Link>
-      
-      <div className="p-4">
-        <Link 
-          href={canonicalUrl || ROUTES.product(sectionSlug, slug)}
-          className="block"
-        >
-          <h3 className="font-semibold text-lg mb-2 line-clamp-2 hover:text-primary-600">
-            {showFallback ? fallback.title : title}
-          </h3>
-        </Link>
-        
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-2xl font-bold text-primary-600">
-            {formatPrice(price)}
-          </span>
-          <PointsBadge points={points} />
+
+      <div className="p-3 flex-1 flex flex-col">
+        <div className="text-sm font-medium line-clamp-2 min-h-[2.5rem]">
+          {item.title}
         </div>
-        
-        <div className="space-y-3">
-          <QtyStepper
-            value={qty}
-            onChange={setQty}
-            className="w-full"
-          />
-          
+        <div className="mt-1 text-sm text-gray-700">
+          {typeof item.price === "number"
+            ? `$${(item.price / 100).toFixed(2)}`
+            : "—"}
+        </div>
+        {item.badge ? (
+          <div className="mt-1 text-[11px] inline-flex items-center px-2 py-0.5 rounded bg-gray-100 text-gray-700">
+            {item.badge}
+          </div>
+        ) : null}
+
+        <div className="mt-auto pt-3 flex items-center gap-3">
+          <QtyStepper value={qty} min={1} max={99} onChange={setQty} />
           <button
-            onClick={handleAddToCart}
-            disabled={busyRef.current}
-            className="w-full btn btn-primary btn-sm"
+            onClick={onAdd}
+            disabled={!canBuy}
+            className="px-3 py-2 rounded-lg text-sm bg-black text-white disabled:opacity-50"
           >
-            {busyRef.current ? "Agregando..." : "Agregar al carrito"}
+            Agregar
           </button>
         </div>
       </div>

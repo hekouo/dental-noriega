@@ -45,7 +45,7 @@ export const useCheckoutStore = create<State>()(
     (set, _get) => ({
       checkoutItems: [],
 
-      ingestFromCart: (cartItems, clearCart = true) => {
+      ingestFromCart: (cartItems, _clearCart = true) => {
         set((s) => {
           if (!cartItems?.length) return s;
           const byId = new Map(s.checkoutItems.map((i) => [i.id, i]));

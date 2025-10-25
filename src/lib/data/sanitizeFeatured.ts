@@ -1,20 +1,20 @@
 import "server-only";
 import { loadFeatured, type FeaturedItem } from "./loadFeatured";
-import { getCatalogIndex, findExact, findCross } from "./catalog-index.server";
+// import { getCatalogIndex } from "./catalog-index.server";
 
 // Función para resolver usando la API (server-side fetch)
 async function resolveProductViaAPI(slug: string, section?: string) {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3002';
-    const url = section 
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3002";
+    const url = section
       ? `${baseUrl}/api/catalog/resolve?section=${encodeURIComponent(section)}&slug=${encodeURIComponent(slug)}`
       : `${baseUrl}/api/catalog/resolve?slug=${encodeURIComponent(slug)}`;
-    
-    const response = await fetch(url, { 
-      cache: 'force-cache',
-      headers: { 'User-Agent': 'Server-Side-Resolve' }
+
+    const response = await fetch(url, {
+      cache: "force-cache",
+      headers: { "User-Agent": "Server-Side-Resolve" },
     });
-    
+
     if (!response.ok) return null;
     return await response.json();
   } catch (error) {
@@ -29,6 +29,7 @@ export type SanitizedFeaturedItem = FeaturedItem & {
   resolved: boolean;
   canonicalUrl?: string;
   inStock: boolean;
+  imageUrl?: string;
   fallback?: {
     section: string;
     slug: string;
@@ -36,114 +37,109 @@ export type SanitizedFeaturedItem = FeaturedItem & {
   };
 };
 
-export async function sanitizeFeatured(limit?: number): Promise<SanitizedFeaturedItem[]> {
+export async function sanitizeFeatured(
+  limit?: number,
+): Promise<SanitizedFeaturedItem[]> {
   const featuredItems = await loadFeatured(limit);
-  const index = await getCatalogIndex();
-  
+
   const sanitized: SanitizedFeaturedItem[] = [];
-  
+
   for (const item of featuredItems) {
-    try {
-      // Resolver usando la API (sin sección específica para destacados)
-      const resolveResult = await resolveProductViaAPI(item.slug);
-      
-      if (resolveResult?.ok) {
-        // Producto encontrado - usar URL canónica si existe
-        const canonicalUrl = resolveResult.redirectTo || `/catalogo/${resolveResult.section}/${resolveResult.slug}`;
-        const inStock = resolveResult.product?.inStock !== false; // Por defecto true
-        
-        sanitized.push({
-          ...item,
-          resolved: true,
-          canonicalUrl,
-          inStock,
-          sectionSlug: resolveResult.section // Actualizar sección real
-        });
-      } else if (resolveResult?.suggestions?.length > 0) {
-        // Usar la mejor sugerencia
-        const best = resolveResult.suggestions[0];
-        const inStock = true; // Sugerencias disponibles por defecto
-        
-        sanitized.push({
-          ...item,
-          resolved: false,
-          canonicalUrl: `/catalogo/${best.section}/${best.slug}`,
-          inStock,
-          fallback: {
-            section: best.section,
-            slug: best.slug,
-            title: best.title || item.title
-          }
-        });
-      } else {
-        // No hay alternativas, usar fallback a búsqueda para no dejar grid vacío
-        const inStock = true; // Por defecto disponible
-        sanitized.push({
-          ...item,
-          resolved: false,
-          canonicalUrl: `/catalogo?query=${encodeURIComponent(item.slug)}`,
-          inStock,
-          fallback: {
-            section: "búsqueda",
-            slug: item.slug,
-            title: item.title
-          }
-        });
-      }
-    } catch (error) {
-      if (process.env.NEXT_PUBLIC_DEBUG === "1") {
-        console.warn(`[SanitizeFeatured] Error processing ${item.slug}:`, error);
-      }
-      // En caso de error, usar fallback a búsqueda para no dejar grid vacío
-      sanitized.push({
-        ...item,
-        resolved: false,
-        canonicalUrl: `/catalogo?query=${encodeURIComponent(item.slug)}`,
-        inStock: true, // Por defecto disponible incluso con error
-        fallback: {
-          section: "búsqueda",
-          slug: item.slug,
-          title: item.title
-        }
-      });
-    }
+    const sanitizedItem = await processFeaturedItem(item);
+    sanitized.push(sanitizedItem);
   }
-  
+
   return sanitized;
 }
 
-async function findAlternatives(item: FeaturedItem, index: any) {
-  const alternatives: Array<{ section: string; slug: string; title: string; score: number }> = [];
-  
-  // Buscar productos similares por título
-  const searchTerms = item.title.toLowerCase().split(' ');
-  
-  for (const [section, sectionMap] of index.bySection) {
-    for (const [slug, product] of sectionMap) {
-      const productTitle = product.title.toLowerCase();
-      let score = 0;
-      
-      // Calcular score basado en palabras comunes
-      for (const term of searchTerms) {
-        if (productTitle.includes(term)) {
-          score += 1;
-        }
-      }
-      
-      // Normalizar score
-      score = score / Math.max(searchTerms.length, productTitle.split(' ').length);
-      
-      if (score > 0.3) { // Umbral mínimo de similitud
-        alternatives.push({
-          section,
-          slug,
-          title: product.title,
-          score
-        });
-      }
+async function processFeaturedItem(
+  item: FeaturedItem,
+): Promise<SanitizedFeaturedItem> {
+  try {
+    const resolveResult = await resolveProductViaAPI(item.slug);
+
+    if (resolveResult?.ok) {
+      return createResolvedItem(item, resolveResult);
+    } else if (resolveResult?.suggestions?.length > 0) {
+      return createSuggestionItem(item, resolveResult.suggestions[0]);
+    } else {
+      return createSearchFallbackItem(item);
     }
+  } catch (error) {
+    if (process.env.NEXT_PUBLIC_DEBUG === "1") {
+      console.warn(`[SanitizeFeatured] Error processing ${item.slug}:`, error);
+    }
+    return createSearchFallbackItem(item);
   }
-  
-  // Ordenar por score descendente
-  return alternatives.sort((a, b) => b.score - a.score).slice(0, 3);
+}
+
+function createResolvedItem(
+  item: FeaturedItem,
+  resolveResult: any,
+): SanitizedFeaturedItem {
+  const canonicalUrl =
+    resolveResult.redirectTo ||
+    `/catalogo/${resolveResult.section}/${resolveResult.slug}`;
+  const inStock = resolveResult.product?.inStock !== false;
+
+  return {
+    ...item,
+    resolved: true,
+    canonicalUrl,
+    inStock,
+    sectionSlug: resolveResult.section,
+    title: resolveResult.product?.title || item.title,
+    price: resolveResult.product?.price || item.price,
+    imageUrl: resolveResult.product?.imageUrl || item.image,
+  };
+}
+
+function createSuggestionItem(
+  item: FeaturedItem,
+  best: any,
+): SanitizedFeaturedItem {
+  if (process.env.NEXT_PUBLIC_DEBUG === "1") {
+    console.info(`[SanitizeFeatured] Using suggestion for ${item.slug}:`, {
+      original: item.slug,
+      suggested: `${best.section}/${best.slug}`,
+      reason: "suggestion",
+    });
+  }
+
+  return {
+    ...item,
+    resolved: false,
+    canonicalUrl: `/catalogo/${best.section}/${best.slug}`,
+    inStock: true,
+    title: best.title || item.title,
+    price: best.price || item.price,
+    imageUrl: best.imageUrl || item.image,
+    fallback: {
+      section: best.section,
+      slug: best.slug,
+      title: best.title || item.title,
+    },
+  };
+}
+
+function createSearchFallbackItem(item: FeaturedItem): SanitizedFeaturedItem {
+  if (process.env.NEXT_PUBLIC_DEBUG === "1") {
+    console.info(`[SanitizeFeatured] Using search fallback for ${item.slug}:`, {
+      original: item.slug,
+      fallback: `/catalogo?query=${encodeURIComponent(item.slug)}`,
+      reason: "no-alternatives",
+    });
+  }
+
+  return {
+    ...item,
+    resolved: false,
+    canonicalUrl: `/catalogo?query=${encodeURIComponent(item.slug)}`,
+    inStock: true,
+    fallback: {
+      section: "búsqueda",
+      slug: item.slug,
+      title: item.title,
+    },
+  };
 }

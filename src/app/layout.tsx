@@ -20,16 +20,16 @@ const CheckoutDevGuard = dynamic(
     ssr: false,
   },
 );
-const CartDevGuard = dynamic(
-  () => import("@/components/CartDevGuard"),
-  {
-    ssr: false,
-  },
-);
+const CartDevGuard = dynamic(() => import("@/components/CartDevGuard"), {
+  ssr: false,
+});
 const SiteFooter = dynamic(() => import("@/components/SiteFooter"), {
   ssr: false,
 });
 const FinalThanks = dynamic(() => import("@/components/FinalThanks"), {
+  ssr: false,
+});
+const WarmupTrigger = dynamic(() => import("@/components/dev/WarmupTrigger"), {
   ssr: false,
 });
 
@@ -154,10 +154,11 @@ export default function RootLayout({
         {/* Flotantes */}
         <CartBubble />
         <WhatsappBubble />
-        
+
         {/* Dev Guards */}
         <CheckoutDevGuard />
         <CartDevGuard />
+        {process.env.NEXT_PUBLIC_DEBUG === "1" ? <WarmupTrigger /> : null}
 
         {/* Footer */}
         <SiteFooter />

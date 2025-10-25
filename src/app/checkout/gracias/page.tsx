@@ -29,7 +29,7 @@ type Props = {
 async function fetchOrder(orderId: string) {
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
 
   const { data: order, error: orderError } = await supabase
@@ -42,14 +42,14 @@ async function fetchOrder(orderId: string) {
     return null;
   }
 
-  const { data: items, error: itemsError } = await supabase
+  const { data: items } = await supabase
     .from("order_items")
     .select("*")
     .eq("order_id", orderId);
 
   return {
     order,
-    items: items || []
+    items: items || [],
   };
 }
 
@@ -86,12 +86,13 @@ export default async function GraciasPage({ searchParams }: Props) {
           </span>
         </p>
         <p>
-          <span className="font-semibold">Cliente:</span> {order.honorific || "Dr."} {order.customer_name}
+          <span className="font-semibold">Cliente:</span>{" "}
+          {order.honorific || "Dr."} {order.customer_name}
         </p>
         <p>
           <span className="font-semibold">Email:</span> {order.customer_email}
         </p>
-        
+
         {/* Items de la orden */}
         {items.length > 0 && (
           <div className="mt-4">

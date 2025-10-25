@@ -2,7 +2,7 @@ import "server-only";
 import removeAccents from "remove-accents";
 import { loadProductBySlug } from "./catalog-sections";
 import { guessSectionForFeaturedSlug } from "@/lib/catalog/featuredSection";
-import { normalizeSlug, autocorrect } from "@/lib/utils/slug";
+import { autocorrect } from "@/lib/utils/slug";
 
 function normSlug(s: string) {
   return removeAccents(s.toLowerCase().trim())
@@ -50,7 +50,11 @@ export async function resolveProduct(section: string, slug: string) {
   // 4) autocorrección de typos comunes
   const corrected = autocorrect(g);
   if (corrected !== g) {
-    const correctedMatch = await tryLoadProduct(s, corrected, "Autocorrect match");
+    const correctedMatch = await tryLoadProduct(
+      s,
+      corrected,
+      "Autocorrect match",
+    );
     if (correctedMatch) return correctedMatch;
   }
 
@@ -61,7 +65,10 @@ export async function resolveProduct(section: string, slug: string) {
   }
 
   // 6) nada
-  if (process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_DEBUG === "1") {
+  if (
+    process.env.NODE_ENV === "development" &&
+    process.env.NEXT_PUBLIC_DEBUG === "1"
+  ) {
     console.warn("[PDP] Not found", {
       section,
       slug,

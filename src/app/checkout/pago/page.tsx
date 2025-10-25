@@ -36,7 +36,7 @@ export default function PagoPage() {
     register,
     handleSubmit,
     formState: { errors },
-    setError: setFormError,
+    // setError: setFormError,
   } = useForm<FormValues>();
 
   const did = useRef(false);
@@ -64,12 +64,12 @@ export default function PagoPage() {
         country: data.country,
         paymentMethod: data.paymentMethod,
         honorific: data.honorific,
-        items: selectedItems.map(item => ({
+        items: selectedItems.map((item) => ({
           id: item.id,
           title: item.title,
           price: item.price,
-          qty: item.qty
-        }))
+          qty: item.qty,
+        })),
       });
 
       if (!result.success) {
@@ -117,14 +117,18 @@ export default function PagoPage() {
             Tratamiento *
           </label>
           <select
-            {...register("honorific", { required: "El tratamiento es requerido" })}
+            {...register("honorific", {
+              required: "El tratamiento es requerido",
+            })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="Dr.">Dr.</option>
             <option value="Dra.">Dra.</option>
           </select>
           {errors.honorific && (
-            <p className="text-red-500 text-sm mt-1">{errors.honorific.message}</p>
+            <p className="text-red-500 text-sm mt-1">
+              {errors.honorific.message}
+            </p>
           )}
         </div>
 
@@ -148,12 +152,12 @@ export default function PagoPage() {
           </label>
           <input
             type="email"
-            {...register("email", { 
+            {...register("email", {
               required: "El email es requerido",
               pattern: {
                 value: /^\S+@\S+$/i,
-                message: "Email inválido"
-              }
+                message: "Email inválido",
+              },
             })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="tu@email.com"
@@ -192,7 +196,9 @@ export default function PagoPage() {
             Método de pago *
           </label>
           <select
-            {...register("paymentMethod", { required: "Selecciona un método de pago" })}
+            {...register("paymentMethod", {
+              required: "Selecciona un método de pago",
+            })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Selecciona...</option>
@@ -201,7 +207,9 @@ export default function PagoPage() {
             <option value="tarjeta">Tarjeta de crédito/débito</option>
           </select>
           {errors.paymentMethod && (
-            <p className="text-red-500 text-sm mt-1">{errors.paymentMethod.message}</p>
+            <p className="text-red-500 text-sm mt-1">
+              {errors.paymentMethod.message}
+            </p>
           )}
         </div>
 
@@ -225,7 +233,9 @@ export default function PagoPage() {
             className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             aria-busy={sending}
           >
-            {sending ? "Procesando..." : `Confirmar Pago - ${formatCurrency(total)}`}
+            {sending
+              ? "Procesando..."
+              : `Confirmar Pago - ${formatCurrency(total)}`}
           </button>
         </div>
       </form>

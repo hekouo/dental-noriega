@@ -1,6 +1,15 @@
 "use client";
 
-import FeaturedCard, { type FeaturedCardProps } from "@/components/FeaturedCard";
+import FeaturedCard from "@/components/FeaturedCard";
+
+type FeaturedCardProps = {
+  canonicalUrl?: string;
+  title: string;
+  price?: number;
+  imageUrl?: string;
+  inStock: boolean;
+  badge?: string;
+};
 
 type Props = { products: FeaturedCardProps[]; title?: string };
 
@@ -21,7 +30,10 @@ export default function FeaturedGrid({
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
           {products.map((product) => (
-            <FeaturedCard key={product.slug} {...product} />
+            <FeaturedCard
+              key={product.canonicalUrl || product.title}
+              item={product}
+            />
           ))}
         </div>
       </div>

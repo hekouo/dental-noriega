@@ -1,32 +1,86 @@
 // src/app/catalogo/[section]/[slug]/page.tsx
-import { Metadata } from "next";
-import ProductResolver from "@/components/ProductResolver";
-import RecentlyViewedTracker from "@/components/RecentlyViewedTracker";
+import { redirect } from "next/navigation";
+import { getProductBySectionSlug } from "@/lib/catalog/getProduct.server";
+import ProductDetailPage from "@/components/pdp/ProductDetailPage";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 type Props = { params: { section: string; slug: string } };
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  return {
-    title: `${params.slug} - ${params.section} | Depósito Dental Noriega`,
-    description: `Descubre ${params.slug} en nuestra sección de ${params.section}. Calidad y precio en Depósito Dental Noriega.`,
-  };
+async function resolveFallback(slug: string) {
+  try {
+    const res = await fetch(
+      `/api/catalog/resolve?slug=${encodeURIComponent(slug)}`,
+      {
+        next: { revalidate: 0 },
+        cache: "no-store",
+      },
+    );
+    const data = await res.json();
+    return data;
+  } catch {
+    return { ok: false, suggestions: [] };
+  }
 }
 
-export default function ProductPage({ params }: Props) {
+export default async function Page({ params }: Props) {
+  const { section, slug } = params;
+
+  // 1) Intento canónico server-first
+  const product = await getProductBySectionSlug(section, slug);
+  if (product) {
+    return <ProductDetailPage product={product} />;
+  }
+
+  // 2) Plan B: resolver (sin sección)
+  const result = await resolveFallback(slug);
+
+  if (result?.ok === true && result.redirectTo) {
+    redirect(result.redirectTo);
+  }
+
+  // 3) 404 enriquecido
+  const suggestions = Array.isArray(result?.suggestions)
+    ? result.suggestions
+    : [];
   return (
-    <ProductResolver section={params.section} slug={params.slug}>
-      <div className="min-h-screen bg-gray-50">
-        <RecentlyViewedTracker slug={params.slug} />
-        <div className="max-w-7xl mx-auto px-4 py-8">
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Cargando producto...</p>
-          </div>
+    <div className="max-w-5xl mx-auto py-10">
+      <h1 className="text-2xl font-semibold mb-3">
+        No encontramos este producto
+      </h1>
+      <p className="text-sm text-gray-600 mb-6">
+        El producto que buscas no está disponible en este momento.
+      </p>
+      {suggestions.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {suggestions.slice(0, 6).map((s: Record<string, unknown>) => (
+            <a
+              key={`${s.section}-${s.slug}`}
+              href={`/catalogo/${s.section}/${s.slug}`}
+              className="border rounded-lg p-3 hover:shadow"
+            >
+              <div className="aspect-square bg-gray-50 rounded mb-2 overflow-hidden">
+                {s.imageUrl ? (
+                  <img
+                    src={String(s.imageUrl)}
+                    alt={String(s.title ?? "Producto")}
+                    className="w-full h-full object-cover"
+                  />
+                ) : null}
+              </div>
+              <div className="text-sm font-medium line-clamp-2">
+                {String(s.title ?? s.slug)}
+              </div>
+              {typeof s.price === "number" && (
+                <div className="text-sm text-gray-700 mt-1">
+                  ${(s.price / 100).toFixed(2)}
+                </div>
+              )}
+            </a>
+          ))}
         </div>
-      </div>
-    </ProductResolver>
+      )}
+    </div>
   );
 }

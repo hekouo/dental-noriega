@@ -36,10 +36,10 @@ const VALID_SECTIONS = new Set([
   "ortodoncia-brackets-y-tubos",
 ]);
 
-function safeSectionSlug(s: string | undefined) {
-  const norm = (s || "").toLowerCase();
-  return VALID_SECTIONS.has(norm) ? norm : "consumibles-y-profilaxis";
-}
+// function safeSectionSlug(s: string | undefined) {
+//   const norm = (s || "").toLowerCase();
+//   return VALID_SECTIONS.has(norm) ? norm : "consumibles-y-profilaxis";
+// }
 
 // Mapeo de slugs de destacados a slugs reales del dataset
 const SLUG_MAPPING: Record<string, { section: string; slug: string }> = {

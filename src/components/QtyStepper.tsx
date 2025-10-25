@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+// import { useState } from "react";
 import { Minus, Plus } from "lucide-react";
 
 type Props = {
@@ -11,13 +11,13 @@ type Props = {
   className?: string;
 };
 
-export default function QtyStepper({ 
-  value, 
-  onChange, 
-  min = 1, 
-  max = 99, 
+export default function QtyStepper({
+  value,
+  onChange,
+  min = 1,
+  max = 99,
   disabled = false,
-  className = ""
+  className = "",
 }: Props) {
   const handleDecrement = () => {
     if (value > min && !disabled) {
@@ -32,7 +32,9 @@ export default function QtyStepper({
   };
 
   return (
-    <div className={`flex items-center border border-gray-300 rounded-md ${className}`}>
+    <div
+      className={`flex items-center border border-gray-300 rounded-md ${className}`}
+    >
       <button
         type="button"
         onClick={handleDecrement}
@@ -42,11 +44,11 @@ export default function QtyStepper({
       >
         <Minus size={16} />
       </button>
-      
+
       <span className="px-3 py-2 min-w-[3rem] text-center border-x border-gray-300">
         {value}
       </span>
-      
+
       <button
         type="button"
         onClick={handleIncrement}

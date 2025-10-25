@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 /* kill-port.cjs – Windows-friendly */
+/* eslint-env node */
+/* eslint-disable @typescript-eslint/no-require-imports, no-undef */
+/* eslint-disable sonarjs/os-command, sonarjs/no-ignored-exceptions */
 const { execSync } = require("node:child_process");
 
 const port = process.env.PORT || "3002";
