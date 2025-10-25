@@ -1,10 +1,8 @@
 // src/components/FeaturedCard.tsx
 "use client";
 import Link from "next/link";
-import { useRef, useState } from "react";
 import ImageWithFallback from "@/components/ui/ImageWithFallback";
-import QtyStepper from "@/components/ui/QtyStepper";
-import { useCartStore } from "@/lib/store/cartStore";
+import FeaturedCardControls from "@/components/FeaturedCardControls";
 import { formatCurrency } from "@/lib/utils/currency";
 
 type Props = {
@@ -19,26 +17,6 @@ type Props = {
 };
 
 export default function FeaturedCard({ item }: Props) {
-  const addToCart = useCartStore((s) => s.addToCart);
-  const [qty, setQty] = useState(1);
-  const busyRef = useRef(false);
-  const canBuy = item.inStock !== false && typeof item.price === "number";
-
-  function onAdd() {
-    if (!canBuy || busyRef.current) return;
-    busyRef.current = true;
-    addToCart({
-      id: item.canonicalUrl || item.title,
-      title: item.title,
-      price: item.price!,
-      qty,
-      imageUrl: item.imageUrl,
-      selected: true,
-    });
-    setTimeout(() => (busyRef.current = false), 250);
-    console.info("✅ Agregado al carrito:", item.title, "x", qty);
-  }
-
   const href =
     item.canonicalUrl || `/catalogo?query=${encodeURIComponent(item.title)}`;
 
@@ -75,16 +53,7 @@ export default function FeaturedCard({ item }: Props) {
           </div>
         ) : null}
 
-        <div className="mt-auto pt-3 flex items-center gap-3">
-          <QtyStepper value={qty} min={1} max={99} onChange={setQty} />
-          <button
-            onClick={onAdd}
-            disabled={!canBuy}
-            className="px-3 py-2 rounded-lg text-sm bg-black text-white disabled:opacity-50"
-          >
-            Agregar
-          </button>
-        </div>
+        <FeaturedCardControls item={item} />
       </div>
     </div>
   );
