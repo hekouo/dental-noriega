@@ -50,8 +50,8 @@ export default function FeaturedCard({
   const points = pointsFor(price);
   const imageUrl = imageResolved || image;
   
-  // Si no está en stock, mostrar badge y deshabilitar link
-  if (!inStock) {
+  // Solo mostrar badge "Agotado" si inStock es explícitamente false
+  if (inStock === false) {
     return (
       <div className="bg-white rounded-lg shadow-md overflow-hidden relative">
         <div className="aspect-square relative">
@@ -87,7 +87,7 @@ export default function FeaturedCard({
     );
   }
   
-  // Si hay fallback, mostrar cintillo
+  // Si hay fallback, mostrar cintillo "Sugerido"
   const showFallback = !resolved && fallback;
   
   return (

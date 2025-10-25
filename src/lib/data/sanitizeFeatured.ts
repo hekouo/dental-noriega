@@ -25,25 +25,26 @@ export async function sanitizeFeatured(limit?: number): Promise<SanitizedFeature
       const resolved = await findExact(item.sectionSlug as any, item.slug);
       
       if (resolved) {
-        // Producto encontrado y en stock
+        // Producto encontrado - inStock por defecto true
+        const inStock = true; // Por defecto disponible
         sanitized.push({
           ...item,
           resolved: true,
           canonicalUrl: `/catalogo/${item.sectionSlug}/${item.slug}`,
-          inStock: true
+          inStock
         });
       } else {
         // Producto no encontrado, buscar alternativas
         const alternatives = await findAlternatives(item, index);
         
         if (alternatives.length > 0) {
-          // Usar la mejor alternativa
+          // Usar la mejor alternativa - por defecto disponible
           const best = alternatives[0];
           sanitized.push({
             ...item,
             resolved: false,
             canonicalUrl: `/catalogo/${best.section}/${best.slug}`,
-            inStock: true,
+            inStock: true, // Alternativas también disponibles por defecto
             fallback: {
               section: best.section,
               slug: best.slug,
@@ -51,21 +52,21 @@ export async function sanitizeFeatured(limit?: number): Promise<SanitizedFeature
             }
           });
         } else {
-          // No hay alternativas, marcar como sin stock
+          // No hay alternativas, marcar como sin stock (solo en este caso)
           sanitized.push({
             ...item,
             resolved: false,
-            inStock: false
+            inStock: false // Solo aquí se marca como agotado
           });
         }
       }
     } catch (error) {
       console.warn(`[SanitizeFeatured] Error processing ${item.slug}:`, error);
-      // En caso de error, marcar como sin stock
+      // En caso de error, asumir disponible por defecto
       sanitized.push({
         ...item,
         resolved: false,
-        inStock: false
+        inStock: true // Por defecto disponible incluso con error
       });
     }
   }

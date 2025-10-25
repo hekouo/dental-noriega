@@ -9,6 +9,7 @@ type Order = {
   id: string;
   customer_name: string;
   customer_email: string;
+  honorific?: string;
   total: number;
   created_at: string;
 };
@@ -85,7 +86,7 @@ export default async function GraciasPage({ searchParams }: Props) {
           </span>
         </p>
         <p>
-          <span className="font-semibold">Cliente:</span> {order.customer_name}
+          <span className="font-semibold">Cliente:</span> {order.honorific || "Dr."} {order.customer_name}
         </p>
         <p>
           <span className="font-semibold">Email:</span> {order.customer_email}

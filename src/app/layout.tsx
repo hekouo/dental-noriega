@@ -9,6 +9,7 @@ import CartBubble from "@/components/CartBubble";
 import { ToothAccountMenu } from "@/components/ToothAccountMenu";
 import { ROUTES } from "@/lib/routes";
 import { Search } from "lucide-react";
+import BrandMark from "@/components/BrandMark";
 
 const ConsultarDrawer = dynamic(() => import("@/components/ConsultarDrawer"), {
   ssr: false,
@@ -69,11 +70,8 @@ export default function RootLayout({
         <CheckoutDevGuard />
         <header className="border-b bg-white sticky top-0 z-40">
           <nav className="max-w-6xl mx-auto flex items-center justify-between p-4 gap-4">
-            <Link
-              href={ROUTES.home()}
-              className="text-xl font-bold tracking-wide"
-            >
-              <span>DENTAL NORIEGA</span>
+            <Link href={ROUTES.home()}>
+              <BrandMark />
             </Link>
 
             {/* Buscador desktop */}

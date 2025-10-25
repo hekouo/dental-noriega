@@ -17,6 +17,7 @@ type CreateOrderData = {
   city?: string;
   country?: string;
   paymentMethod: string;
+  honorific?: string;
   items: OrderItem[];
 };
 
@@ -39,10 +40,11 @@ export async function createOrderAction(data: CreateOrderData) {
           customer_name: data.name,
           customer_email: data.email,
           customer_phone: data.phone || null,
-          address: data.address || null,
-          city: data.city || null,
-          country: data.country || null,
+          // address: data.address || null, // Columna no existe en schema
+          // city: data.city || null, // Columna no existe en schema  
+          // country: data.country || null, // Columna no existe en schema
           payment_method: data.paymentMethod,
+          honorific: data.honorific || "Dr.",
           subtotal,
           total,
           status: "pending"

@@ -64,7 +64,7 @@ export async function GET(req: Request) {
         product: {
           name: result.title,
           sku: result.id,
-          inStock: true, // Por ahora asumir true
+          inStock: true, // Por defecto disponible
           price: result.price
         },
         suggestions: []
@@ -84,7 +84,7 @@ export async function GET(req: Request) {
         product: {
           name: result.title,
           sku: result.id,
-          inStock: true,
+          inStock: true, // Por defecto disponible
           price: result.price
         },
         suggestions: []
@@ -105,7 +105,7 @@ export async function GET(req: Request) {
         product: {
           name: best.product.title,
           sku: best.product.id,
-          inStock: true,
+          inStock: true, // Por defecto disponible
           price: best.product.price
         },
         suggestions: []
@@ -127,7 +127,7 @@ export async function GET(req: Request) {
           product: {
             name: result.title,
             sku: result.id,
-            inStock: true,
+            inStock: true, // Por defecto disponible
             price: result.price
           },
           suggestions: []

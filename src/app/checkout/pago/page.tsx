@@ -19,6 +19,7 @@ type FormValues = {
   city?: string;
   country?: string;
   paymentMethod: string;
+  honorific: string;
 };
 
 export default function PagoPage() {
@@ -62,6 +63,7 @@ export default function PagoPage() {
         city: data.city,
         country: data.country,
         paymentMethod: data.paymentMethod,
+        honorific: data.honorific,
         items: selectedItems.map(item => ({
           id: item.id,
           title: item.title,
@@ -110,6 +112,22 @@ export default function PagoPage() {
 
       {/* Formulario */}
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Tratamiento *
+          </label>
+          <select
+            {...register("honorific", { required: "El tratamiento es requerido" })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="Dr.">Dr.</option>
+            <option value="Dra.">Dra.</option>
+          </select>
+          {errors.honorific && (
+            <p className="text-red-500 text-sm mt-1">{errors.honorific.message}</p>
+          )}
+        </div>
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Nombre completo *
