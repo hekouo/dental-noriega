@@ -1,6 +1,6 @@
 import Link from "next/link";
 import FeaturedGrid from "@/components/FeaturedGrid";
-import { loadFeatured } from "@/lib/data/loadFeatured";
+import { sanitizeFeatured } from "@/lib/data/sanitizeFeatured";
 
 const categories = [
   { title: "Consumibles y Profilaxis", href: "/tienda/consumibles" },
@@ -21,7 +21,7 @@ const categories = [
 export const revalidate = 300;
 
 export default async function TiendaPage() {
-  const featured = await loadFeatured(8);
+  const featured = await sanitizeFeatured(8);
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-gradient-to-r from-primary-600 to-primary-800 text-white py-12">

@@ -2,7 +2,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { ShoppingBag, Package, Award, Truck } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
-import { loadFeatured } from "@/lib/data/loadFeatured";
+import { sanitizeFeatured } from "@/lib/data/sanitizeFeatured";
 import FeaturedGrid from "@/components/FeaturedGrid";
 
 // Dynamic import para componente no crítico
@@ -13,7 +13,7 @@ const FinalThanks = dynamic(() => import("@/components/FinalThanks"), {
 export const revalidate = 300; // Cache 5 minutos
 
 export default async function HomePage() {
-  const featured = await loadFeatured(8);
+  const featured = await sanitizeFeatured(8);
 
   return (
     <main className="min-h-screen">

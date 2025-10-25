@@ -12,6 +12,27 @@ import {
 import { SECTIONS, SECTION_KEYWORDS } from "@/lib/data/sections";
 import { normalizeSlug } from "@/lib/utils/slug";
 
+type ResolveOk = {
+  ok: true;
+  section: string;
+  slug: string;
+  canonical: boolean;
+  redirectTo?: string;
+  product?: { 
+    name: string; 
+    sku?: string; 
+    inStock?: boolean; 
+    price?: number 
+  };
+  suggestions: Array<{ section: string; slug: string; score?: number }>;
+};
+
+type ResolveFail = {
+  ok: false;
+  guessedSection?: string;
+  suggestions: Array<{ section: string; slug: string; score?: number }>;
+};
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const section = searchParams.get("section") ?? "";
@@ -35,40 +56,61 @@ export async function GET(req: Request) {
     // Fase 1: Búsqueda exacta
     let result = await findExact(normalizedSection, normalizedSlug);
     if (result) {
-      return NextResponse.json({ 
+      const response: ResolveOk = { 
         ok: true, 
         section: normalizedSection, 
         slug: normalizedSlug,
         canonical: true,
-        product: result
-      });
+        product: {
+          name: result.title,
+          sku: result.id,
+          inStock: true, // Por ahora asumir true
+          price: result.price
+        },
+        suggestions: []
+      };
+      return NextResponse.json(response);
     }
 
     // Fase 2: Búsqueda por alias
     result = await findAlias(normalizedSection, normalizedSlug);
     if (result) {
-      return NextResponse.json({ 
+      const response: ResolveOk = { 
         ok: true, 
         section: normalizedSection, 
         slug: normalizedSlug,
         canonical: false,
         redirectTo: `/catalogo/${normalizedSection}/${normalizedSlug}`,
-        product: result
-      });
+        product: {
+          name: result.title,
+          sku: result.id,
+          inStock: true,
+          price: result.price
+        },
+        suggestions: []
+      };
+      return NextResponse.json(response);
     }
 
     // Fase 3: Búsqueda cross-section
     const crossResults = await findCross(normalizedSlug);
     if (crossResults.length > 0) {
       const best = crossResults[0];
-      return NextResponse.json({ 
+      const response: ResolveOk = { 
         ok: true, 
         section: best.section, 
         slug: best.slug,
         canonical: false,
         redirectTo: `/catalogo/${best.section}/${best.slug}`,
-        product: best.product
-      });
+        product: {
+          name: best.product.title,
+          sku: best.product.id,
+          inStock: true,
+          price: best.product.price
+        },
+        suggestions: []
+      };
+      return NextResponse.json(response);
     }
 
     // Fase 4: Aplicar correcciones de typos
@@ -76,14 +118,21 @@ export async function GET(req: Request) {
     if (correctedSlug !== normalizedSlug) {
       result = await findExact(normalizedSection, correctedSlug);
       if (result) {
-        return NextResponse.json({ 
+        const response: ResolveOk = { 
           ok: true, 
           section: normalizedSection, 
           slug: correctedSlug,
           canonical: false,
           redirectTo: `/catalogo/${normalizedSection}/${correctedSlug}`,
-          product: result
-        });
+          product: {
+            name: result.title,
+            sku: result.id,
+            inStock: true,
+            price: result.price
+          },
+          suggestions: []
+        };
+        return NextResponse.json(response);
       }
     }
 
@@ -108,23 +157,27 @@ export async function GET(req: Request) {
       }
     }
 
-    return NextResponse.json({ 
+    const response: ResolveFail = { 
       ok: false, 
       suggestions,
       guessedSection,
-      debug: debug ? {
-        original: { section, slug },
-        normalized: { section: normalizedSection, slug: normalizedSlug },
-        corrected: correctedSlug,
-        fuzzyCount: fuzzyResults.length
-      } : undefined
-    }, { status: 404 });
+      ...(debug && {
+        debug: {
+          original: { section, slug },
+          normalized: { section: normalizedSection, slug: normalizedSlug },
+          corrected: correctedSlug,
+          fuzzyCount: fuzzyResults.length
+        }
+      })
+    };
+    return NextResponse.json(response, { status: 404 });
 
   } catch (error) {
     console.error("[API] Catalog resolve error:", error);
-    return NextResponse.json({ 
+    const response: ResolveFail = { 
       ok: false, 
-      error: "Internal server error" 
-    }, { status: 500 });
+      suggestions: []
+    };
+    return NextResponse.json(response, { status: 500 });
   }
 }

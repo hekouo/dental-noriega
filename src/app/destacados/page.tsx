@@ -1,11 +1,11 @@
 // src/app/destacados/page.tsx
-import { loadFeatured } from "@/lib/data/loadFeatured";
+import { sanitizeFeatured } from "@/lib/data/sanitizeFeatured";
 import FeaturedGrid from "@/components/FeaturedGrid";
 
 export const revalidate = 300;
 
 export default async function DestacadosPage() {
-  const products = await loadFeatured(12);
+  const products = await sanitizeFeatured(12);
 
   // Protege contra vacío:
   if (!products?.length) {
