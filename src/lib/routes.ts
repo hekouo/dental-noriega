@@ -8,6 +8,6 @@ export const ROUTES = {
   product: (sectionSlug: string, productSlug: string) =>
     `/catalogo/${sectionSlug}/${productSlug}`,
   destacados: () => "/destacados",
-  cuenta: () => "/cuenta",
+  cuenta: () => "/account",
   carrito: () => "/carrito",
 };
