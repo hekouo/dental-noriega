@@ -19,18 +19,35 @@ type ResolveOk = {
   canonical: boolean;
   redirectTo?: string;
   product?: { 
-    name: string; 
-    sku?: string; 
+    title: string; 
+    id?: string; 
     inStock?: boolean; 
-    price?: number 
+    price?: number;
+    imageUrl?: string;
   };
-  suggestions: Array<{ section: string; slug: string; score?: number }>;
+  suggestions: Array<{ 
+    section: string; 
+    slug: string; 
+    score?: number;
+    title?: string;
+    price?: number;
+    imageUrl?: string;
+    inStock?: boolean;
+  }>;
 };
 
 type ResolveFail = {
   ok: false;
   guessedSection?: string;
-  suggestions: Array<{ section: string; slug: string; score?: number }>;
+  suggestions: Array<{ 
+    section: string; 
+    slug: string; 
+    score?: number;
+    title?: string;
+    price?: number;
+    imageUrl?: string;
+    inStock?: boolean;
+  }>;
 };
 
 export async function GET(req: Request) {
@@ -56,10 +73,11 @@ export async function GET(req: Request) {
         slug: normalizedSlug,
         canonical: true,
         product: {
-          name: result.title,
-          sku: result.id,
+          title: result.title,
+          id: result.id,
           inStock: true, // Por defecto disponible
-          price: result.price
+          price: result.price,
+          imageUrl: result.image
         },
         suggestions: []
       };
@@ -76,10 +94,11 @@ export async function GET(req: Request) {
         canonical: false,
         redirectTo: `/catalogo/${normalizedSection}/${normalizedSlug}`,
         product: {
-          name: result.title,
-          sku: result.id,
+          title: result.title,
+          id: result.id,
           inStock: true, // Por defecto disponible
-          price: result.price
+          price: result.price,
+          imageUrl: result.image
         },
         suggestions: []
       };
@@ -97,8 +116,8 @@ export async function GET(req: Request) {
         canonical: false,
         redirectTo: `/catalogo/${best.section}/${best.slug}`,
         product: {
-          name: best.product.title,
-          sku: best.product.id,
+          title: best.product.title,
+          id: best.product.id,
           inStock: true, // Por defecto disponible
           price: best.product.price
         },
@@ -119,8 +138,8 @@ export async function GET(req: Request) {
           canonical: false,
           redirectTo: `/catalogo/${normalizedSection}/${correctedSlug}`,
           product: {
-            name: result.title,
-            sku: result.id,
+            title: result.title,
+            id: result.id,
             inStock: true, // Por defecto disponible
             price: result.price
           },
@@ -136,7 +155,10 @@ export async function GET(req: Request) {
       section: r.section,
       slug: r.slug,
       score: r.score,
-      title: r.product.title
+      title: r.product.title,
+      price: r.product.price,
+      imageUrl: r.product.image,
+      inStock: true // Por defecto disponible
     }));
 
     // Heurística de sección sugerida

@@ -3,12 +3,12 @@
 import { useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import ProductImage from "@/components/ProductImage";
+import ImageWithFallback from "@/components/ImageWithFallback";
 import PointsBadge from "@/components/PointsBadge";
 import { pointsFor } from "@/lib/utils/points";
 import { formatPrice } from "@/lib/utils/catalog";
 import { useCartStore } from "@/lib/store/cartStore";
-import QtyStepper from "@/components/QtyStepper";
+import QtyStepper from "@/components/ui/QtyStepper";
 import { ROUTES } from "@/lib/routes";
 // Badge simple sin dependencias externas
 const Badge = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
@@ -70,15 +70,24 @@ export default function FeaturedCard({
         imageUrl,
         selected: true
       });
+      
+      // Toast de confirmación y micro-animación
+      console.info(`✅ Agregado al carrito: ${title} x${qty}`);
+      
+      // Micro-animación del carrito (bump)
+      const cartBubble = document.querySelector('[data-cart-bubble]');
+      if (cartBubble) {
+        cartBubble.classList.add('animate-bounce');
+        setTimeout(() => cartBubble.classList.remove('animate-bounce'), 1000);
+      }
     } finally {
       busyRef.current = false;
     }
   };
 
   const handlePrefetch = () => {
-    if (canonicalUrl) {
-      router.prefetch(canonicalUrl);
-    }
+    const href = canonicalUrl || ROUTES.product(sectionSlug, slug);
+    router.prefetch(href);
   };
   
   // Solo mostrar badge "Agotado" si inStock es explícitamente false
@@ -86,12 +95,13 @@ export default function FeaturedCard({
     return (
       <div className="bg-white rounded-lg shadow-md overflow-hidden relative">
         <div className="aspect-square relative">
-          <ProductImage
+          <ImageWithFallback
             src={imageUrl}
             alt={title}
             width={300}
             height={300}
             sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            className="object-cover w-full h-full"
           />
           <Badge className="absolute top-2 right-2 bg-red-500">
             Agotado
@@ -136,12 +146,13 @@ export default function FeaturedCard({
         onMouseEnter={handlePrefetch}
       >
         <div className="aspect-square relative">
-          <ProductImage
+          <ImageWithFallback
             src={imageUrl}
             alt={title}
             width={300}
             height={300}
             sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            className="object-cover w-full h-full"
           />
         </div>
       </Link>
