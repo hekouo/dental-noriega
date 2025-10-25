@@ -5,6 +5,7 @@ import { resolveProductClient, type ResolveResult } from "@/lib/data/resolveProd
 import Link from "next/link";
 import { ROUTES } from "@/lib/routes";
 import RecentlyViewed from "@/components/RecentlyViewed";
+import ImageWithFallback from "@/components/ImageWithFallback";
 
 type Props = {
   section: string;
@@ -126,9 +127,12 @@ export default function ProductResolver({ section, slug, children }: Props) {
             <div className="grid md:grid-cols-2 gap-8 p-6 md:p-8">
               {/* Imagen */}
               <div className="relative w-full aspect-square bg-gray-100 rounded-xl overflow-hidden">
-                <img
+                <ImageWithFallback
                   src={product.image || "/placeholder.png"}
                   alt={product.title}
+                  width={400}
+                  height={400}
+                  sizes="(min-width: 768px) 50vw, 100vw"
                   className="w-full h-full object-cover"
                 />
               </div>

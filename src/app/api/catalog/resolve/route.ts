@@ -136,7 +136,9 @@ export async function GET(req: Request) {
       section: r.section,
       slug: r.slug,
       score: r.score,
-      title: r.product.title
+      title: r.product.title,
+      imageUrl: r.product.image,
+      price: r.product.price
     }));
 
     // Heurística de sección sugerida

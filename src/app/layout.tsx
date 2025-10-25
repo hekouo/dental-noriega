@@ -20,6 +20,9 @@ const CheckoutDevGuard = dynamic(
     ssr: false,
   },
 );
+const WarmupTrigger = dynamic(() => import("@/components/WarmupTrigger"), {
+  ssr: false,
+});
 const CartDevGuard = dynamic(
   () => import("@/components/CartDevGuard"),
   {
@@ -158,6 +161,7 @@ export default function RootLayout({
         {/* Dev Guards */}
         <CheckoutDevGuard />
         <CartDevGuard />
+        <WarmupTrigger />
 
         {/* Footer */}
         <SiteFooter />

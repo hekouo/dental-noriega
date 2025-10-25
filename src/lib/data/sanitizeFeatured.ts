@@ -29,6 +29,7 @@ export type SanitizedFeaturedItem = FeaturedItem & {
   resolved: boolean;
   canonicalUrl?: string;
   inStock: boolean;
+  imageUrl?: string;
   fallback?: {
     section: string;
     slug: string;
@@ -48,7 +49,7 @@ export async function sanitizeFeatured(limit?: number): Promise<SanitizedFeature
       const resolveResult = await resolveProductViaAPI(item.slug);
       
       if (resolveResult?.ok) {
-        // Producto encontrado - usar URL canónica si existe
+        // Producto encontrado - SIEMPRE usar URL canónica a PDP
         const canonicalUrl = resolveResult.redirectTo || `/catalogo/${resolveResult.section}/${resolveResult.slug}`;
         const inStock = resolveResult.product?.inStock !== false; // Por defecto true
         
@@ -57,18 +58,24 @@ export async function sanitizeFeatured(limit?: number): Promise<SanitizedFeature
           resolved: true,
           canonicalUrl,
           inStock,
-          sectionSlug: resolveResult.section // Actualizar sección real
+          sectionSlug: resolveResult.section, // Actualizar sección real
+          title: resolveResult.product?.title || item.title,
+          price: resolveResult.product?.price || item.price,
+          imageUrl: resolveResult.product?.imageUrl || item.image
         });
       } else if (resolveResult?.suggestions?.length > 0) {
-        // Usar la mejor sugerencia
+        // Usar la mejor sugerencia - SIEMPRE a PDP
         const best = resolveResult.suggestions[0];
         const inStock = true; // Sugerencias disponibles por defecto
         
         sanitized.push({
           ...item,
           resolved: false,
-          canonicalUrl: `/catalogo/${best.section}/${best.slug}`,
+          canonicalUrl: `/catalogo/${best.section}/${best.slug}`, // SIEMPRE PDP
           inStock,
+          title: best.title || item.title,
+          price: best.price || item.price,
+          imageUrl: best.imageUrl || item.image,
           fallback: {
             section: best.section,
             slug: best.slug,
