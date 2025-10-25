@@ -43,18 +43,12 @@ export async function GET(req: Request) {
   const normalizedSection = normalizeSlug(section) as SectionSlug;
   const normalizedSlug = normalizeSlug(slug);
 
-  // Verificar que la sección es válida
-  if (!SECTIONS.includes(normalizedSection)) {
-    return NextResponse.json({ 
-      ok: false, 
-      error: "Invalid section",
-      suggestions: []
-    }, { status: 400 });
-  }
+  // Si la sección no es válida (ej. "destacados"), ignorar y usar cross-section
+  const validSection = SECTIONS.includes(normalizedSection) ? normalizedSection : null;
 
   try {
-    // Fase 1: Búsqueda exacta
-    let result = await findExact(normalizedSection, normalizedSlug);
+    // Fase 1: Búsqueda exacta (solo si la sección es válida)
+    let result = validSection ? await findExact(validSection, normalizedSlug) : null;
     if (result) {
       const response: ResolveOk = { 
         ok: true, 
@@ -72,8 +66,8 @@ export async function GET(req: Request) {
       return NextResponse.json(response);
     }
 
-    // Fase 2: Búsqueda por alias
-    result = await findAlias(normalizedSection, normalizedSlug);
+    // Fase 2: Búsqueda por alias (solo si la sección es válida)
+    result = validSection ? await findAlias(validSection, normalizedSlug) : null;
     if (result) {
       const response: ResolveOk = { 
         ok: true, 
@@ -116,7 +110,7 @@ export async function GET(req: Request) {
     // Fase 4: Aplicar correcciones de typos
     const correctedSlug = applyTypoCorrections(normalizedSlug);
     if (correctedSlug !== normalizedSlug) {
-      result = await findExact(normalizedSection, correctedSlug);
+      result = validSection ? await findExact(validSection, correctedSlug) : null;
       if (result) {
         const response: ResolveOk = { 
           ok: true, 
@@ -170,14 +164,16 @@ export async function GET(req: Request) {
         }
       })
     };
-    return NextResponse.json(response, { status: 404 });
+    return NextResponse.json(response); // Siempre 200, nunca 404
 
   } catch (error) {
-    console.error("[API] Catalog resolve error:", error);
+    if (process.env.NEXT_PUBLIC_DEBUG === "1") {
+      console.error("[API] Catalog resolve error:", error);
+    }
     const response: ResolveFail = { 
       ok: false, 
       suggestions: []
     };
-    return NextResponse.json(response, { status: 500 });
+    return NextResponse.json(response); // Siempre 200, nunca 500
   }
 }

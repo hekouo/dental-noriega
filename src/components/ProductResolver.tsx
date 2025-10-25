@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { resolveProductClient, type ResolveResult } from "@/lib/data/resolveProduct.client";
 import Link from "next/link";
@@ -16,6 +16,7 @@ export default function ProductResolver({ section, slug, children }: Props) {
   const router = useRouter();
   const [resolveResult, setResolveResult] = useState<ResolveResult | null>(null);
   const [loading, setLoading] = useState(true);
+  const redirectedRef = useRef(false); // Proteger contra ciclos de redirección
 
   useEffect(() => {
     const resolve = async () => {
@@ -23,9 +24,13 @@ export default function ProductResolver({ section, slug, children }: Props) {
         const result = await resolveProductClient(section, slug);
         setResolveResult(result);
         
-        // Si hay redirect, hacer redirect automático
-        if (result?.ok && result.redirectTo) {
-          router.replace(result.redirectTo);
+        // Null-safety estricta
+        const { ok, redirectTo, suggestions = [] } = result as any ?? {};
+        
+        // Si hay redirect, hacer redirect automático (una sola vez)
+        if (ok && redirectTo && !redirectedRef.current) {
+          redirectedRef.current = true;
+          router.replace(redirectTo);
           return;
         }
       } catch (error) {

@@ -1,6 +1,29 @@
 import "server-only";
 import { loadFeatured, type FeaturedItem } from "./loadFeatured";
-import { getCatalogIndex, findExact } from "./catalog-index.server";
+import { getCatalogIndex, findExact, findCross } from "./catalog-index.server";
+
+// Función para resolver usando la API (server-side fetch)
+async function resolveProductViaAPI(slug: string, section?: string) {
+  try {
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3002';
+    const url = section 
+      ? `${baseUrl}/api/catalog/resolve?section=${encodeURIComponent(section)}&slug=${encodeURIComponent(slug)}`
+      : `${baseUrl}/api/catalog/resolve?slug=${encodeURIComponent(slug)}`;
+    
+    const response = await fetch(url, { 
+      cache: 'force-cache',
+      headers: { 'User-Agent': 'Server-Side-Resolve' }
+    });
+    
+    if (!response.ok) return null;
+    return await response.json();
+  } catch (error) {
+    if (process.env.NEXT_PUBLIC_DEBUG === "1") {
+      console.warn(`[SanitizeFeatured] API resolve failed for ${slug}:`, error);
+    }
+    return null;
+  }
+}
 
 export type SanitizedFeaturedItem = FeaturedItem & {
   resolved: boolean;
@@ -21,47 +44,48 @@ export async function sanitizeFeatured(limit?: number): Promise<SanitizedFeature
   
   for (const item of featuredItems) {
     try {
-      // Intentar resolver el producto
-      const resolved = await findExact(item.sectionSlug as any, item.slug);
+      // Resolver usando la API (sin sección específica para destacados)
+      const resolveResult = await resolveProductViaAPI(item.slug);
       
-      if (resolved) {
-        // Producto encontrado - inStock por defecto true
-        const inStock = true; // Por defecto disponible
+      if (resolveResult?.ok) {
+        // Producto encontrado - usar URL canónica si existe
+        const canonicalUrl = resolveResult.redirectTo || `/catalogo/${resolveResult.section}/${resolveResult.slug}`;
+        const inStock = resolveResult.product?.inStock !== false; // Por defecto true
+        
         sanitized.push({
           ...item,
           resolved: true,
-          canonicalUrl: `/catalogo/${item.sectionSlug}/${item.slug}`,
-          inStock
+          canonicalUrl,
+          inStock,
+          sectionSlug: resolveResult.section // Actualizar sección real
+        });
+      } else if (resolveResult?.suggestions?.length > 0) {
+        // Usar la mejor sugerencia
+        const best = resolveResult.suggestions[0];
+        const inStock = true; // Sugerencias disponibles por defecto
+        
+        sanitized.push({
+          ...item,
+          resolved: false,
+          canonicalUrl: `/catalogo/${best.section}/${best.slug}`,
+          inStock,
+          fallback: {
+            section: best.section,
+            slug: best.slug,
+            title: best.title || item.title
+          }
         });
       } else {
-        // Producto no encontrado, buscar alternativas
-        const alternatives = await findAlternatives(item, index);
-        
-        if (alternatives.length > 0) {
-          // Usar la mejor alternativa - por defecto disponible
-          const best = alternatives[0];
-          sanitized.push({
-            ...item,
-            resolved: false,
-            canonicalUrl: `/catalogo/${best.section}/${best.slug}`,
-            inStock: true, // Alternativas también disponibles por defecto
-            fallback: {
-              section: best.section,
-              slug: best.slug,
-              title: best.title
-            }
-          });
-        } else {
-          // No hay alternativas, marcar como sin stock (solo en este caso)
-          sanitized.push({
-            ...item,
-            resolved: false,
-            inStock: false // Solo aquí se marca como agotado
-          });
+        // No hay alternativas, excluir del grid
+        if (process.env.NEXT_PUBLIC_DEBUG === "1") {
+          console.warn(`[SanitizeFeatured] No alternatives found for ${item.slug}, excluding from grid`);
         }
+        continue; // Saltar este item
       }
     } catch (error) {
-      console.warn(`[SanitizeFeatured] Error processing ${item.slug}:`, error);
+      if (process.env.NEXT_PUBLIC_DEBUG === "1") {
+        console.warn(`[SanitizeFeatured] Error processing ${item.slug}:`, error);
+      }
       // En caso de error, asumir disponible por defecto
       sanitized.push({
         ...item,
