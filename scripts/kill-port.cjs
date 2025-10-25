@@ -22,7 +22,7 @@ try {
 
   execSync(`taskkill /PID ${pid} /F`, { stdio: "inherit" });
   console.log(`[kill-port] PID ${pid} en puerto ${port} eliminado.`);
-} catch (err) {
+} catch (_err) {
   // Silencioso si no hay coincidencias
   process.exit(0);
 }
