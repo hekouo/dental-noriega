@@ -1,5 +1,6 @@
 // src/lib/catalog/getProduct.server.ts
 import "server-only";
+import { getCatalogIndex } from "@/lib/data/catalog-index.server";
 
 export type ProductLite = {
   section: string;
@@ -12,20 +13,25 @@ export type ProductLite = {
   sku?: string;
 };
 
-let _catalogIndex: Map<string, Map<string, ProductLite>> | null = null;
-
-async function loadCatalogIndex(): Promise<
-  Map<string, Map<string, ProductLite>>
-> {
-  if (_catalogIndex) return _catalogIndex;
-  // TODO: Reemplazar por lectura real (memoria/CSV/DB) que devuelva Map<section, Map<slug, ProductLite>>
-  _catalogIndex = new Map();
-  return _catalogIndex;
-}
-
-export async function getProductBySectionSlug(section: string, slug: string) {
-  const idx = await loadCatalogIndex();
-  const bySection = idx.get(section);
+export async function getProductBySectionSlug(
+  section: string,
+  slug: string,
+): Promise<ProductLite | null> {
+  const idx = await getCatalogIndex();
+  const bySection = idx.bySection.get(section as any);
   if (!bySection) return null;
-  return bySection.get(slug) ?? null;
+
+  const catalogProduct = bySection.get(slug);
+  if (!catalogProduct) return null;
+
+  // Convertir CatalogProductLite a ProductLite
+  return {
+    section,
+    slug: catalogProduct.slug,
+    title: catalogProduct.title,
+    price: catalogProduct.price,
+    imageUrl: catalogProduct.image,
+    inStock: true, // Default
+    sku: catalogProduct.id,
+  };
 }

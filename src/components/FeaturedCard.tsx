@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 import ImageWithFallback from "@/components/ui/ImageWithFallback";
 import QtyStepper from "@/components/ui/QtyStepper";
-import { useCartStore } from "@/lib/store/cartStore"; // ajustar import
+import { useCartStore } from "@/lib/store/cartStore";
+import { formatCurrency } from "@/lib/utils/currency";
 
 type Props = {
   item: {
@@ -38,10 +39,13 @@ export default function FeaturedCard({ item }: Props) {
     console.info("✅ Agregado al carrito:", item.title, "x", qty);
   }
 
+  const href =
+    item.canonicalUrl || `/catalogo?query=${encodeURIComponent(item.title)}`;
+
   return (
     <div className="border rounded-xl overflow-hidden flex flex-col">
       <Link
-        href={item.canonicalUrl || "#"}
+        href={href}
         onMouseEnter={() => {
           if (item.canonicalUrl) {
             fetch(item.canonicalUrl, { cache: "force-cache" }).catch(() => {});
@@ -63,9 +67,7 @@ export default function FeaturedCard({ item }: Props) {
           {item.title}
         </div>
         <div className="mt-1 text-sm text-gray-700">
-          {typeof item.price === "number"
-            ? `$${(item.price / 100).toFixed(2)}`
-            : "—"}
+          {typeof item.price === "number" ? formatCurrency(item.price) : "—"}
         </div>
         {item.badge ? (
           <div className="mt-1 text-[11px] inline-flex items-center px-2 py-0.5 rounded bg-gray-100 text-gray-700">

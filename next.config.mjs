@@ -1,17 +1,17 @@
 // next.config.mjs
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    images: {
-      remotePatterns: [
-        { protocol: 'https', hostname: 'drive.google.com', pathname: '/uc*' },
-        { protocol: 'https', hostname: 'lh3.googleusercontent.com', pathname: '/**' },
-        { protocol: 'https', hostname: 'i.imgur.com', pathname: '/**' },
-        { protocol: 'https', hostname: '**.supabase.co', pathname: '/storage/**' },
-        { protocol: 'https', hostname: '**.supabase.in', pathname: '/storage/**' },
-      ],
-      formats: ['image/avif', 'image/webp'],
-    },
-  };
-  
-  export default nextConfig;
-  
+  images: {
+    remotePatterns: [
+      { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
+      { protocol: 'https', hostname: 'drive.google.com' },
+      { protocol: 'https', hostname: 'docs.google.com' },
+      { protocol: 'https', hostname: 'i.imgur.com' },
+      { protocol: 'https', hostname: '**.supabase.co', pathname: '/storage/**' },
+      { protocol: 'https', hostname: '**.supabase.in', pathname: '/storage/**' },
+    ],
+    unoptimized: process.env.NEXT_IMAGE_UNOPTIMIZED === '1',
+  },
+};
+
+export default nextConfig;

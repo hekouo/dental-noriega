@@ -3,7 +3,8 @@
 import { useRef, useState } from "react";
 import ImageWithFallback from "@/components/ui/ImageWithFallback";
 import QtyStepper from "@/components/ui/QtyStepper";
-import { useCartStore } from "@/lib/store/cartStore"; // ajustar import si difiere
+import { useCartStore } from "@/lib/store/cartStore";
+import { formatCurrency } from "@/lib/utils/currency";
 
 type Props = {
   product: {
@@ -58,7 +59,7 @@ export default function ProductDetailPage({ product }: Props) {
 
       <div>
         <h1 className="text-2xl font-semibold">{product.title}</h1>
-        <div className="text-xl mt-2">${(product.price / 100).toFixed(2)}</div>
+        <div className="text-xl mt-2">{formatCurrency(product.price)}</div>
         {product.inStock === false ? (
           <div className="mt-2 text-sm text-red-600">Agotado</div>
         ) : (

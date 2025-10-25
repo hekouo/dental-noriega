@@ -1,35 +1,25 @@
-export function formatCurrency(amount: number): string {
-  // Protección contra NaN e infinito
-  if (!Number.isFinite(amount) || amount < 0) {
-    return "Precio a consultar";
-  }
+export function parsePriceToNumber(raw: string | number): number {
+  if (typeof raw === "number") return raw;
+  const cleaned = raw.replace(/[^\d.,]/g, "").replace(",", ".");
+  const n = Number.parseFloat(cleaned);
+  return Number.isFinite(n) ? n : 0;
+}
+
+export function formatMXN(n: number): string {
   return new Intl.NumberFormat("es-MX", {
     style: "currency",
     currency: "MXN",
-  }).format(amount);
+    minimumFractionDigits: 2,
+  }).format(n);
 }
 
-export function calculateShipping(subtotal: number): number {
-  // Envío gratis sobre $2000
-  return subtotal >= 2000 ? 0 : 150;
+export function formatCurrency(amount: number): string {
+  if (isNaN(amount) || amount < 0) {
+    return "Precio a consultar";
+  }
+  return `$${amount.toFixed(2)} MXN`;
 }
 
-export function calculatePointsEarned(total: number): number {
-  // 1 punto por cada $10 MXN
-  return Math.floor(total / 10);
-}
-
-export function calculatePointsValue(points: number): number {
-  // 100 puntos = $10 MXN
-  return (points / 100) * 10;
-}
-
-export function calculateMaxRedeemablePoints(
-  total: number,
-  balance: number,
-): number {
-  // Máximo 50% del total puede ser cubierto con puntos
-  const maxDiscount = total * 0.5;
-  const maxPoints = Math.floor((maxDiscount / 10) * 100);
-  return Math.min(maxPoints, balance);
+export function calculatePointsValue(amount: number): number {
+  return Math.floor(amount * 0.01); // 1 punto por cada peso
 }
