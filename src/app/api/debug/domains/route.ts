@@ -10,9 +10,9 @@ export async function GET() {
 
     for (const [, sectionMap] of index.bySection) {
       for (const [, product] of sectionMap) {
-        if (product.image) {
+        if (product.imageUrl) {
           try {
-            const url = new URL(product.image);
+            const url = new URL(product.imageUrl);
             domains.add(url.hostname);
           } catch {
             // Invalid URL, skip

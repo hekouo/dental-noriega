@@ -28,6 +28,14 @@ export default function PagoPage() {
   const total = useSelectedTotal();
   const selectedItems = useSelectedItems();
   const clearCheckout = useCheckoutStore((s) => s.clearCheckout);
+  const datos = useCheckoutStore((s) => s.datos);
+
+  // Guarda: verificar que datos existe
+  useEffect(() => {
+    if (!datos) {
+      router.replace("/checkout/datos");
+    }
+  }, [datos, router]);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const sendingRef = useRef(false);

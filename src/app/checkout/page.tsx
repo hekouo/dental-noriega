@@ -61,7 +61,7 @@ export default function CheckoutIndex() {
 
   const handleContinue = () => {
     if (hasSelected) {
-      router.push("/checkout/pago");
+      router.push("/checkout/datos");
     }
   };
 

@@ -24,6 +24,7 @@ export default function FeaturedCard({ item }: Props) {
     <div className="border rounded-xl overflow-hidden flex flex-col">
       <Link
         href={href}
+        prefetch={!!item.canonicalUrl}
         onMouseEnter={() => {
           if (item.canonicalUrl) {
             fetch(item.canonicalUrl, { cache: "force-cache" }).catch(() => {});

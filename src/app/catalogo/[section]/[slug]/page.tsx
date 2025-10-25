@@ -10,17 +10,10 @@ type Props = { params: { section: string; slug: string } };
 
 async function resolveFallback(slug: string) {
   try {
-    const res = await fetch(
-      `/api/catalog/resolve?slug=${encodeURIComponent(slug)}`,
-      {
-        next: { revalidate: 0 },
-        cache: "no-store",
-      },
-    );
-    const data = await res.json();
-    return data;
+    const { resolveFallback: findFuzzy } = await import("@/lib/catalog/getProduct.server");
+    return await findFuzzy(slug);
   } catch {
-    return { ok: false, suggestions: [] };
+    return { suggestions: [] };
   }
 }
 
@@ -36,8 +29,8 @@ export default async function Page({ params }: Props) {
   // 2) Plan B: resolver (sin sección)
   const result = await resolveFallback(slug);
 
-  if (result?.ok === true && result.redirectTo) {
-    redirect(result.redirectTo);
+  if (result?.product) {
+    redirect(`/catalogo/${result.product.section}/${result.product.slug}`);
   }
 
   // 3) 404 enriquecido

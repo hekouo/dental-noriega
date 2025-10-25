@@ -2,6 +2,7 @@
 /* eslint-disable jsx-a11y/alt-text */
 "use client";
 import { useState } from "react";
+import Image from "next/image";
 
 type Props = {
   src?: string;
@@ -15,9 +16,10 @@ export default function ImageWithFallback({
   src,
   alt = "",
   className,
-  width,
-  height,
+  width = 300,
+  height = 300,
 }: Props) {
+  const [useNativeImg, setUseNativeImg] = useState(false);
   const [errored, setErrored] = useState(false);
 
   if (!src || errored) {
@@ -31,14 +33,28 @@ export default function ImageWithFallback({
     );
   }
 
+  if (useNativeImg) {
+    return (
+      <img
+        src={src}
+        alt={alt}
+        className={className}
+        width={width}
+        height={height}
+        onError={() => setErrored(true)}
+        loading="lazy"
+      />
+    );
+  }
+
   return (
-    <img
+    <Image
       src={src}
       alt={alt}
       className={className}
       width={width}
       height={height}
-      onError={() => setErrored(true)}
+      onError={() => setUseNativeImg(true)}
       loading="lazy"
     />
   );

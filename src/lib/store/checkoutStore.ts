@@ -27,8 +27,20 @@ type Item = {
   variantId?: string;
 };
 
+type CheckoutData = {
+  nombre?: string;
+  email?: string;
+  telefono?: string;
+  direccion?: string;
+  ciudad?: string;
+  codigoPostal?: string;
+  notas?: string;
+};
+
 type State = {
   checkoutItems: CheckoutItem[];
+  datos: CheckoutData | null;
+  orderId: string | null;
   ingestFromCart: (cartItems: Item[], clearCart?: boolean) => void;
   upsertSingleToCheckout: (item: Item) => void;
   clearCheckout: () => void;
@@ -38,12 +50,16 @@ type State = {
   selectAllCheckout: () => void;
   deselectAllCheckout: () => void;
   clearSelectedFromCheckout: () => void;
+  setDatos: (datos: CheckoutData) => void;
+  setOrderId: (orderId: string) => void;
 };
 
 export const useCheckoutStore = create<State>()(
   persist(
     (set, _get) => ({
       checkoutItems: [],
+      datos: null,
+      orderId: null,
 
       ingestFromCart: (cartItems, _clearCart = true) => {
         set((s) => {
@@ -165,6 +181,14 @@ export const useCheckoutStore = create<State>()(
           if (next.length === state.checkoutItems.length) return state;
           return { checkoutItems: next };
         });
+      },
+
+      setDatos: (datos: CheckoutData) => {
+        set({ datos });
+      },
+
+      setOrderId: (orderId: string) => {
+        set({ orderId });
       },
     }),
     {

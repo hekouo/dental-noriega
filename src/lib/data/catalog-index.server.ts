@@ -7,10 +7,12 @@ import { ALIASES, TYPO_MAP } from "./slug-aliases";
 
 export type ProductLite = {
   id: string;
+  section: string;
+  slug: string;
   title: string;
   price: number;
-  image?: string;
-  slug: string;
+  imageUrl?: string;
+  inStock?: boolean;
 };
 
 export type CatalogIndex = {
@@ -51,9 +53,10 @@ async function loadSectionProducts(
       for (const product of products) {
         const productLite: ProductLite = {
           id: product.sku || product.title,
+          section,
           title: product.title,
           price: product.price,
-          image: product.image,
+          imageUrl: product.image,
           slug: product.slug,
         };
 
@@ -139,38 +142,6 @@ export async function findCross(
   return results;
 }
 
-export async function findFuzzy(
-  query: string,
-  maxDistance = 2,
-): Promise<
-  Array<{
-    section: SectionSlug;
-    slug: string;
-    product: ProductLite;
-    score: number;
-  }>
-> {
-  const index = await getCatalogIndex();
-  const results: Array<{
-    section: SectionSlug;
-    slug: string;
-    product: ProductLite;
-    score: number;
-  }> = [];
-
-  for (const [section, sectionMap] of index.bySection) {
-    for (const [slug, product] of sectionMap) {
-      const distance = levenshteinDistance(query, slug);
-      if (distance <= maxDistance) {
-        const score = 1 - distance / Math.max(query.length, slug.length);
-        results.push({ section, slug, product, score });
-      }
-    }
-  }
-
-  // Ordenar por score descendente
-  return results.sort((a, b) => b.score - a.score);
-}
 
 // Función de distancia de Levenshtein
 function levenshteinDistance(a: string, b: string): number {
@@ -209,4 +180,90 @@ export function applyTypoCorrections(slug: string): string {
   }
 
   return corrected;
+}
+
+// Función para normalizar slugs
+function normalizeSlug(slug: string): string {
+  return slug
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // quitar acentos
+    .replace(/\s+/g, "-") // espacios por guiones
+    .replace(/[^a-z0-9-]/g, "") // solo letras, números y guiones
+    .replace(/-+/g, "-") // múltiples guiones por uno
+    .replace(/^-|-$/g, ""); // quitar guiones al inicio/final
+}
+
+// Buscar producto por section y slug
+export function findBySectionSlug(section: string, slug: string): ProductLite | null {
+  if (!catalogIndex) return null;
+  
+  const normalizedSlug = normalizeSlug(slug);
+  const bySection = catalogIndex.bySection.get(section as SectionSlug);
+  if (!bySection) return null;
+  
+  // Buscar exacto
+  let product = bySection.get(normalizedSlug);
+  if (product) {
+    return { ...product, section, inStock: product.inStock ?? true };
+  }
+  
+  // Buscar por alias
+  const aliases = ALIASES[normalizedSlug] || [];
+  for (const alias of aliases) {
+    product = bySection.get(alias);
+    if (product) {
+      return { ...product, section, inStock: product.inStock ?? true };
+    }
+  }
+  
+  return null;
+}
+
+// Búsqueda fuzzy con sugerencias
+export function findFuzzy(query: string): { product?: ProductLite; suggestions: ProductLite[] } {
+  if (!catalogIndex) return { suggestions: [] };
+  
+  const normalizedQuery = normalizeSlug(query);
+  const suggestions: ProductLite[] = [];
+  let exactMatch: ProductLite | undefined;
+  
+  // 1) Búsqueda exacta por slug
+  for (const [section, sectionMap] of catalogIndex.bySection) {
+    for (const [, product] of sectionMap) {
+      if (product.slug === normalizedQuery) {
+        exactMatch = { ...product, section, inStock: product.inStock ?? true };
+        break;
+      }
+    }
+    if (exactMatch) break;
+  }
+  
+  if (exactMatch) {
+    return { product: exactMatch, suggestions: [] };
+  }
+  
+  // 2) Búsqueda "contains" en title
+  for (const [section, sectionMap] of catalogIndex.bySection) {
+    for (const [, product] of sectionMap) {
+      const normalizedTitle = normalizeSlug(product.title);
+      if (normalizedTitle.includes(normalizedQuery) || normalizedQuery.includes(normalizedTitle)) {
+        suggestions.push({ ...product, section, inStock: product.inStock ?? true });
+      }
+    }
+  }
+  
+  // 3) Distancia Levenshtein corta
+  if (suggestions.length < 5) {
+    for (const [section, sectionMap] of catalogIndex.bySection) {
+      for (const [, product] of sectionMap) {
+        const distance = levenshteinDistance(normalizedQuery, product.slug);
+        if (distance <= 2 && !suggestions.some(s => s.id === product.id)) {
+          suggestions.push({ ...product, section, inStock: product.inStock ?? true });
+        }
+      }
+    }
+  }
+  
+  return { suggestions: suggestions.slice(0, 6) };
 }

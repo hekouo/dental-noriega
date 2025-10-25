@@ -1,27 +1,16 @@
 import "server-only";
 import { loadFeatured, type FeaturedItem } from "./loadFeatured";
-// import { getCatalogIndex } from "./catalog-index.server";
 
-// Función para resolver usando la API (server-side fetch)
-async function resolveProductViaAPI(slug: string, section?: string) {
+// Función para resolver usando el índice directo (server-side)
+async function resolveProductDirect(slug: string) {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3002";
-    const url = section
-      ? `${baseUrl}/api/catalog/resolve?section=${encodeURIComponent(section)}&slug=${encodeURIComponent(slug)}`
-      : `${baseUrl}/api/catalog/resolve?slug=${encodeURIComponent(slug)}`;
-
-    const response = await fetch(url, {
-      cache: "force-cache",
-      headers: { "User-Agent": "Server-Side-Resolve" },
-    });
-
-    if (!response.ok) return null;
-    return await response.json();
+    const { findFuzzy } = await import("@/lib/data/catalog-index.server");
+    return await findFuzzy(slug);
   } catch (error) {
     if (process.env.NEXT_PUBLIC_DEBUG === "1") {
-      console.warn(`[SanitizeFeatured] API resolve failed for ${slug}:`, error);
+      console.warn(`[SanitizeFeatured] Direct resolve failed for ${slug}:`, error);
     }
-    return null;
+    return { suggestions: [] };
   }
 }
 
@@ -56,10 +45,10 @@ async function processFeaturedItem(
   item: FeaturedItem,
 ): Promise<SanitizedFeaturedItem> {
   try {
-    const resolveResult = await resolveProductViaAPI(item.slug);
+    const resolveResult = await resolveProductDirect(item.slug);
 
-    if (resolveResult?.ok) {
-      return createResolvedItem(item, resolveResult);
+    if (resolveResult?.product) {
+      return createResolvedItem(item, resolveResult.product);
     } else if (resolveResult?.suggestions?.length > 0) {
       return createSuggestionItem(item, resolveResult.suggestions[0]);
     } else {
@@ -75,22 +64,20 @@ async function processFeaturedItem(
 
 function createResolvedItem(
   item: FeaturedItem,
-  resolveResult: any,
+  product: any,
 ): SanitizedFeaturedItem {
-  const canonicalUrl =
-    resolveResult.redirectTo ||
-    `/catalogo/${resolveResult.section}/${resolveResult.slug}`;
-  const inStock = resolveResult.product?.inStock !== false;
+  const canonicalUrl = `/catalogo/${product.section}/${product.slug}`;
+  const inStock = product.inStock !== false;
 
   return {
     ...item,
     resolved: true,
     canonicalUrl,
     inStock,
-    sectionSlug: resolveResult.section,
-    title: resolveResult.product?.title || item.title,
-    price: resolveResult.product?.price || item.price,
-    imageUrl: resolveResult.product?.imageUrl || item.image,
+    sectionSlug: product.section,
+    title: product.title || item.title,
+    price: product.price || item.price,
+    imageUrl: product.imageUrl || item.image,
   };
 }
 

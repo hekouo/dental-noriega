@@ -3,10 +3,12 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSelectedIds } from "@/lib/store/checkoutSelectors";
+import { useCheckoutStore } from "@/lib/store/checkoutStore";
 import { supabase } from "@/lib/supabase/client";
 
 function DatosPageContent() {
   const selectedIds = useSelectedIds();
+  const setDatos = useCheckoutStore((s) => s.setDatos);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -86,6 +88,16 @@ function DatosPageContent() {
         alert("Error al guardar los datos. Intenta de nuevo.");
         return;
       }
+
+      // Guardar datos en el checkout store
+      setDatos({
+        nombre: formData.name,
+        email: formData.email,
+        telefono: formData.phone,
+        direccion: formData.address,
+        ciudad: formData.city,
+        codigoPostal: formData.zip,
+      });
 
       // Redirigir a la URL de retorno
       router.push(returnUrl);

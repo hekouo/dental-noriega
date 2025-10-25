@@ -17,7 +17,11 @@ export function formatCurrency(amount: number): string {
   if (isNaN(amount) || amount < 0) {
     return "Precio a consultar";
   }
-  return `$${amount.toFixed(2)} MXN`;
+  return new Intl.NumberFormat("es-MX", {
+    style: "currency",
+    currency: "MXN",
+    minimumFractionDigits: 2,
+  }).format(amount);
 }
 
 export function calculatePointsValue(amount: number): number {
