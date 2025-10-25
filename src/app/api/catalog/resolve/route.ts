@@ -51,3 +51,5 @@ export async function GET(req: Request) {
   if (DEBUG) console.log("[resolve] fail:", slug);
   return NextResponse.json(fail, { status: 200 });
 }
+
+

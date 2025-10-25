@@ -16,9 +16,7 @@ export default function WarmupTrigger() {
       }
     };
     run();
-    return () => {
-      aborted = true;
-    };
+    return () => { aborted = true; };
   }, []);
 
   return null;
