@@ -1,5 +1,6 @@
 import "server-only";
 import { normalizeSlug } from "@/lib/utils/slug";
+import { driveToLh3 } from "@/lib/utils/images";
 
 export type ProductLite = {
   id: string;
@@ -73,7 +74,7 @@ function loadIndex(): ProductLite[] {
     slug: normalizeSlug(String(r.slug ?? r.title ?? "")),
     title: String(r.title ?? ""),
     price: Number(r.price ?? 0),
-    imageUrl: r.imageUrl ?? undefined,
+    imageUrl: r.imageUrl ? driveToLh3(r.imageUrl) : undefined,
     inStock: r.inStock ?? true,
   }));
   return CACHE;
@@ -100,4 +101,9 @@ export function findByTitleTokens(q: string, minTokens = 2): ProductLite[] {
     for (const tok of tokens) if (t.includes(tok)) hit++;
     return hit >= Math.min(minTokens, tokens.length);
   });
+}
+
+export function findBySlugAnySection(slug: string): ProductLite | null {
+  const normalizedSlug = normalizeSlug(slug);
+  return getAll().find(p => p.slug === normalizedSlug) ?? null;
 }

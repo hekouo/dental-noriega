@@ -1,6 +1,6 @@
 // src/app/catalogo/[section]/[slug]/page.tsx
 import { redirect } from "next/navigation";
-import { getProductBySectionSlug } from "@/lib/catalog/getProduct.server";
+import { getProductBySectionSlug, getProductBySlugAnySection } from "@/lib/catalog/getProduct.server";
 import ProductDetailPage from "@/components/pdp/ProductDetailPage";
 
 export const dynamic = "force-dynamic";
@@ -26,14 +26,20 @@ export default async function Page({ params }: Props) {
     return <ProductDetailPage product={product} />;
   }
 
-  // 2) Plan B: resolver (sin sección)
+  // 2) Búsqueda por slug en cualquier sección
+  const alt = await getProductBySlugAnySection(slug);
+  if (alt) {
+    redirect(`/catalogo/${alt.section}/${alt.slug}`);
+  }
+
+  // 3) Plan C: resolver (sin sección)
   const result = await resolveFallback(slug);
 
   if (result && 'product' in result && result.product) {
     redirect(`/catalogo/${result.product.section}/${result.product.slug}`);
   }
 
-  // 3) 404 enriquecido
+  // 4) 404 enriquecido
   const suggestions = Array.isArray(result?.suggestions)
     ? result.suggestions
     : [];

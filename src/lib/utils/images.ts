@@ -13,7 +13,7 @@ export function driveToLh3(url: string): string {
         id = parts[idx + 1] || "";
       }
       if (!id) id = u.searchParams.get("id") || "";
-      if (id) return `https://lh3.googleusercontent.com/d/${id}=s800`;
+      if (id) return `https://lh3.googleusercontent.com/d/${id}=s1200`;
     }
   } catch {}
   return url;
