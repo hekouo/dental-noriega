@@ -3,6 +3,7 @@
 "use client";
 import { useState } from "react";
 import Image from "next/image";
+import { driveToLh3 } from "@/lib/utils/images";
 
 type Props = {
   src?: string;
@@ -22,7 +23,9 @@ export default function ImageWithFallback({
   const [useNativeImg, setUseNativeImg] = useState(false);
   const [errored, setErrored] = useState(false);
 
-  if (!src || errored) {
+  const srcFixed = src ? driveToLh3(src) : undefined;
+
+  if (!srcFixed || errored) {
     return (
       <div
         className={`bg-gray-100 text-gray-400 grid place-content-center ${className}`}
@@ -36,7 +39,7 @@ export default function ImageWithFallback({
   if (useNativeImg) {
     return (
       <img
-        src={src}
+        src={srcFixed}
         alt={alt}
         className={className}
         width={width}
@@ -49,7 +52,7 @@ export default function ImageWithFallback({
 
   return (
     <Image
-      src={src}
+      src={srcFixed}
       alt={alt}
       className={className}
       width={width}

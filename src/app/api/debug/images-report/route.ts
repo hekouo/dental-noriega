@@ -1,35 +1,13 @@
-// src/app/api/debug/images-report/route.ts
-export const runtime = "nodejs";
 import { NextResponse } from "next/server";
-import { loadAllSections } from "@/lib/data/catalog-sections";
+import { getAll } from "@/lib/data/catalog-index.server";
 
 export async function GET() {
-  try {
-    const sections = await loadAllSections();
-    const broken: Array<{ section: string; title: string; img: string }> = [];
-
-    sections.forEach((s) =>
-      s.items.forEach((i) => {
-        if (!i.imageResolved || i.imageResolved.endsWith("/placeholder.png")) {
-          broken.push({ section: s.sectionName, title: i.title, img: i.image });
-        }
-      }),
-    );
-
-    return NextResponse.json({
-      success: true,
-      totalSections: sections.length,
-      totalProducts: sections.reduce((sum, s) => sum + s.items.length, 0),
-      brokenCount: broken.length,
-      broken,
-    });
-  } catch (error) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      },
-      { status: 500 },
-    );
-  }
+  const items = getAll().map(p => ({
+    section: p.section,
+    slug: p.slug,
+    hasImage: !!p.imageUrl,
+    host: (() => { try { return p.imageUrl ? new URL(p.imageUrl).hostname : null; } catch { return "bad-url"; } })(),
+  }));
+  const hosts = new Set(items.filter(i => i.host).map(i => i.host));
+  return NextResponse.json({ total: items.length, hosts: [...hosts], samples: items.slice(0, 10) });
 }
