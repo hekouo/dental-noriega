@@ -1,6 +1,7 @@
 import "server-only";
 import { loadProductBySlug } from "./catalog-sections";
 import { SECTIONS, type SectionSlug } from "./sections";
+import { normalizeSlug } from "@/lib/utils/slug";
 
 export type { SectionSlug };
 import { ALIASES, TYPO_MAP } from "./slug-aliases";
@@ -182,17 +183,6 @@ export function applyTypoCorrections(slug: string): string {
   return corrected;
 }
 
-// Función para normalizar slugs
-function normalizeSlug(slug: string): string {
-  return slug
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // quitar acentos
-    .replace(/\s+/g, "-") // espacios por guiones
-    .replace(/[^a-z0-9-]/g, "") // solo letras, números y guiones
-    .replace(/-+/g, "-") // múltiples guiones por uno
-    .replace(/^-|-$/g, ""); // quitar guiones al inicio/final
-}
 
 // Buscar producto por section y slug
 export function findBySectionSlug(section: string, slug: string): ProductLite | null {
@@ -225,45 +215,85 @@ export function findFuzzy(query: string): { product?: ProductLite; suggestions: 
   if (!catalogIndex) return { suggestions: [] };
   
   const normalizedQuery = normalizeSlug(query);
-  const suggestions: ProductLite[] = [];
-  let exactMatch: ProductLite | undefined;
   
   // 1) Búsqueda exacta por slug
-  for (const [section, sectionMap] of catalogIndex.bySection) {
-    for (const [, product] of sectionMap) {
-      if (product.slug === normalizedQuery) {
-        exactMatch = { ...product, section, inStock: product.inStock ?? true };
-        break;
-      }
-    }
-    if (exactMatch) break;
-  }
-  
+  const exactMatch = findExactMatch(normalizedQuery);
   if (exactMatch) {
     return { product: exactMatch, suggestions: [] };
   }
   
-  // 2) Búsqueda "contains" en title
+  // 2) Búsqueda por tokens en título
+  const results = findByTitleTokens(query);
+  return { suggestions: results.slice(0, 6) };
+}
+
+function findExactMatch(normalizedQuery: string): ProductLite | undefined {
+  if (!catalogIndex) return undefined;
+  
+  for (const [section, sectionMap] of catalogIndex.bySection) {
+    for (const [, product] of sectionMap) {
+      if (product.slug === normalizedQuery) {
+        return { ...product, section, inStock: product.inStock ?? true };
+      }
+    }
+  }
+  return undefined;
+}
+
+// Obtener todos los productos del índice
+export function getAll(): ProductLite[] {
+  if (!catalogIndex) return [];
+  
+  const all: ProductLite[] = [];
+  for (const [section, sectionMap] of catalogIndex.bySection) {
+    for (const [, product] of sectionMap) {
+      all.push({ ...product, section, inStock: product.inStock ?? true });
+    }
+  }
+  return all;
+}
+
+// Búsqueda por tokens en el título
+export function findByTitleTokens(q: string): ProductLite[] {
+  if (!catalogIndex) return [];
+  
+  const normalizedQuery = normalizeSlug(q);
+  const queryTokens = normalizedQuery.split('-').filter(t => t.length > 0);
+  
+  if (queryTokens.length === 0) return [];
+  
+  const results: ProductLite[] = [];
+  
   for (const [section, sectionMap] of catalogIndex.bySection) {
     for (const [, product] of sectionMap) {
       const normalizedTitle = normalizeSlug(product.title);
-      if (normalizedTitle.includes(normalizedQuery) || normalizedQuery.includes(normalizedTitle)) {
-        suggestions.push({ ...product, section, inStock: product.inStock ?? true });
+      const titleTokens = normalizedTitle.split('-').filter(t => t.length > 0);
+      
+      // Contar cuántos tokens de la query están en el título
+      const matchingTokens = queryTokens.filter(qt => 
+        titleTokens.some(tt => tt.includes(qt) || qt.includes(tt))
+      );
+      
+      // Requerir al menos 2 tokens coincidentes o 1 si la query es muy corta
+      const minTokens = queryTokens.length <= 2 ? 1 : 2;
+      if (matchingTokens.length >= minTokens) {
+        results.push({ ...product, section, inStock: product.inStock ?? true });
       }
     }
   }
   
-  // 3) Distancia Levenshtein corta
-  if (suggestions.length < 5) {
-    for (const [section, sectionMap] of catalogIndex.bySection) {
-      for (const [, product] of sectionMap) {
-        const distance = levenshteinDistance(normalizedQuery, product.slug);
-        if (distance <= 2 && !suggestions.some(s => s.id === product.id)) {
-          suggestions.push({ ...product, section, inStock: product.inStock ?? true });
-        }
-      }
-    }
-  }
-  
-  return { suggestions: suggestions.slice(0, 6) };
+  // Ordenar por relevancia (más tokens coincidentes primero)
+  return results.sort((a, b) => {
+    const aTokens = normalizeSlug(a.title).split('-').filter(t => t.length > 0);
+    const bTokens = normalizeSlug(b.title).split('-').filter(t => t.length > 0);
+    
+    const aMatches = queryTokens.filter(qt => 
+      aTokens.some(at => at.includes(qt) || qt.includes(at))
+    ).length;
+    const bMatches = queryTokens.filter(qt => 
+      bTokens.some(bt => bt.includes(qt) || qt.includes(bt))
+    ).length;
+    
+    return bMatches - aMatches;
+  });
 }

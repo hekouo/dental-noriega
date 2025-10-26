@@ -1,11 +1,12 @@
-export function normalizeSlug(s: string) {
+export function normalizeSlug(s: string): string {
   return s
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
-    .replace(/[^a-z0-9-]+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '');
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // quitar acentos
+    .replace(/\s+/g, "-") // espacios por guiones
+    .replace(/[^a-z0-9-]/g, "") // solo letras, números y guiones
+    .replace(/-+/g, "-") // múltiples guiones por uno
+    .replace(/^-|-$/g, ""); // quitar guiones al inicio/final
 }
 
 // diccionario mínimo de correcciones frecuentes

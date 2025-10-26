@@ -1,14 +1,43 @@
 import "server-only";
 import { loadFeatured, type FeaturedItem } from "./loadFeatured";
+import { normalizeSlug } from "@/lib/utils/slug";
+import { findBySectionSlug, findByTitleTokens } from "./catalog-index.server";
+
+// Overrides específicos para los 8 títulos reportados por el user
+const OVERRIDES: Record<string, { section: string; slug: string }> = {
+  "arco niti redondo 12 14 16 18 paquete con 10": { section: "ortodoncia-arcos-y-resortes", slug: "arco-niti-redondo-12-14-16-18-paquete-con-10" },
+  "arco niti rectangular paquete con 10": { section: "ortodoncia-arcos-y-resortes", slug: "arco-niti-rectangular-paquete-con-10" },
+  "bracket azdent malla 100 colado": { section: "ortodoncia-brackets-y-tubos", slug: "bracket-azdent-malla-100-colado" },
+  "bracket ceramico roth azdent": { section: "ortodoncia-brackets-y-tubos", slug: "bracket-ceramico-roth-azdent" },
+  "brackets carton mbt roth edgewise": { section: "ortodoncia-brackets-y-tubos", slug: "brackets-carton-mbt-roth-edgewise" },
+  "braquet de autoligado con instrumento": { section: "ortodoncia-brackets-y-tubos", slug: "braquet-de-autoligado-con-instrumento" },
+  "tubos con malla 1eros o 2o molar kit con 200 tubos": { section: "ortodoncia-brackets-y-tubos", slug: "tubos-con-malla-1eros-o-2o-molar-kit-con-200-tubos" },
+  "pieza de alta con luz led 30 dias garantia": { section: "equipos", slug: "pieza-de-alta-con-luz-led-30-dias-garantia" },
+};
 
 // Función para resolver usando el índice directo (server-side)
-async function resolveProductDirect(slug: string) {
+async function resolveProductDirect(title: string) {
   try {
-    const { findFuzzy } = await import("@/lib/data/catalog-index.server");
-    return await findFuzzy(slug);
+    // 1) Buscar por overrides específicos
+    const normalizedTitle = normalizeSlug(title);
+    const override = OVERRIDES[title] || OVERRIDES[normalizedTitle];
+    if (override) {
+      const product = findBySectionSlug(override.section, override.slug);
+      if (product) {
+        return { product, suggestions: [] };
+      }
+    }
+
+    // 2) Buscar por tokens en el título
+    const results = findByTitleTokens(title);
+    if (results.length > 0) {
+      return { product: results[0], suggestions: results.slice(1, 6) };
+    }
+
+    return { suggestions: [] };
   } catch (error) {
     if (process.env.NEXT_PUBLIC_DEBUG === "1") {
-      console.warn(`[SanitizeFeatured] Direct resolve failed for ${slug}:`, error);
+      console.warn(`[SanitizeFeatured] Direct resolve failed for ${title}:`, error);
     }
     return { suggestions: [] };
   }
@@ -45,7 +74,16 @@ async function processFeaturedItem(
   item: FeaturedItem,
 ): Promise<SanitizedFeaturedItem> {
   try {
-    const resolveResult = await resolveProductDirect(item.slug);
+    // 1) Si trae section/slug explícitos, buscar directo
+    if (item.sectionSlug && item.slug) {
+      const product = findBySectionSlug(item.sectionSlug, item.slug);
+      if (product) {
+        return createResolvedItem(item, product);
+      }
+    }
+
+    // 2) Buscar por título usando la nueva función
+    const resolveResult = await resolveProductDirect(item.title);
 
     if (resolveResult?.product) {
       return createResolvedItem(item, resolveResult.product);
@@ -56,7 +94,7 @@ async function processFeaturedItem(
     }
   } catch (error) {
     if (process.env.NEXT_PUBLIC_DEBUG === "1") {
-      console.warn(`[SanitizeFeatured] Error processing ${item.slug}:`, error);
+      console.warn(`[SanitizeFeatured] Error processing ${item.title}:`, error);
     }
     return createSearchFallbackItem(item);
   }

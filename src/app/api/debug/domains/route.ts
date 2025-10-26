@@ -1,22 +1,20 @@
 // src/app/api/debug/domains/route.ts
 export const runtime = "nodejs";
 import { NextResponse } from "next/server";
-import { getCatalogIndex } from "@/lib/data/catalog-index.server";
+import { getAll } from "@/lib/data/catalog-index.server";
 
 export async function GET() {
   try {
-    const index = await getCatalogIndex();
+    const products = getAll();
     const domains = new Set<string>();
 
-    for (const [, sectionMap] of index.bySection) {
-      for (const [, product] of sectionMap) {
-        if (product.imageUrl) {
-          try {
-            const url = new URL(product.imageUrl);
-            domains.add(url.hostname);
-          } catch {
-            // Invalid URL, skip
-          }
+    for (const product of products) {
+      if (product.imageUrl) {
+        try {
+          const url = new URL(product.imageUrl);
+          domains.add(url.hostname);
+        } catch {
+          // Invalid URL, skip
         }
       }
     }
