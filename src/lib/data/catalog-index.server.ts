@@ -1,83 +1,11 @@
 import "server-only";
 import { normalizeSlug } from "@/lib/utils/slug";
-import { driveToLh3 } from "@/lib/utils/images";
+import { loadCatalogFromCSV, type ProductLite } from "./catalog-loader.server";
 
-export type ProductLite = {
-  id: string;
-  section: string;      // requerido
-  slug: string;         // requerido, normalizado
-  title: string;
-  price: number;
-  imageUrl?: string;
-  inStock?: boolean;
-};
-
-let CACHE: ProductLite[] | null = null;
+export type { ProductLite };
 
 function loadIndex(): ProductLite[] {
-  // TODO: reemplazar esta carga por la real (CSV/JSON/DB)
-  // pero normalizando SIEMPRE section y slug.
-  if (CACHE) return CACHE;
-  
-  // Datos de ejemplo hardcodeados para evitar problemas de build
-  const raw = [
-    {
-      id: "1",
-      section: "ortodoncia-arcos-y-resortes",
-      slug: "arco-niti-rectangular-paquete-con-10",
-      title: "ARCO NITI RECTANGULAR PAQUETE CON 10",
-      price: 99,
-      imageUrl: "https://drive.google.com/uc?export=view&id=1xIYmS2zLwp2R15sUMcgRFx02SFttC7b2",
-      inStock: true
-    },
-    {
-      id: "2",
-      section: "ortodoncia-arcos-y-resortes",
-      slug: "arco-niti-redondo-12-14-16-18-paquete-con-10",
-      title: "ARCO NITI REDONDO 12, 14, 16, 18 PAQUETE CON 10",
-      price: 39,
-      imageUrl: "https://drive.google.com/uc?export=view&id=1N6JiuFXMS9l8intEmU3UbbqSNXfgiGEf",
-      inStock: true
-    },
-    {
-      id: "3",
-      section: "ortodoncia-brackets-y-tubos",
-      slug: "bracket-azdent-malla-100-colado",
-      title: "BRACKET AZDENT MALLA 100 COLADO",
-      price: 150,
-      imageUrl: "https://drive.google.com/uc?export=view&id=1bKnTkWnc6gVnPqsiCmZUhnJ7VH5luC2r",
-      inStock: true
-    },
-    {
-      id: "4",
-      section: "ortodoncia-brackets-y-tubos",
-      slug: "bracket-ceramico-roth-azdent",
-      title: "BRACKET CERAMICO ROTH AZDENT",
-      price: 200,
-      imageUrl: "https://drive.google.com/uc?export=view&id=128Wt6j5xiLUVtGT3ixmh5TUOBeZ-iloM",
-      inStock: true
-    },
-    {
-      id: "5",
-      section: "equipos",
-      slug: "pieza-de-alta-con-luz-led-30-dias-garantia",
-      title: "PIEZA DE ALTA CON LUZ LED 30 DIAS GARANTIA",
-      price: 2500,
-      imageUrl: "https://drive.google.com/uc?export=view&id=1xIYmS2zLwp2R15sUMcgRFx02SFttC7b2",
-      inStock: true
-    }
-  ];
-  
-  CACHE = raw.map((r, i) => ({
-    id: String(r.id ?? i),
-    section: normalizeSlug(String(r.section ?? "")),
-    slug: normalizeSlug(String(r.slug ?? r.title ?? "")),
-    title: String(r.title ?? ""),
-    price: Number(r.price ?? 0),
-    imageUrl: r.imageUrl ? driveToLh3(r.imageUrl) : undefined,
-    inStock: r.inStock ?? true,
-  }));
-  return CACHE;
+  return loadCatalogFromCSV();
 }
 
 export function getAll(): ProductLite[] {

@@ -5,3 +5,6 @@ export function normalizeSlug(input: string): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 }
+
+// alias para compatibilidad
+export const autocorrect = normalizeSlug;
