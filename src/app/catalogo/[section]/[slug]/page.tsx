@@ -29,7 +29,7 @@ export default async function Page({ params }: Props) {
   // 2) Plan B: resolver (sin sección)
   const result = await resolveFallback(slug);
 
-  if (result?.product) {
+  if (result && 'product' in result && result.product) {
     redirect(`/catalogo/${result.product.section}/${result.product.slug}`);
   }
 

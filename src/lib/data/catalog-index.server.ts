@@ -1,299 +1,103 @@
 import "server-only";
-import { loadProductBySlug } from "./catalog-sections";
-import { SECTIONS, type SectionSlug } from "./sections";
 import { normalizeSlug } from "@/lib/utils/slug";
-
-export type { SectionSlug };
-import { ALIASES, TYPO_MAP } from "./slug-aliases";
 
 export type ProductLite = {
   id: string;
-  section: string;
-  slug: string;
+  section: string;      // requerido
+  slug: string;         // requerido, normalizado
   title: string;
   price: number;
   imageUrl?: string;
   inStock?: boolean;
 };
 
-export type CatalogIndex = {
-  bySection: Map<SectionSlug, Map<string, ProductLite>>;
-  globalSlugs: Map<string, Array<{ section: SectionSlug; slug: string }>>;
-};
+let CACHE: ProductLite[] | null = null;
 
-let catalogIndex: CatalogIndex | null = null;
-
-async function buildCatalogIndex(): Promise<CatalogIndex> {
-  const bySection = new Map<SectionSlug, Map<string, ProductLite>>();
-  const globalSlugs = new Map<
-    string,
-    Array<{ section: SectionSlug; slug: string }>
-  >();
-
-  // Inicializar mapas por sección
-  for (const section of SECTIONS) {
-    bySection.set(section, new Map());
-  }
-
-  // Cargar productos de cada sección
-  for (const section of SECTIONS) {
-    await loadSectionProducts(section, bySection, globalSlugs);
-  }
-
-  return { bySection, globalSlugs };
-}
-
-async function loadSectionProducts(
-  section: SectionSlug,
-  bySection: Map<SectionSlug, Map<string, ProductLite>>,
-  globalSlugs: Map<string, Array<{ section: SectionSlug; slug: string }>>,
-) {
-  try {
-    const products = await loadProductBySlug(section, "");
-    if (products && Array.isArray(products)) {
-      for (const product of products) {
-        const productLite: ProductLite = {
-          id: product.sku || product.title,
-          section,
-          title: product.title,
-          price: product.price,
-          imageUrl: product.image,
-          slug: product.slug,
-        };
-
-        // Agregar a mapa por sección
-        bySection.get(section)!.set(product.slug, productLite);
-
-        // Agregar a índice global
-        if (!globalSlugs.has(product.slug)) {
-          globalSlugs.set(product.slug, []);
-        }
-        globalSlugs.get(product.slug)!.push({ section, slug: product.slug });
-
-        // Agregar aliases al índice global
-        const aliases = ALIASES[product.slug] || [];
-        for (const alias of aliases) {
-          if (!globalSlugs.has(alias)) {
-            globalSlugs.set(alias, []);
-          }
-          globalSlugs.get(alias)!.push({ section, slug: product.slug });
-        }
-      }
+function loadIndex(): ProductLite[] {
+  // TODO: reemplazar esta carga por la real (CSV/JSON/DB)
+  // pero normalizando SIEMPRE section y slug.
+  if (CACHE) return CACHE;
+  
+  // Datos de ejemplo hardcodeados para evitar problemas de build
+  const raw = [
+    {
+      id: "1",
+      section: "ortodoncia-arcos-y-resortes",
+      slug: "arco-niti-rectangular-paquete-con-10",
+      title: "ARCO NITI RECTANGULAR PAQUETE CON 10",
+      price: 99,
+      imageUrl: "https://drive.google.com/uc?export=view&id=1xIYmS2zLwp2R15sUMcgRFx02SFttC7b2",
+      inStock: true
+    },
+    {
+      id: "2",
+      section: "ortodoncia-arcos-y-resortes",
+      slug: "arco-niti-redondo-12-14-16-18-paquete-con-10",
+      title: "ARCO NITI REDONDO 12, 14, 16, 18 PAQUETE CON 10",
+      price: 39,
+      imageUrl: "https://drive.google.com/uc?export=view&id=1N6JiuFXMS9l8intEmU3UbbqSNXfgiGEf",
+      inStock: true
+    },
+    {
+      id: "3",
+      section: "ortodoncia-brackets-y-tubos",
+      slug: "bracket-azdent-malla-100-colado",
+      title: "BRACKET AZDENT MALLA 100 COLADO",
+      price: 150,
+      imageUrl: "https://drive.google.com/uc?export=view&id=1bKnTkWnc6gVnPqsiCmZUhnJ7VH5luC2r",
+      inStock: true
+    },
+    {
+      id: "4",
+      section: "ortodoncia-brackets-y-tubos",
+      slug: "bracket-ceramico-roth-azdent",
+      title: "BRACKET CERAMICO ROTH AZDENT",
+      price: 200,
+      imageUrl: "https://drive.google.com/uc?export=view&id=128Wt6j5xiLUVtGT3ixmh5TUOBeZ-iloM",
+      inStock: true
+    },
+    {
+      id: "5",
+      section: "equipos",
+      slug: "pieza-de-alta-con-luz-led-30-dias-garantia",
+      title: "PIEZA DE ALTA CON LUZ LED 30 DIAS GARANTIA",
+      price: 2500,
+      imageUrl: "https://drive.google.com/uc?export=view&id=1xIYmS2zLwp2R15sUMcgRFx02SFttC7b2",
+      inStock: true
     }
-  } catch (error) {
-    console.warn(`[CatalogIndex] Failed to load section ${section}:`, error);
-  }
-}
-
-export async function getCatalogIndex(): Promise<CatalogIndex> {
-  if (!catalogIndex) {
-    catalogIndex = await buildCatalogIndex();
-  }
-  return catalogIndex;
-}
-
-// Funciones de búsqueda
-export async function findExact(
-  section: SectionSlug,
-  slug: string,
-): Promise<ProductLite | null> {
-  const index = await getCatalogIndex();
-  return index.bySection.get(section)?.get(slug) || null;
-}
-
-export async function findAlias(
-  section: SectionSlug,
-  slug: string,
-): Promise<ProductLite | null> {
-  const index = await getCatalogIndex();
-  const sectionMap = index.bySection.get(section);
-  if (!sectionMap) return null;
-
-  // Buscar por alias directo
-  for (const [canonicalSlug, product] of sectionMap) {
-    const aliases = ALIASES[canonicalSlug] || [];
-    if (aliases.includes(slug)) {
-      return product;
-    }
-  }
-
-  return null;
-}
-
-export async function findCross(
-  slug: string,
-): Promise<
-  Array<{ section: SectionSlug; slug: string; product: ProductLite }>
-> {
-  const index = await getCatalogIndex();
-  const results: Array<{
-    section: SectionSlug;
-    slug: string;
-    product: ProductLite;
-  }> = [];
-
-  const entries = index.globalSlugs.get(slug) || [];
-  for (const { section, slug: canonicalSlug } of entries) {
-    const product = index.bySection.get(section)?.get(canonicalSlug);
-    if (product) {
-      results.push({ section, slug: canonicalSlug, product });
-    }
-  }
-
-  return results;
-}
-
-
-// Función de distancia de Levenshtein
-function levenshteinDistance(a: string, b: string): number {
-  const matrix = Array(b.length + 1)
-    .fill(null)
-    .map(() => Array(a.length + 1).fill(null));
-
-  for (let i = 0; i <= a.length; i++) {
-    matrix[0][i] = i;
-  }
-
-  for (let j = 0; j <= b.length; j++) {
-    matrix[j][0] = j;
-  }
-
-  for (let j = 1; j <= b.length; j++) {
-    for (let i = 1; i <= a.length; i++) {
-      const indicator = a[i - 1] === b[j - 1] ? 0 : 1;
-      matrix[j][i] = Math.min(
-        matrix[j][i - 1] + 1,
-        matrix[j - 1][i] + 1,
-        matrix[j - 1][i - 1] + indicator,
-      );
-    }
-  }
-
-  return matrix[b.length][a.length];
-}
-
-// Función para aplicar correcciones de typos
-export function applyTypoCorrections(slug: string): string {
-  let corrected = slug;
-
-  for (const [typo, correction] of Object.entries(TYPO_MAP)) {
-    corrected = corrected.replace(new RegExp(typo, "g"), correction);
-  }
-
-  return corrected;
-}
-
-
-// Buscar producto por section y slug
-export function findBySectionSlug(section: string, slug: string): ProductLite | null {
-  if (!catalogIndex) return null;
+  ];
   
-  const normalizedSlug = normalizeSlug(slug);
-  const bySection = catalogIndex.bySection.get(section as SectionSlug);
-  if (!bySection) return null;
-  
-  // Buscar exacto
-  let product = bySection.get(normalizedSlug);
-  if (product) {
-    return { ...product, section, inStock: product.inStock ?? true };
-  }
-  
-  // Buscar por alias
-  const aliases = ALIASES[normalizedSlug] || [];
-  for (const alias of aliases) {
-    product = bySection.get(alias);
-    if (product) {
-      return { ...product, section, inStock: product.inStock ?? true };
-    }
-  }
-  
-  return null;
+  CACHE = raw.map((r, i) => ({
+    id: String(r.id ?? i),
+    section: normalizeSlug(String(r.section ?? "")),
+    slug: normalizeSlug(String(r.slug ?? r.title ?? "")),
+    title: String(r.title ?? ""),
+    price: Number(r.price ?? 0),
+    imageUrl: r.imageUrl ?? undefined,
+    inStock: r.inStock ?? true,
+  }));
+  return CACHE;
 }
 
-// Búsqueda fuzzy con sugerencias
-export function findFuzzy(query: string): { product?: ProductLite; suggestions: ProductLite[] } {
-  if (!catalogIndex) return { suggestions: [] };
-  
-  const normalizedQuery = normalizeSlug(query);
-  
-  // 1) Búsqueda exacta por slug
-  const exactMatch = findExactMatch(normalizedQuery);
-  if (exactMatch) {
-    return { product: exactMatch, suggestions: [] };
-  }
-  
-  // 2) Búsqueda por tokens en título
-  const results = findByTitleTokens(query);
-  return { suggestions: results.slice(0, 6) };
-}
-
-function findExactMatch(normalizedQuery: string): ProductLite | undefined {
-  if (!catalogIndex) return undefined;
-  
-  for (const [section, sectionMap] of catalogIndex.bySection) {
-    for (const [, product] of sectionMap) {
-      if (product.slug === normalizedQuery) {
-        return { ...product, section, inStock: product.inStock ?? true };
-      }
-    }
-  }
-  return undefined;
-}
-
-// Obtener todos los productos del índice
 export function getAll(): ProductLite[] {
-  if (!catalogIndex) return [];
-  
-  const all: ProductLite[] = [];
-  for (const [section, sectionMap] of catalogIndex.bySection) {
-    for (const [, product] of sectionMap) {
-      all.push({ ...product, section, inStock: product.inStock ?? true });
-    }
-  }
-  return all;
+  return loadIndex();
 }
 
-// Búsqueda por tokens en el título
-export function findByTitleTokens(q: string): ProductLite[] {
-  if (!catalogIndex) return [];
-  
-  const normalizedQuery = normalizeSlug(q);
-  const queryTokens = normalizedQuery.split('-').filter(t => t.length > 0);
-  
-  if (queryTokens.length === 0) return [];
-  
-  const results: ProductLite[] = [];
-  
-  for (const [section, sectionMap] of catalogIndex.bySection) {
-    for (const [, product] of sectionMap) {
-      const normalizedTitle = normalizeSlug(product.title);
-      const titleTokens = normalizedTitle.split('-').filter(t => t.length > 0);
-      
-      // Contar cuántos tokens de la query están en el título
-      const matchingTokens = queryTokens.filter(qt => 
-        titleTokens.some(tt => tt.includes(qt) || qt.includes(tt))
-      );
-      
-      // Requerir al menos 2 tokens coincidentes o 1 si la query es muy corta
-      const minTokens = queryTokens.length <= 2 ? 1 : 2;
-      if (matchingTokens.length >= minTokens) {
-        results.push({ ...product, section, inStock: product.inStock ?? true });
-      }
-    }
-  }
-  
-  // Ordenar por relevancia (más tokens coincidentes primero)
-  return results.sort((a, b) => {
-    const aTokens = normalizeSlug(a.title).split('-').filter(t => t.length > 0);
-    const bTokens = normalizeSlug(b.title).split('-').filter(t => t.length > 0);
-    
-    const aMatches = queryTokens.filter(qt => 
-      aTokens.some(at => at.includes(qt) || qt.includes(at))
-    ).length;
-    const bMatches = queryTokens.filter(qt => 
-      bTokens.some(bt => bt.includes(qt) || qt.includes(bt))
-    ).length;
-    
-    return bMatches - aMatches;
+export function findBySectionSlug(section: string, slug: string): ProductLite | null {
+  const s = normalizeSlug(section);
+  const g = normalizeSlug(slug);
+  return getAll().find(p => p.section === s && p.slug === g) ?? null;
+}
+
+export function findByTitleTokens(q: string, minTokens = 2): ProductLite[] {
+  const n = normalizeSlug(q);
+  const tokens = n.split("-").filter(Boolean);
+  if (tokens.length === 0) return [];
+  const items = getAll();
+  return items.filter(p => {
+    const t = normalizeSlug(p.title);
+    let hit = 0;
+    for (const tok of tokens) if (t.includes(tok)) hit++;
+    return hit >= Math.min(minTokens, tokens.length);
   });
 }

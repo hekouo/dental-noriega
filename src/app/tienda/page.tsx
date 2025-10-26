@@ -21,7 +21,7 @@ const categories = [
 export const revalidate = 300;
 
 export default async function TiendaPage() {
-  const featured = await sanitizeFeatured(8);
+  const featured = await sanitizeFeatured();
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-gradient-to-r from-primary-600 to-primary-800 text-white py-12">

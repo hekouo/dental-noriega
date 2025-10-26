@@ -5,7 +5,7 @@ import FeaturedGrid from "@/components/FeaturedGrid";
 export const revalidate = 300;
 
 export default async function DestacadosPage() {
-  const products = await sanitizeFeatured(12);
+  const products = await sanitizeFeatured();
 
   // Con sanitizeFeatured, siempre habrá productos (nunca vacío)
 

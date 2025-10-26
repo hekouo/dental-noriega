@@ -13,7 +13,7 @@ const FinalThanks = dynamic(() => import("@/components/FinalThanks"), {
 export const revalidate = 300; // Cache 5 minutos
 
 export default async function HomePage() {
-  const featured = await sanitizeFeatured(8);
+  const featured = await sanitizeFeatured();
 
   return (
     <main className="min-h-screen">
