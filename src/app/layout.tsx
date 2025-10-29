@@ -11,9 +11,7 @@ import { ROUTES } from "@/lib/routes";
 import { Search } from "lucide-react";
 import BrandMark from "@/components/BrandMark";
 
-const ConsultarDrawer = dynamic(() => import("@/components/ConsultarDrawer"), {
-  ssr: false,
-});
+// ConsultarDrawer removido - ya no se usa
 const CheckoutDevGuard = dynamic(
   () => import("@/components/CheckoutDevGuard"),
   {
@@ -164,7 +162,7 @@ export default function RootLayout({
         <SiteFooter />
 
         {/* Drawer global */}
-        <ConsultarDrawer />
+        {/* ConsultarDrawer removido */}
       </body>
     </html>
   );

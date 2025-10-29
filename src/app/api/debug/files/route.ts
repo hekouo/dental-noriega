@@ -1,17 +1,20 @@
 // src/app/api/debug/files/route.ts
 export const runtime = "nodejs";
 import { NextResponse } from "next/server";
-import { listCsvFiles } from "@/lib/utils/files";
+import { readdir } from "fs/promises";
+import { join } from "path";
 
 export async function GET() {
   try {
-    const files = await listCsvFiles();
+    const dataDir = join(process.cwd(), "public", "data");
+    const files = await readdir(dataDir);
+    const csvFiles = files.filter((f) => f.endsWith(".csv"));
+
     return NextResponse.json({
       success: true,
-      count: files.length,
-      files: files.map((f) => `/data/${f}`),
-      message:
-        "Archivos CSV encontrados. Prueba abrir cada URL en el navegador para verificar que sean accesibles.",
+      count: csvFiles.length,
+      files: csvFiles.map((f) => `/data/${f}`),
+      message: "Archivos CSV encontrados en public/data/",
     });
   } catch (error) {
     return NextResponse.json(

@@ -1,64 +1,54 @@
-// src/components/ui/ImageWithFallback.tsx
-/* eslint-disable jsx-a11y/alt-text */
 "use client";
-import { useState } from "react";
-import Image from "next/image";
-import { driveToLh3 } from "@/lib/utils/images";
+import Image, { ImageProps } from "next/image";
+import { useMemo, useState } from "react";
+import { normalizeImageUrl } from "@/lib/utils/images";
 
-type Props = {
-  src?: string;
+type Props = Omit<ImageProps, "src" | "alt"> & {
+  src?: string | null;
   alt?: string;
-  className?: string;
-  width?: number;
-  height?: number;
+  fallbackSrc?: string;
+  // opcional: forzar cuadrado en cards
+  square?: boolean;
 };
 
 export default function ImageWithFallback({
   src,
-  alt = "",
+  alt = "Producto",
+  fallbackSrc = "/images/fallback-product.png",
+  square = true,
   className,
-  width = 300,
-  height = 300,
+  width = 512,
+  height = 512,
+  ...rest
 }: Props) {
-  const [useNativeImg, setUseNativeImg] = useState(false);
-  const [errored, setErrored] = useState(false);
+  const norm = useMemo(() => normalizeImageUrl(src), [src]);
+  const [current, setCurrent] = useState<string>(norm ?? fallbackSrc);
+  const [failed, setFailed] = useState<boolean>(!norm);
 
-  const srcFixed = src ? driveToLh3(src) : undefined;
-
-  if (!srcFixed || errored) {
-    return (
-      <div
-        className={`bg-gray-100 text-gray-400 grid place-content-center ${className}`}
-        style={{ width, height }}
-      >
-        🦷
-      </div>
-    );
-  }
-
-  if (useNativeImg) {
-    return (
-      <img
-        src={srcFixed}
-        alt={alt}
-        className={className}
-        width={width}
-        height={height}
-        onError={() => setErrored(true)}
-        loading="lazy"
-      />
-    );
-  }
+  const wrapperStyle = square ? { aspectRatio: "1 / 1" as any } : undefined;
 
   return (
-    <Image
-      src={srcFixed}
-      alt={alt}
-      className={className}
-      width={width}
-      height={height}
-      onError={() => setUseNativeImg(true)}
-      loading="lazy"
-    />
+    <div
+      className={`relative w-full overflow-hidden ${square ? "aspect-square" : ""}`}
+      style={wrapperStyle}
+    >
+      <Image
+        src={current}
+        alt={alt}
+        width={Number(width)}
+        height={Number(height)}
+        // object-contain evita corte. Cambia a object-cover si prefieres recorte.
+        className={`w-full h-auto object-contain ${className ?? ""}`}
+        onError={() => {
+          if (!failed) {
+            setFailed(true);
+            setCurrent(fallbackSrc);
+            // Log útil para depurar en consola:
+            // console.warn("Image fallback:", { src, normalized: norm });
+          }
+        }}
+        {...rest}
+      />
+    </div>
   );
 }

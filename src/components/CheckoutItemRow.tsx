@@ -16,7 +16,7 @@ function useRowState(id: string) {
         selected: !!item?.selected,
         price: item?.price ?? 0,
         title: item?.title ?? "",
-        imageUrl: item?.imageUrl ?? null,
+        image_url: item?.image_url ?? null,
         variantId: item?.variantId ?? null,
         remove: s.removeFromCheckout,
         setQty: s.setCheckoutQty,
@@ -32,7 +32,7 @@ export default function CheckoutItemRow({ id }: Props) {
     selected,
     price,
     title,
-    imageUrl,
+    image_url,
     variantId,
     remove,
     setQty,
@@ -50,7 +50,7 @@ export default function CheckoutItemRow({ id }: Props) {
       <div className="flex items-center gap-3">
         <div className="relative w-16 h-16 bg-neutral-100 rounded">
           <ProductImage
-            src={imageUrl}
+            src={image_url}
             alt={title}
             width={64}
             height={64}

@@ -7,7 +7,7 @@ export type CartItem = {
   id: string;
   title: string;
   price: number;
-  imageUrl?: string;
+  image_url?: string;
   variantId?: string;
   qty: number;
   selected: boolean;
@@ -131,8 +131,8 @@ export const useCartStore = create<CartStore>()(
 
         toggleSelect: (id) => {
           _tripwire("toggleSelect", { id });
-          set(s => {
-            const idx = s.cartItems.findIndex(i => i.id === id);
+          set((s) => {
+            const idx = s.cartItems.findIndex((i) => i.id === id);
             if (idx < 0) return s;
             const it = s.cartItems[idx];
             const nextSelected = !it.selected;
@@ -145,9 +145,9 @@ export const useCartStore = create<CartStore>()(
 
         selectAll: () => {
           _tripwire("selectAll");
-          set(s => {
+          set((s) => {
             let changed = false;
-            const copy = s.cartItems.map(i => {
+            const copy = s.cartItems.map((i) => {
               if (i.selected) return i;
               changed = true;
               return { ...i, selected: true };
@@ -158,9 +158,9 @@ export const useCartStore = create<CartStore>()(
 
         deselectAll: () => {
           _tripwire("deselectAll");
-          set(s => {
+          set((s) => {
             let changed = false;
-            const copy = s.cartItems.map(i => {
+            const copy = s.cartItems.map((i) => {
               if (!i.selected) return i;
               changed = true;
               return { ...i, selected: false };
@@ -185,7 +185,12 @@ export const useCartStore = create<CartStore>()(
 export const selectCartItems = (s: CartStore) => s.cartItems;
 export const selectCartCount = (s: CartStore) =>
   s.cartItems.reduce((sum, item) => sum + item.qty, 0);
-export const selectSelectedItems = (s: CartStore) => s.cartItems.filter(i => i.selected);
-export const selectSelectedCount = (s: CartStore) => s.cartItems.filter(i => i.selected).length;
+export const selectSelectedItems = (s: CartStore) =>
+  s.cartItems.filter((i) => i.selected);
+export const selectSelectedCount = (s: CartStore) =>
+  s.cartItems.filter((i) => i.selected).length;
 export const selectSelectedTotal = (s: CartStore) =>
-  s.cartItems.reduce((sum, item) => sum + (item.selected ? item.price * item.qty : 0), 0);
+  s.cartItems.reduce(
+    (sum, item) => sum + (item.selected ? item.price * item.qty : 0),
+    0,
+  );

@@ -1,6 +1,8 @@
 // src/app/cuenta/perfil/page.tsx
 import { redirect } from "next/navigation";
-import { createServerSupabase } from "@/lib/supabase/server";
+import { createServerSupabase } from "@/lib/supabase/server-auth";
+
+export const dynamic = "force-dynamic";
 
 export default async function PerfilPage() {
   const supabase = createServerSupabase();

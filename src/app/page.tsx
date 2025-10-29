@@ -1,19 +1,19 @@
 import Link from "next/link";
-import dynamic from "next/dynamic";
+import dynamicImport from "next/dynamic";
 import { ShoppingBag, Package, Award, Truck } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
-import { sanitizeFeatured } from "@/lib/data/sanitizeFeatured";
+import { getFeaturedProducts } from "@/lib/supabase/catalog";
 import FeaturedGrid from "@/components/FeaturedGrid";
 
 // Dynamic import para componente no crítico
-const FinalThanks = dynamic(() => import("@/components/FinalThanks"), {
+const FinalThanks = dynamicImport(() => import("@/components/FinalThanks"), {
   ssr: false,
 });
 
 export const revalidate = 300; // Cache 5 minutos
 
 export default async function HomePage() {
-  const featured = await sanitizeFeatured();
+  const featured = await getFeaturedProducts();
 
   return (
     <main className="min-h-screen">
@@ -44,21 +44,20 @@ export default async function HomePage() {
       </section>
 
       {/* Productos Destacados */}
-      {featured.length > 0 && (
+      {featured.length > 0 ? (
+        <FeaturedGrid items={featured} />
+      ) : (
         <section className="py-16 px-4 bg-white">
-          <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-10">
-              <h2 className="text-3xl font-bold mb-2">Productos Destacados</h2>
-              <p className="text-gray-600">
-                Los mejores productos para tu consultorio
-              </p>
-            </div>
-            <FeaturedGrid products={featured} title="" />
-            <div className="text-center mt-8">
-              <Link href={ROUTES.catalogIndex()} className="btn btn-primary">
-                <span>Ver Todo el Catálogo</span>
-              </Link>
-            </div>
+          <div className="max-w-6xl mx-auto text-center">
+            <h2 className="text-3xl font-bold mb-4">
+              Aún no hay productos destacados
+            </h2>
+            <p className="text-gray-600 mb-8">
+              Explora nuestro catálogo completo
+            </p>
+            <Link href={ROUTES.catalogIndex()} className="btn btn-primary">
+              <span>Ver Catálogo</span>
+            </Link>
           </div>
         </section>
       )}

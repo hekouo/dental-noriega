@@ -1,13 +1,16 @@
 // src/app/api/catalog/resolve/route.ts
 import { NextResponse } from "next/server";
-import { findBySectionSlug, findByTitleTokens } from "@/lib/data/catalog-index.server";
+import {
+  findBySectionSlug,
+  findByTitleTokens,
+} from "@/lib/data/catalog-index.server";
 
 type Suggestion = {
   section: string;
   slug: string;
   title?: string;
-  price?: number;
-  imageUrl?: string;
+  price_cents?: number;
+  image_url?: string;
   inStock?: boolean;
 };
 
@@ -35,7 +38,7 @@ export async function GET(req: Request) {
 
   // Si tenemos section y slug válidos, buscar exacto
   if (section && slug) {
-    const product = findBySectionSlug(section, slug);
+    const product = await findBySectionSlug(section, slug);
     if (product) {
       const redirectTo = `/catalogo/${product.section}/${product.slug}`;
       const ok: ResolveOk = {
@@ -44,8 +47,8 @@ export async function GET(req: Request) {
           section: product.section,
           slug: product.slug,
           title: product.title,
-          price: product.price,
-          imageUrl: product.imageUrl,
+          price_cents: product.price,
+          image_url: product.image_url,
           inStock: product.inStock ?? true,
         },
         redirectTo,
@@ -59,7 +62,7 @@ export async function GET(req: Request) {
   // Si solo tenemos query, buscar por tokens
   const query = q || slug;
   if (query) {
-    const results = findByTitleTokens(query);
+    const results = await findByTitleTokens(query);
     if (results.length > 0) {
       const product = results[0];
       const redirectTo = `/catalogo/${product.section}/${product.slug}`;
@@ -69,8 +72,8 @@ export async function GET(req: Request) {
           section: product.section,
           slug: product.slug,
           title: product.title,
-          price: product.price,
-          imageUrl: product.imageUrl,
+          price_cents: product.price,
+          image_url: product.image_url,
           inStock: product.inStock ?? true,
         },
         redirectTo,
@@ -78,8 +81,8 @@ export async function GET(req: Request) {
           section: s.section,
           slug: s.slug,
           title: s.title,
-          price: s.price,
-          imageUrl: s.imageUrl,
+          price_cents: s.price,
+          image_url: s.image_url,
           inStock: s.inStock ?? true,
         })),
       };

@@ -8,7 +8,7 @@ export type CartItem = {
   id: string;
   title: string;
   price: number;
-  imageUrl?: string;
+  image_url?: string;
   variantId?: string;
   qty: number;
 };
@@ -23,7 +23,7 @@ type Item = {
   selected?: boolean;
   price?: number;
   title?: string;
-  imageUrl?: string;
+  image_url?: string;
   variantId?: string;
 };
 

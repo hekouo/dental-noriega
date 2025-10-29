@@ -1,23 +1,15 @@
 "use client";
 
 import FeaturedCard from "@/components/FeaturedCard";
+import type { CatalogItem } from "@/lib/supabase/catalog";
 
-type FeaturedCardProps = {
-  canonicalUrl?: string;
-  title: string;
-  price?: number;
-  imageUrl?: string;
-  inStock: boolean;
-  badge?: string;
-};
-
-type Props = { products: FeaturedCardProps[]; title?: string };
+type Props = { items: CatalogItem[]; title?: string };
 
 export default function FeaturedGrid({
-  products,
+  items,
   title = "Productos Destacados",
 }: Props) {
-  if (!products?.length) return null;
+  if (!items?.length) return null;
 
   return (
     <section className="py-12">
@@ -29,11 +21,8 @@ export default function FeaturedGrid({
           </p>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-          {products.map((product) => (
-            <FeaturedCard
-              key={product.canonicalUrl || product.title}
-              item={product}
-            />
+          {items.map((item) => (
+            <FeaturedCard key={item.id} item={item} />
           ))}
         </div>
       </div>

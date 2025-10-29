@@ -7,7 +7,7 @@ type Props = {
   productPrice: number;
   qty?: number;
   variantId?: string | null;
-  imageUrl?: string;
+  image_url?: string;
   className?: string;
   children?: React.ReactNode;
 };
@@ -18,7 +18,7 @@ export default function AddToCheckoutBtn({
   productPrice,
   qty = 1,
   variantId,
-  imageUrl,
+  image_url,
   className,
   children,
 }: Props) {
@@ -34,7 +34,7 @@ export default function AddToCheckoutBtn({
       price: productPrice,
       qty,
       variantId: variantId || undefined,
-      imageUrl,
+      image_url,
     });
   };
 

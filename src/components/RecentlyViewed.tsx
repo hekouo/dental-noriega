@@ -12,7 +12,7 @@ type Product = {
   price: number;
   image?: string;
   sectionSlug: string;
-  slug: string;
+  product_slug: string;
 };
 
 export default function RecentlyViewed() {
@@ -32,13 +32,13 @@ export default function RecentlyViewed() {
         try {
           // Intentar resolver el producto desde diferentes secciones
           const sections = [
-            'consumibles-y-profilaxis',
-            'equipos',
-            'instrumental-clinico',
-            'instrumental-ortodoncia',
-            'ortodoncia-accesorios-y-retenedores',
-            'ortodoncia-arcos-y-resortes',
-            'ortodoncia-brackets-y-tubos'
+            "consumibles-y-profilaxis",
+            "equipos",
+            "instrumental-clinico",
+            "instrumental-ortodoncia",
+            "ortodoncia-accesorios-y-retenedores",
+            "ortodoncia-arcos-y-resortes",
+            "ortodoncia-brackets-y-tubos",
           ];
 
           for (const section of sections) {
@@ -50,13 +50,13 @@ export default function RecentlyViewed() {
                 price: data.product.price,
                 image: data.product.image,
                 sectionSlug: data.section,
-                slug: data.slug
+                product_slug: data.slug,
               };
             }
           }
           return null;
         } catch (error) {
-          console.warn('[RecentlyViewed] Failed to load product:', slug, error);
+          console.warn("[RecentlyViewed] Failed to load product:", slug, error);
           return null;
         }
       });
@@ -98,7 +98,7 @@ export default function RecentlyViewed() {
         {products.map((product) => (
           <Link
             key={product.id}
-            href={`/catalogo/${product.sectionSlug}/${product.slug}`}
+            href={`/catalogo/${product.sectionSlug}/${product.product_slug}`}
             className="group block"
             prefetch={false}
           >

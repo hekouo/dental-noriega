@@ -1,17 +1,16 @@
-import { describe, it, expect } from 'vitest';
-import { formatCurrency } from '../../lib/utils/currency';
+import { describe, it, expect } from "vitest";
+import { formatMXN, formatMXNFromCents } from "../../lib/utils/currency";
 
-describe('formatCurrency', () => {
-  it('formats positive numbers correctly', () => {
-    expect(formatCurrency(100)).toBe('$100.00 MXN');
+describe("formatMXN", () => {
+  it("formats positive numbers correctly", () => {
+    expect(formatMXN(100)).toBe("$100.00");
   });
 
-  it('handles zero', () => {
-    expect(formatCurrency(0)).toBe('$0.00 MXN');
+  it("handles zero", () => {
+    expect(formatMXN(0)).toBe("$0.00");
   });
 
-  it('handles invalid numbers', () => {
-    expect(formatCurrency(NaN)).toBe('Precio a consultar');
-    expect(formatCurrency(-10)).toBe('Precio a consultar');
+  it("formats cents correctly", () => {
+    expect(formatMXNFromCents(10000)).toBe("$100.00");
   });
 });

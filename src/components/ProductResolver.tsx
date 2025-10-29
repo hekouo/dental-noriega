@@ -8,6 +8,7 @@ import {
 import Link from "next/link";
 import { ROUTES } from "@/lib/routes";
 import RecentlyViewed from "@/components/RecentlyViewed";
+import ImageWithFallback from "@/components/ui/ImageWithFallback";
 
 type Props = {
   section: string;
@@ -84,11 +85,11 @@ export default function ProductResolver({ section, slug, children }: Props) {
                   {suggestions.slice(0, 4).map((suggestion, index) => (
                     <Link
                       key={index}
-                      href={`/catalogo/${suggestion.section}/${suggestion.slug}`}
+                      href={`/catalogo/${suggestion.section}/${suggestion.product_slug}`}
                       className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
                     >
                       <h3 className="font-medium text-gray-900">
-                        {suggestion.title || suggestion.slug}
+                        {suggestion.title || suggestion.product_slug}
                       </h3>
                       <p className="text-sm text-gray-600">
                         {suggestion.section}
@@ -133,10 +134,13 @@ export default function ProductResolver({ section, slug, children }: Props) {
             <div className="grid md:grid-cols-2 gap-8 p-6 md:p-8">
               {/* Imagen */}
               <div className="relative w-full aspect-square bg-gray-100 rounded-xl overflow-hidden">
-                <img
-                  src={product.image || "/placeholder.png"}
+                <ImageWithFallback
+                  src={product.image ?? undefined}
                   alt={product.title}
-                  className="w-full h-full object-cover"
+                  width={800}
+                  height={800}
+                  square
+                  className="object-contain"
                 />
               </div>
 

@@ -8,7 +8,7 @@ import {
   useSelectedItems,
 } from "@/lib/store/checkoutSelectors";
 import { useCheckoutStore } from "@/lib/store/checkoutStore";
-import { formatCurrency } from "@/lib/utils/currency";
+import { formatMXN } from "@/lib/utils/currency";
 import { createOrderAction } from "@/lib/actions/createOrder";
 
 type FormValues = {
@@ -113,7 +113,7 @@ export default function PagoPage() {
         <div className="mt-2 pt-2 border-t">
           <div className="flex justify-between font-semibold">
             <span>Total:</span>
-            <span>{formatCurrency(total)}</span>
+            <span>{formatMXN(total)}</span>
           </div>
         </div>
       </div>
@@ -241,9 +241,7 @@ export default function PagoPage() {
             className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             aria-busy={sending}
           >
-            {sending
-              ? "Procesando..."
-              : `Confirmar Pago - ${formatCurrency(total)}`}
+            {sending ? "Procesando..." : `Confirmar Pago - ${formatMXN(total)}`}
           </button>
         </div>
       </form>

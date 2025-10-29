@@ -9,7 +9,7 @@ type Props = {
   productPrice: number;
   qty?: number;
   variantId?: string | null;
-  imageUrl?: string;
+  image_url?: string;
   className?: string;
   children?: React.ReactNode;
 };
@@ -20,7 +20,7 @@ export default function BuyNowButton({
   productPrice,
   qty = 1,
   variantId,
-  imageUrl,
+  image_url,
   className,
   children,
 }: Props) {
@@ -43,7 +43,7 @@ export default function BuyNowButton({
           price: productPrice,
           qty: qty ?? 1,
           variantId: variantId || undefined,
-          imageUrl,
+          image_url,
         });
         router.push("/checkout/pago");
       }}

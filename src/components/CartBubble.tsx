@@ -7,7 +7,7 @@ import {
   selectCartItems,
   selectCartCount,
 } from "@/lib/store/cartStore";
-import { formatPrice } from "@/lib/utils/catalog";
+import { formatMXN } from "@/lib/utils/currency";
 import Link from "next/link";
 import FAB from "@/components/FAB";
 
@@ -105,14 +105,14 @@ function CartDrawer({ onClose }: { onClose: () => void }) {
             >
               <div className="h-16 w-16 bg-gray-100 rounded overflow-hidden relative flex-shrink-0">
                 <img
-                  src={it.imageUrl || "/img/products/placeholder.png"}
+                  src={it.image_url || "/img/products/placeholder.png"}
                   alt={it.title}
                   className="w-full h-full object-cover"
                 />
               </div>
               <div className="grow min-w-0">
                 <p className="font-medium text-sm line-clamp-1">{it.title}</p>
-                <p className="text-xs text-gray-500">{formatPrice(it.price)}</p>
+                <p className="text-xs text-gray-500">{formatMXN(it.price)}</p>
                 <div className="flex items-center gap-2 mt-2">
                   <label
                     htmlFor={`qty-${it.id}`}
@@ -153,7 +153,7 @@ function CartDrawer({ onClose }: { onClose: () => void }) {
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm text-gray-600">Total</span>
             <span className="text-xl font-bold text-primary-600">
-              {formatPrice(total)}
+              {formatMXN(total)}
             </span>
           </div>
           <div className="flex gap-2">

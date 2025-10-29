@@ -3,7 +3,7 @@
 import { useEffect, useState, type ComponentType, type SVGProps } from "react";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { supabase } from "@/lib/supabase/client";
-import { calculatePointsValue } from "@/lib/utils/currency";
+import { formatMXN } from "@/lib/utils/currency";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import dynamic from "next/dynamic";
@@ -83,7 +83,7 @@ export default function PuntosPage() {
   }
 
   const balance = profile?.points_balance || 0;
-  const balanceValue = calculatePointsValue(balance);
+  const balanceValue = formatMXN(balance * 0.01); // 1 punto = $0.01 MXN
 
   return (
     <AuthGuard>

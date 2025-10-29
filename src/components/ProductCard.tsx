@@ -1,6 +1,6 @@
 "use client";
 
-import { formatCurrency } from "@/lib/utils/currency";
+import { formatMXN } from "@/lib/utils/currency";
 import { pointsFor } from "@/lib/utils/points";
 import { useCartStore } from "@/lib/store/cartStore";
 import { useCheckoutStore } from "@/lib/store/checkoutStore";
@@ -33,13 +33,26 @@ export const ProductCard = memo(function ProductCard({
 
   const handleAddToCart = () => {
     setIsAdding(true);
-    addToCart({ id: sku, title: name, price, qty: 1, imageUrl: image, selected: true });
+    addToCart({
+      id: sku,
+      title: name,
+      price,
+      qty: 1,
+      image_url: image,
+      selected: true,
+    });
     setTimeout(() => setIsAdding(false), 1000);
   };
 
   const handleAddToCheckout = () => {
     setIsAddingToCheckout(true);
-    upsertSingleToCheckout({ id: sku, title: name, price, qty: 1, imageUrl: image });
+    upsertSingleToCheckout({
+      id: sku,
+      title: name,
+      price,
+      qty: 1,
+      image_url: image,
+    });
     setTimeout(() => setIsAddingToCheckout(false), 1000);
   };
 
@@ -75,7 +88,7 @@ export const ProductCard = memo(function ProductCard({
 
         <div className="mb-4 mt-auto">
           <span className="text-2xl font-bold text-primary-600">
-            {formatCurrency(price)}
+            {formatMXN(price)}
           </span>
         </div>
 

@@ -7,7 +7,7 @@ import {
   useSelectedTotal,
 } from "@/lib/store/cartSelectors";
 import { useCheckoutStore } from "@/lib/store/checkoutStore";
-import { formatCurrency } from "@/lib/utils/currency";
+import { formatMXN } from "@/lib/utils/currency";
 import { Trash2, Plus, Minus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -110,7 +110,7 @@ export default function CarritoPage() {
                 <h3 className="font-semibold mb-1">{item.title}</h3>
                 <p className="text-sm text-gray-500">ID: {item.id}</p>
                 <p className="text-primary-600 font-bold mt-2">
-                  {formatCurrency(item.price)}
+                  {formatMXN(item.price)}
                 </p>
               </div>
 
@@ -159,7 +159,7 @@ export default function CarritoPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Subtotal</span>
-                <span className="font-medium">{formatCurrency(total)}</span>
+                <span className="font-medium">{formatMXN(total)}</span>
               </div>
               <div className="flex justify-between text-sm text-gray-500">
                 <span>Envío</span>
@@ -170,7 +170,7 @@ export default function CarritoPage() {
             <div className="border-t pt-4 mb-6">
               <div className="flex justify-between text-lg font-bold">
                 <span>Total estimado</span>
-                <span>{formatCurrency(total)}</span>
+                <span>{formatMXN(total)}</span>
               </div>
             </div>
 

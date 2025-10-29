@@ -1,37 +1,111 @@
 import "server-only";
 import { normalizeSlug } from "@/lib/utils/slug";
-import { loadCatalogFromCSV, type ProductLite } from "./catalog-loader.server";
+import {
+  getFeaturedProducts as getFeaturedProductsFromSupabase,
+  listCatalog,
+  getBySectionSlug as getProductBySectionSlugDb,
+  getProductBySlugAnySection as getProductBySlugAnySectionDb,
+  searchProducts,
+  listSectionsFromCatalog,
+  listBySection,
+  type CatalogItem,
+} from "@/lib/supabase/catalog";
 
-export type { ProductLite };
+export type ProductLite = {
+  id: string;
+  section: string;
+  slug: string;
+  title: string;
+  variant?: string;
+  pack?: string;
+  price: number;
+  image_url?: string;
+  currency?: string;
+  inStock: boolean | null;
+};
 
-function loadIndex(): ProductLite[] {
-  return loadCatalogFromCSV();
+export async function getAll(): Promise<ProductLite[]> {
+  const items = await listCatalog();
+  return items.map((item) => ({
+    id: item.id,
+    section: item.section,
+    slug: item.product_slug,
+    title: item.title,
+    price: Math.round(item.price_cents / 100),
+    image_url: item.image_url ?? undefined,
+    inStock: item.in_stock,
+  }));
 }
 
-export function getAll(): ProductLite[] {
-  return loadIndex();
-}
-
-export function findBySectionSlug(section: string, slug: string): ProductLite | null {
+export async function findBySectionSlug(
+  section: string,
+  slug: string,
+): Promise<ProductLite | null> {
   const s = normalizeSlug(section);
   const g = normalizeSlug(slug);
-  return getAll().find(p => p.section === s && p.slug === g) ?? null;
+  const item = await getProductBySectionSlugDb(s, g);
+
+  if (!item) return null;
+
+  return {
+    id: item.id,
+    section: item.section,
+    slug: item.product_slug,
+    title: item.title,
+    price: Math.round(item.price_cents / 100),
+    image_url: item.image_url ?? undefined,
+    inStock: item.in_stock,
+  };
 }
 
-export function findByTitleTokens(q: string, minTokens = 2): ProductLite[] {
-  const n = normalizeSlug(q);
-  const tokens = n.split("-").filter(Boolean);
-  if (tokens.length === 0) return [];
-  const items = getAll();
-  return items.filter(p => {
-    const t = normalizeSlug(p.title);
-    let hit = 0;
-    for (const tok of tokens) if (t.includes(tok)) hit++;
-    return hit >= Math.min(minTokens, tokens.length);
-  });
+export async function findByTitleTokens(
+  q: string,
+  minTokens = 2,
+): Promise<ProductLite[]> {
+  const query = q.trim();
+  if (!query) return [];
+
+  const items = await searchProducts(query, 24);
+  return items.map((item) => ({
+    id: item.id,
+    section: item.section,
+    slug: item.product_slug,
+    title: item.title,
+    price: Math.round(item.price_cents / 100),
+    image_url: item.image_url ?? undefined,
+    inStock: item.in_stock,
+  }));
 }
 
-export function findBySlugAnySection(slug: string): ProductLite | null {
+export async function findBySlugAnySection(
+  slug: string,
+): Promise<ProductLite | null> {
   const normalizedSlug = normalizeSlug(slug);
-  return getAll().find(p => p.slug === normalizedSlug) ?? null;
+  const item = await getProductBySlugAnySectionDb(normalizedSlug);
+
+  if (!item) return null;
+
+  return {
+    id: item.id,
+    section: item.section,
+    slug: item.product_slug,
+    title: item.title,
+    price: Math.round(item.price_cents / 100),
+    image_url: item.image_url ?? undefined,
+    inStock: item.in_stock,
+  };
+}
+
+export async function getFeaturedProducts(): Promise<CatalogItem[]> {
+  return await getFeaturedProductsFromSupabase();
+}
+
+export async function getSections(): Promise<string[]> {
+  return await listSectionsFromCatalog();
+}
+
+export async function getProductsBySection(
+  section: string,
+): Promise<CatalogItem[]> {
+  return await listBySection(section);
 }

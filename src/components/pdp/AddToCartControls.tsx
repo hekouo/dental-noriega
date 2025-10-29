@@ -9,7 +9,7 @@ type Props = {
     id: string;
     title: string;
     price: number;
-    imageUrl?: string;
+    image_url?: string;
     section: string;
     slug: string;
     inStock?: boolean;
@@ -30,7 +30,7 @@ export default function AddToCartControls({ product }: Props) {
       title: product.title,
       price: product.price,
       qty,
-      imageUrl: product.imageUrl,
+      image_url: product.image_url,
       selected: true,
     });
     setTimeout(() => (busyRef.current = false), 250);

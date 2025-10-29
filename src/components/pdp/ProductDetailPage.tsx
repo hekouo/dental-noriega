@@ -2,7 +2,7 @@
 "use client";
 import ImageWithFallback from "@/components/ui/ImageWithFallback";
 import AddToCartControls from "@/components/pdp/AddToCartControls";
-import { formatCurrency } from "@/lib/utils/currency";
+import { formatMXN } from "@/lib/utils/currency";
 
 type Props = {
   product: {
@@ -10,7 +10,7 @@ type Props = {
     slug: string;
     title: string;
     price: number; // centavos
-    imageUrl?: string;
+    image_url?: string;
     inStock?: boolean;
     sku?: string;
     description?: string;
@@ -23,7 +23,7 @@ export default function ProductDetailPage({ product }: Props) {
       <div className="w-full">
         <div className="aspect-square rounded-lg overflow-hidden bg-gray-50">
           <ImageWithFallback
-            src={product.imageUrl}
+            src={product.image_url}
             alt={product.title}
             className="w-full h-full object-cover"
           />
@@ -32,7 +32,7 @@ export default function ProductDetailPage({ product }: Props) {
 
       <div>
         <h1 className="text-2xl font-semibold">{product.title}</h1>
-        <div className="text-xl mt-2">{formatCurrency(product.price)}</div>
+        <div className="text-xl mt-2">{formatMXN(product.price)}</div>
         {product.inStock === false ? (
           <div className="mt-2 text-sm text-red-600">Agotado</div>
         ) : (
@@ -47,7 +47,7 @@ export default function ProductDetailPage({ product }: Props) {
             id: product.sku ?? product.slug,
             title: product.title,
             price: product.price,
-            imageUrl: product.imageUrl,
+            image_url: product.image_url,
             section: product.section,
             slug: product.slug,
             inStock: product.inStock,

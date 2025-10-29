@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
-import { formatCurrency } from "@/lib/utils/currency";
+import { formatMXN } from "@/lib/utils/currency";
 import { ROUTES } from "@/lib/routes";
 import { CheckCircle } from "lucide-react";
 
@@ -100,7 +100,7 @@ export default async function GraciasPage({ searchParams }: Props) {
             <ul className="space-y-1">
               {items.map((item) => (
                 <li key={item.id} className="text-sm">
-                  {item.name} x {item.qty} - {formatCurrency(item.subtotal)}
+                  {item.name} x {item.qty} - {formatMXN(item.subtotal)}
                 </li>
               ))}
             </ul>
@@ -108,8 +108,7 @@ export default async function GraciasPage({ searchParams }: Props) {
         )}
 
         <p className="text-2xl font-bold text-primary-600">
-          <span className="font-semibold">Total:</span>{" "}
-          {formatCurrency(order.total)}
+          <span className="font-semibold">Total:</span> {formatMXN(order.total)}
         </p>
         <p className="text-sm text-gray-500">
           Fecha: {new Date(order.created_at).toLocaleDateString()}

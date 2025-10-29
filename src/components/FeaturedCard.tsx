@@ -3,56 +3,47 @@
 import Link from "next/link";
 import ImageWithFallback from "@/components/ui/ImageWithFallback";
 import FeaturedCardControls from "@/components/FeaturedCardControls";
-import { formatCurrency } from "@/lib/utils/currency";
+import { mxnFromCents, formatMXN } from "@/lib/utils/currency";
+import type { CatalogItem } from "@/lib/supabase/catalog";
 
 type Props = {
-  item: {
-    canonicalUrl?: string;
-    title: string;
-    price?: number; // centavos
-    imageUrl?: string;
-    inStock: boolean;
-    badge?: string;
-  };
+  item: CatalogItem;
 };
 
 export default function FeaturedCard({ item }: Props) {
-  const href =
-    item.canonicalUrl || `/catalogo?query=${encodeURIComponent(item.title)}`;
+  const href = `/catalogo/${item.section}/${item.product_slug}`;
 
   return (
     <div className="border rounded-xl overflow-hidden flex flex-col">
-      <Link
-        href={href}
-        prefetch={!!item.canonicalUrl}
-        onMouseEnter={() => {
-          if (item.canonicalUrl) {
-            fetch(item.canonicalUrl, { cache: "force-cache" }).catch(() => {});
-          }
-        }}
-        className="block"
-      >
-        <div className="aspect-square bg-gray-50">
+      <Link href={href} className="block">
+        <div className="relative w-full aspect-square bg-white">
           <ImageWithFallback
-            src={item.imageUrl}
+            src={item.image_url}
             alt={item.title}
-            className="w-full h-full object-cover"
+            width={512}
+            height={512}
+            className="w-full h-full object-contain"
           />
         </div>
       </Link>
 
       <div className="p-3 flex-1 flex flex-col">
-        <div className="text-sm font-medium line-clamp-2 min-h-[2.5rem]">
-          {item.title}
-        </div>
-        <div className="mt-1 text-sm text-gray-700">
-          {typeof item.price === "number" ? formatCurrency(item.price) : "—"}
-        </div>
-        {item.badge ? (
-          <div className="mt-1 text-[11px] inline-flex items-center px-2 py-0.5 rounded bg-gray-100 text-gray-700">
-            {item.badge}
+        <h3 className="mt-2 line-clamp-2">
+          <Link
+            href={href}
+            className="text-sm font-medium hover:text-primary-600"
+          >
+            {item.title}
+          </Link>
+        </h3>
+        <p className="text-sm text-gray-600">
+          {formatMXN(mxnFromCents(item.price_cents))}
+        </p>
+        {item.in_stock === false && (
+          <div className="mt-1 text-[11px] inline-flex items-center px-2 py-0.5 rounded bg-red-100 text-red-700">
+            Agotado
           </div>
-        ) : null}
+        )}
 
         <FeaturedCardControls item={item} />
       </div>

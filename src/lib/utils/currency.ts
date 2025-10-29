@@ -1,29 +1,55 @@
-export function parsePriceToNumber(raw: string | number): number {
-  if (typeof raw === "number") return raw;
-  const cleaned = raw.replace(/[^\d.,]/g, "").replace(",", ".");
-  const n = Number.parseFloat(cleaned);
-  return Number.isFinite(n) ? n : 0;
+/**
+ * Utilidades para formateo de moneda MXN
+ */
+
+/**
+ * Convierte centavos a pesos MXN
+ * @param cents - Cantidad en centavos
+ * @returns Cantidad en pesos (redondeada)
+ */
+export function mxnFromCents(cents: number): number {
+  return Math.max(0, Math.round(cents ?? 0)) / 100;
 }
 
-export function formatMXN(n: number): string {
+/**
+ * Formatea un valor numérico como moneda MXN
+ * @param value - Valor en pesos MXN
+ * @returns String formateado como moneda MXN
+ */
+export function formatMXN(value: number): string {
   return new Intl.NumberFormat("es-MX", {
     style: "currency",
     currency: "MXN",
-    minimumFractionDigits: 2,
-  }).format(n);
+    maximumFractionDigits: 2,
+  }).format(value);
 }
 
-export function formatCurrency(amount: number): string {
-  if (isNaN(amount) || amount < 0) {
-    return "Precio a consultar";
-  }
-  return new Intl.NumberFormat("es-MX", {
-    style: "currency",
-    currency: "MXN",
-    minimumFractionDigits: 2,
-  }).format(amount);
+/**
+ * Formatea centavos directamente como moneda MXN
+ * @param cents - Cantidad en centavos
+ * @returns String formateado como moneda MXN
+ */
+export function formatMXNFromCents(cents: number): string {
+  return formatMXN(mxnFromCents(cents));
 }
 
-export function calculatePointsValue(amount: number): number {
-  return Math.floor(amount * 0.01); // 1 punto por cada peso
+/**
+ * Formatea precio con descuento
+ * @param originalCents - Precio original en centavos
+ * @param discountPercent - Porcentaje de descuento (0-100)
+ * @returns Objeto con precio original y con descuento formateados
+ */
+export function formatPriceWithDiscount(
+  originalCents: number,
+  discountPercent: number = 0,
+) {
+  const original = mxnFromCents(originalCents);
+  const discount = original * (discountPercent / 100);
+  const discounted = original - discount;
+
+  return {
+    original: formatMXN(original),
+    discounted: formatMXN(discounted),
+    savings: formatMXN(discount),
+  };
 }

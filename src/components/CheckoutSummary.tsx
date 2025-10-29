@@ -5,7 +5,7 @@ import {
   selectSelectedCount,
   selectSelectedTotal,
 } from "@/lib/store/checkoutStore";
-import { formatCurrency } from "@/lib/utils/currency";
+import { formatMXN } from "@/lib/utils/currency";
 import { useRouter } from "next/navigation";
 
 export default function CheckoutSummary() {
@@ -34,7 +34,7 @@ export default function CheckoutSummary() {
         <div className="flex items-center gap-4">
           <div className="text-right">
             <div className="text-lg font-bold text-primary-600">
-              {formatCurrency(selectedTotal)}
+              {formatMXN(selectedTotal)}
             </div>
           </div>
           <button
