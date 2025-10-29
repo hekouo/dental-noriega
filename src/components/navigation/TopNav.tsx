@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ShoppingCart, User, Menu, X } from "lucide-react";
 import { useCartStore } from "@/lib/store/cartStore";
-import { createClient } from "@/lib/supabase/client";
+import { supabase } from "@/lib/supabase/client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ROUTES } from "@/lib/routes";
@@ -11,11 +11,12 @@ import { ROUTES } from "@/lib/routes";
 export function TopNav() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [user, setUser] = useState<unknown>(null);
-  const itemCount = useCartStore((state) => state.getItemCount());
+  const itemCount = useCartStore((state) =>
+    state.cartItems.reduce((sum, item) => sum + item.qty, 0),
+  );
   const router = useRouter();
 
   useEffect(() => {
-    const supabase = createClient();
 
     // Check initial session
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -33,7 +34,6 @@ export function TopNav() {
   }, []);
 
   const handleLogout = async () => {
-    const supabase = createClient();
     await supabase.auth.signOut();
     router.push("/");
   };

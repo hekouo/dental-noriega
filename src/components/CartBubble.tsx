@@ -2,15 +2,18 @@
 
 import { useEffect, useState } from "react";
 import { ShoppingCart, X, Trash2 } from "lucide-react";
-import { useCart } from "./CartProvider";
-import { formatPrice } from "@/lib/utils/catalog";
+import {
+  useCartStore,
+  selectCartItems,
+  selectCartCount,
+} from "@/lib/store/cartStore";
+import { formatMXN } from "@/lib/utils/currency";
 import Link from "next/link";
 import FAB from "@/components/FAB";
 
 export default function CartBubble() {
-  const { state } = useCart();
+  const count = useCartStore(selectCartCount);
   const [open, setOpen] = useState(false);
-  const count = state.items.reduce((n, i) => n + i.qty, 0);
 
   return (
     <>
@@ -37,8 +40,11 @@ export default function CartBubble() {
 }
 
 function CartDrawer({ onClose }: { onClose: () => void }) {
-  const { state, setQty, remove, clear } = useCart();
-  const total = state.items.reduce((s, i) => s + i.price * i.qty, 0);
+  const cartItems = useCartStore(selectCartItems);
+  const setCartQty = useCartStore((state) => state.setCartQty);
+  const removeFromCart = useCartStore((state) => state.removeFromCart);
+  const clearCart = useCartStore((state) => state.clearCart);
+  const total = cartItems.reduce((s, i) => s + i.price * i.qty, 0);
 
   useEffect(() => {
     document.body.classList.add("body-lock");
@@ -85,32 +91,28 @@ function CartDrawer({ onClose }: { onClose: () => void }) {
 
         {/* Items */}
         <div className="grow space-y-3 overflow-y-auto p-4">
-          {state.items.length === 0 && (
+          {cartItems.length === 0 && (
             <div className="text-center py-12 text-gray-500">
               <ShoppingCart size={48} className="mx-auto mb-4 opacity-30" />
               <p>Aún no agregas productos.</p>
             </div>
           )}
 
-          {state.items.map((it) => (
+          {cartItems.map((it) => (
             <div
               key={it.id}
               className="flex items-center gap-3 border rounded-lg p-3"
             >
               <div className="h-16 w-16 bg-gray-100 rounded overflow-hidden relative flex-shrink-0">
                 <img
-                  src={
-                    it.imageResolved ||
-                    it.image ||
-                    "/img/products/placeholder.png"
-                  }
+                  src={it.image_url || "/img/products/placeholder.png"}
                   alt={it.title}
                   className="w-full h-full object-cover"
                 />
               </div>
               <div className="grow min-w-0">
                 <p className="font-medium text-sm line-clamp-1">{it.title}</p>
-                <p className="text-xs text-gray-500">{formatPrice(it.price)}</p>
+                <p className="text-xs text-gray-500">{formatMXN(it.price)}</p>
                 <div className="flex items-center gap-2 mt-2">
                   <label
                     htmlFor={`qty-${it.id}`}
@@ -124,11 +126,17 @@ function CartDrawer({ onClose }: { onClose: () => void }) {
                     inputMode="numeric"
                     min={1}
                     value={it.qty}
-                    onChange={(e) => setQty(it.id, Number(e.target.value) || 1)}
+                    onChange={(e) =>
+                      setCartQty(
+                        it.id,
+                        it.variantId,
+                        Number(e.target.value) || 1,
+                      )
+                    }
                     className="w-16 border rounded px-2 py-1 text-sm min-h-[44px]"
                   />
                   <button
-                    onClick={() => remove(it.id)}
+                    onClick={() => removeFromCart(it.id, it.variantId)}
                     className="ml-auto text-red-600 hover:bg-red-50 p-2 rounded min-h-[44px] min-w-[44px] flex items-center justify-center"
                     aria-label={`Eliminar ${it.title}`}
                   >
@@ -145,12 +153,12 @@ function CartDrawer({ onClose }: { onClose: () => void }) {
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm text-gray-600">Total</span>
             <span className="text-xl font-bold text-primary-600">
-              {formatPrice(total)}
+              {formatMXN(total)}
             </span>
           </div>
           <div className="flex gap-2">
             <button
-              onClick={clear}
+              onClick={clearCart}
               className="border rounded-lg px-4 py-2 text-sm hover:bg-gray-100 min-h-[44px]"
             >
               <span>Vaciar</span>

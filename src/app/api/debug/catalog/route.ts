@@ -1,24 +1,27 @@
 // src/app/api/debug/catalog/route.ts
+export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 import { NextResponse } from "next/server";
-import { loadAllSections } from "@/lib/data/catalog-sections";
-import { imageSrc } from "@/lib/utils/catalog";
+import { listSectionsFromCatalog, listBySection } from "@/lib/supabase/catalog";
 
 export async function GET() {
   try {
-    const secs = await loadAllSections();
-    const summary = secs.map((s) => ({
-      sectionSlug: s.sectionSlug,
-      sectionName: s.sectionName,
-      file: s.file,
-      count: s.items.length,
-      sample: s.items.slice(0, 2).map((i) => ({
-        title: i.title,
-        price: i.price,
-        image: i.image,
-        resolvedImage: imageSrc(i.image),
-      })),
-    }));
+    const sections = await listSectionsFromCatalog();
+    const summary = await Promise.all(
+      sections.map(async (section) => {
+        const items = await listBySection(section);
+        return {
+          sectionSlug: section,
+          sectionName: section,
+          count: items.length,
+          sample: items.slice(0, 2).map((item) => ({
+            title: item.title,
+            price_cents: item.price_cents,
+            image_url: item.image_url,
+          })),
+        };
+      }),
+    );
     return NextResponse.json({ sections: summary });
   } catch (error) {
     return NextResponse.json(

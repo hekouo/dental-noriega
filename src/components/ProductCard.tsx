@@ -1,10 +1,11 @@
 "use client";
 
-import { formatCurrency } from "@/lib/utils/currency";
+import { formatMXN } from "@/lib/utils/currency";
 import { pointsFor } from "@/lib/utils/points";
 import { useCartStore } from "@/lib/store/cartStore";
-import { ShoppingCart } from "lucide-react";
-import { useState } from "react";
+import { useCheckoutStore } from "@/lib/store/checkoutStore";
+import { ShoppingCart, CreditCard } from "lucide-react";
+import { useState, memo } from "react";
 import ProductImage from "@/components/ProductImage";
 import PointsBadge from "@/components/PointsBadge";
 
@@ -16,20 +17,43 @@ interface ProductCardProps {
   image?: string;
 }
 
-export function ProductCard({
+export const ProductCard = memo(function ProductCard({
   sku,
   name,
   price,
   description,
   image,
 }: ProductCardProps) {
-  const addItem = useCartStore((state) => state.addItem);
+  const addToCart = useCartStore((state) => state.addToCart);
+  const upsertSingleToCheckout = useCheckoutStore(
+    (state) => state.upsertSingleToCheckout,
+  );
   const [isAdding, setIsAdding] = useState(false);
+  const [isAddingToCheckout, setIsAddingToCheckout] = useState(false);
 
   const handleAddToCart = () => {
     setIsAdding(true);
-    addItem({ sku, name, price, qty: 1 });
+    addToCart({
+      id: sku,
+      title: name,
+      price,
+      qty: 1,
+      image_url: image,
+      selected: true,
+    });
     setTimeout(() => setIsAdding(false), 1000);
+  };
+
+  const handleAddToCheckout = () => {
+    setIsAddingToCheckout(true);
+    upsertSingleToCheckout({
+      id: sku,
+      title: name,
+      price,
+      qty: 1,
+      image_url: image,
+    });
+    setTimeout(() => setIsAddingToCheckout(false), 1000);
   };
 
   const points = pointsFor(price, 1);
@@ -64,19 +88,30 @@ export function ProductCard({
 
         <div className="mb-4 mt-auto">
           <span className="text-2xl font-bold text-primary-600">
-            {formatCurrency(price)}
+            {formatMXN(price)}
           </span>
         </div>
 
-        <button
-          onClick={handleAddToCart}
-          disabled={isAdding}
-          className="w-full btn btn-primary flex items-center justify-center gap-2 disabled:opacity-50"
-        >
-          <ShoppingCart size={18} />
-          {isAdding ? "Agregado!" : "Agregar al Carrito"}
-        </button>
+        <div className="space-y-2">
+          <button
+            onClick={handleAddToCart}
+            disabled={isAdding}
+            className="w-full btn btn-primary flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            <ShoppingCart size={18} />
+            {isAdding ? "Agregado!" : "Agregar al Carrito"}
+          </button>
+
+          <button
+            onClick={handleAddToCheckout}
+            disabled={isAddingToCheckout}
+            className="w-full btn btn-secondary flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            <CreditCard size={18} />
+            {isAddingToCheckout ? "Agregado!" : "Añadir al Checkout"}
+          </button>
+        </div>
       </div>
     </div>
   );
-}
+});

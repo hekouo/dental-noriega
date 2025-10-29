@@ -1,5 +1,6 @@
 // src/lib/search.ts
-import { loadAllSections } from "@/lib/data/catalog-sections";
+import { searchProducts as searchProductsFromSupabase } from "@/lib/supabase/catalog";
+import { mxnFromCents } from "@/lib/utils/currency";
 import { normalizeText } from "@/lib/utils/text";
 
 export type SearchItem = {
@@ -17,28 +18,16 @@ export async function searchProducts(q: string): Promise<SearchItem[]> {
   const needle = normalizeText(q);
   if (!needle) return [];
 
-  const secs = await loadAllSections();
-  const out: SearchItem[] = [];
+  const results = await searchProductsFromSupabase(q, 24);
 
-  for (const s of secs) {
-    for (const it of s.items) {
-      const hay = normalizeText(
-        [it.title, it.description, s.sectionName].join(" "),
-      );
-      if (hay.includes(needle)) {
-        out.push({
-          sectionSlug: s.sectionSlug,
-          sectionName: s.sectionName,
-          slug: it.slug,
-          title: it.title,
-          description: it.description,
-          price: it.price,
-          image: it.image,
-          imageResolved: it.imageResolved,
-        });
-      }
-    }
-  }
-
-  return out.sort((a, b) => a.title.localeCompare(b.title));
+  return results.map((item) => ({
+    sectionSlug: item.section,
+    sectionName: item.section,
+    slug: item.product_slug,
+    title: item.title,
+    description: item.title, // Usar title como description por ahora
+    price: mxnFromCents(item.price_cents),
+    image: item.image_url || "",
+    imageResolved: item.image_url || undefined,
+  }));
 }

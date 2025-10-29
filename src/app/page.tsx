@@ -1,22 +1,19 @@
 import Link from "next/link";
-import dynamic from "next/dynamic";
+import dynamicImport from "next/dynamic";
 import { ShoppingBag, Package, Award, Truck } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
-import { getFeaturedProducts } from "@/lib/data/featured";
-import ProductImage from "@/components/ProductImage";
-import { formatPrice } from "@/lib/utils/catalog";
-import { pointsFor } from "@/lib/utils/points";
-import PointsBadge from "@/components/PointsBadge";
+import { getFeaturedProducts } from "@/lib/supabase/catalog";
+import FeaturedGrid from "@/components/FeaturedGrid";
 
 // Dynamic import para componente no crítico
-const FinalThanks = dynamic(() => import("@/components/FinalThanks"), {
+const FinalThanks = dynamicImport(() => import("@/components/FinalThanks"), {
   ssr: false,
 });
 
 export const revalidate = 300; // Cache 5 minutos
 
 export default async function HomePage() {
-  const featured = await getFeaturedProducts(8);
+  const featured = await getFeaturedProducts();
 
   return (
     <main className="min-h-screen">
@@ -47,51 +44,20 @@ export default async function HomePage() {
       </section>
 
       {/* Productos Destacados */}
-      {featured.length > 0 && (
+      {featured.length > 0 ? (
+        <FeaturedGrid items={featured} />
+      ) : (
         <section className="py-16 px-4 bg-white">
-          <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-10">
-              <h2 className="text-3xl font-bold mb-2">Productos Destacados</h2>
-              <p className="text-gray-600">
-                Los mejores productos para tu consultorio
-              </p>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-              {featured.map(({ sectionSlug, item }, idx) => (
-                <Link
-                  key={`${sectionSlug}-${item.slug}`}
-                  href={ROUTES.product(sectionSlug, item.slug)}
-                  prefetch={idx < 4} // Solo prefetch en primeros 4
-                  className="border rounded-xl p-3 hover:shadow-lg transition-shadow"
-                >
-                  <span className="block">
-                    <div className="relative w-full aspect-[4/3] bg-gray-50 rounded-lg overflow-hidden mb-2">
-                      <ProductImage
-                        src={item.image}
-                        resolved={item.imageResolved}
-                        alt={item.title}
-                        sizes="(min-width:1024px) 25vw, (min-width:768px) 33vw, 50vw"
-                        priority={idx === 0} // LCP: priorizar primera imagen
-                      />
-                    </div>
-                    <div className="flex items-start justify-between gap-2 mb-1">
-                      <h3 className="font-medium text-sm line-clamp-2 flex-1">
-                        {item.title}
-                      </h3>
-                      <PointsBadge points={pointsFor(item.price, 1)} />
-                    </div>
-                    <p className="text-primary-700 font-semibold">
-                      {formatPrice(item.price)}
-                    </p>
-                  </span>
-                </Link>
-              ))}
-            </div>
-            <div className="text-center mt-8">
-              <Link href={ROUTES.catalogIndex()} className="btn btn-primary">
-                <span>Ver Todo el Catálogo</span>
-              </Link>
-            </div>
+          <div className="max-w-6xl mx-auto text-center">
+            <h2 className="text-3xl font-bold mb-4">
+              Aún no hay productos destacados
+            </h2>
+            <p className="text-gray-600 mb-8">
+              Explora nuestro catálogo completo
+            </p>
+            <Link href={ROUTES.catalogIndex()} className="btn btn-primary">
+              <span>Ver Catálogo</span>
+            </Link>
           </div>
         </section>
       )}

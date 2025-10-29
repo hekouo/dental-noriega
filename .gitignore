@@ -25,8 +25,9 @@ yarn-debug.log*
 yarn-error.log*
 
 # local env files
-.env*.local
 .env
+.env.local
+.env.*.local
 
 # vercel
 .vercel
@@ -68,3 +69,6 @@ coverage/
 # Ignorar backups locales
 *.bak
 *.bak.*
+
+# Ignorar CSV de runtime (archivados)
+public/data/*.csv

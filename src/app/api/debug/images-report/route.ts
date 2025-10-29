@@ -1,33 +1,78 @@
-// src/app/api/debug/images-report/route.ts
-export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
-import { loadAllSections } from "@/lib/data/catalog-sections";
+import { listCatalog } from "@/lib/supabase/catalog";
+import { tryParseUrl, isAllowedImageHost } from "@/lib/utils/url";
 
 export async function GET() {
   try {
-    const sections = await loadAllSections();
-    const broken: Array<{ section: string; title: string; img: string }> = [];
+    const products = await listCatalog();
 
-    sections.forEach((s) =>
-      s.items.forEach((i) => {
-        if (!i.imageResolved || i.imageResolved.endsWith("/placeholder.png")) {
-          broken.push({ section: s.sectionName, title: i.title, img: i.image });
-        }
-      }),
-    );
+    // Analizar URLs de imágenes
+    const imageAnalysis = {
+      total: products.length,
+      withImages: products.filter((p) => p.image_url).length,
+      withoutImages: products.filter((p) => !p.image_url).length,
+      domains: {} as Record<string, number>,
+      brokenUrls: [] as string[],
+      lh3Urls: 0,
+      driveUrls: 0,
+      otherUrls: 0,
+    };
+
+    // Contar dominios y tipos de URLs
+    products.forEach((product) => {
+      if (!product.image_url) return;
+
+      const u = tryParseUrl(product.image_url);
+      if (!u) {
+        imageAnalysis.brokenUrls.push(product.image_url);
+        return;
+      }
+      const hostname = u.hostname;
+
+      // Contar dominios
+      imageAnalysis.domains[hostname] =
+        (imageAnalysis.domains[hostname] || 0) + 1;
+
+      // Contar tipos de URLs por hostname exacto
+      if (hostname === "lh3.googleusercontent.com") {
+        imageAnalysis.lh3Urls++;
+      } else if (hostname === "drive.google.com") {
+        imageAnalysis.driveUrls++;
+      } else {
+        imageAnalysis.otherUrls++;
+      }
+    });
 
     return NextResponse.json({
       success: true,
-      totalSections: sections.length,
-      totalProducts: sections.reduce((sum, s) => sum + s.items.length, 0),
-      brokenCount: broken.length,
-      broken,
+      analysis: imageAnalysis,
+      allowlist: {
+        allowedHostnamesExample: Array.from(
+          new Set(
+            Object.keys(imageAnalysis.domains).filter((h) =>
+              isAllowedImageHost(new URL(`https://${h}`)),
+            ),
+          ),
+        ),
+      },
+      recommendations: [
+        imageAnalysis.driveUrls > 0
+          ? `Convertir ${imageAnalysis.driveUrls} URLs de Drive a lh3`
+          : null,
+        imageAnalysis.withoutImages > 0
+          ? `${imageAnalysis.withoutImages} productos sin imagen`
+          : null,
+        imageAnalysis.brokenUrls.length > 0
+          ? `${imageAnalysis.brokenUrls.length} URLs malformadas`
+          : null,
+      ].filter(Boolean),
     });
   } catch (error) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : String(error),
+        error: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 },
     );

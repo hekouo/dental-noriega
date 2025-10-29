@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "node scripts/kill-port.cjs && rimraf .next",
     "dev": "next dev -p 3002",
+    "fresh": "node scripts/kill-port.cjs && rimraf .next && next dev -p 3002",
     "build": "next build",
     "start": "next start -p 3002",
     "lint": "eslint .",
@@ -25,16 +27,23 @@
     "budget": "node scripts/budget.mjs"
   },
   "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
     "@stripe/stripe-js": "^4.8.0",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.75.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "csv-parse": "^6.1.0",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.462.0",
     "next": "14",
     "papaparse": "^5.5.3",
     "react": "18",
     "react-dom": "18",
+    "react-hook-form": "^7.65.0",
+    "remove-accents": "^0.5.0",
     "stripe": "^17.7.0",
+    "tailwind-merge": "^3.3.1",
     "zustand": "^5.0.1"
   },
   "devDependencies": {
@@ -73,6 +82,7 @@
     "noop": "^1.0.1",
     "postcss": "^8.4.47",
     "prettier": "^3.6.2",
+    "rimraf": "^6.0.1",
     "tailwindcss": "^3.4.14",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "5",
@@ -91,7 +101,7 @@
     "*.{ts,tsx,js,jsx}": "eslint --fix",
     "*.{css,md,json}": "prettier --write"
   },
-  "packageManager": "pnpm@10.18.2",
+  "packageManager": "pnpm@10.18.2+sha512.9fb969fa749b3ade6035e0f109f0b8a60b5d08a1a87fdf72e337da90dcc93336e2280ca4e44f2358a649b83c17959e9993e777c2080879f3801e6f0d999ad3dd",
   "pnpm": {
     "onlyBuiltDependencies": [
       "unrs-resolver"

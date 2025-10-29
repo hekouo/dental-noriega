@@ -1,4 +1,6 @@
 import Link from "next/link";
+import FeaturedGrid from "@/components/FeaturedGrid";
+import { getFeaturedProducts } from "@/lib/data/catalog-index.server";
 
 const categories = [
   { title: "Consumibles y Profilaxis", href: "/tienda/consumibles" },
@@ -16,7 +18,10 @@ const categories = [
   },
 ];
 
-export default function TiendaPage() {
+export const revalidate = 300;
+
+export default async function TiendaPage() {
+  const featured = await getFeaturedProducts();
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-gradient-to-r from-primary-600 to-primary-800 text-white py-12">
@@ -26,7 +31,9 @@ export default function TiendaPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-12">
+      <FeaturedGrid items={featured} title="Destacados" />
+
+      <div className="max-w-7xl mx-auto px-4 pb-12">
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {categories.map((category) => (
             <Link

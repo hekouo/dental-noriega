@@ -1,98 +1,153 @@
-// src/app/catalogo/[section]/[slug]/page.tsx
-import Link from "next/link";
-import { notFound } from "next/navigation";
-import { loadProductBySlug } from "@/lib/data/catalog-sections";
-import { formatPrice } from "@/lib/utils/catalog";
-import { pointsFor, getPointsRate } from "@/lib/utils/points";
+import { notFound, redirect } from "next/navigation";
+import {
+  getBySectionSlug,
+  getProductBySlugAnySection,
+} from "@/lib/supabase/catalog";
+import { formatMXNFromCents } from "@/lib/utils/currency";
+import ImageWithFallback from "@/components/ui/ImageWithFallback";
+import ProductActions from "@/components/product/ProductActions.client";
 import { ROUTES } from "@/lib/routes";
-import { QuantitySelector } from "@/components/QuantitySelector";
-import ProductImage from "@/components/ProductImage";
-import PointsBadge from "@/components/PointsBadge";
+import Link from "next/link";
+import { Package, Truck, Shield } from "lucide-react";
 
-export const revalidate = 300; // Cache 5 minutos
+type Props = {
+  params: { section: string; slug: string };
+};
 
-type Props = { params: { section: string; slug: string } };
+export default async function ProductDetailPage({ params }: Props) {
+  const { section, slug } = params;
 
-export default async function ProductPage({ params }: Props) {
-  const data = await loadProductBySlug(params.section, params.slug);
+  // Buscar producto por sección y slug
+  const product = await getBySectionSlug(section, slug);
 
-  if (!data) {
-    return notFound();
+  // Si no se encuentra en la sección especificada, buscar en cualquier sección
+  if (!product) {
+    const anySectionProduct = await getProductBySlugAnySection(slug);
+    if (anySectionProduct) {
+      // Redirigir a la URL canónica
+      redirect(
+        `/catalogo/${anySectionProduct.section}/${anySectionProduct.product_slug}`,
+      );
+    }
   }
 
-  const { section, product } = data;
+  // Si no se encuentra en ningún lado, 404
+  if (!product) {
+    notFound();
+  }
+
+  const image_url = product.image_url;
+  const price = formatMXNFromCents(product.price_cents);
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <Link
-          href={ROUTES.section(section.sectionSlug)}
-          className="text-primary-600 hover:text-primary-700 mb-4 inline-block"
-        >
-          <span>← Volver a {section.sectionName}</span>
-        </Link>
+      {/* Breadcrumb */}
+      <div className="bg-white border-b">
+        <div className="max-w-6xl mx-auto px-4 py-3">
+          <nav className="flex items-center space-x-2 text-sm text-gray-600">
+            <Link href={ROUTES.home()} className="hover:text-primary-600">
+              Inicio
+            </Link>
+            <span>/</span>
+            <Link
+              href={ROUTES.catalogIndex()}
+              className="hover:text-primary-600"
+            >
+              Catálogo
+            </Link>
+            <span>/</span>
+            <Link
+              href={`/catalogo/${product.section}`}
+              className="hover:text-primary-600"
+            >
+              {product.section}
+            </Link>
+            <span>/</span>
+            <span className="text-gray-900 font-medium">{product.title}</span>
+          </nav>
+        </div>
+      </div>
 
-        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-          <div className="grid md:grid-cols-2 gap-8 p-6 md:p-8">
-            {/* Imagen */}
-            <div className="relative w-full aspect-square bg-gray-100 rounded-xl overflow-hidden">
-              <ProductImage
-                src={product.image}
-                resolved={product.imageResolved}
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        <div className="grid lg:grid-cols-2 gap-8">
+          {/* Imagen */}
+          <div className="space-y-4">
+            <div className="relative w-full aspect-square bg-white rounded-lg overflow-hidden shadow-sm">
+              <ImageWithFallback
+                src={image_url}
                 alt={product.title}
-                sizes="(min-width: 768px) 50vw, 100vw"
-                priority // LCP en ficha de producto
+                width={800}
+                height={800}
+                className="w-full h-full object-contain"
+                sizes="(max-width: 768px) 100vw, 50vw"
+                priority
               />
             </div>
+          </div>
 
-            {/* Información */}
-            <div className="flex flex-col">
-              <div className="mb-2">
-                <span className="inline-block px-3 py-1 bg-primary-100 text-primary-700 text-sm rounded-full">
-                  {section.sectionName}
-                </span>
-              </div>
-
-              <h1 className="text-3xl font-bold text-gray-900 mb-4">
+          {/* Información del producto */}
+          <div className="space-y-6">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">
                 {product.title}
               </h1>
+              <p className="text-lg text-gray-600 capitalize">
+                {product.section}
+              </p>
+            </div>
 
-              {product.description && (
-                <p className="text-gray-700 leading-relaxed mb-6">
-                  {product.description}
-                </p>
-              )}
-
-              <div className="mb-2">
-                <div className="text-4xl font-bold text-primary-600">
-                  {formatPrice(product.price)}
-                </div>
-              </div>
-
-              <div className="mb-2 flex items-center gap-2">
-                <PointsBadge points={pointsFor(product.price, 1)} />
-                <span className="text-xs text-gray-500">
-                  (1 punto por cada ${getPointsRate()} MXN)
+            {/* Precio */}
+            <div className="space-y-2">
+              <div className="text-4xl font-bold text-primary-600">{price}</div>
+              <div className="flex items-center space-x-2">
+                <span
+                  className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    product.in_stock
+                      ? "bg-green-100 text-green-800"
+                      : "bg-red-100 text-red-800"
+                  }`}
+                >
+                  {product.in_stock ? "En stock" : "Agotado"}
                 </span>
               </div>
+            </div>
 
-              <div className="mb-6"></div>
+            {/* Controles de compra */}
+            <ProductActions
+              product={{
+                id: product.id,
+                title: product.title,
+                section: product.section,
+                product_slug: product.product_slug,
+                price_cents: product.price_cents,
+                in_stock: product.in_stock ?? undefined,
+              }}
+            />
 
-              {/* Selector de cantidad y botones - Client Component */}
-              <QuantitySelector
-                productTitle={product.title}
-                sectionName={section.sectionName}
-                price={product.price}
-                product={product}
-                sectionSlug={section.sectionSlug}
-              />
-
-              {/* Info adicional */}
-              <div className="mt-6 pt-6 border-t">
-                <p className="text-sm text-gray-600">
-                  <strong>Nota:</strong> Los precios pueden variar sin previo
-                  aviso. Consulta disponibilidad y tiempos de entrega.
-                </p>
+            {/* Características */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-6 border-t">
+              <div className="flex items-center space-x-3">
+                <Package className="h-5 w-5 text-primary-600" />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Envío</p>
+                  <p className="text-xs text-gray-600">
+                    Gratis en pedidos +$500
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-3">
+                <Truck className="h-5 w-5 text-primary-600" />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Entrega</p>
+                  <p className="text-xs text-gray-600">1-3 días hábiles</p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-3">
+                <Shield className="h-5 w-5 text-primary-600" />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Garantía</p>
+                  <p className="text-xs text-gray-600">30 días</p>
+                </div>
               </div>
             </div>
           </div>

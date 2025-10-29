@@ -82,6 +82,60 @@ export default [
       "no-useless-escape": "warn",
     },
   },
+  // Evitar substring checks de URL en DEBUG: usar URL + allowlist
+  {
+    files: ["src/app/api/debug/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "CallExpression[callee.property.name='includes']",
+          message: "No uses substring para validar host. Usa URL + allowlist.",
+        },
+      ],
+    },
+  },
+  // Bloquear imports de rutas DEBUG en UI pública y handlers de API
+  {
+    files: ["src/app/**/*.{ts,tsx}", "src/components/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "@/app/api/debug/catalog/route",
+              message: "No importes rutas DEBUG en páginas.",
+            },
+            {
+              name: "@/app/api/debug/images-report/route",
+              message: "No importes rutas DEBUG en páginas.",
+            },
+            {
+              name: "@/app/api/debug/domains/route",
+              message: "No importes rutas DEBUG en páginas.",
+            },
+          ],
+          patterns: ["@/app/api/debug/*", "@/app/api/**/route"],
+        },
+      ],
+    },
+  },
+  // Regla para prevenir imageUrl camelCase en UI (permitido solo en stores)
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "Identifier[name='imageUrl']",
+          message:
+            "Usa image_url en UI. imageUrl camelCase solo se permite en stores por compat.",
+        },
+      ],
+    },
+    ignores: ["src/lib/store/**/*", "src/**/store/**/*"],
+  },
   // Configuración para archivos de configuración CommonJS
   {
     files: [

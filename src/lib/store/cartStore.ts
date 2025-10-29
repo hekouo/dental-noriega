@@ -1,151 +1,196 @@
+"use client";
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
-import { createClient } from "@/lib/supabase/client";
+import { persist, createJSONStorage } from "zustand/middleware";
 
-export interface CartItem {
-  sku: string;
-  name: string;
+// Tipos
+export type CartItem = {
+  id: string;
+  title: string;
   price: number;
+  image_url?: string;
+  variantId?: string;
   qty: number;
-}
+  selected: boolean;
+};
 
-interface CartState {
-  items: CartItem[];
-  addItem: (item: CartItem) => void;
-  removeItem: (sku: string) => void;
-  updateQuantity: (sku: string, qty: number) => void;
+type CartState = {
+  cartItems: CartItem[];
+};
+
+type CartActions = {
+  addToCart: (item: CartItem) => void;
+  removeFromCart: (id: string, variantId?: string) => void;
+  setCartQty: (id: string, variantId: string | undefined, qty: number) => void;
   clearCart: () => void;
-  syncWithSupabase: (userId: string) => Promise<void>;
-  loadFromSupabase: (userId: string) => Promise<void>;
-  getSubtotal: () => number;
-  getItemCount: () => number;
-}
+  toggleSelect: (id: string) => void;
+  selectAll: () => void;
+  deselectAll: () => void;
+};
 
-export const useCartStore = create<CartState>()(
+export type CartStore = CartState & CartActions;
+
+const initial: CartState = {
+  cartItems: [],
+};
+
+// Helper para generar key única
+const getKey = (id: string, variantId?: string) =>
+  `${id}:${variantId || "default"}`;
+
+export const useCartStore = create<CartStore>()(
   persist(
-    (set, get) => ({
-      items: [],
-
-      addItem: (item) => {
-        set((state) => {
-          const existingItem = state.items.find((i) => i.sku === item.sku);
-          if (existingItem) {
-            return {
-              items: state.items.map((i) =>
-                i.sku === item.sku ? { ...i, qty: i.qty + item.qty } : i,
-              ),
-            };
+    (set, get) => {
+      // Tripwire de desarrollo (solo en dev)
+      let _lastTick = 0;
+      let _opsThisTick = 0;
+      function _tripwire(op: string, payload?: unknown) {
+        if (process.env.NODE_ENV === "development") {
+          const now = Date.now();
+          if (now - _lastTick > 250) {
+            _lastTick = now;
+            _opsThisTick = 0;
           }
-          return { items: [...state.items, item] };
-        });
-      },
-
-      removeItem: (sku) => {
-        set((state) => ({
-          items: state.items.filter((i) => i.sku !== sku),
-        }));
-      },
-
-      updateQuantity: (sku, qty) => {
-        if (qty <= 0) {
-          get().removeItem(sku);
-          return;
+          _opsThisTick++;
+          if (_opsThisTick > 8) {
+            // eslint-disable-next-line no-console
+            console.groupCollapsed(
+              `[TRIPWIRE] Mutaciones excesivas: ${_opsThisTick} en <250ms`,
+            );
+            // eslint-disable-next-line no-console
+            console.trace(`Acción: ${op}`, payload);
+            // eslint-disable-next-line no-console
+            console.groupEnd();
+          }
         }
-        set((state) => ({
-          items: state.items.map((i) => (i.sku === sku ? { ...i, qty } : i)),
-        }));
-      },
+      }
 
-      clearCart: () => set({ items: [] }),
-
-      syncWithSupabase: async (userId) => {
-        const supabase = createClient();
-        const items = get().items;
-
-        // Obtener o crear carrito
-        let { data: cart } = await supabase
-          .from("carts")
-          .select("id")
-          .eq("user_id", userId)
-          .single();
-
-        if (!cart) {
-          const { data: newCart } = await supabase
-            .from("carts")
-            .insert({ user_id: userId })
-            .select()
-            .single();
-          cart = newCart;
+      // Hotfix anti-reentrada (solo en dev)
+      let _setting = false;
+      function _safeSet(partial: Partial<CartState>) {
+        if (process.env.NODE_ENV === "development" && _setting) return;
+        if (process.env.NODE_ENV === "development") _setting = true;
+        try {
+          set(partial);
+        } finally {
+          if (process.env.NODE_ENV === "development") _setting = false;
         }
+      }
 
-        if (!cart) return;
+      return {
+        ...initial,
 
-        // Limpiar items existentes
-        await supabase.from("cart_items").delete().eq("cart_id", cart.id);
-
-        // Insertar items actuales
-        if (items.length > 0) {
-          await supabase.from("cart_items").insert(
-            items.map((item) => ({
-              cart_id: cart.id,
-              sku: item.sku,
-              name: item.name,
-              price: item.price,
-              qty: item.qty,
-            })),
+        // Acciones de carrito
+        addToCart: (item) => {
+          _tripwire("addToCart", item);
+          const cartItems = get().cartItems;
+          const key = getKey(item.id, item.variantId);
+          const existingIndex = cartItems.findIndex(
+            (x) => getKey(x.id, x.variantId) === key,
           );
-        }
-      },
 
-      loadFromSupabase: async (userId) => {
-        const supabase = createClient();
+          let next: CartItem[];
+          if (existingIndex >= 0) {
+            next = cartItems.map((x, i) =>
+              i === existingIndex ? { ...x, qty: x.qty + item.qty } : x,
+            );
+          } else {
+            next = [...cartItems, { ...item, selected: true }];
+          }
 
-        const { data: cart } = await supabase
-          .from("carts")
-          .select("id, cart_items(*)")
-          .eq("user_id", userId)
-          .single();
+          if (next === cartItems) return;
+          _safeSet({ cartItems: next });
+        },
 
-        if (cart?.cart_items) {
-          const localItems = get().items;
-          const supabaseItems = cart.cart_items.map((item: any) => ({
-            sku: item.sku,
-            name: item.name,
-            price: Number(item.price),
-            qty: item.qty,
-          }));
+        removeFromCart: (id, variantId) => {
+          _tripwire("removeFromCart", { id, variantId });
+          const cartItems = get().cartItems;
+          const key = getKey(id, variantId);
+          const next = cartItems.filter(
+            (x) => getKey(x.id, x.variantId) !== key,
+          );
+          if (next === cartItems) return;
+          _safeSet({ cartItems: next });
+        },
 
-          // Fusionar: combinar cantidades si hay duplicados
-          const merged = [...supabaseItems];
-          localItems.forEach((localItem) => {
-            const existing = merged.find((i) => i.sku === localItem.sku);
-            if (existing) {
-              existing.qty += localItem.qty;
-            } else {
-              merged.push(localItem);
-            }
+        setCartQty: (id, variantId, qty) => {
+          _tripwire("setCartQty", { id, variantId, qty });
+          const cartItems = get().cartItems;
+          const key = getKey(id, variantId);
+          const next = cartItems.map((x) =>
+            getKey(x.id, x.variantId) === key ? { ...x, qty } : x,
+          );
+          if (next === cartItems) return;
+          _safeSet({ cartItems: next });
+        },
+
+        clearCart: () => {
+          _tripwire("clearCart");
+          if (get().cartItems.length === 0) return;
+          _safeSet({ cartItems: [] });
+        },
+
+        toggleSelect: (id) => {
+          _tripwire("toggleSelect", { id });
+          set((s) => {
+            const idx = s.cartItems.findIndex((i) => i.id === id);
+            if (idx < 0) return s;
+            const it = s.cartItems[idx];
+            const nextSelected = !it.selected;
+            if (nextSelected === it.selected) return s; // idempotencia
+            const copy = s.cartItems.slice();
+            copy[idx] = { ...it, selected: nextSelected };
+            return { ...s, cartItems: copy };
           });
+        },
 
-          set({ items: merged });
+        selectAll: () => {
+          _tripwire("selectAll");
+          set((s) => {
+            let changed = false;
+            const copy = s.cartItems.map((i) => {
+              if (i.selected) return i;
+              changed = true;
+              return { ...i, selected: true };
+            });
+            return changed ? { ...s, cartItems: copy } : s;
+          });
+        },
 
-          // Sincronizar de vuelta a Supabase
-          await get().syncWithSupabase(userId);
-        }
-      },
-
-      getSubtotal: () => {
-        return get().items.reduce(
-          (sum, item) => sum + item.price * item.qty,
-          0,
-        );
-      },
-
-      getItemCount: () => {
-        return get().items.reduce((sum, item) => sum + item.qty, 0);
-      },
-    }),
+        deselectAll: () => {
+          _tripwire("deselectAll");
+          set((s) => {
+            let changed = false;
+            const copy = s.cartItems.map((i) => {
+              if (!i.selected) return i;
+              changed = true;
+              return { ...i, selected: false };
+            });
+            return changed ? { ...s, cartItems: copy } : s;
+          });
+        },
+      };
+    },
     {
-      name: "cart-storage",
+      name: "cart-v3",
+      storage: createJSONStorage(() => localStorage),
+      partialize: (s) => ({
+        cartItems: s.cartItems,
+      }),
+      // Nada de onRehydrateStorage
     },
   ),
 );
+
+// Selectores primitivos exportables
+export const selectCartItems = (s: CartStore) => s.cartItems;
+export const selectCartCount = (s: CartStore) =>
+  s.cartItems.reduce((sum, item) => sum + item.qty, 0);
+export const selectSelectedItems = (s: CartStore) =>
+  s.cartItems.filter((i) => i.selected);
+export const selectSelectedCount = (s: CartStore) =>
+  s.cartItems.filter((i) => i.selected).length;
+export const selectSelectedTotal = (s: CartStore) =>
+  s.cartItems.reduce(
+    (sum, item) => sum + (item.selected ? item.price * item.qty : 0),
+    0,
+  );

@@ -1,13 +1,13 @@
 // src/app/catalogo/page.tsx
 import Link from "next/link";
-import { loadAllSections } from "@/lib/data/catalog-sections";
+import { listSectionsFromCatalog } from "@/lib/supabase/catalog";
 import { ROUTES } from "@/lib/routes";
 import { Package } from "lucide-react";
 
 export const revalidate = 300; // Cache 5 minutos
 
 export default async function CatalogoIndexPage() {
-  const sections = await loadAllSections();
+  const sections = await listSectionsFromCatalog();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -24,30 +24,26 @@ export default async function CatalogoIndexPage() {
         {sections.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-12 text-center">
             <Package size={48} className="mx-auto mb-4 text-gray-400" />
-            <p className="text-gray-500 mb-2">
-              No se encontraron secciones en el catálogo
-            </p>
-            <p className="text-sm text-gray-400">
-              Verifica que existan archivos CSV en public/data/
-            </p>
+            <p className="text-gray-500 mb-2">Aún no hay secciones</p>
+            <Link href={ROUTES.destacados()} className="btn btn-primary">
+              <span>Ver Destacados</span>
+            </Link>
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {sections.map((section) => (
               <Link
-                key={section.sectionSlug}
-                href={ROUTES.section(section.sectionSlug)}
+                key={section}
+                href={`/catalogo/${section}`}
                 prefetch={false}
                 className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow p-8 text-center group"
               >
                 <span className="block">
                   <h2 className="text-xl font-semibold text-gray-900 group-hover:text-primary-600 mb-2">
-                    {section.sectionName}
+                    {section
+                      .replace(/-/g, " ")
+                      .replace(/\b\w/g, (l) => l.toUpperCase())}
                   </h2>
-                  <p className="text-sm text-gray-500">
-                    {section.items.length} producto
-                    {section.items.length !== 1 ? "s" : ""}
-                  </p>
                 </span>
               </Link>
             ))}

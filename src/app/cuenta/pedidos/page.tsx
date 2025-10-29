@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { AuthGuard } from "@/components/auth/AuthGuard";
-import { createClient } from "@/lib/supabase/client";
-import { formatCurrency } from "@/lib/utils/currency";
+import { supabase } from "@/lib/supabase/client";
+import { formatMXN } from "@/lib/utils/currency";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import Link from "next/link";
@@ -32,7 +32,6 @@ export default function PedidosPage() {
   }, []);
 
   const loadOrders = async () => {
-    const supabase = createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -97,7 +96,7 @@ export default function PedidosPage() {
                         {statusLabels[order.status]}
                       </span>
                       <span className="text-lg font-bold text-gray-900">
-                        {formatCurrency(order.total_amount)}
+                        {formatMXN(order.total_amount)}
                       </span>
                     </div>
                   </div>
@@ -116,7 +115,7 @@ export default function PedidosPage() {
                             {item.quantity}x {item.product_name}
                           </span>
                           <span className="font-medium">
-                            {formatCurrency(item.price * item.quantity)}
+                            {formatMXN(item.price * item.quantity)}
                           </span>
                         </div>
                       ))}

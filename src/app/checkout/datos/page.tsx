@@ -1,392 +1,277 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { AuthGuard } from "@/components/auth/AuthGuard";
-import { createClient } from "@/lib/supabase/client";
-import { useCartStore } from "@/lib/store/cartStore";
-import { useRouter } from "next/navigation";
-import {
-  formatCurrency,
-  calculateShipping,
-  calculatePointsValue,
-  calculateMaxRedeemablePoints,
-} from "@/lib/utils/currency";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useSelectedIds } from "@/lib/store/checkoutSelectors";
+import { useCheckoutStore } from "@/lib/store/checkoutStore";
+import { supabase } from "@/lib/supabase/client";
 
-type Address = {
-  id: string;
-  label?: string;
-  street?: string;
-  ext_no?: string;
-  neighborhood?: string;
-  city?: string;
-  state?: string;
-  zip?: string;
-  is_default?: boolean;
-};
-
-type UserProfile = {
-  id: string;
-  full_name?: string;
-  phone?: string;
-  points_balance: number;
-};
-
-type CartItem = {
-  sku: string;
-  name: string;
-  price: number;
-  qty: number;
-};
-
-const PICKUP_LOCATIONS = [
-  { id: "1", name: "Sucursal Centro", address: "Av. Juárez 123, Centro, CDMX" },
-  {
-    id: "2",
-    name: "Sucursal Sur",
-    address: "Av. Insurgentes Sur 456, Del Valle, CDMX",
-  },
-];
-
-export default function CheckoutDatosPage() {
+function DatosPageContent() {
+  const selectedIds = useSelectedIds();
+  const setDatos = useCheckoutStore((s) => s.setDatos);
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    address: "",
+    city: "",
+    state: "",
+    zip: "",
+  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
   const router = useRouter();
-  const items = useCartStore((state) => state.items as CartItem[]);
-  const getSubtotal = useCartStore(
-    (state) => state.getSubtotal as () => number,
-  );
-
-  const [method, setMethod] = useState<"shipping" | "pickup">("shipping");
-  const [addresses, setAddresses] = useState<Address[]>([]);
-  const [selectedAddressId, setSelectedAddressId] = useState("");
-  const [selectedPickupId, setSelectedPickupId] = useState("");
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [pointsToRedeem, setPointsToRedeem] = useState(0);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const searchParams = useSearchParams();
+  const returnUrl = searchParams?.get("return") || "/checkout/pago";
 
   useEffect(() => {
-    const savedMethod = localStorage.getItem("checkout_method");
-    if (savedMethod === "shipping" || savedMethod === "pickup") {
-      setMethod(savedMethod);
-    }
-    void loadData();
+    const loadUserData = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (user) {
+        setUser(user);
+
+        // Cargar datos existentes del perfil
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
+          .single();
+
+        if (profile) {
+          setFormData({
+            name: profile.name || "",
+            email: profile.email || user.email || "",
+            phone: profile.phone || "",
+            address: profile.address || "",
+            city: profile.city || "",
+            state: profile.state || "",
+            zip: profile.zip || "",
+          });
+        } else {
+          setFormData((prev) => ({
+            ...prev,
+            email: user.email || "",
+          }));
+        }
+      }
+    };
+
+    loadUserData();
   }, []);
 
-  const loadData = async () => {
-    const supabase = createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (user) {
-      // Load addresses
-      const { data: addressData } = await supabase
-        .from("addresses")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("is_default", { ascending: false });
-
-      const list = (addressData as Address[]) ?? [];
-      setAddresses(list);
-      if (list.length > 0) {
-        setSelectedAddressId(list[0].id);
-      }
-
-      // Load profile
-      const { data: profileData } = await supabase
-        .from("user_profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single();
-
-      setProfile((profileData as UserProfile) ?? null);
-    }
-  };
-
-  const subtotal = getSubtotal();
-  const shipping = method === "shipping" ? calculateShipping(subtotal) : 0;
-  const pointsDiscount = calculatePointsValue(pointsToRedeem);
-  const total = Math.max(0, subtotal + shipping - pointsDiscount);
-  const maxRedeemable = calculateMaxRedeemablePoints(
-    subtotal + shipping,
-    profile?.points_balance ?? 0,
-  );
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
+    if (!user || isLoading) return;
 
-    const formData = new FormData(e.currentTarget);
+    setIsLoading(true);
 
     try {
-      const checkoutData = {
-        items: items.map((item) => ({
-          sku: item.sku,
-          name: item.name,
-          price: item.price,
-          qty: item.qty,
-        })),
-        fulfillment_method: method,
-        address_id: method === "shipping" ? selectedAddressId : null,
-        pickup_location:
-          method === "pickup"
-            ? PICKUP_LOCATIONS.find((l) => l.id === selectedPickupId)?.name
-            : null,
-        contact: {
-          name: (formData.get("name") as string) ?? "",
-          phone: (formData.get("phone") as string) ?? "",
-          email: (formData.get("email") as string) ?? "",
-        },
-        points_to_redeem: pointsToRedeem,
-        subtotal,
-        shipping_cost: shipping,
-        discount_amount: pointsDiscount,
-        total,
-      };
 
-      // Save to localStorage for payment page and navigate
-      localStorage.setItem("checkout_data", JSON.stringify(checkoutData));
-      router.push("/checkout/pago");
-    } catch (e: unknown) {
-      const err = e instanceof Error ? e : new Error(String(e));
-      console.error("checkout/datos handleSubmit:", err);
-      alert("Error al procesar el pedido");
-      // opcional: rethrow si tu regla lo exige estrictamente
-      // throw err;
+      // Upsert en la tabla profiles
+      const { error } = await supabase.from("profiles").upsert({
+        id: user.id,
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        address: formData.address,
+        city: formData.city,
+        state: formData.state,
+        zip: formData.zip,
+        updated_at: new Date().toISOString(),
+      });
+
+      if (error) {
+        console.error("Error saving profile:", error);
+        alert("Error al guardar los datos. Intenta de nuevo.");
+        return;
+      }
+
+      // Guardar datos en el checkout store
+      setDatos({
+        nombre: formData.name,
+        email: formData.email,
+        telefono: formData.phone,
+        direccion: formData.address,
+        ciudad: formData.city,
+        codigoPostal: formData.zip,
+      });
+
+      // Redirigir a la URL de retorno
+      router.push(returnUrl);
+    } catch (error) {
+      console.error("Error in form submission:", error);
+      alert("Error al guardar los datos. Intenta de nuevo.");
     } finally {
-      setIsSubmitting(false);
+      setIsLoading(false);
     }
   };
 
+  if (!selectedIds || selectedIds.length === 0) {
+    return (
+      <section className="mx-auto max-w-3xl p-6 text-center">
+        <h1 className="text-2xl font-semibold">No hay nada para procesar</h1>
+        <p className="opacity-70 mt-2">Vuelve al carrito y agrega productos.</p>
+      </section>
+    );
+  }
+
   return (
-    <AuthGuard>
-      <div className="max-w-6xl mx-auto px-4 py-12">
-        <h1 className="text-3xl font-bold mb-8">Datos de Contacto y Entrega</h1>
+    <main className="mx-auto max-w-3xl p-6 space-y-6">
+      <h1 className="text-2xl font-semibold">Datos de Envío</h1>
 
-        <form onSubmit={handleSubmit}>
-          <div className="grid lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 space-y-6">
-              {/* Contact */}
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-xl font-semibold mb-4">
-                  Datos de Contacto
-                </h2>
-                <div className="space-y-4">
-                  <div>
-                    <label className="label">Nombre completo</label>
-                    <input
-                      type="text"
-                      name="name"
-                      required
-                      defaultValue={profile?.full_name}
-                      className="input"
-                    />
-                  </div>
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="label">Teléfono</label>
-                      <input
-                        type="tel"
-                        name="phone"
-                        required
-                        defaultValue={profile?.phone}
-                        className="input"
-                      />
-                    </div>
-                    <div>
-                      <label className="label">Correo electrónico</label>
-                      <input
-                        type="email"
-                        name="email"
-                        required
-                        className="input"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Address or Pickup */}
-              {method === "shipping" ? (
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h2 className="text-xl font-semibold mb-4">
-                    Dirección de Envío
-                  </h2>
-                  {addresses.length === 0 ? (
-                    <p className="text-gray-600">
-                      No tienes direcciones guardadas.{" "}
-                      <a
-                        href="/cuenta/direcciones"
-                        className="text-primary-600 hover:underline"
-                      >
-                        Agrega una dirección
-                      </a>
-                    </p>
-                  ) : (
-                    <div className="space-y-3">
-                      {addresses.map((address) => (
-                        <label
-                          key={address.id}
-                          className={`block p-4 rounded-lg border-2 cursor-pointer ${
-                            selectedAddressId === address.id
-                              ? "border-primary-600 bg-primary-50"
-                              : "border-gray-200"
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name="address"
-                            value={address.id}
-                            checked={selectedAddressId === address.id}
-                            onChange={(e) =>
-                              setSelectedAddressId(e.target.value)
-                            }
-                            className="sr-only"
-                          />
-                          <p className="font-medium">{address.label}</p>
-                          <p className="text-sm text-gray-600">
-                            {address.street} {address.ext_no},{" "}
-                            {address.neighborhood}
-                            <br />
-                            {address.city}, {address.state} {address.zip}
-                          </p>
-                        </label>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h2 className="text-xl font-semibold mb-4">
-                    Punto de Recogida
-                  </h2>
-                  <div className="space-y-3">
-                    {PICKUP_LOCATIONS.map((location) => (
-                      <label
-                        key={location.id}
-                        className={`block p-4 rounded-lg border-2 cursor-pointer ${
-                          selectedPickupId === location.id
-                            ? "border-primary-600 bg-primary-50"
-                            : "border-gray-200"
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="pickup"
-                          value={location.id}
-                          checked={selectedPickupId === location.id}
-                          onChange={(e) => setSelectedPickupId(e.target.value)}
-                          required
-                          className="sr-only"
-                        />
-                        <p className="font-medium">{location.name}</p>
-                        <p className="text-sm text-gray-600">
-                          {location.address}
-                        </p>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Points */}
-              {profile && (profile.points_balance ?? 0) > 0 && (
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h2 className="text-xl font-semibold mb-4">Puntos</h2>
-                  <p className="text-gray-600 mb-4">
-                    Tienes <strong>{profile.points_balance} puntos</strong>{" "}
-                    disponibles (equivalentes a{" "}
-                    {formatCurrency(
-                      calculatePointsValue(profile.points_balance),
-                    )}
-                    )
-                  </p>
-                  <div>
-                    <label className="label">
-                      Puntos a canjear (máximo: {maxRedeemable})
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      max={maxRedeemable}
-                      step={100}
-                      value={pointsToRedeem}
-                      onChange={(e) =>
-                        setPointsToRedeem(
-                          Math.min(
-                            maxRedeemable,
-                            Math.max(0, Number(e.target.value) || 0),
-                          ),
-                        )
-                      }
-                      className="input"
-                    />
-                    {pointsToRedeem > 0 && (
-                      <p className="text-sm text-primary-600 mt-2">
-                        Descuento: {formatCurrency(pointsDiscount)}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Summary */}
-            <div className="lg:col-span-1">
-              <div className="bg-white rounded-lg shadow p-6 sticky top-24">
-                <h2 className="text-xl font-semibold mb-4">Resumen</h2>
-
-                <div className="space-y-2 mb-4 text-sm">
-                  {items.map((item) => (
-                    <div key={item.sku} className="flex justify-between">
-                      <span className="text-gray-600">
-                        {item.name} x{item.qty}
-                      </span>
-                      <span>{formatCurrency(item.price * item.qty)}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="border-t pt-4 space-y-2 mb-4">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Subtotal</span>
-                    <span>{formatCurrency(subtotal)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Envío</span>
-                    <span>
-                      {shipping === 0 ? "Gratis" : formatCurrency(shipping)}
-                    </span>
-                  </div>
-                  {pointsToRedeem > 0 && (
-                    <div className="flex justify-between text-primary-600">
-                      <span>Descuento (puntos)</span>
-                      <span>-{formatCurrency(pointsDiscount)}</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="border-t pt-4 mb-6">
-                  <div className="flex justify-between text-xl font-bold">
-                    <span>Total</span>
-                    <span>{formatCurrency(total)}</span>
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={
-                    isSubmitting ||
-                    (method === "shipping" && !selectedAddressId) ||
-                    (method === "pickup" && !selectedPickupId)
-                  }
-                  className="w-full btn btn-primary disabled:opacity-50"
-                >
-                  {isSubmitting ? "Procesando..." : "Ir a Pagar"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </form>
+      {/* Resumen de productos */}
+      <div className="bg-gray-50 rounded-lg p-4">
+        <h2 className="font-semibold mb-2">Productos seleccionados:</h2>
+        <ul className="space-y-1">
+          {selectedIds.map((id) => (
+            <li key={id} className="flex justify-between text-sm">
+              <span>Producto {id}</span>
+              <span>x1</span>
+            </li>
+          ))}
+        </ul>
       </div>
-    </AuthGuard>
+
+      {/* Formulario */}
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="name" className="block text-sm font-medium mb-1">
+              Nombre completo *
+            </label>
+            <input
+              type="text"
+              id="name"
+              required
+              value={formData.name}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, name: e.target.value }))
+              }
+              className="w-full border rounded-lg px-3 py-2"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium mb-1">
+              Email *
+            </label>
+            <input
+              type="email"
+              id="email"
+              required
+              value={formData.email}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, email: e.target.value }))
+              }
+              className="w-full border rounded-lg px-3 py-2"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="phone" className="block text-sm font-medium mb-1">
+              Teléfono *
+            </label>
+            <input
+              type="tel"
+              id="phone"
+              required
+              value={formData.phone}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, phone: e.target.value }))
+              }
+              className="w-full border rounded-lg px-3 py-2"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="city" className="block text-sm font-medium mb-1">
+              Ciudad *
+            </label>
+            <input
+              type="text"
+              id="city"
+              required
+              value={formData.city}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, city: e.target.value }))
+              }
+              className="w-full border rounded-lg px-3 py-2"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label htmlFor="address" className="block text-sm font-medium mb-1">
+            Dirección *
+          </label>
+          <textarea
+            id="address"
+            required
+            rows={3}
+            value={formData.address}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, address: e.target.value }))
+            }
+            className="w-full border rounded-lg px-3 py-2"
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="state" className="block text-sm font-medium mb-1">
+              Estado
+            </label>
+            <input
+              type="text"
+              id="state"
+              value={formData.state}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, state: e.target.value }))
+              }
+              className="w-full border rounded-lg px-3 py-2"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="zip" className="block text-sm font-medium mb-1">
+              Código Postal
+            </label>
+            <input
+              type="text"
+              id="zip"
+              value={formData.zip}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, zip: e.target.value }))
+              }
+              className="w-full border rounded-lg px-3 py-2"
+            />
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          disabled={isLoading}
+          className={[
+            "w-full py-3 rounded-lg font-semibold transition-colors",
+            isLoading
+              ? "bg-gray-400 text-gray-200 cursor-not-allowed"
+              : "bg-blue-600 text-white hover:bg-blue-700",
+          ].join(" ")}
+        >
+          {isLoading ? "Guardando..." : "Continuar al Pago"}
+        </button>
+      </form>
+    </main>
+  );
+}
+
+export default function DatosPage() {
+  return (
+    <Suspense fallback={<div>Cargando...</div>}>
+      <DatosPageContent />
+    </Suspense>
   );
 }

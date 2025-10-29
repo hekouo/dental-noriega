@@ -1,120 +1,146 @@
 "use client";
 
-import { useState } from "react";
-import { AuthGuard } from "@/components/auth/AuthGuard";
+import { useMemo, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Truck, Store } from "lucide-react";
+import Link from "next/link";
+import {
+  useCheckoutStore,
+  selectCheckoutItems,
+  selectSelectedCount,
+  selectSelectedTotal,
+} from "@/lib/store/checkoutStore";
+import CheckoutItemRow from "@/components/CheckoutItemRow";
+import CheckoutSummary from "@/components/CheckoutSummary";
 
-export default function CheckoutPage() {
-  const [method, setMethod] = useState<"shipping" | "pickup">("shipping");
+function EmptyCheckout() {
+  return (
+    <section className="mx-auto max-w-3xl p-6 text-center">
+      <h1 className="text-2xl font-semibold">Tu checkout está vacío</h1>
+      <p className="opacity-70 mt-2">
+        Agrega productos desde el catálogo para continuar al pago.
+      </p>
+      <Link
+        href="/catalogo"
+        className="mt-4 inline-block rounded-lg bg-blue-600 px-6 py-3 text-white hover:bg-blue-700 transition-colors"
+      >
+        Ir al catálogo
+      </Link>
+    </section>
+  );
+}
+
+export default function CheckoutIndex() {
   const router = useRouter();
+  const did = useRef(false);
+
+  // Selectores primitivos
+  const checkoutItems = useCheckoutStore(selectCheckoutItems);
+  const selectedCount = useCheckoutStore(selectSelectedCount);
+  const selectedTotal = useCheckoutStore(selectSelectedTotal);
+
+  // Acciones del store
+  const selectAllCheckout = useCheckoutStore((s) => s.selectAllCheckout);
+  const deselectAllCheckout = useCheckoutStore((s) => s.deselectAllCheckout);
+  const clearCheckout = useCheckoutStore((s) => s.clearCheckout);
+
+  // Redirect once if no items
+  useEffect(() => {
+    if (did.current) return;
+    if (checkoutItems.length === 0) {
+      did.current = true;
+      router.replace("/carrito");
+    }
+  }, [checkoutItems.length, router]);
+
+  // Derivado local
+  const hasItems = useMemo(
+    () => checkoutItems.length > 0,
+    [checkoutItems.length],
+  );
+  const hasSelected = useMemo(() => selectedCount > 0, [selectedCount]);
 
   const handleContinue = () => {
-    localStorage.setItem("checkout_method", method);
-    router.push("/checkout/datos");
+    if (hasSelected) {
+      router.push("/checkout/datos");
+    }
   };
 
+  if (!hasItems) {
+    return <EmptyCheckout />;
+  }
+
   return (
-    <AuthGuard>
-      <div className="max-w-3xl mx-auto px-4 py-12">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Método de Entrega</h1>
-          <p className="text-gray-600">Elige cómo quieres recibir tu pedido</p>
+    <main className="mx-auto max-w-4xl p-6 space-y-6">
+      <header className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold">Checkout</h1>
+          <p className="opacity-70 text-sm">
+            Selecciona los productos que deseas comprar
+          </p>
         </div>
-
-        <div className="space-y-4 mb-8">
-          <button
-            onClick={() => setMethod("shipping")}
-            className={`w-full p-6 rounded-lg border-2 transition-all ${
-              method === "shipping"
-                ? "border-primary-600 bg-primary-50"
-                : "border-gray-200 hover:border-gray-300"
-            }`}
-          >
-            <div className="flex items-start gap-4">
-              <div
-                className={`p-3 rounded-full ${
-                  method === "shipping"
-                    ? "bg-primary-600 text-white"
-                    : "bg-gray-100"
-                }`}
-              >
-                <Truck size={24} />
-              </div>
-              <div className="flex-1 text-left">
-                <h3 className="font-semibold text-lg mb-1">
-                  Entrega a domicilio
-                </h3>
-                <p className="text-gray-600 text-sm">
-                  Recibe tu pedido en la dirección que elijas
-                </p>
-                <p className="text-sm text-primary-600 mt-2">
-                  Envío: $150 MXN (Gratis en compras mayores a $2,000)
-                </p>
-              </div>
-              <div
-                className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                  method === "shipping"
-                    ? "border-primary-600"
-                    : "border-gray-300"
-                }`}
-              >
-                {method === "shipping" && (
-                  <div className="w-3 h-3 rounded-full bg-primary-600" />
-                )}
-              </div>
-            </div>
-          </button>
-
-          <button
-            onClick={() => setMethod("pickup")}
-            className={`w-full p-6 rounded-lg border-2 transition-all ${
-              method === "pickup"
-                ? "border-primary-600 bg-primary-50"
-                : "border-gray-200 hover:border-gray-300"
-            }`}
-          >
-            <div className="flex items-start gap-4">
-              <div
-                className={`p-3 rounded-full ${
-                  method === "pickup"
-                    ? "bg-primary-600 text-white"
-                    : "bg-gray-100"
-                }`}
-              >
-                <Store size={24} />
-              </div>
-              <div className="flex-1 text-left">
-                <h3 className="font-semibold text-lg mb-1">
-                  Recoger en tienda
-                </h3>
-                <p className="text-gray-600 text-sm">
-                  Recoge tu pedido en nuestra sucursal
-                </p>
-                <p className="text-sm text-primary-600 mt-2">
-                  Sin costo de envío
-                </p>
-              </div>
-              <div
-                className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                  method === "pickup" ? "border-primary-600" : "border-gray-300"
-                }`}
-              >
-                {method === "pickup" && (
-                  <div className="w-3 h-3 rounded-full bg-primary-600" />
-                )}
-              </div>
-            </div>
-          </button>
+        <div className="text-right">
+          <p className="text-sm text-gray-600">
+            Seleccionados:{" "}
+            <span className="font-semibold">{selectedCount}</span>
+          </p>
+          <p className="text-lg font-bold text-blue-600">
+            Total: ${selectedTotal.toFixed(2)} MXN
+          </p>
         </div>
+      </header>
 
+      {/* Botones globales */}
+      <div className="flex gap-3">
         <button
-          onClick={handleContinue}
-          className="w-full btn btn-primary text-lg"
+          onClick={selectAllCheckout}
+          className="px-4 py-2 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
         >
-          Continuar
+          Seleccionar todo
+        </button>
+        <button
+          onClick={deselectAllCheckout}
+          className="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+        >
+          Deseleccionar todo
+        </button>
+        <button
+          onClick={clearCheckout}
+          className="px-4 py-2 text-sm bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+        >
+          Vaciar checkout
         </button>
       </div>
-    </AuthGuard>
+
+      {/* Lista de productos */}
+      <section className="space-y-3">
+        {checkoutItems.map((item) => (
+          <CheckoutItemRow
+            key={`${item.id}:${item.variantId || "default"}`}
+            id={item.id}
+          />
+        ))}
+      </section>
+
+      {/* Botón continuar */}
+      <div className="flex justify-center pt-6">
+        <button
+          onClick={handleContinue}
+          disabled={!hasSelected}
+          className={[
+            "px-8 py-4 rounded-xl font-semibold text-lg transition-all",
+            hasSelected
+              ? "bg-blue-600 text-white hover:bg-blue-700 shadow-lg hover:shadow-xl"
+              : "bg-gray-300 text-gray-500 cursor-not-allowed",
+          ].join(" ")}
+        >
+          {hasSelected
+            ? `Continuar (${selectedCount} productos)`
+            : "Selecciona al menos un producto"}
+        </button>
+      </div>
+
+      {/* Resumen sticky */}
+      <CheckoutSummary />
+    </main>
   );
 }

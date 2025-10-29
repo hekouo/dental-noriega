@@ -2,29 +2,26 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
-import { useCartStore } from "@/lib/store/cartStore";
+import { supabase } from "@/lib/supabase/client";
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<unknown>(null);
   const router = useRouter();
-  const loadFromSupabase = useCartStore((state) => state.loadFromSupabase);
+  // loadFromSupabase removido del store simplificado
 
   useEffect(() => {
-    const supabase = createClient();
 
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) {
         router.push("/cuenta");
       } else {
         setUser(user);
-        // Cargar carrito desde Supabase
-        loadFromSupabase(user.id);
+        // Cargar carrito desde Supabase - removido del store simplificado
       }
       setIsLoading(false);
     });
-  }, [router, loadFromSupabase]);
+  }, [router]);
 
   if (isLoading) {
     return (
