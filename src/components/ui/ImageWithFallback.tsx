@@ -37,8 +37,10 @@ export default function ImageWithFallback({
         alt={alt}
         width={Number(width)}
         height={Number(height)}
-        // object-contain evita corte. Cambia a object-cover si prefieres recorte.
-        className={`w-full h-auto object-contain ${className ?? ""}`}
+        loading="lazy"
+        decoding="async"
+        key={current}
+        className={`w-full h-full object-contain ${className ?? ""}`}
         onError={() => {
           if (!failed) {
             setFailed(true);

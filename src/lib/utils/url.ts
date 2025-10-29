@@ -1,7 +1,7 @@
 // src/lib/utils/url.ts
 export const ALLOWED_IMG_HOSTS = new Set<string>([
-  "lh3.googleusercontent.com",
   "images.unsplash.com",
+  // hosts explícitos adicionales pueden agregarse aquí
 ]);
 
 export function tryParseUrl(raw?: string | null): URL | null {
@@ -16,7 +16,11 @@ export function tryParseUrl(raw?: string | null): URL | null {
 }
 
 export function isAllowedImageHost(u: URL): boolean {
-  return ALLOWED_IMG_HOSTS.has(u.hostname);
+  const h = u.hostname;
+  if (/^lh\d+\.googleusercontent\.com$/i.test(h)) return true;
+  if (/^[^.]+\.googleusercontent\.com$/i.test(h)) return true; // comodín de subdominio simple
+  if (ALLOWED_IMG_HOSTS.has(h)) return true;
+  return false;
 }
 
 // Valida una URL de imagen segura y, si es inválida o host no permitido, devuelve undefined
