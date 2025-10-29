@@ -1,24 +1,27 @@
 // src/lib/utils/images.ts
+import {
+  tryParseUrl,
+  isAllowedImageHost,
+  validateImageUrl,
+} from "@/lib/utils/url";
+
 export function normalizeImageUrl(u?: string | null): string | undefined {
   if (!u) return undefined;
-  let url = u.trim();
+  let raw = ("" + u).trim();
+  if (!raw || raw === "null" || raw === "undefined") return undefined;
 
-  // Vacíos, "null", "undefined"
-  if (!url || url === "null" || url === "undefined") return undefined;
-
-  // Reemplazar URLs de Drive comunes por lh3 si vienen crudas
-  // Ej: https://drive.google.com/uc?id=<id> → https://lh3.googleusercontent.com/d/<id>
-  const m = url.match(/[\?&]id=([a-zA-Z0-9_-]+)/);
-  if (m && !/lh3\.googleusercontent\.com/.test(url)) {
-    url = `https://lh3.googleusercontent.com/d/${m[1]}`;
+  // Si viene como link de Drive con ?id=..., convertir a lh3 estrictamente
+  const asUrl = tryParseUrl(raw);
+  if (asUrl && asUrl.hostname === "drive.google.com") {
+    const id = asUrl.searchParams.get("id");
+    if (id && /^[a-zA-Z0-9_-]+$/.test(id)) {
+      raw = `https://lh3.googleusercontent.com/d/${id}`;
+    }
   }
 
-  // Quitar query basura típica
-  url = url.replace(/[?&](usp|pli|export|resourcekey)=[^&]+/g, "");
+  // Forzar https si vino como //host/...
+  if (raw.startsWith("//")) raw = "https:" + raw;
 
-  // Forzar https
-  if (url.startsWith("//")) url = "https:" + url;
-  if (url.startsWith("http://")) url = url.replace(/^http:\/\//, "https://");
-
-  return url;
+  // Validación final por host permitido
+  return validateImageUrl(raw);
 }

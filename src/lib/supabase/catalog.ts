@@ -11,13 +11,7 @@ export type CatalogItem = {
   stock_qty: number | null;
 };
 
-const preview = process.env.NEXT_PUBLIC_INVENTORY_MODE === "preview";
-
-function coerceStock(v: boolean | null | undefined): boolean | undefined {
-  if (v === false) return false;
-  if (preview) return true;
-  return v ?? undefined;
-}
+// Nota: lógica de inventario previa eliminada por no usarse en este módulo
 
 export async function getFeaturedProducts(): Promise<CatalogItem[]> {
   try {

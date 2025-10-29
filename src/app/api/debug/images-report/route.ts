@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { listCatalog } from "@/lib/supabase/catalog";
+import { tryParseUrl, isAllowedImageHost } from "@/lib/utils/url";
 
 export async function GET() {
   try {
@@ -22,31 +23,39 @@ export async function GET() {
     products.forEach((product) => {
       if (!product.image_url) return;
 
-      try {
-        const url = new URL(product.image_url);
-        const hostname = url.hostname;
-
-        // Contar dominios
-        imageAnalysis.domains[hostname] =
-          (imageAnalysis.domains[hostname] || 0) + 1;
-
-        // Contar tipos de URLs
-        if (hostname.includes("lh3.googleusercontent.com")) {
-          imageAnalysis.lh3Urls++;
-        } else if (hostname.includes("drive.google.com")) {
-          imageAnalysis.driveUrls++;
-        } else {
-          imageAnalysis.otherUrls++;
-        }
-      } catch (error) {
-        // URL malformada
+      const u = tryParseUrl(product.image_url);
+      if (!u) {
         imageAnalysis.brokenUrls.push(product.image_url);
+        return;
+      }
+      const hostname = u.hostname;
+
+      // Contar dominios
+      imageAnalysis.domains[hostname] =
+        (imageAnalysis.domains[hostname] || 0) + 1;
+
+      // Contar tipos de URLs por hostname exacto
+      if (hostname === "lh3.googleusercontent.com") {
+        imageAnalysis.lh3Urls++;
+      } else if (hostname === "drive.google.com") {
+        imageAnalysis.driveUrls++;
+      } else {
+        imageAnalysis.otherUrls++;
       }
     });
 
     return NextResponse.json({
       success: true,
       analysis: imageAnalysis,
+      allowlist: {
+        allowedHostnamesExample: Array.from(
+          new Set(
+            Object.keys(imageAnalysis.domains).filter((h) =>
+              isAllowedImageHost(new URL(`https://${h}`)),
+            ),
+          ),
+        ),
+      },
       recommendations: [
         imageAnalysis.driveUrls > 0
           ? `Convertir ${imageAnalysis.driveUrls} URLs de Drive a lh3`

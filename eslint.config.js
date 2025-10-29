@@ -82,6 +82,19 @@ export default [
       "no-useless-escape": "warn",
     },
   },
+  // Evitar substring checks de URL en DEBUG: usar URL + allowlist
+  {
+    files: ["src/app/api/debug/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "CallExpression[callee.property.name='includes']",
+          message: "No uses substring para validar host. Usa URL + allowlist.",
+        },
+      ],
+    },
+  },
   // Bloquear imports de rutas DEBUG en UI pública y handlers de API
   {
     files: ["src/app/**/*.{ts,tsx}", "src/components/**/*.{ts,tsx}"],
