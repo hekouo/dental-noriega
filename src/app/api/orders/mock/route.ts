@@ -36,8 +36,8 @@ export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as {
       items: IncomingItem[];
-      datos?: any;
-      payment?: any;
+      datos?: Record<string, unknown> | undefined;
+      payment?: Record<string, unknown> | undefined;
     };
 
     const items = Array.isArray(body.items) ? body.items : [];

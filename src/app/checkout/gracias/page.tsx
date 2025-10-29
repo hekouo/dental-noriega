@@ -5,23 +5,6 @@ import { formatMXN } from "@/lib/utils/currency";
 import { ROUTES } from "@/lib/routes";
 import { CheckCircle } from "lucide-react";
 
-type Order = {
-  id: string;
-  customer_name: string;
-  customer_email: string;
-  honorific?: string;
-  total: number;
-  created_at: string;
-};
-
-type OrderItem = {
-  id: string;
-  name: string;
-  qty: number;
-  price: number;
-  subtotal: number;
-};
-
 type Props = {
   searchParams: { orden?: string };
 };

@@ -30,13 +30,17 @@ export default function ProductResolver({ section, slug, children }: Props) {
         const result = await resolveProductClient(section, slug);
         setResolveResult(result);
 
-        // Null-safety estricta
-        const { ok, redirectTo } = (result as any) ?? {};
+        const hasRedirect =
+          !!result &&
+          result.ok === true &&
+          "redirectTo" in result &&
+          typeof (result as { redirectTo?: string }).redirectTo === "string" &&
+          (result as { redirectTo: string }).redirectTo.length > 0;
 
         // Si hay redirect, hacer redirect automático (una sola vez)
-        if (ok && redirectTo && !redirectedRef.current) {
+        if (hasRedirect && !redirectedRef.current) {
           redirectedRef.current = true;
-          router.replace(redirectTo);
+          router.replace((result as { redirectTo: string }).redirectTo);
           return;
         }
       } catch (error) {

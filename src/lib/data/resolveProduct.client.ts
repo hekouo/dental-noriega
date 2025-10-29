@@ -24,7 +24,7 @@ export type ResolveResult =
         title: string;
       }>;
       guessedSection: string;
-      debug?: any;
+      debug?: unknown;
     };
 
 export async function resolveProductClient(

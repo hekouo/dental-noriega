@@ -41,16 +41,22 @@ export async function getFeaturedProducts(): Promise<CatalogItem[]> {
       return [];
     }
 
-    return data.map((item: any) => ({
-      id: item.api_catalog_with_images.id,
-      title: item.api_catalog_with_images.title,
-      section: item.api_catalog_with_images.section,
-      product_slug: item.api_catalog_with_images.product_slug,
-      price_cents: item.api_catalog_with_images.price_cents,
-      image_url: item.api_catalog_with_images.image_url, // Ya viene normalizada de la vista
-      in_stock: item.api_catalog_with_images.in_stock,
-      stock_qty: item.api_catalog_with_images.stock_qty,
-    }));
+    return (data as Array<{ api_catalog_with_images: unknown }>).map((row) => {
+      const rec = row.api_catalog_with_images as unknown as
+        | CatalogItem
+        | CatalogItem[];
+      const item = Array.isArray(rec) ? rec[0] : rec;
+      return {
+        id: item.id,
+        title: item.title,
+        section: item.section,
+        product_slug: item.product_slug,
+        price_cents: item.price_cents,
+        image_url: item.image_url,
+        in_stock: item.in_stock,
+        stock_qty: item.stock_qty,
+      } satisfies CatalogItem;
+    });
   } catch (error) {
     console.error("[getFeaturedProducts] Error:", error);
     return [];
@@ -134,13 +140,13 @@ export async function listBySection(section: string): Promise<CatalogItem[]> {
       return [];
     }
 
-    return data.map((item: any) => ({
+    return (data as CatalogItem[]).map((item) => ({
       id: item.id,
       section: item.section,
       product_slug: item.product_slug,
       title: item.title,
       price_cents: item.price_cents,
-      image_url: item.image_url, // Ya viene normalizada de la vista
+      image_url: item.image_url,
       in_stock: item.in_stock,
       stock_qty: item.stock_qty,
     }));
@@ -210,9 +216,13 @@ export async function listSectionsFromCatalog(): Promise<string[]> {
     }
 
     // Obtener secciones únicas y ordenadas
-    const sections = [
-      ...new Set((data as any[]).map((item) => item.section)),
-    ].sort() as string[];
+    const sections = Array.isArray(data)
+      ? ([
+          ...new Set(
+            (data as Array<{ section: string }>).map((item) => item.section),
+          ),
+        ].sort() as string[])
+      : [];
     return sections;
   } catch (error) {
     console.error("[listSectionsFromCatalog] Error:", error);

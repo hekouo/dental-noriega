@@ -124,7 +124,6 @@ export const useCheckoutStore = create<State>()(
           const idx = state.checkoutItems.findIndex((i) => i.id === productId);
           if (idx === -1) return state;
           const item = state.checkoutItems[idx];
-          if (item.selected === true) return state;
           const next = state.checkoutItems.slice();
           next[idx] = { ...item, selected: !item.selected };
           return { checkoutItems: next };
@@ -184,11 +183,11 @@ export const useCheckoutStore = create<State>()(
       },
 
       setDatos: (datos: CheckoutData) => {
-        set({ datos });
+        set((s) => ({ ...s, datos }));
       },
 
       setOrderId: (orderId: string) => {
-        set({ orderId });
+        set((s) => ({ ...s, orderId }));
       },
     }),
     {

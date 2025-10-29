@@ -12,7 +12,6 @@ import { Trash2, Plus, Minus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useCallback, useRef, startTransition } from "react";
-// import { supabase } from "@/lib/supabase/client";
 import { ROUTES } from "@/lib/routes";
 
 export default function CarritoPage() {

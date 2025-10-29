@@ -77,7 +77,7 @@ export async function GET(req: Request) {
           inStock: product.inStock ?? true,
         },
         redirectTo,
-        suggestions: results.slice(1, 6).map((s: any) => ({
+        suggestions: results.slice(1, 6).map((s) => ({
           section: s.section,
           slug: s.slug,
           title: s.title,

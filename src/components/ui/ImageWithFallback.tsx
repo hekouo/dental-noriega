@@ -25,7 +25,7 @@ export default function ImageWithFallback({
   const [current, setCurrent] = useState<string>(norm ?? fallbackSrc);
   const [failed, setFailed] = useState<boolean>(!norm);
 
-  const wrapperStyle = square ? { aspectRatio: "1 / 1" as any } : undefined;
+  const wrapperStyle = square ? { aspectRatio: "1 / 1" } : undefined;
 
   return (
     <div

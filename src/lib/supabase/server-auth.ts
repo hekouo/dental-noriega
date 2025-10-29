@@ -10,11 +10,15 @@ export function createServerSupabase() {
     {
       cookies: {
         get: (name: string) => cookieStore.get(name)?.value,
-        set: (name: string, value: string, opts: any) => {
-          cookieStore.set({ name, value, ...opts });
+        set: (name: string, value: string, opts: Record<string, unknown>) => {
+          cookieStore.set({ name, value, ...(opts as Record<string, never>) });
         },
-        remove: (name: string, opts: any) => {
-          cookieStore.set({ name, value: "", ...opts });
+        remove: (name: string, opts: Record<string, unknown>) => {
+          cookieStore.set({
+            name,
+            value: "",
+            ...(opts as Record<string, never>),
+          });
         },
       },
     },

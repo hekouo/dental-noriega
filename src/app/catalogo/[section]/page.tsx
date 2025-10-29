@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { listBySection } from "@/lib/supabase/catalog";
 import { formatMXN, mxnFromCents } from "@/lib/utils/currency";
 import { ROUTES } from "@/lib/routes";
-import { MessageCircle, Package, ShoppingCart } from "lucide-react";
+import { MessageCircle, ShoppingCart } from "lucide-react";
 import ImageWithFallback from "@/components/ui/ImageWithFallback";
 import AddToCartBtn from "@/components/AddToCartBtn";
 
