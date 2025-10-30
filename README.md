@@ -49,9 +49,11 @@ NEXT_PUBLIC_WA_PHONE=525531033715
 NEXT_PUBLIC_ENABLE_AUTH=false
 NEXT_PUBLIC_ENABLE_CHECKOUT=false
 
-# Supabase (opcional en Fase 1)
+# Supabase (requerido para datos en runtime)
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
+NEXT_PUBLIC_WHATSAPP_PHONE=5215531033715
+NEXT_PUBLIC_ENABLE_DEBUG=0
 ```
 
 ## 🏃 Desarrollo
@@ -148,6 +150,11 @@ vercel
 - Configura tu dominio personalizado en Settings → Domains
 - El sitio respeta `NEXT_PUBLIC_SITE_URL` en producción
 
+Notas:
+
+- Las páginas que consumen Supabase en `cuenta/*` y `checkout/*` se marcan como dinámicas (`dynamic = "force-dynamic"`, `revalidate = 0`) para evitar prerender y fallos de build si faltan ENV en Preview.
+- `createAnonClient()` no crea cliente real durante el build estático; las capas de datos devuelven listas vacías en build.
+
 ## 📱 Optimizaciones móviles
 
 - **Imágenes**: Next.js Image con `priority` en LCP, `sizes` optimizados
@@ -175,24 +182,23 @@ vercel
 
 © 2024 DENTAL NORIEGA. Todos los derechos reservados.
 
-
 ## Verificaciones Automáticas
 
-| Check | PR | Main | Artifacts |
-|-------|----|----|-----------|
-| TypeScript | ❌ Falla | ✅ Aviso | - |
-| Linting | ❌ Falla | ✅ Aviso | - |
-| Build | ❌ Falla | ✅ Aviso | - |
-| Bundle Size | ❌ Falla | ✅ Aviso | size-limit.json |
-| Secret Scanning | ❌ Falla | ✅ Issue | gitleaks.sarif |
-| Dead Exports | ⚠️ Soft | ⚠️ Soft | cleanup-report |
-| Dependencies | ⚠️ Soft | ⚠️ Soft | cleanup-report |
-| Licenses | ✅ Info | ✅ Info | licenses.csv/json |
-| E2E Tests | ✅ Info | ✅ Info | playwright-report |
-| Lighthouse | ✅ Info | ✅ Info | lhci-reports |
+| Check           | PR       | Main     | Artifacts         |
+| --------------- | -------- | -------- | ----------------- |
+| TypeScript      | ❌ Falla | ✅ Aviso | -                 |
+| Linting         | ❌ Falla | ✅ Aviso | -                 |
+| Build           | ❌ Falla | ✅ Aviso | -                 |
+| Bundle Size     | ❌ Falla | ✅ Aviso | size-limit.json   |
+| Secret Scanning | ❌ Falla | ✅ Issue | gitleaks.sarif    |
+| Dead Exports    | ⚠️ Soft  | ⚠️ Soft  | cleanup-report    |
+| Dependencies    | ⚠️ Soft  | ⚠️ Soft  | cleanup-report    |
+| Licenses        | ✅ Info  | ✅ Info  | licenses.csv/json |
+| E2E Tests       | ✅ Info  | ✅ Info  | playwright-report |
+| Lighthouse      | ✅ Info  | ✅ Info  | lhci-reports      |
 
 **Leyenda:**
-- ❌ Falla: Bloquea el merge
-- ⚠️ Soft: Solo aviso (primera vez)  
-- ✅ Info: Solo información
 
+- ❌ Falla: Bloquea el merge
+- ⚠️ Soft: Solo aviso (primera vez)
+- ✅ Info: Solo información

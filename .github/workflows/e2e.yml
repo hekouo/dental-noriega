@@ -1,0 +1,50 @@
+name: e2e
+
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'tests/e2e/**'
+      - 'playwright.config.ts'
+      - '.github/workflows/e2e.yml'
+  schedule:
+    - cron: '0 4 * * *'
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.0'
+          cache: 'pnpm'
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+      - name: Install Playwright browsers
+        run: pnpm dlx playwright install --with-deps
+      - name: Typecheck & Lint
+        run: pnpm tsc --noEmit && pnpm lint
+      - name: Build
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_INVENTORY_MODE: 'public'
+          NEXT_PUBLIC_WHATSAPP_PHONE: '5215531033715'
+          NEXT_PUBLIC_ENABLE_DEBUG: '0'
+        run: pnpm build
+      - name: Start prod server
+        run: pnpm start -p 3002 &
+      - name: Wait for server
+        run: npx wait-on http://localhost:3002
+      - name: Run E2E
+        env:
+          BASE_URL: http://localhost:3002
+        run: pnpm e2e:dev

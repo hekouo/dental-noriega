@@ -16,6 +16,7 @@ export type CatalogItem = {
 export async function getFeaturedProducts(): Promise<CatalogItem[]> {
   try {
     const sb = createAnonClient();
+    if (!sb) return [];
     const { data, error } = await sb
       .from("featured")
       .select(
@@ -69,6 +70,7 @@ export async function getBySectionSlug(
 ): Promise<CatalogItem | null> {
   try {
     const sb = createAnonClient();
+    if (!sb) return null;
     const { data, error } = await sb
       .from("api_catalog_with_images")
       .select(
@@ -104,6 +106,7 @@ export async function getProductBySlugAnySection(
 ): Promise<CatalogItem | null> {
   try {
     const sb = createAnonClient();
+    if (!sb) return null;
     const { data, error } = await sb
       .from("api_catalog_with_images")
       .select(
@@ -126,6 +129,7 @@ export async function getProductBySlugAnySection(
 export async function listBySection(section: string): Promise<CatalogItem[]> {
   try {
     const sb = createAnonClient();
+    if (!sb) return [];
     const { data, error } = await sb
       .from("api_catalog_with_images")
       .select(
@@ -162,6 +166,7 @@ export async function searchProducts(
 ): Promise<CatalogItem[]> {
   try {
     const sb = createAnonClient();
+    if (!sb) return [];
     const { data, error } = await sb
       .from("api_catalog_with_images")
       .select(
@@ -184,6 +189,7 @@ export async function searchProducts(
 export async function listCatalog(): Promise<CatalogItem[]> {
   try {
     const sb = createAnonClient();
+    if (!sb) return [];
     const { data, error } = await sb
       .from("api_catalog_with_images")
       .select(
@@ -205,6 +211,7 @@ export async function listCatalog(): Promise<CatalogItem[]> {
 export async function listSectionsFromCatalog(): Promise<string[]> {
   try {
     const sb = createAnonClient();
+    if (!sb) return [];
     const { data, error } = await sb
       .from("api_catalog_with_images")
       .select("section")
