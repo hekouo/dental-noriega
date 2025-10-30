@@ -40,6 +40,7 @@ export default function ImageWithFallback({
         loading="lazy"
         decoding="async"
         key={current}
+        referrerPolicy="no-referrer"
         className={`w-full h-full object-contain ${className ?? ""}`}
         onError={() => {
           if (!failed) {

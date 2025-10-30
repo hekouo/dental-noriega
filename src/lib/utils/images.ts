@@ -3,6 +3,7 @@ import {
   tryParseUrl,
   isAllowedImageHost,
   validateImageUrl,
+  appendSizeParamForLh,
 } from "@/lib/utils/url";
 
 export function normalizeImageUrl(u?: string | null): string | undefined {
@@ -22,6 +23,16 @@ export function normalizeImageUrl(u?: string | null): string | undefined {
   // Forzar https si vino como //host/...
   if (raw.startsWith("//")) raw = "https:" + raw;
 
-  // Validación final por host permitido
-  return validateImageUrl(raw);
+  // Validar host permitido
+  const validated = validateImageUrl(raw);
+  if (!validated) return undefined;
+
+  // Si es lhX sin tamaño, añadir =s800
+  const finalUrl = tryParseUrl(validated);
+  if (finalUrl && isAllowedImageHost(finalUrl)) {
+    const withSize = appendSizeParamForLh(finalUrl, 800);
+    return withSize.toString();
+  }
+
+  return validated;
 }

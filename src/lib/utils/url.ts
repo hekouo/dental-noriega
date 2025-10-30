@@ -23,6 +23,17 @@ export function isAllowedImageHost(u: URL): boolean {
   return false;
 }
 
+export function appendSizeParamForLh(url: URL, px: number): URL {
+  const h = url.hostname;
+  if (!/^lh\d+\.googleusercontent\.com$/i.test(h)) return url;
+  const path = url.pathname;
+  if (path.includes("=s") || path.includes("=w") || path.includes("-h"))
+    return url;
+  const u = new URL(url.toString());
+  u.pathname = path + `=s${px}`;
+  return u;
+}
+
 // Valida una URL de imagen segura y, si es inválida o host no permitido, devuelve undefined
 export function validateImageUrl(raw?: string | null): string | undefined {
   const u = tryParseUrl(raw);
