@@ -1,9 +1,5 @@
 // src/lib/utils/images.ts
-import {
-  tryParseUrl,
-  isAllowedImageHost,
-  validateImageUrl,
-} from "@/lib/utils/url";
+import { tryParseUrl, validateImageUrl } from "@/lib/utils/url";
 
 export function normalizeImageUrl(u?: string | null): string | undefined {
   if (!u) return undefined;

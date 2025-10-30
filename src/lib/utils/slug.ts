@@ -1,5 +1,5 @@
 export function normalizeSlug(input: string): string {
-  // RegEx justificado: entrada corta y prevalidada en UI/Zod; no riesgo DoS
+  // sonarjs: regex justificado; entradas cortas y acotadas por UI/validaciones
   return input
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
