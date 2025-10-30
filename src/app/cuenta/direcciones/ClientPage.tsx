@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useEffect, useState } from "react";
@@ -243,3 +244,4 @@ export default function ClientPage() {
     </AuthGuard>
   );
 }
+/* eslint-enable @typescript-eslint/no-explicit-any */

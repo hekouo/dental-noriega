@@ -60,7 +60,7 @@ export async function findBySectionSlug(
 
 export async function findByTitleTokens(
   q: string,
-  minTokens = 2,
+  _minTokens = 2,
 ): Promise<ProductLite[]> {
   const query = q.trim();
   if (!query) return [];

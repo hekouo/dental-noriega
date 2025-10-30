@@ -5,6 +5,7 @@ import { listBySection } from "@/lib/supabase/catalog";
 import { formatMXN, mxnFromCents } from "@/lib/utils/currency";
 import { ROUTES } from "@/lib/routes";
 import { MessageCircle, ShoppingCart } from "lucide-react";
+import { generateWhatsAppLink } from "@/lib/utils/whatsapp";
 import ImageWithFallback from "@/components/ui/ImageWithFallback";
 import AddToCartBtn from "@/components/AddToCartBtn";
 
@@ -45,7 +46,10 @@ export default async function CatalogoSectionPage({ params }: Props) {
       <div className="max-w-7xl mx-auto px-4 py-12">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {products.map((product, idx) => {
-            const whatsappHref = `https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP_PHONE}?text=${encodeURIComponent(`Hola, me interesa: ${product.title} (${sectionName}).`)}`;
+            const whatsappHref = generateWhatsAppLink(
+              process.env.NEXT_PUBLIC_WHATSAPP_PHONE || "",
+              `Hola, me interesa: ${product.title} (${sectionName}).`,
+            );
 
             return (
               <div
