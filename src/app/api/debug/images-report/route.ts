@@ -2,8 +2,10 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { listCatalog } from "@/lib/supabase/catalog";
 import { tryParseUrl, isAllowedImageHost } from "@/lib/utils/url";
+import { allowDebug } from "../_guard";
 
 export async function GET() {
+  if (!allowDebug) return new Response("debug off", { status: 404 });
   try {
     const products = await listCatalog();
 

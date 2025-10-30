@@ -3,8 +3,10 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { listSectionsFromCatalog, listBySection } from "@/lib/supabase/catalog";
+import { allowDebug } from "../_guard";
 
 export async function GET() {
+  if (!allowDebug) return new Response("debug off", { status: 404 });
   try {
     const sections = await listSectionsFromCatalog();
     const summary = await Promise.all(

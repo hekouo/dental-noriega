@@ -1,4 +1,6 @@
 import { createAnonClient } from "./anon-client";
+import { normalizeSection } from "@/lib/utils/sections";
+import { toSlug } from "@/lib/utils/slug";
 
 export type CatalogItem = {
   id: string;
@@ -123,13 +125,16 @@ export async function getProductBySlugAnySection(
   }
 }
 
-export async function listBySection(section: string): Promise<CatalogItem[]> {
+export async function listBySection(
+  sectionRaw: string,
+): Promise<CatalogItem[]> {
   try {
+    const section = normalizeSection(sectionRaw);
     const sb = createAnonClient();
     const { data, error } = await sb
       .from("api_catalog_with_images")
       .select(
-        "id, section, product_slug, title, price_cents, image_url, in_stock, stock_qty",
+        "id, section, product_slug, sku, title, price_cents, image_url, in_stock, stock_qty",
       )
       .eq("active", true)
       .eq("section", section)
@@ -140,16 +145,23 @@ export async function listBySection(section: string): Promise<CatalogItem[]> {
       return [];
     }
 
-    return (data as CatalogItem[]).map((item) => ({
-      id: item.id,
-      section: item.section,
-      product_slug: item.product_slug,
-      title: item.title,
-      price_cents: item.price_cents,
-      image_url: item.image_url,
-      in_stock: item.in_stock,
-      stock_qty: item.stock_qty,
-    }));
+    type CatalogRow = CatalogItem & { sku?: string | null } & {
+      product_slug?: string | null;
+    };
+
+    return (data as CatalogRow[]).map((item) => {
+      const ensuredSlug = item.product_slug ?? item.sku ?? toSlug(item.title);
+      return {
+        id: item.id,
+        section: item.section,
+        product_slug: ensuredSlug,
+        title: item.title,
+        price_cents: item.price_cents,
+        image_url: item.image_url,
+        in_stock: item.in_stock,
+        stock_qty: item.stock_qty,
+      } satisfies CatalogItem;
+    });
   } catch (error) {
     console.error("[listBySection] Error:", error);
     return [];

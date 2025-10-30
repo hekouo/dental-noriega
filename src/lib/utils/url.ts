@@ -1,22 +1,31 @@
 // src/lib/utils/url.ts
 export function tryParseUrl(u?: string | null): URL | null {
-  if (!u) return null;
   try {
-    return new URL(u);
+    if (!u) return null;
+    return new URL(String(u));
   } catch {
     return null;
   }
 }
 
-export function isAllowedImageHost(h: string): boolean {
-  return h === "lh3.googleusercontent.com" || h === "images.unsplash.com";
+export function isAllowedImageHost(hostname: string): boolean {
+  if (/^lh3\.googleusercontent\.com$/i.test(hostname)) return true;
+  // Permitir diagnóstico de variantes sin romper UI
+  if (/^lh[4-6]\.googleusercontent\.com$/i.test(hostname)) return true;
+  if (/\.googleusercontent\.com$/i.test(hostname)) return true;
+  if (/^images\.unsplash\.com$/i.test(hostname)) return true;
+  return false;
 }
 
-export function appendLhSizeParam(url: URL, px = 800): URL {
-  if (url.hostname !== "lh3.googleusercontent.com") return url;
-
-  // Mantén params existentes; si no hay tamaño, agrega =s{px} al pathname
-  if (!/=s\d+/.test(url.pathname)) url.pathname += `=s${px}`;
-
-  return url;
+// Si es lhX.googleusercontent.com y no tiene tamaño, añade =s{px}
+export function appendSizeParamForLh(urlStr: string, px: number): string {
+  const u = tryParseUrl(urlStr);
+  if (!u) return urlStr;
+  const host = u.hostname;
+  if (!/^lh\d+\.googleusercontent\.com$/i.test(host)) return urlStr;
+  // Si ya trae sufijo de tamaño, no tocar
+  const full = u.toString();
+  if (/=s\d+(\-c)?$/i.test(u.pathname) || /=s\d+(\-c)?$/i.test(u.search))
+    return full;
+  return full + `=s${px}`;
 }

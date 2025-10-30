@@ -1,27 +1,43 @@
 // src/app/catalogo/[section]/page.tsx
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { listBySection } from "@/lib/supabase/catalog";
 import { formatMXN, mxnFromCents } from "@/lib/utils/currency";
 import { ROUTES } from "@/lib/routes";
 import { MessageCircle, ShoppingCart } from "lucide-react";
 import ImageWithFallback from "@/components/ui/ImageWithFallback";
 import AddToCartBtn from "@/components/AddToCartBtn";
+import { normalizeSection } from "@/lib/utils/sections";
 
 export const revalidate = 300; // Cache 5 minutos
 
 type Props = { params: { section: string } };
 
 export default async function CatalogoSectionPage({ params }: Props) {
-  const products = await listBySection(params.section);
+  const section = normalizeSection(params.section);
+  const products = await listBySection(section);
 
-  if (products.length === 0) {
-    return notFound();
-  }
-
-  const sectionName = params.section
+  const sectionName = section
     .replace(/-/g, " ")
     .replace(/\b\w/g, (l) => l.toUpperCase());
+
+  if (!products?.length) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 py-12">
+          <Link
+            href={ROUTES.catalogIndex()}
+            className="text-primary-600 hover:underline"
+          >
+            ← Volver al catálogo
+          </Link>
+          <h1 className="text-3xl font-bold mt-4 mb-2">{sectionName}</h1>
+          <p className="text-sm text-zinc-500">
+            No hay productos en esta sección aún.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -45,7 +61,9 @@ export default async function CatalogoSectionPage({ params }: Props) {
       <div className="max-w-7xl mx-auto px-4 py-12">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {products.map((product, idx) => {
-            const whatsappHref = `https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP_PHONE}?text=${encodeURIComponent(`Hola, me interesa: ${product.title} (${sectionName}).`)}`;
+            const whatsappHref = `https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP_PHONE}?text=${encodeURIComponent(
+              `Hola, me interesa: ${product.title} (${sectionName}).`,
+            )}`;
 
             return (
               <div

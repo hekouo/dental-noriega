@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { tryParseUrl, isAllowedImageHost } from "@/lib/utils/url";
+import { allowDebug } from "../_guard";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
+  if (!allowDebug) return new Response("debug off", { status: 404 });
   const { searchParams } = new URL(req.url);
   const url = searchParams.get("url");
   const u = tryParseUrl(url);

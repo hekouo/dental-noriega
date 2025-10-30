@@ -34,6 +34,14 @@ export function formatMXNFromCents(cents: number): string {
 }
 
 /**
+ * Formatea price_cents tolerando null/undefined
+ */
+export function formatPriceCents(value: number | null | undefined): string {
+  if (typeof value !== "number") return "—";
+  return formatMXN(mxnFromCents(value));
+}
+
+/**
  * Formatea precio con descuento
  * @param originalCents - Precio original en centavos
  * @param discountPercent - Porcentaje de descuento (0-100)

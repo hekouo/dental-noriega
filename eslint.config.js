@@ -121,6 +121,18 @@ export default [
       ],
     },
   },
+  // Regla global para evitar importar DEBUG en runtime público
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: ["@/app/api/debug/*"],
+        },
+      ],
+    },
+  },
   // Regla para prevenir imageUrl camelCase en UI (permitido solo en stores)
   {
     files: ["src/**/*.{ts,tsx}"],
