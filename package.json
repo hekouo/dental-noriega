@@ -21,6 +21,7 @@
     "test": "vitest run",
     "test:ui": "vitest",
     "e2e": "playwright test",
+    "e2e:dev": "playwright test -c tests",
     "build:ci": "node scripts/prebuild-pages-manifest.js && next build && node scripts/budget.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "verify": "pnpm -s tsc && pnpm -s lint && pnpm -s build",

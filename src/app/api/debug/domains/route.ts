@@ -8,7 +8,9 @@ export async function GET() {
     if (p.image_url) {
       try {
         set.add(new URL(p.image_url).hostname);
-      } catch {}
+      } catch {
+        // Intencional: si la URL es inválida, omitimos el dominio (ruta de DEBUG)
+      }
     }
   }
   return NextResponse.json({
