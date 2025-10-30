@@ -57,17 +57,15 @@ export default async function CatalogoSectionPage({ params }: Props) {
                   prefetch={idx < 4}
                 >
                   <span className="block">
-                    <div className="relative w-full aspect-square bg-white">
-                      <ImageWithFallback
-                        src={product.image_url}
-                        alt={product.title}
-                        width={400}
-                        height={400}
-                        className="w-full h-full object-contain"
-                        sizes="(min-width: 1280px) 20vw, (min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw"
-                        priority={idx === 0}
-                      />
-                    </div>
+                    <ImageWithFallback
+                      src={product.image_url}
+                      alt={product.title ?? "Producto"}
+                      width={400}
+                      height={400}
+                      square
+                      sizes="(min-width: 1280px) 20vw, (min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw"
+                      priority={idx === 0}
+                    />
                   </span>
                 </Link>
 

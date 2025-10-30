@@ -7,7 +7,7 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const url = searchParams.get("url");
   const u = tryParseUrl(url);
-  if (!u || !isAllowedImageHost(u))
+  if (!u || !isAllowedImageHost(u.hostname))
     return NextResponse.json(
       { ok: false, error: "forbidden host" },
       { status: 400 },

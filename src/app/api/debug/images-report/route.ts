@@ -51,7 +51,7 @@ export async function GET() {
         allowedHostnamesExample: Array.from(
           new Set(
             Object.keys(imageAnalysis.domains).filter((h) =>
-              isAllowedImageHost(new URL(`https://${h}`)),
+              isAllowedImageHost(h),
             ),
           ),
         ),

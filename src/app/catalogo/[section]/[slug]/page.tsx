@@ -72,17 +72,15 @@ export default async function ProductDetailPage({ params }: Props) {
         <div className="grid lg:grid-cols-2 gap-8">
           {/* Imagen */}
           <div className="space-y-4">
-            <div className="relative w-full aspect-square bg-white rounded-lg overflow-hidden shadow-sm">
-              <ImageWithFallback
-                src={image_url}
-                alt={product.title}
-                width={800}
-                height={800}
-                className="w-full h-full object-contain"
-                sizes="(max-width: 768px) 100vw, 50vw"
-                priority
-              />
-            </div>
+            <ImageWithFallback
+              src={image_url}
+              alt={product.title ?? "Producto"}
+              width={800}
+              height={800}
+              square
+              sizes="(max-width: 768px) 100vw, 50vw"
+              priority
+            />
           </div>
 
           {/* Información del producto */}
