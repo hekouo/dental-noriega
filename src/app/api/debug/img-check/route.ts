@@ -13,7 +13,9 @@ async function checkOnce(url: string) {
   try {
     const h = await fetch(url, { method: "HEAD" });
     if (h.ok) return { ok: true, status: h.status } as const;
-  } catch {}
+  } catch {
+    // Ignorar errores de HEAD, intentar GET
+  }
   try {
     const g = await fetch(url, { method: "GET" });
     return { ok: g.ok, status: g.status } as const;

@@ -13,7 +13,9 @@ export async function GET() {
     if (p.image_url) {
       try {
         set.add(new URL(p.image_url).hostname);
-      } catch {}
+      } catch {
+        // Ignorar URLs inválidas
+      }
     }
   }
   return NextResponse.json({
