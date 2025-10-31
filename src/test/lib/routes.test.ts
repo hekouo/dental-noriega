@@ -6,7 +6,7 @@ describe('ROUTES', () => {
     expect(ROUTES.home()).toBe('/');
     expect(ROUTES.catalogIndex()).toBe('/catalogo');
     expect(ROUTES.carrito()).toBe('/carrito');
-    expect(ROUTES.cuenta()).toBe('/cuenta');
+    expect(ROUTES.cuenta()).toBe('/account');
     expect(ROUTES.destacados()).toBe('/destacados');
   });
 });
