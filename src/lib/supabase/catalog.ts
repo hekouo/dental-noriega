@@ -1,4 +1,6 @@
 import { createAnonClient } from "./anon-client";
+import { normalizeSection } from "@/lib/utils/sections";
+import { normalizeSlug } from "@/lib/utils/slug";
 
 export type CatalogItem = {
   id: string;
@@ -14,8 +16,12 @@ export type CatalogItem = {
 // Nota: lógica de inventario previa eliminada por no usarse en este módulo
 
 export async function getFeaturedProducts(): Promise<CatalogItem[]> {
+  const sb = createAnonClient();
+  if (!sb) {
+    console.warn("[catalog] missing supabase envs");
+    return [];
+  }
   try {
-    const sb = createAnonClient();
     const { data, error } = await sb
       .from("featured")
       .select(
@@ -67,8 +73,12 @@ export async function getBySectionSlug(
   section: string,
   slug: string,
 ): Promise<CatalogItem | null> {
+  const sb = createAnonClient();
+  if (!sb) {
+    console.warn("[catalog] missing supabase envs");
+    return null;
+  }
   try {
-    const sb = createAnonClient();
     const { data, error } = await sb
       .from("api_catalog_with_images")
       .select(
@@ -102,8 +112,12 @@ export async function getBySectionSlug(
 export async function getProductBySlugAnySection(
   slug: string,
 ): Promise<CatalogItem | null> {
+  const sb = createAnonClient();
+  if (!sb) {
+    console.warn("[catalog] missing supabase envs");
+    return null;
+  }
   try {
-    const sb = createAnonClient();
     const { data, error } = await sb
       .from("api_catalog_with_images")
       .select(
@@ -123,13 +137,20 @@ export async function getProductBySlugAnySection(
   }
 }
 
-export async function listBySection(section: string): Promise<CatalogItem[]> {
+export async function listBySection(
+  sectionRaw: string,
+): Promise<CatalogItem[]> {
+  const sb = createAnonClient();
+  if (!sb) {
+    console.warn("[catalog] missing supabase envs");
+    return [];
+  }
   try {
-    const sb = createAnonClient();
+    const section = normalizeSection(sectionRaw);
     const { data, error } = await sb
       .from("api_catalog_with_images")
       .select(
-        "id, section, product_slug, title, price_cents, image_url, in_stock, stock_qty",
+        "id, section, product_slug, sku, title, price_cents, image_url, in_stock, stock_qty",
       )
       .eq("active", true)
       .eq("section", section)
@@ -140,16 +161,23 @@ export async function listBySection(section: string): Promise<CatalogItem[]> {
       return [];
     }
 
-    return (data as CatalogItem[]).map((item) => ({
-      id: item.id,
-      section: item.section,
-      product_slug: item.product_slug,
-      title: item.title,
-      price_cents: item.price_cents,
-      image_url: item.image_url,
-      in_stock: item.in_stock,
-      stock_qty: item.stock_qty,
-    }));
+    type CatalogRow = CatalogItem & { sku?: string | null } & {
+      product_slug?: string | null;
+    };
+
+    return (data as CatalogRow[]).map((item) => {
+      const ensuredSlug = item.product_slug ?? item.sku ?? normalizeSlug(item.title);
+      return {
+        id: item.id,
+        section: item.section,
+        product_slug: ensuredSlug,
+        title: item.title,
+        price_cents: item.price_cents,
+        image_url: item.image_url,
+        in_stock: item.in_stock,
+        stock_qty: item.stock_qty,
+      } satisfies CatalogItem;
+    });
   } catch (error) {
     console.error("[listBySection] Error:", error);
     return [];
@@ -160,8 +188,12 @@ export async function searchProducts(
   query: string,
   limit = 24,
 ): Promise<CatalogItem[]> {
+  const sb = createAnonClient();
+  if (!sb) {
+    console.warn("[catalog] missing supabase envs");
+    return [];
+  }
   try {
-    const sb = createAnonClient();
     const { data, error } = await sb
       .from("api_catalog_with_images")
       .select(
@@ -182,8 +214,12 @@ export async function searchProducts(
 }
 
 export async function listCatalog(): Promise<CatalogItem[]> {
+  const sb = createAnonClient();
+  if (!sb) {
+    console.warn("[catalog] missing supabase envs");
+    return [];
+  }
   try {
-    const sb = createAnonClient();
     const { data, error } = await sb
       .from("api_catalog_with_images")
       .select(
@@ -203,8 +239,12 @@ export async function listCatalog(): Promise<CatalogItem[]> {
 }
 
 export async function listSectionsFromCatalog(): Promise<string[]> {
+  const sb = createAnonClient();
+  if (!sb) {
+    console.warn("[catalog] missing supabase envs");
+    return [];
+  }
   try {
-    const sb = createAnonClient();
     const { data, error } = await sb
       .from("api_catalog_with_images")
       .select("section")

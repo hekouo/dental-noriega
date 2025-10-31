@@ -9,6 +9,12 @@ Sitio web de catálogo de productos dentales con carrito de compras, integració
 Se movió `/api/checkout/create-session` a `/api_disabled/checkout/create-session` para evitar el fallo de build en Vercel.
 Rehabilitar cuando existan las ENV de Stripe y el handler tenga manejo de errores.
 
+## 🔍 DEBUG
+
+- DEBUG se desactiva en producción por defecto.
+- Para habilitar temporalmente en ambientes de prueba, setear `NEXT_PUBLIC_ENABLE_DEBUG=1` (no en prod).
+- Guard: `allowDebug = NODE_ENV !== 'production' && NEXT_PUBLIC_ENABLE_DEBUG !== '0'`
+
 ## 🚀 Fase 1 (Actual)
 
 Catálogo completo con carrito "light" y consultas por WhatsApp. **Sin login ni pagos por ahora**.
@@ -48,6 +54,8 @@ NEXT_PUBLIC_WA_PHONE=525531033715
 # Flags de funcionalidad (Fase 1)
 NEXT_PUBLIC_ENABLE_AUTH=false
 NEXT_PUBLIC_ENABLE_CHECKOUT=false
+# DEBUG (no activar en producción)
+NEXT_PUBLIC_ENABLE_DEBUG=0
 
 # Supabase (opcional en Fase 1)
 NEXT_PUBLIC_SUPABASE_URL=
@@ -175,24 +183,23 @@ vercel
 
 © 2024 DENTAL NORIEGA. Todos los derechos reservados.
 
-
 ## Verificaciones Automáticas
 
-| Check | PR | Main | Artifacts |
-|-------|----|----|-----------|
-| TypeScript | ❌ Falla | ✅ Aviso | - |
-| Linting | ❌ Falla | ✅ Aviso | - |
-| Build | ❌ Falla | ✅ Aviso | - |
-| Bundle Size | ❌ Falla | ✅ Aviso | size-limit.json |
-| Secret Scanning | ❌ Falla | ✅ Issue | gitleaks.sarif |
-| Dead Exports | ⚠️ Soft | ⚠️ Soft | cleanup-report |
-| Dependencies | ⚠️ Soft | ⚠️ Soft | cleanup-report |
-| Licenses | ✅ Info | ✅ Info | licenses.csv/json |
-| E2E Tests | ✅ Info | ✅ Info | playwright-report |
-| Lighthouse | ✅ Info | ✅ Info | lhci-reports |
+| Check           | PR       | Main     | Artifacts         |
+| --------------- | -------- | -------- | ----------------- |
+| TypeScript      | ❌ Falla | ✅ Aviso | -                 |
+| Linting         | ❌ Falla | ✅ Aviso | -                 |
+| Build           | ❌ Falla | ✅ Aviso | -                 |
+| Bundle Size     | ❌ Falla | ✅ Aviso | size-limit.json   |
+| Secret Scanning | ❌ Falla | ✅ Issue | gitleaks.sarif    |
+| Dead Exports    | ⚠️ Soft  | ⚠️ Soft  | cleanup-report    |
+| Dependencies    | ⚠️ Soft  | ⚠️ Soft  | cleanup-report    |
+| Licenses        | ✅ Info  | ✅ Info  | licenses.csv/json |
+| E2E Tests       | ✅ Info  | ✅ Info  | playwright-report |
+| Lighthouse      | ✅ Info  | ✅ Info  | lhci-reports      |
 
 **Leyenda:**
-- ❌ Falla: Bloquea el merge
-- ⚠️ Soft: Solo aviso (primera vez)  
-- ✅ Info: Solo información
 
+- ❌ Falla: Bloquea el merge
+- ⚠️ Soft: Solo aviso (primera vez)
+- ✅ Info: Solo información

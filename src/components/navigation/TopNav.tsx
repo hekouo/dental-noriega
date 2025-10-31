@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ShoppingCart, User, Menu, X } from "lucide-react";
 import { useCartStore } from "@/lib/store/cartStore";
-import { supabase } from "@/lib/supabase/client";
+import { getBrowserSupabase } from "@/lib/supabase/client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ROUTES } from "@/lib/routes";
@@ -17,24 +17,28 @@ export function TopNav() {
   const router = useRouter();
 
   useEffect(() => {
+    const s = getBrowserSupabase();
+    if (!s) return;
 
     // Check initial session
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    s.auth.getUser().then(({ data: { user } }) => {
       setUser(user);
     });
 
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+    } = s.auth.onAuthStateChange((_event: unknown, session: unknown) => {
+      setUser((session as { user?: unknown })?.user ?? null);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    const s = getBrowserSupabase();
+    if (!s) return;
+    await s.auth.signOut();
     router.push("/");
   };
 
