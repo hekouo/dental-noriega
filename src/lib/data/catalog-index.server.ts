@@ -58,7 +58,10 @@ export async function findBySectionSlug(
   };
 }
 
-export async function findByTitleTokens(q: string): Promise<ProductLite[]> {
+export async function findByTitleTokens(
+  q: string,
+  _minTokens = 2,
+): Promise<ProductLite[]> {
   const query = q.trim();
   if (!query) return [];
 
