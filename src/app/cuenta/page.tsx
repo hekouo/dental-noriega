@@ -146,11 +146,11 @@ export default function CuentaPage() {
             disabled={isLoading}
             className="w-full btn btn-primary disabled:opacity-50"
           >
-            {isLoading
-              ? "Procesando..."
-              : mode === "login"
-                ? "Iniciar Sesión"
-                : "Crear Cuenta"}
+            {(() => {
+              if (isLoading) return "Procesando...";
+              if (mode === "login") return "Iniciar Sesión";
+              return "Crear Cuenta";
+            })()}
           </button>
         </form>
 

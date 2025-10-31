@@ -179,13 +179,13 @@ export default function CarritoPage() {
               className="w-full btn btn-primary block text-center disabled:opacity-50 disabled:cursor-not-allowed"
               aria-busy={busyRef.current}
             >
-              <span>
-                {busyRef.current
-                  ? "Procesando..."
-                  : selectedCount === 0
-                    ? "Selecciona productos"
-                    : `Continuar al Checkout (${selectedCount})`}
-              </span>
+              {(() => {
+                let label: string;
+                if (busyRef.current) label = "Procesando...";
+                else if (selectedCount === 0) label = "Selecciona productos";
+                else label = `Continuar al Checkout (${selectedCount})`;
+                return <span>{label}</span>;
+              })()}
             </button>
 
             <Link
