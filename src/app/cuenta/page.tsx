@@ -44,9 +44,17 @@ export default function CuentaPage() {
           setSuccess(result.message);
         }
       }
-    } catch (err: any) {
-      if (err.errors) {
-        setError(err.errors[0].message);
+    } catch (err) {
+      if (
+        err &&
+        typeof err === "object" &&
+        "errors" in err &&
+        Array.isArray((err as { errors: Array<{ message?: string }> }).errors)
+      ) {
+        const zodErr = err as { errors: Array<{ message?: string }> };
+        setError(
+          zodErr.errors[0]?.message || "Ocurrió un error. Inténtalo de nuevo.",
+        );
       } else {
         setError("Ocurrió un error. Inténtalo de nuevo.");
       }

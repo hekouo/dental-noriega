@@ -23,8 +23,23 @@ const statusColors: Record<string, string> = {
   cancelled: "bg-red-100 text-red-800",
 };
 
+type OrderItem = {
+  id: string;
+  quantity: number;
+  product_name: string;
+  price: number;
+};
+
+type Order = {
+  id: string;
+  status: string;
+  created_at: string;
+  total_amount: number;
+  order_items?: OrderItem[];
+};
+
 export default function PedidosPage() {
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -106,7 +121,7 @@ export default function PedidosPage() {
                       Productos ({order.order_items?.length || 0})
                     </h4>
                     <div className="space-y-2">
-                      {order.order_items?.map((item: any) => (
+                      {order.order_items?.map((item: OrderItem) => (
                         <div
                           key={item.id}
                           className="flex justify-between text-sm"

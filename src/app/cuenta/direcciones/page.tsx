@@ -5,8 +5,22 @@ import { AuthGuard } from "@/components/auth/AuthGuard";
 import { supabase } from "@/lib/supabase/client";
 import { Plus, Edit, Trash2 } from "lucide-react";
 
+type Address = {
+  id: string;
+  user_id: string;
+  label: string;
+  street: string;
+  ext_no: string;
+  int_no?: string | null;
+  neighborhood: string;
+  city: string;
+  state: string;
+  zip: string;
+  is_default: boolean;
+};
+
 export default function DireccionesPage() {
-  const [addresses, setAddresses] = useState<any[]>([]);
+  const [addresses, setAddresses] = useState<Address[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -41,16 +55,21 @@ export default function DireccionesPage() {
 
     if (!user) return;
 
-    const addressData: any = {
+    const getString = (key: string): string => {
+      const value = formData.get(key);
+      return value instanceof File ? "" : (value?.toString() ?? "");
+    };
+
+    const addressData: Omit<Address, "id"> = {
       user_id: user.id,
-      label: formData.get("label"),
-      street: formData.get("street"),
-      ext_no: formData.get("ext_no"),
-      int_no: formData.get("int_no"),
-      neighborhood: formData.get("neighborhood"),
-      city: formData.get("city"),
-      state: formData.get("state"),
-      zip: formData.get("zip"),
+      label: getString("label"),
+      street: getString("street"),
+      ext_no: getString("ext_no"),
+      int_no: formData.get("int_no")?.toString() ?? null,
+      neighborhood: getString("neighborhood"),
+      city: getString("city"),
+      state: getString("state"),
+      zip: getString("zip"),
       is_default: formData.get("is_default") === "on",
     };
 

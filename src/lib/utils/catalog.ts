@@ -85,6 +85,7 @@ export function normalizeRow(
     description,
     image,
     slug: slugify(
+      // eslint-disable-next-line sonarjs/pseudo-random -- fallback slug único cuando falta título; no crítico
       title || `${fallbackSection}-${Math.random().toString(36).slice(2, 8)}`,
     ),
   };

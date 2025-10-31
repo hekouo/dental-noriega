@@ -36,9 +36,22 @@ const typeIcons: Record<string, IconType> = {
   adjust: Award,
 };
 
+type UserProfile = {
+  points_balance: number;
+};
+
+type LedgerItem = {
+  id: string;
+  type: string;
+  points: number;
+  created_at: string;
+  description?: string | null;
+  order_id?: string | null;
+};
+
 export default function PuntosPage() {
-  const [profile, setProfile] = useState<any>(null);
-  const [ledger, setLedger] = useState<any[]>([]);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [ledger, setLedger] = useState<LedgerItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
