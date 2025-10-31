@@ -7,6 +7,7 @@ type Props = Omit<ImageProps, "src" | "alt"> & {
   src?: string | null;
   alt?: string;
   fallbackSrc?: string;
+  // opcional: forzar cuadrado en cards
   square?: boolean;
 };
 
@@ -24,24 +25,26 @@ export default function ImageWithFallback({
   const [current, setCurrent] = useState<string>(norm ?? fallbackSrc);
   const [failed, setFailed] = useState<boolean>(!norm);
 
+  const wrapperStyle = square ? { aspectRatio: "1 / 1" } : undefined;
+
   return (
     <div
-      className={`relative w-full ${square ? "aspect-square" : ""} bg-white overflow-hidden`}
+      className={`relative w-full overflow-hidden ${square ? "aspect-square" : ""}`}
+      style={wrapperStyle}
     >
       <Image
-        key={current}
         src={current}
         alt={alt}
         width={Number(width)}
         height={Number(height)}
-        className={`w-full h-full object-contain ${className ?? ""}`}
-        loading="lazy"
-        decoding="async"
-        referrerPolicy="no-referrer"
+        // object-contain evita corte. Cambia a object-cover si prefieres recorte.
+        className={`w-full h-auto object-contain ${className ?? ""}`}
         onError={() => {
           if (!failed) {
             setFailed(true);
             setCurrent(fallbackSrc);
+            // Log útil para depurar en consola:
+            // console.warn("Image fallback:", { src, normalized: norm });
           }
         }}
         {...rest}

@@ -1,10 +1,16 @@
 // src/app/api/debug/links/route.ts
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 import { NextResponse } from "next/server";
 import { loadAllSections } from "@/lib/data/catalog-sections";
 import { ROUTES } from "@/lib/routes";
+import { isDebugEnabled } from "@/lib/utils/debug";
 
 export async function GET() {
+  if (!isDebugEnabled()) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
   try {
     const sections = await loadAllSections();
     const sample = sections.map((s) => ({

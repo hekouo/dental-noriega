@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase/client";
+import { getBrowserSupabase } from "@/lib/supabase/client";
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
@@ -11,8 +11,12 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   // loadFromSupabase removido del store simplificado
 
   useEffect(() => {
-
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    const s = getBrowserSupabase();
+    if (!s) {
+      setIsLoading(false);
+      return;
+    }
+    s.auth.getUser().then(({ data: { user } }) => {
       if (!user) {
         router.push("/cuenta");
       } else {

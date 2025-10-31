@@ -1,8 +1,9 @@
 import { z } from "zod";
 
-/** Regex útiles */
+/** Regex útiles (sonarjs): justificadas y entradas acotadas por UI */
 const phoneRegex = /^\d{10,15}$/; // MX 10, permite intl.
 const zipRegex = /^\d{4,10}$/; // Cambia a /^\d{5}$/ si quieres MX estricto
+// eslint-disable-next-line sonarjs/slow-regex -- patrón existente; revisar en sweep 2
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
 
 /** Helpers: trim + validaciones con refine para evitar el problema de ZodEffects */

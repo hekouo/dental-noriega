@@ -1,12 +1,15 @@
 // src/app/api/debug/catalog/route.ts
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { listSectionsFromCatalog, listBySection } from "@/lib/supabase/catalog";
-import { allowDebug } from "../_guard";
+import { isDebugEnabled } from "@/lib/utils/debug";
 
 export async function GET() {
-  if (!allowDebug) return new Response("debug off", { status: 404 });
+  if (!isDebugEnabled()) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
   try {
     const sections = await listSectionsFromCatalog();
     const summary = await Promise.all(

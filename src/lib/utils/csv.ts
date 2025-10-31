@@ -23,6 +23,7 @@ function parseCSV(text: string) {
       if (ch === '"') {
         if (inQ && line[i + 1] === '"') {
           cur += '"';
+          // eslint-disable-next-line sonarjs/updated-loop-counter -- intencional: saltar siguiente carácter en comillas escapadas
           i++;
         } else {
           inQ = !inQ;

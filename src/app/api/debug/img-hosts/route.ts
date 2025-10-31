@@ -1,16 +1,22 @@
 import { NextResponse } from "next/server";
 import { createAnonClient } from "@/lib/supabase/anon-client";
 import { tryParseUrl } from "@/lib/utils/url";
-import { allowDebug } from "../_guard";
+import { isDebugEnabled } from "@/lib/utils/debug";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET(req: Request) {
-  if (!allowDebug) return new Response("debug off", { status: 404 });
+  if (!isDebugEnabled()) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
   const { searchParams } = new URL(req.url);
   const limit = Math.min(Number(searchParams.get("limit") ?? "200"), 2000);
 
   const supa = createAnonClient();
+  if (!supa) {
+    return NextResponse.json({ ok: false, error: "Supabase not available" }, { status: 500 });
+  }
   const { data, error } = await supa
     .from("api_catalog_with_images")
     .select("image_url")

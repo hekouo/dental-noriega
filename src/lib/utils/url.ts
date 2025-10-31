@@ -1,31 +1,28 @@
 // src/lib/utils/url.ts
-export function tryParseUrl(u?: string | null): URL | null {
+export const ALLOWED_IMG_HOSTS = new Set<string>([
+  "lh3.googleusercontent.com",
+  "images.unsplash.com",
+]);
+
+export function tryParseUrl(raw?: string | null): URL | null {
+  if (!raw) return null;
   try {
-    if (!u) return null;
-    return new URL(String(u));
+    const u = new URL(raw);
+    if (u.protocol !== "https:") return null;
+    return u;
   } catch {
     return null;
   }
 }
 
-export function isAllowedImageHost(hostname: string): boolean {
-  if (/^lh3\.googleusercontent\.com$/i.test(hostname)) return true;
-  // Permitir diagnóstico de variantes sin romper UI
-  if (/^lh[4-6]\.googleusercontent\.com$/i.test(hostname)) return true;
-  if (/\.googleusercontent\.com$/i.test(hostname)) return true;
-  if (/^images\.unsplash\.com$/i.test(hostname)) return true;
-  return false;
+export function isAllowedImageHost(u: URL): boolean {
+  return ALLOWED_IMG_HOSTS.has(u.hostname);
 }
 
-// Si es lhX.googleusercontent.com y no tiene tamaño, añade =s{px}
-export function appendSizeParamForLh(urlStr: string, px: number): string {
-  const u = tryParseUrl(urlStr);
-  if (!u) return urlStr;
-  const host = u.hostname;
-  if (!/^lh\d+\.googleusercontent\.com$/i.test(host)) return urlStr;
-  // Si ya trae sufijo de tamaño, no tocar
-  const full = u.toString();
-  if (/=s\d+(\-c)?$/i.test(u.pathname) || /=s\d+(\-c)?$/i.test(u.search))
-    return full;
-  return full + `=s${px}`;
+// Valida una URL de imagen segura y, si es inválida o host no permitido, devuelve undefined
+export function validateImageUrl(raw?: string | null): string | undefined {
+  const u = tryParseUrl(raw);
+  if (!u) return undefined;
+  if (!isAllowedImageHost(u)) return undefined;
+  return u.toString();
 }

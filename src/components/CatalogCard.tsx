@@ -7,13 +7,16 @@ export function CatalogCard({ item }: { item: CatalogItem }) {
   return (
     <div className="rounded-2xl border p-3">
       <Link href={`/catalogo/${item.section}/${item.product_slug}`}>
-        <ImageWithFallback
-          src={item.image_url}
-          width={400}
-          height={400}
-          alt={item.title ?? "Producto"}
-          square
-        />
+        <div className="relative w-full aspect-square bg-white">
+          <ImageWithFallback
+            src={item.image_url}
+            width={400}
+            height={400}
+            alt={item.title}
+            className="w-full h-full object-contain"
+            square
+          />
+        </div>
       </Link>
       <h3 className="mt-2 text-sm font-semibold line-clamp-2">{item.title}</h3>
       <div className="text-blue-600 font-bold">

@@ -1,11 +1,14 @@
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 import { NextResponse } from "next/server";
 import { listCatalog } from "@/lib/supabase/catalog";
 import { tryParseUrl, isAllowedImageHost } from "@/lib/utils/url";
-import { allowDebug } from "../_guard";
+import { isDebugEnabled } from "@/lib/utils/debug";
 
 export async function GET() {
-  if (!allowDebug) return new Response("debug off", { status: 404 });
+  if (!isDebugEnabled()) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
   try {
     const products = await listCatalog();
 
@@ -53,7 +56,7 @@ export async function GET() {
         allowedHostnamesExample: Array.from(
           new Set(
             Object.keys(imageAnalysis.domains).filter((h) =>
-              isAllowedImageHost(h),
+              isAllowedImageHost(new URL(`https://${h}`)),
             ),
           ),
         ),

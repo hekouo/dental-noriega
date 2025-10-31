@@ -16,13 +16,15 @@ export default function FeaturedCard({ item }: Props) {
   return (
     <div className="border rounded-xl overflow-hidden flex flex-col">
       <Link href={href} className="block">
-        <ImageWithFallback
-          src={item.image_url}
-          alt={item.title ?? "Producto"}
-          width={512}
-          height={512}
-          square
-        />
+        <div className="relative w-full aspect-square bg-white">
+          <ImageWithFallback
+            src={item.image_url}
+            alt={item.title}
+            width={512}
+            height={512}
+            className="w-full h-full object-contain"
+          />
+        </div>
       </Link>
 
       <div className="p-3 flex-1 flex flex-col">

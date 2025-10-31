@@ -1,12 +1,18 @@
 // src/app/api/debug/unused/route.ts
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 import { NextResponse } from "next/server";
 import path from "path";
 import { promises as fs } from "fs";
 import { loadAllSections } from "@/lib/data/catalog-sections";
 import { imageSrc } from "@/lib/utils/catalog";
+import { isDebugEnabled } from "@/lib/utils/debug";
 
 export async function GET() {
+  if (!isDebugEnabled()) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
   try {
     const publicDir = path.join(process.cwd(), "public");
     const dataDir = path.join(publicDir, "data");

@@ -86,9 +86,12 @@ export default function PagoPage() {
 
       clearCheckout();
       router.replace(`/checkout/gracias?orden=${result.orderId}`);
-    } catch (e: any) {
-      console.error(e);
-      setError(e.message || "No se pudo procesar el pago. Intenta de nuevo.");
+    } catch (e) {
+      const error = e instanceof Error ? e : new Error(String(e));
+      console.error(error);
+      setError(
+        error.message || "No se pudo procesar el pago. Intenta de nuevo.",
+      );
     } finally {
       setSending(false);
       sendingRef.current = false;
@@ -163,6 +166,7 @@ export default function PagoPage() {
             {...register("email", {
               required: "El email es requerido",
               pattern: {
+                // eslint-disable-next-line sonarjs/slow-regex -- regex simple validación email; validado en backend
                 value: /^\S+@\S+$/i,
                 message: "Email inválido",
               },
