@@ -6,7 +6,9 @@ export default defineConfig({
   test: {
     include: ["src/test/**/*.test.ts", "src/test/**/*.test.tsx"],
     exclude: ["tests/**", "e2e/**", "node_modules/**", "dist/**"],
-    environment: "node",
+    environment: "jsdom",
+    setupFiles: ["./vitest.setup.ts"],
+    globals: true,
   },
   resolve: { preserveSymlinks: true },
 });
