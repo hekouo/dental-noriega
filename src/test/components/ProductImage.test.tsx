@@ -11,11 +11,8 @@ vi.mock("@/lib/img/normalizeImageUrl", () => ({
 }));
 
 describe("ProductImage", () => {
-  // TODO: Investigar por qué falla el renderizado del componente bajo Vitest/jsdom
-  // El componente usa next/image con onError handler que puede estar causando problemas
-  // en el entorno de test. Revisar el componente ProductImage.tsx y su manejo de errores.
-  // Error: "React is not defined" sugiere que el componente necesita import explícito de React
-  // para funcionar en el entorno de test, aunque Next.js 14 no lo requiera en runtime.
+  // TODO: unskip cuando se estabilice el mock de next/image
+  // Issue sugerido: "stabilize(ProductImage): unskip tests y revisar props/mock de next/image"
   it.skip("renders with alt text", () => {
     render(
       <ProductImage
