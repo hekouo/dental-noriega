@@ -6,8 +6,7 @@ export default defineConfig({
   test: {
     include: ["src/test/**/*.test.ts", "src/test/**/*.test.tsx"],
     exclude: ["tests/**", "e2e/**", "node_modules/**", "dist/**"],
-    environment: "jsdom",
+    environment: "node",
   },
   resolve: { preserveSymlinks: true },
 });
-
