@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import * as React from "react";
+import React from "react";
 import { vi } from "vitest";
 
 // Mock de next/image para evitar SSR behavior y loaders
