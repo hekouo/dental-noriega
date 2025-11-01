@@ -1,16 +1,16 @@
 import "@testing-library/jest-dom/vitest";
-import React from "react";
 import { vi } from "vitest";
 
 // Mock de next/image para evitar SSR behavior y loaders
-vi.mock("next/image", () => ({
-  default: (props: any) => {
-    const { src, alt, ...rest } = props ?? {};
-    const resolved =
-      typeof src === "string" ? src : (src?.src ?? "");
-    return React.createElement("img", { src: resolved, alt, ...rest });
-  },
-}));
+vi.mock("next/image", () => {
+  // eslint-disable-next-line react/display-name
+  return {
+    default: ({ src, alt, ...props }: any) => {
+      // eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text
+      return <img src={typeof src === "string" ? src : src?.src ?? ""} alt={alt} {...props} />;
+    },
+  };
+});
 
 // Mocks defensivos de next/navigation si algún test lo toca
 vi.mock("next/navigation", () => {
