@@ -1,6 +1,7 @@
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
-import ProductImage from '../../components/ProductImage';
+import React from "react";
+import { render, screen } from "@testing-library/react";
+import { describe, it, expect } from "vitest";
+import ProductImage from "@/components/ProductImage";
 
 describe('ProductImage', () => {
   it('renders with alt text', () => {
