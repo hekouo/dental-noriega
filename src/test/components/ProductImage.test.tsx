@@ -11,9 +11,7 @@ vi.mock("@/lib/img/normalizeImageUrl", () => ({
 }));
 
 describe("ProductImage", () => {
-  // TODO: unskip cuando se estabilice el mock de next/image
-  // Issue sugerido: "stabilize(ProductImage): unskip tests y revisar props/mock de next/image"
-  it.skip("renders with alt text", () => {
+  it("renders with alt text", () => {
     render(
       <ProductImage
         src="/test.jpg"
@@ -23,17 +21,20 @@ describe("ProductImage", () => {
       />,
     );
 
-    const img = screen.getByRole("img", { name: /guantes nitrilo azul/i });
+    const img = screen.getByTestId("product-image");
     expect(img).toBeInTheDocument();
+    expect(img).toHaveAttribute("alt", "Guantes nitrilo azul");
     expect(img).toHaveAttribute("src");
     const srcAttr = img.getAttribute("src");
     expect(srcAttr).toBeTruthy();
+    expect(srcAttr).toContain("/test.jpg");
   });
 
-  it.skip("renders placeholder when no src", () => {
+  it("renders placeholder when no src", () => {
     render(<ProductImage src="" alt="Sin imagen" width={120} height={120} />);
 
-    const img = screen.getByRole("img", { name: /sin imagen/i });
+    const img = screen.getByTestId("product-image");
     expect(img).toBeInTheDocument();
+    expect(img).toHaveAttribute("alt", "Sin imagen");
   });
 });
