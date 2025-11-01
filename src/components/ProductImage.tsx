@@ -1,4 +1,5 @@
 "use client";
+import React from "react";
 import Image from "next/image";
 import { normalizeImageUrl } from "@/lib/img/normalizeImageUrl";
 
@@ -9,6 +10,7 @@ type Props = {
   height?: number;
   priority?: boolean;
   sizes?: string;
+  "data-testid"?: string;
 };
 
 export default function ProductImage({
@@ -18,6 +20,7 @@ export default function ProductImage({
   height = 512,
   priority = false,
   sizes = "(max-width: 768px) 100vw, 33vw",
+  "data-testid": dataTestId,
 }: Props) {
   const url = normalizeImageUrl(src, Math.max(width, height));
   return (
@@ -28,6 +31,7 @@ export default function ProductImage({
       height={height}
       sizes={sizes}
       priority={priority}
+      data-testid={dataTestId || "product-image"}
       onError={(e) => {
         const img = e.currentTarget as HTMLImageElement;
         if (!img.src.endsWith("/images/fallback-product.png")) {
