@@ -120,9 +120,16 @@ Vitest está configurado para excluir estos tests (`exclude: ["tests/**", "e2e/*
 - Se ejecutan en CI con un workflow separado
 - Tienen un scope diferente (integración completa vs. unidades aisladas)
 
-### Mock de next/image
+### Cobertura de catálogo (bordes)
 
-El mock de `next/image` está centralizado en `vitest.setup.ts` y devuelve un elemento `<img>` estándar para evitar problemas con SSR y loaders de Next.js en el entorno de test. Si necesitas cambiar el comportamiento del mock, edita `vitest.setup.ts`.
+Los tests incluyen casos de borde para:
+
+- **Secciones vacías o desconocidas**: Retornan arrays vacíos sin lanzar errores
+- **Imágenes con host inválido**: Se normalizan o filtran según corresponda
+- **URLs de Drive sin ID**: Se manejan gracefulmente
+- **Entorno sin Supabase**: Todas las funciones retornan valores seguros (arrays vacíos o null)
+
+Estos casos aseguran que el catálogo funciona correctamente incluso con datos incompletos o en entornos de preview sin configuración completa.
 
 ## 📊 Lighthouse (Performance)
 
