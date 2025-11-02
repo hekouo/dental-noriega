@@ -23,7 +23,7 @@ jobs:
           path: .
           format: spdx-json
           output-file: sbom.spdx.json
-          artifact-name: sbom-weekly-spdx
+          artifact-name: sbom-weekly
           upload-artifact: true
           timeout: 10m
 
