@@ -1,0 +1,15 @@
+
+### /
+```html
+<div class="grid md:grid-cols-4 gap-8"><div class="text-center"><div class="inline-flex items-center justify-center w-16 h-16 bg-primary-100 text-primary-600 rounded-full mb-4"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shopping-bag"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"></path><path d="M3 6h18"></path><path d="M16 1...
+```
+
+### /destacados
+```html
+<main class="max-w-6xl mx-auto p-4 flex-1 w-full pb-safe"><div class="container py-10"><h1 class="text-3xl font-bold mb-6">Productos Destacados</h1></div><!--$!--><template data-dgst="BAILOUT_TO_CLIENT_SIDE_RENDERING"></template><!--/$--></main>
+```
+
+### /catalogo
+```html
+<main class="max-w-6xl mx-auto p-4 flex-1 w-full pb-safe"><div class="min-h-screen bg-gray-50"><div class="bg-gradient-to-r from-primary-600 to-primary-800 text-white py-12"><div class="max-w-7xl mx-auto px-4"><h1 class="text-4xl font-bold mb-2">Catálogo Completo</h1><p class="text-primary-100">Explora todas nuestras categorías de productos</p></div></div><div class="max-w-7xl mx-auto px-4 py-12"><div class="bg-white rounded-lg shadow p-12 text-center"><svg xmlns="http://www.w3.org/2000/svg" wid...
+```

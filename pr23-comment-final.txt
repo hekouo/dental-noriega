@@ -1,0 +1,9 @@
+Post-merge verificado:
+- tsc/lint/test/build ✅
+- Vitest: jsdom + setupFiles + vite-tsconfig-paths ✅
+- Playwright excluido de Vitest ✅
+- Alias @/ resolviendo ✅
+- Smoke prod: "/", "/destacados", "/catalogo" → 200; "/api/debug/*" → 404 ✅
+
+Nota: `ProductImage.test.tsx` queda `it.skip` con TODO. Seguimiento en issue dedicado.
+
