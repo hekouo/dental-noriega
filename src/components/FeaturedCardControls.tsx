@@ -4,10 +4,10 @@ import { useRef, useState } from "react";
 import QtyStepper from "@/components/ui/QtyStepper";
 import { useCartStore } from "@/lib/store/cartStore";
 import { mxnFromCents, formatMXN } from "@/lib/utils/currency";
-import type { CatalogItem } from "@/lib/supabase/catalog";
+import type { FeaturedItem } from "@/lib/catalog/getFeatured.server";
 
 type Props = {
-  item: CatalogItem;
+  item: FeaturedItem;
 };
 
 export default function FeaturedCardControls({ item }: Props) {

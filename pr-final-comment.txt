@@ -1,0 +1,23 @@
+## PR #34 MERGED - SBOM Semanal Operativo
+
+### Resumen:
+- **PR**: MERGED
+- **Workflow**: SBOM Weekly operativo
+- **Artifact**: sbomweekly (173996 bytes)
+- **Cron**: Lunes 06:00 UTC
+- **URL del run**: https://github.com/hekouo/dental-noriega/actions/runs/19006929521
+
+### Validaciones post-merge en main:
+- pnpm tsc --noEmit: Sin errores
+- pnpm lint: OK
+- pnpm test: 30/30 tests pasando
+- pnpm build: OK
+- No hay it.skip en tests
+
+### Configuración final:
+- upload-artifact: false en anchore/sbom-action@v0.15.0
+- Upload manejado por actions/upload-artifact@v4 con nombre sbomweekly (sin guiones)
+- if-no-files-found: error para validar que el archivo existe
+
+**SBOM semanal operativo, artifact sbomweekly OK.** 🚀
+

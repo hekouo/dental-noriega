@@ -4,10 +4,10 @@ import Link from "next/link";
 import ImageWithFallback from "@/components/ui/ImageWithFallback";
 import FeaturedCardControls from "@/components/FeaturedCardControls";
 import { mxnFromCents, formatMXN } from "@/lib/utils/currency";
-import type { CatalogItem } from "@/lib/supabase/catalog";
+import type { FeaturedItem } from "@/lib/catalog/getFeatured.server";
 
 type Props = {
-  item: CatalogItem;
+  item: FeaturedItem;
 };
 
 export default function FeaturedCard({ item }: Props) {

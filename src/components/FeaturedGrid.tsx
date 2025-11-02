@@ -1,15 +1,21 @@
 "use client";
 
 import FeaturedCard from "@/components/FeaturedCard";
-import type { CatalogItem } from "@/lib/supabase/catalog";
+import type { FeaturedItem } from "@/lib/catalog/getFeatured.server";
 
-type Props = { items: CatalogItem[]; title?: string };
+type Props = { items: FeaturedItem[]; title?: string };
 
 export default function FeaturedGrid({
   items,
   title = "Productos Destacados",
 }: Props) {
-  if (!items?.length) return null;
+  if (!items?.length) {
+    return (
+      <div className="text-center text-sm opacity-70 py-8">
+        Aún no hay productos destacados
+      </div>
+    );
+  }
 
   return (
     <section className="py-12">

@@ -1,5 +1,5 @@
 // src/app/destacados/page.tsx
-import { getFeaturedProducts } from "@/lib/supabase/catalog";
+import { getFeaturedProducts } from "@/lib/catalog/getFeatured.server";
 import FeaturedGrid from "@/components/FeaturedGrid";
 
 export const revalidate = 300;

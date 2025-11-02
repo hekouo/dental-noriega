@@ -1,0 +1,55 @@
+## 🔍 Smoke Tests Post-Deploy - 2025-11-02 02:30:23 UTC
+
+### Páginas públicas:
+- ✅ GET / → 200 | Tarjetas: ✅ | Contenido: ✅ | AddToCart: ❌ | Imágenes: ❌
+- ✅ GET /destacados → 200 | Tarjetas: ✅ | Contenido: ✅ | AddToCart: ❌ | Imágenes: ❌
+- ✅ GET /catalogo → 200 | Tarjetas: ✅ | Contenido: ✅ | AddToCart: ❌ | Imágenes: ❌
+
+### Debug routes (deben retornar 404):
+- ✅ GET /api/debug/catalog → 404
+- ✅ GET /api/debug/files → 404
+
+---
+
+### 📊 Consultas SQL para verificación en Supabase:
+
+**Ejecuta estas consultas en Supabase SQL Editor y pega los resultados aquí:**
+
+`sql
+-- A) Tipo de id en la vista
+select column_name, data_type
+from information_schema.columns
+where table_schema='public' and table_name='api_catalog_with_images';
+
+-- B) Diagnóstico de destacados con JOIN correcto (uuid=uuid)
+select f.position, p.slug, v.image_url, coalesce(v.in_stock, true) as in_stock
+from public.featured f
+join public.products p on p.id = f.product_id
+left join public.api_catalog_with_images v on v.id = p.id
+order by f.position
+limit 8;
+
+-- Si falla por tipos, usar temporalmente:
+-- left join public.api_catalog_with_images v on v.id::text = p.id::text
+`
+
+### 📸 HTML mínimo de grids:
+
+
+### /
+```html
+<div class="grid md:grid-cols-4 gap-8"><div class="text-center"><div class="inline-flex items-center justify-center w-16 h-16 bg-primary-100 text-primary-600 rounded-full mb-4"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shopping-bag"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"></path><path d="M3 6h18"></path><path d="M16 1...
+```
+
+### /destacados
+```html
+<main class="max-w-6xl mx-auto p-4 flex-1 w-full pb-safe"><div class="container py-10"><h1 class="text-3xl font-bold mb-6">Productos Destacados</h1></div><!--$!--><template data-dgst="BAILOUT_TO_CLIENT_SIDE_RENDERING"></template><!--/$--></main>
+```
+
+### /catalogo
+```html
+<main class="max-w-6xl mx-auto p-4 flex-1 w-full pb-safe"><div class="min-h-screen bg-gray-50"><div class="bg-gradient-to-r from-primary-600 to-primary-800 text-white py-12"><div class="max-w-7xl mx-auto px-4"><h1 class="text-4xl font-bold mb-2">Catálogo Completo</h1><p class="text-primary-100">Explora todas nuestras categorías de productos</p></div></div><div class="max-w-7xl mx-auto px-4 py-12"><div class="bg-white rounded-lg shadow p-12 text-center"><svg xmlns="http://www.w3.org/2000/svg" wid...
+```
+
+
+**Nota:** Las tarjetas se renderizan con React, pueden no aparecer en el HTML inicial. Verificar en el navegador con DevTools.
