@@ -1,14 +1,15 @@
 import { notFound, redirect } from "next/navigation";
-import {
-  getBySectionSlug,
-  getProductBySlugAnySection,
-} from "@/lib/supabase/catalog";
+import { resolveProductBySlug } from "@/lib/catalog/resolveProductBySlug.server";
 import { formatMXNFromCents } from "@/lib/utils/currency";
 import ImageWithFallback from "@/components/ui/ImageWithFallback";
 import ProductActions from "@/components/product/ProductActions.client";
 import { ROUTES } from "@/lib/routes";
 import Link from "next/link";
 import { Package, Truck, Shield } from "lucide-react";
+import { normalizeSlug } from "@/lib/utils/slug";
+
+export const dynamic = process.env.NODE_ENV === "development" ? "force-dynamic" : "auto";
+export const revalidate = 300; // Cache 5 minutos
 
 type Props = {
   params: { section: string; slug: string };
@@ -16,24 +17,19 @@ type Props = {
 
 export default async function ProductDetailPage({ params }: Props) {
   const { section, slug } = params;
+  const normalizedSlug = normalizeSlug(slug);
+  const normalizedSection = normalizeSlug(section);
 
-  // Buscar producto por sección y slug
-  const product = await getBySectionSlug(section, slug);
+  // Resolver producto por slug (con fallback a vista)
+  const product = await resolveProductBySlug(normalizedSlug);
 
-  // Si no se encuentra en la sección especificada, buscar en cualquier sección
-  if (!product) {
-    const anySectionProduct = await getProductBySlugAnySection(slug);
-    if (anySectionProduct) {
-      // Redirigir a la URL canónica
-      redirect(
-        `/catalogo/${anySectionProduct.section}/${anySectionProduct.product_slug}`,
-      );
-    }
-  }
-
-  // Si no se encuentra en ningún lado, 404
   if (!product) {
     notFound();
+  }
+
+  // Redirigir a la ruta canónica si la sección no coincide
+  if (normalizeSlug(product.section) !== normalizedSection) {
+    redirect(`/catalogo/${product.section}/${product.slug}`);
   }
 
   const image_url = product.image_url;
@@ -60,7 +56,9 @@ export default async function ProductDetailPage({ params }: Props) {
               href={`/catalogo/${product.section}`}
               className="hover:text-primary-600"
             >
-              {product.section}
+              {product.section
+                .replace(/-/g, " ")
+                .replace(/\b\w/g, (l) => l.toUpperCase())}
             </Link>
             <span>/</span>
             <span className="text-gray-900 font-medium">{product.title}</span>
@@ -92,7 +90,7 @@ export default async function ProductDetailPage({ params }: Props) {
                 {product.title}
               </h1>
               <p className="text-lg text-gray-600 capitalize">
-                {product.section}
+                {product.section.replace(/-/g, " ")}
               </p>
             </div>
 
@@ -118,7 +116,7 @@ export default async function ProductDetailPage({ params }: Props) {
                 id: product.id,
                 title: product.title,
                 section: product.section,
-                product_slug: product.product_slug,
+                product_slug: product.slug,
                 price_cents: product.price_cents,
                 in_stock: product.in_stock ?? undefined,
               }}
