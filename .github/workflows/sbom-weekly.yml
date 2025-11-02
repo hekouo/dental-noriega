@@ -23,9 +23,15 @@ jobs:
           path: .
           format: spdx-json
           output-file: sbom.spdx.json
-          artifact-name: sbom-weekly-spdx
-          upload-artifact: true
-          timeout: 10m
+          upload-artifact: false
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbomweekly
+          path: sbom.spdx.json
+          if-no-files-found: error
+          retention-days: 30
 
       # Sube el SBOM al Dependency Graph cuando es ejecución manual o schedule
       - name: Upload to GitHub Dependency Graph
