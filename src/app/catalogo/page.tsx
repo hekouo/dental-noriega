@@ -1,13 +1,20 @@
 // src/app/catalogo/page.tsx
 import Link from "next/link";
 import { listSectionsFromCatalog } from "@/lib/supabase/catalog";
+import { getSectionsFromCatalogView } from "@/lib/catalog/getSectionsFromCatalogView.server";
 import { ROUTES } from "@/lib/routes";
 import { Package } from "lucide-react";
 
 export const revalidate = 300; // Cache 5 minutos
 
 export default async function CatalogoIndexPage() {
-  const sections = await listSectionsFromCatalog();
+  let sections = await listSectionsFromCatalog();
+
+  // Fallback: si sections está vacío, usar la vista
+  if (sections.length === 0) {
+    const fallbackSections = await getSectionsFromCatalogView();
+    sections = fallbackSections.map((s) => s.slug);
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

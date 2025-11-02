@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { listBySection } from "@/lib/supabase/catalog";
+import { getProductsBySectionFromView } from "@/lib/catalog/getProductsBySectionFromView.server";
 import { formatMXN, mxnFromCents } from "@/lib/utils/currency";
 import { ROUTES } from "@/lib/routes";
 import { MessageCircle, ShoppingCart } from "lucide-react";
@@ -14,7 +15,12 @@ export const revalidate = 300; // Cache 5 minutos
 type Props = { params: { section: string } };
 
 export default async function CatalogoSectionPage({ params }: Props) {
-  const products = await listBySection(params.section);
+  let products = await listBySection(params.section);
+
+  // Fallback: si no hay productos desde el fetch principal, usar la vista
+  if (products.length === 0) {
+    products = await getProductsBySectionFromView(params.section);
+  }
 
   if (products.length === 0) {
     return notFound();
