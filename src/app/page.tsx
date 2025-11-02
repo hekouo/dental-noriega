@@ -2,7 +2,7 @@ import Link from "next/link";
 import dynamicImport from "next/dynamic";
 import { ShoppingBag, Package, Award, Truck } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
-import { getFeaturedProducts } from "@/lib/supabase/catalog";
+import { getFeaturedProducts } from "@/lib/catalog/getFeatured.server";
 import FeaturedGrid from "@/components/FeaturedGrid";
 
 // Dynamic import para componente no crítico
