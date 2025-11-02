@@ -34,7 +34,6 @@ describe("PDP resolve and redirect", () => {
 
     // Simular que el resolver funciona
     const normalizedSection = normalizeSlug("ortodoncia-brackets");
-    const normalizedSlug = normalizeSlug("bracket-azdent");
 
     // Si la sección coincide, no debe haber redirect
     if (normalizeSlug(mockProduct.section) === normalizedSection) {
@@ -80,4 +79,3 @@ describe("PDP resolve and redirect", () => {
     expect(normalizeSlug("bracket-azdent")).toBe("bracket-azdent");
   });
 });
-
