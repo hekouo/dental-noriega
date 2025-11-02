@@ -81,6 +81,49 @@ npm run build
 npm start
 ```
 
+## 🧪 Tests (Vitest + jsdom)
+
+Este proyecto usa **Vitest** con entorno **jsdom** para tests unitarios de componentes React y utilidades.
+
+### Ejecutar tests
+
+```bash
+# Ejecutar todos los tests
+pnpm test
+
+# Ejecutar en modo watch
+pnpm test --watch
+
+# Ejecutar un archivo específico
+pnpm test src/test/components/ProductImage.test.tsx
+```
+
+### Configuración
+
+- **Framework**: Vitest con entorno jsdom
+- **Setup**: `vitest.setup.ts` configura mocks de Next.js
+- **Mock de next/image**: Usa `React.createElement` en `vitest.setup.ts` para evitar problemas con JSX en entorno de test
+- **Alias**: `@/` se resuelve automáticamente usando `vite-tsconfig-paths`
+
+### ¿Por qué Playwright está excluido del scope de unit?
+
+Los tests de **Playwright** (E2E) están en `tests/e2e/` y se ejecutan separadamente con:
+
+```bash
+pnpm test:e2e
+```
+
+Vitest está configurado para excluir estos tests (`exclude: ["tests/**", "e2e/**"]`) porque:
+
+- Requieren un servidor corriendo
+- Son más lentos y costosos
+- Se ejecutan en CI con un workflow separado
+- Tienen un scope diferente (integración completa vs. unidades aisladas)
+
+### Mock de next/image
+
+El mock de `next/image` está centralizado en `vitest.setup.ts` y devuelve un elemento `<img>` estándar para evitar problemas con SSR y loaders de Next.js en el entorno de test. Si necesitas cambiar el comportamiento del mock, edita `vitest.setup.ts`.
+
 ## 📊 Lighthouse (Performance)
 
 ```bash
