@@ -81,6 +81,56 @@ npm run build
 npm start
 ```
 
+## 🧪 Tests (Vitest + jsdom)
+
+Este proyecto usa **Vitest** con entorno **jsdom** para tests unitarios de componentes React y utilidades.
+
+### Ejecutar tests
+
+```bash
+# Ejecutar todos los tests
+pnpm test
+
+# Ejecutar en modo watch
+pnpm test --watch
+
+# Ejecutar un archivo específico
+pnpm test src/test/components/ProductImage.test.tsx
+```
+
+### Configuración
+
+- **Framework**: Vitest con entorno jsdom
+- **Setup**: `vitest.setup.ts` configura mocks de Next.js
+- **Mock de next/image**: Usa `React.createElement` en `vitest.setup.ts` para evitar problemas con JSX en entorno de test
+- **Alias**: `@/` se resuelve automáticamente usando `vite-tsconfig-paths`
+
+### ¿Por qué Playwright está excluido del scope de unit?
+
+Los tests de **Playwright** (E2E) están en `tests/e2e/` y se ejecutan separadamente con:
+
+```bash
+pnpm test:e2e
+```
+
+Vitest está configurado para excluir estos tests (`exclude: ["tests/**", "e2e/**"]`) porque:
+
+- Requieren un servidor corriendo
+- Son más lentos y costosos
+- Se ejecutan en CI con un workflow separado
+- Tienen un scope diferente (integración completa vs. unidades aisladas)
+
+### Cobertura de catálogo (bordes)
+
+Los tests incluyen casos de borde para:
+
+- **Secciones vacías o desconocidas**: Retornan arrays vacíos sin lanzar errores
+- **Imágenes con host inválido**: Se normalizan o filtran según corresponda
+- **URLs de Drive sin ID**: Se manejan gracefulmente
+- **Entorno sin Supabase**: Todas las funciones retornan valores seguros (arrays vacíos o null)
+
+Estos casos aseguran que el catálogo funciona correctamente incluso con datos incompletos o en entornos de preview sin configuración completa.
+
 ## 📊 Lighthouse (Performance)
 
 ```bash
