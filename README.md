@@ -223,6 +223,35 @@ vercel
 - **Hosting**: Vercel
 - **Imágenes**: Google Drive + Next.js Image
 
+## 🗄️ Base de datos (Supabase)
+
+### Scripts SQL activos
+
+Los scripts SQL activos se encuentran en `ops/sql/`:
+
+- `2025-11-02_fix_api_catalog_view_and_featured.sql` - Vista `api_catalog_with_images` con UUID y joins correctos
+- `2025-11-02_featured_set_exact.sql` - Configuración exacta de productos destacados (8 posiciones)
+- `csv_raw_schema.sql` - Schema para tabla `csv_raw` (importación desde CSV)
+- `csv_import_pipeline_from_csv_raw.sql` - Pipeline de importación desde `csv_raw` a `products`
+- `search_setup.sql` - Configuración de búsqueda full-text
+- `products_title_norm_index.sql` - Índice para normalización de títulos
+- `featured_setup.sql` - Setup inicial de tabla `featured`
+- `qa_checks.sql` - Consultas de verificación y QA
+- `cleanup_dedupe.sql` - Limpieza y deduplicación de datos
+
+### ⚠️ Scripts legados
+
+**NUNCA ejecutar nada dentro de `ops/sql/legacy/`**. Estos scripts están archivados por razones históricas y pueden contener cambios incompatibles con el esquema actual.
+
+Para ver el contenido completo y SHA256 de cada script legado, consulta `ops/sql/legacy/LEGACY_SNAPSHOT.md`.
+
+### Flujo operativo
+
+1. **Importar CSV**: Ejecutar `csv_raw_schema.sql` y luego `csv_import_pipeline_from_csv_raw.sql`
+2. **Pipeline**: Los datos se procesan y migran a `products`, `sections`, `product_images`
+3. **QA**: Ejecutar `qa_checks.sql` para verificar integridad
+4. **Redeploy**: Desplegar aplicación en Vercel para reflejar cambios
+
 ## 📞 Contacto
 
 - **WhatsApp**: [+52 55 3103 3715](https://wa.me/525531033715)
