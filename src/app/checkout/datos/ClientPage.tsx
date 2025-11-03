@@ -118,10 +118,7 @@ function DatosPageContent() {
     <main className="mx-auto max-w-3xl p-6 space-y-6">
       <CheckoutStepIndicator currentStep="datos" />
 
-                  <h1 className="text-2xl font-semibold mb-2">Datos de Envío</h1>
-                  <p className="text-gray-600 mb-6">
-                    Completa la información para enviar tu pedido
-                  </p>
+      <h1 className="text-2xl font-semibold">Datos de Envío</h1>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" noValidate>
         <CheckoutDebugPanel />
@@ -206,7 +203,7 @@ function DatosPageContent() {
             className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
               errors.email ? "border-red-500" : "border-gray-300"
             }`}
-            placeholder="tu@email.com"
+            placeholder="ejemplo@correo.com"
           />
           {errors.email && (
             <p
@@ -237,7 +234,7 @@ function DatosPageContent() {
             className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
               errors.phone ? "border-red-500" : "border-gray-300"
             }`}
-            placeholder="5512345678"
+            placeholder="10 dígitos sin espacios"
             maxLength={10}
           />
           {errors.phone && (
@@ -250,6 +247,7 @@ function DatosPageContent() {
             </p>
           )}
           <p className="text-gray-500 text-xs mt-1">
+            Formato: 10 dígitos (sin espacios ni guiones)
             Solo números, sin espacios ni guiones
           </p>
         </div>
@@ -272,7 +270,7 @@ function DatosPageContent() {
             className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
               errors.address ? "border-red-500" : "border-gray-300"
             }`}
-            placeholder="Ej: Av. Insurgentes Sur 123, Int. 45"
+            placeholder="Calle, número exterior e interior (opcional)"
           />
           {errors.address && (
             <p
@@ -305,7 +303,7 @@ function DatosPageContent() {
             className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
               errors.neighborhood ? "border-red-500" : "border-gray-300"
             }`}
-            placeholder="Ej: Roma Norte"
+            placeholder="Ej: Colonia Roma, Del. Cuauhtémoc"
           />
           {errors.neighborhood && (
             <p
@@ -400,7 +398,7 @@ function DatosPageContent() {
               className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
                 errors.cp ? "border-red-500" : "border-gray-300"
               }`}
-              placeholder="Ej: 06700"
+            placeholder="5 dígitos"
               maxLength={5}
             />
             {errors.cp && (
@@ -433,7 +431,7 @@ function DatosPageContent() {
             className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
               errors.notes ? "border-red-500" : "border-gray-300"
             }`}
-            placeholder="Ej: Llame antes de entregar, portería abierta 24h..."
+            placeholder="Ej: Llamar antes de entregar, referencias de ubicación..."
           />
           <p id="notes-help" className="text-gray-500 text-xs mt-1">
             Máximo 300 caracteres
@@ -506,9 +504,9 @@ function DatosPageContent() {
                         disabled={!isValid || isSubmitting}
                         aria-disabled={!isValid || isSubmitting}
                         data-testid="btn-continuar-pago"
-                        className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex-1 font-semibold transition-colors"
+                        className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex-1 transition-colors"
                       >
-                        Continuar al pago →
+                        {isSubmitting ? "Guardando..." : "Continuar al pago →"}
                       </button>
         </div>
       </form>
