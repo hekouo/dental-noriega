@@ -15,8 +15,7 @@ describe("Legal Pages", () => {
 
   it("should render términos y condiciones page", () => {
     render(<TerminosCondicionesPage />);
-    const heading = screen.getAllByText(/términos y condiciones/i);
-    expect(heading.length).toBeGreaterThan(0);
+    expect(screen.getByText(/términos y condiciones/i)).toBeInTheDocument();
     expect(screen.getByText(/objeto del sitio/i)).toBeInTheDocument();
     expect(screen.getByText(/precios/i)).toBeInTheDocument();
     expect(screen.getByText(/garantías y devoluciones/i)).toBeInTheDocument();
