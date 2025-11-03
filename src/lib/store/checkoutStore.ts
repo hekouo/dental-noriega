@@ -30,11 +30,15 @@ type Item = {
 
 export type CheckoutStep = "datos" | "pago" | "gracias";
 
+export type ShippingMethod = "pickup" | "standard" | "express";
+
 type State = {
   checkoutItems: CheckoutItem[];
   step: CheckoutStep;
   datos: DatosForm | null;
   orderId: string | null;
+  shippingMethod?: ShippingMethod;
+  shippingCost?: number;
   ingestFromCart: (cartItems: Item[], clearCart?: boolean) => void;
   upsertSingleToCheckout: (item: Item) => void;
   clearCheckout: () => void;
@@ -46,6 +50,7 @@ type State = {
   clearSelectedFromCheckout: () => void;
   setDatos: (datos: DatosForm) => void;
   setOrderId: (orderId: string) => void;
+  setShipping: (method: ShippingMethod, cost: number) => void;
   reset: () => void;
 };
 
@@ -56,6 +61,8 @@ export const useCheckoutStore = create<State>()(
       step: "datos",
       datos: null,
       orderId: null,
+      shippingMethod: undefined,
+      shippingCost: undefined,
 
       ingestFromCart: (cartItems, _clearCart = true) => {
         set((s) => {
@@ -186,12 +193,18 @@ export const useCheckoutStore = create<State>()(
         set((s) => ({ ...s, orderId }));
       },
 
+      setShipping: (method: ShippingMethod, cost: number) => {
+        set((s) => ({ ...s, shippingMethod: method, shippingCost: cost }));
+      },
+
       reset: () => {
         set({
           checkoutItems: [],
           step: "datos",
           datos: null,
           orderId: null,
+          shippingMethod: undefined,
+          shippingCost: undefined,
         });
       },
     }),

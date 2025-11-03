@@ -1,16 +1,11 @@
 import { z } from "zod";
 
-// Regex para validaciones MX
-const phoneRegex = /^\d{10}$/; // MX: exactamente 10 dígitos
-const zipRegex = /^\d{5}$/; // MX: exactamente 5 dígitos
 // eslint-disable-next-line sonarjs/slow-regex -- patrón simple validación email
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
 
 // Helper: trim + validación
 const t = z.string().transform((s) => s.trim());
 const req = (msg: string) => t.refine((s) => s.length > 0, { message: msg });
-const reqRegex = (re: RegExp, msg: string) =>
-  t.refine((s) => re.test(s), { message: msg });
 
 const emailNorm = z
   .string()

@@ -11,6 +11,7 @@ import { datosSchema, type DatosForm, MX_STATES } from "@/lib/checkout/schemas";
 import CheckoutStepIndicator from "@/components/CheckoutStepIndicator";
 import CheckoutDebugPanel from "@/components/CheckoutDebugPanel";
 import Link from "next/link";
+import { track } from "@/lib/analytics";
 
 // eslint-disable-next-line sonarjs/cognitive-complexity -- Formulario largo pero estructurado, todos los campos son necesarios
 function DatosPageContent() {
@@ -41,6 +42,11 @@ function DatosPageContent() {
   const { register, handleSubmit, formState, setValue, watch } = form;
 
   const { errors, isValid, isSubmitting } = formState;
+
+  // Analytics: begin_checkout al entrar a la página
+  useEffect(() => {
+    track("begin_checkout");
+  }, []);
 
   // Máscara de teléfono: solo números, bloquea e, +, -, .
   useEffect(() => {

@@ -8,9 +8,31 @@ import type { CatalogItem } from "@/lib/supabase/catalog";
 
 type Props = {
   item: CatalogItem;
+  highlightQuery?: string;
 };
 
-export default function SearchResultCard({ item }: Props) {
+/**
+ * Resalta el término de búsqueda en el texto
+ */
+function highlightText(text: string, query?: string): JSX.Element {
+  if (!query || !text) return <>{text}</>;
+
+  const regex = new RegExp(
+    `(${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`,
+    "gi",
+  );
+  const parts = text.split(regex);
+
+  return (
+    <>
+      {parts.map((part, i) =>
+        regex.test(part) ? <mark key={i}>{part}</mark> : part,
+      )}
+    </>
+  );
+}
+
+export default function SearchResultCard({ item, highlightQuery }: Props) {
   return (
     <div className="rounded-2xl border p-3 flex flex-col">
       <Link href={`/catalogo/${item.section}/${item.product_slug}`}>
@@ -25,7 +47,11 @@ export default function SearchResultCard({ item }: Props) {
           />
         </div>
       </Link>
-      <h3 className="mt-2 text-sm font-semibold line-clamp-2">{item.title}</h3>
+      <h3 className="mt-2 text-sm font-semibold line-clamp-2">
+        {highlightQuery
+          ? highlightText(item.title, highlightQuery)
+          : item.title}
+      </h3>
       <div className="text-blue-600 font-bold">
         {formatMXN(mxnFromCents(item.price_cents))}
       </div>
