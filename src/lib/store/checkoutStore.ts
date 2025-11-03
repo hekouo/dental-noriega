@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
+import type { DatosForm } from "@/lib/checkout/schemas";
 
 // Tipos
 export type CartItem = {
@@ -27,19 +28,12 @@ type Item = {
   variantId?: string;
 };
 
-type CheckoutData = {
-  nombre?: string;
-  email?: string;
-  telefono?: string;
-  direccion?: string;
-  ciudad?: string;
-  codigoPostal?: string;
-  notas?: string;
-};
+export type CheckoutStep = "datos" | "pago" | "gracias";
 
 type State = {
   checkoutItems: CheckoutItem[];
-  datos: CheckoutData | null;
+  step: CheckoutStep;
+  datos: DatosForm | null;
   orderId: string | null;
   ingestFromCart: (cartItems: Item[], clearCart?: boolean) => void;
   upsertSingleToCheckout: (item: Item) => void;
@@ -50,14 +44,16 @@ type State = {
   selectAllCheckout: () => void;
   deselectAllCheckout: () => void;
   clearSelectedFromCheckout: () => void;
-  setDatos: (datos: CheckoutData) => void;
+  setDatos: (datos: DatosForm) => void;
   setOrderId: (orderId: string) => void;
+  reset: () => void;
 };
 
 export const useCheckoutStore = create<State>()(
   persist(
     (set, _get) => ({
       checkoutItems: [],
+      step: "datos",
       datos: null,
       orderId: null,
 
@@ -182,20 +178,33 @@ export const useCheckoutStore = create<State>()(
         });
       },
 
-      setDatos: (datos: CheckoutData) => {
-        set((s) => ({ ...s, datos }));
+      setDatos: (datos: DatosForm) => {
+        set((s) => ({ ...s, datos, step: "pago" }));
       },
 
       setOrderId: (orderId: string) => {
         set((s) => ({ ...s, orderId }));
+      },
+
+      reset: () => {
+        set({
+          checkoutItems: [],
+          step: "datos",
+          datos: null,
+          orderId: null,
+        });
       },
     }),
     {
       name: "checkout",
       storage: createJSONStorage(() => localStorage),
       onRehydrateStorage: () => () => {},
-      partialize: (s) => ({ checkoutItems: s.checkoutItems }),
-      version: 1,
+      partialize: (s) => ({
+        checkoutItems: s.checkoutItems,
+        datos: s.datos,
+        step: s.step,
+      }),
+      version: 2, // Incrementar versión por cambios en estructura
     },
   ),
 );

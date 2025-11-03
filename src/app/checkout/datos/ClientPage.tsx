@@ -1,116 +1,94 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, Suspense } from "react";
+import { useRouter } from "next/navigation";
+import { useForm, type SubmitHandler } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useSelectedIds } from "@/lib/store/checkoutSelectors";
 import { useCheckoutStore } from "@/lib/store/checkoutStore";
-import { getBrowserSupabase } from "@/lib/supabase/client";
+import { datosSchema, type DatosForm, MX_STATES } from "@/lib/checkout/schemas";
+import CheckoutStepIndicator from "@/components/CheckoutStepIndicator";
+import Link from "next/link";
 
+// eslint-disable-next-line sonarjs/cognitive-complexity -- Formulario largo pero estructurado, todos los campos son necesarios
 function DatosPageContent() {
+  const router = useRouter();
   const selectedIds = useSelectedIds();
   const setDatos = useCheckoutStore((s) => s.setDatos);
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    address: "",
-    city: "",
-    state: "",
-    zip: "",
+  const datos = useCheckoutStore((s) => s.datos);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isValid },
+    setValue,
+    watch,
+  } = useForm<DatosForm>({
+    resolver: zodResolver(datosSchema),
+    mode: "onChange",
+    defaultValues: datos || {
+      name: "",
+      last_name: "",
+      email: "",
+      phone: "",
+      address: "",
+      neighborhood: "",
+      city: "",
+      state: "",
+      cp: "",
+      notes: undefined,
+      aceptaAviso: false as unknown as true, // Type assertion para default inicial
+    },
   });
-  const [isLoading, setIsLoading] = useState(false);
-  const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const returnUrl = searchParams?.get("return") || "/checkout/pago";
 
+  // Máscara de teléfono: solo números, bloquea e, +, -, .
   useEffect(() => {
-    const loadUserData = async () => {
-      const s = getBrowserSupabase();
-      if (!s) return;
-      const {
-        data: { user },
-      } = await s.auth.getUser();
+    const input = document.getElementById("phone");
+    if (!input) return;
 
-      if (user) {
-        setUser(user);
-
-        // Cargar datos existentes del perfil
-        const { data: profile } = await s
-          .from("profiles")
-          .select("*")
-          .eq("id", user.id)
-          .single();
-
-        if (profile) {
-          setFormData({
-            name: profile.name || "",
-            email: profile.email || user.email || "",
-            phone: profile.phone || "",
-            address: profile.address || "",
-            city: profile.city || "",
-            state: profile.state || "",
-            zip: profile.zip || "",
-          });
-        } else {
-          setFormData((prev) => ({
-            ...prev,
-            email: user.email || "",
-          }));
-        }
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.key === "e" ||
+        e.key === "E" ||
+        e.key === "+" ||
+        e.key === "-" ||
+        e.key === "."
+      ) {
+        e.preventDefault();
       }
     };
 
-    loadUserData();
-  }, []);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user || isLoading) return;
-
-    setIsLoading(true);
-
-    try {
-      const s = getBrowserSupabase();
-      if (!s) return;
-
-      // Upsert en la tabla profiles
-      const { error } = await s.from("profiles").upsert({
-        id: user.id,
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        address: formData.address,
-        city: formData.city,
-        state: formData.state,
-        zip: formData.zip,
-        updated_at: new Date().toISOString(),
-      });
-
-      if (error) {
-        console.error("Error saving profile:", error);
-        alert("Error al guardar los datos. Intenta de nuevo.");
-        return;
+    const handleInput = (e: Event) => {
+      const target = e.target as HTMLInputElement;
+      const value = target.value.replace(/\D/g, ""); // Solo números
+      if (value.length > 10) {
+        target.value = value.slice(0, 10);
+      } else {
+        target.value = value;
       }
+      setValue("phone", target.value, { shouldValidate: true });
+    };
 
-      // Guardar datos en el checkout store
-      setDatos({
-        nombre: formData.name,
-        email: formData.email,
-        telefono: formData.phone,
-        direccion: formData.address,
-        ciudad: formData.city,
-        codigoPostal: formData.zip,
-      });
+    input.addEventListener("keydown", handleKeyDown);
+    input.addEventListener("input", handleInput);
 
-      // Redirigir a la URL de retorno
-      router.push(returnUrl);
-    } catch (error) {
-      console.error("Error in form submission:", error);
-      alert("Error al guardar los datos. Intenta de nuevo.");
-    } finally {
-      setIsLoading(false);
+    return () => {
+      input.removeEventListener("keydown", handleKeyDown);
+      input.removeEventListener("input", handleInput);
+    };
+  }, [setValue]);
+
+  // Sanitización: trim en blur para campos de texto
+  const handleBlur = (field: keyof DatosForm) => {
+    const value = watch(field);
+    if (typeof value === "string") {
+      setValue(field, value.trim() as never, { shouldValidate: true });
     }
+  };
+
+  const onSubmit: SubmitHandler<DatosForm> = (data) => {
+    setDatos(data);
+    router.push("/checkout/pago");
   };
 
   if (!selectedIds || selectedIds.length === 0) {
@@ -118,155 +96,394 @@ function DatosPageContent() {
       <section className="mx-auto max-w-3xl p-6 text-center">
         <h1 className="text-2xl font-semibold">No hay nada para procesar</h1>
         <p className="opacity-70 mt-2">Vuelve al carrito y agrega productos.</p>
+        <Link href="/carrito" className="btn btn-primary mt-4">
+          <span>Ir al carrito</span>
+        </Link>
       </section>
     );
   }
 
   return (
     <main className="mx-auto max-w-3xl p-6 space-y-6">
+      <CheckoutStepIndicator currentStep="datos" />
+
       <h1 className="text-2xl font-semibold">Datos de Envío</h1>
 
-      {/* Resumen de productos */}
-      <div className="bg-gray-50 rounded-lg p-4">
-        <h2 className="font-semibold mb-2">Productos seleccionados:</h2>
-        <ul className="space-y-1">
-          {selectedIds.map((id) => (
-            <li key={id} className="flex justify-between text-sm">
-              <span>Producto {id}</span>
-              <span>x1</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      {/* Formulario */}
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        {/* Nombre y Apellido */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label htmlFor="name" className="block text-sm font-medium mb-1">
-              Nombre completo *
+            <label
+              htmlFor="name"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Nombre *
             </label>
             <input
-              type="text"
               id="name"
-              required
-              value={formData.name}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, name: e.target.value }))
-              }
-              className="w-full border rounded-lg px-3 py-2"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium mb-1">
-              Email *
-            </label>
-            <input
-              type="email"
-              id="email"
-              required
-              value={formData.email}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, email: e.target.value }))
-              }
-              className="w-full border rounded-lg px-3 py-2"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="phone" className="block text-sm font-medium mb-1">
-              Teléfono *
-            </label>
-            <input
-              type="tel"
-              id="phone"
-              required
-              value={formData.phone}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, phone: e.target.value }))
-              }
-              className="w-full border rounded-lg px-3 py-2"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="city" className="block text-sm font-medium mb-1">
-              Ciudad *
-            </label>
-            <input
               type="text"
-              id="city"
-              required
-              value={formData.city}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, city: e.target.value }))
-              }
-              className="w-full border rounded-lg px-3 py-2"
+              {...register("name")}
+              onBlur={() => handleBlur("name")}
+              aria-invalid={errors.name ? "true" : "false"}
+              aria-describedby={errors.name ? "name-error" : undefined}
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                errors.name ? "border-red-500" : "border-gray-300"
+              }`}
             />
+            {errors.name && (
+              <p
+                id="name-error"
+                className="text-red-500 text-sm mt-1"
+                role="alert"
+              >
+                {errors.name.message}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label
+              htmlFor="last_name"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Apellido *
+            </label>
+            <input
+              id="last_name"
+              type="text"
+              {...register("last_name")}
+              onBlur={() => handleBlur("last_name")}
+              aria-invalid={errors.last_name ? "true" : "false"}
+              aria-describedby={
+                errors.last_name ? "last_name-error" : undefined
+              }
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                errors.last_name ? "border-red-500" : "border-gray-300"
+              }`}
+            />
+            {errors.last_name && (
+              <p
+                id="last_name-error"
+                className="text-red-500 text-sm mt-1"
+                role="alert"
+              >
+                {errors.last_name.message}
+              </p>
+            )}
           </div>
         </div>
 
+        {/* Email */}
         <div>
-          <label htmlFor="address" className="block text-sm font-medium mb-1">
+          <label
+            htmlFor="email"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
+            Correo electrónico *
+          </label>
+          <input
+            id="email"
+            type="email"
+            {...register("email")}
+            onBlur={() => handleBlur("email")}
+            aria-invalid={errors.email ? "true" : "false"}
+            aria-describedby={errors.email ? "email-error" : undefined}
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+              errors.email ? "border-red-500" : "border-gray-300"
+            }`}
+            placeholder="tu@email.com"
+          />
+          {errors.email && (
+            <p
+              id="email-error"
+              className="text-red-500 text-sm mt-1"
+              role="alert"
+            >
+              {errors.email.message}
+            </p>
+          )}
+        </div>
+
+        {/* Teléfono */}
+        <div>
+          <label
+            htmlFor="phone"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
+            Teléfono (10 dígitos) *
+          </label>
+          <input
+            id="phone"
+            type="tel"
+            inputMode="numeric"
+            {...register("phone")}
+            aria-invalid={errors.phone ? "true" : "false"}
+            aria-describedby={errors.phone ? "phone-error" : undefined}
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+              errors.phone ? "border-red-500" : "border-gray-300"
+            }`}
+            placeholder="5512345678"
+            maxLength={10}
+          />
+          {errors.phone && (
+            <p
+              id="phone-error"
+              className="text-red-500 text-sm mt-1"
+              role="alert"
+            >
+              {errors.phone.message}
+            </p>
+          )}
+          <p className="text-gray-500 text-xs mt-1">
+            Solo números, sin espacios ni guiones
+          </p>
+        </div>
+
+        {/* Dirección */}
+        <div>
+          <label
+            htmlFor="address"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
             Dirección *
           </label>
           <textarea
             id="address"
-            required
             rows={3}
-            value={formData.address}
-            onChange={(e) =>
-              setFormData((prev) => ({ ...prev, address: e.target.value }))
-            }
-            className="w-full border rounded-lg px-3 py-2"
+            {...register("address")}
+            onBlur={() => handleBlur("address")}
+            aria-invalid={errors.address ? "true" : "false"}
+            aria-describedby={errors.address ? "address-error" : undefined}
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+              errors.address ? "border-red-500" : "border-gray-300"
+            }`}
+            placeholder="Calle y número"
           />
+          {errors.address && (
+            <p
+              id="address-error"
+              className="text-red-500 text-sm mt-1"
+              role="alert"
+            >
+              {errors.address.message}
+            </p>
+          )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Colonia */}
+        <div>
+          <label
+            htmlFor="neighborhood"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
+            Colonia *
+          </label>
+          <input
+            id="neighborhood"
+            type="text"
+            {...register("neighborhood")}
+            onBlur={() => handleBlur("neighborhood")}
+            aria-invalid={errors.neighborhood ? "true" : "false"}
+            aria-describedby={
+              errors.neighborhood ? "neighborhood-error" : undefined
+            }
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+              errors.neighborhood ? "border-red-500" : "border-gray-300"
+            }`}
+            placeholder="Colonia o delegación"
+          />
+          {errors.neighborhood && (
+            <p
+              id="neighborhood-error"
+              className="text-red-500 text-sm mt-1"
+              role="alert"
+            >
+              {errors.neighborhood.message}
+            </p>
+          )}
+        </div>
+
+        {/* Ciudad, Estado, CP */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label htmlFor="state" className="block text-sm font-medium mb-1">
-              Estado
+            <label
+              htmlFor="city"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Ciudad *
             </label>
             <input
+              id="city"
               type="text"
+              {...register("city")}
+              onBlur={() => handleBlur("city")}
+              aria-invalid={errors.city ? "true" : "false"}
+              aria-describedby={errors.city ? "city-error" : undefined}
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                errors.city ? "border-red-500" : "border-gray-300"
+              }`}
+            />
+            {errors.city && (
+              <p
+                id="city-error"
+                className="text-red-500 text-sm mt-1"
+                role="alert"
+              >
+                {errors.city.message}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label
+              htmlFor="state"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Estado *
+            </label>
+            <select
               id="state"
-              value={formData.state}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, state: e.target.value }))
-              }
-              className="w-full border rounded-lg px-3 py-2"
-            />
+              {...register("state")}
+              aria-invalid={errors.state ? "true" : "false"}
+              aria-describedby={errors.state ? "state-error" : undefined}
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                errors.state ? "border-red-500" : "border-gray-300"
+              }`}
+            >
+              <option value="">Selecciona...</option>
+              {MX_STATES.map((state) => (
+                <option key={state} value={state}>
+                  {state}
+                </option>
+              ))}
+            </select>
+            {errors.state && (
+              <p
+                id="state-error"
+                className="text-red-500 text-sm mt-1"
+                role="alert"
+              >
+                {errors.state.message}
+              </p>
+            )}
           </div>
 
           <div>
-            <label htmlFor="zip" className="block text-sm font-medium mb-1">
-              Código Postal
+            <label
+              htmlFor="cp"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Código Postal *
             </label>
             <input
+              id="cp"
               type="text"
-              id="zip"
-              value={formData.zip}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, zip: e.target.value }))
-              }
-              className="w-full border rounded-lg px-3 py-2"
+              inputMode="numeric"
+              {...register("cp")}
+              aria-invalid={errors.cp ? "true" : "false"}
+              aria-describedby={errors.cp ? "cp-error" : undefined}
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                errors.cp ? "border-red-500" : "border-gray-300"
+              }`}
+              placeholder="12345"
+              maxLength={5}
             />
+            {errors.cp && (
+              <p
+                id="cp-error"
+                className="text-red-500 text-sm mt-1"
+                role="alert"
+              >
+                {errors.cp.message}
+              </p>
+            )}
           </div>
         </div>
 
-        <button
-          type="submit"
-          disabled={isLoading}
-          className={[
-            "w-full py-3 rounded-lg font-semibold transition-colors",
-            isLoading
-              ? "bg-gray-400 text-gray-200 cursor-not-allowed"
-              : "bg-blue-600 text-white hover:bg-blue-700",
-          ].join(" ")}
-        >
-          {isLoading ? "Guardando..." : "Continuar al Pago"}
-        </button>
+        {/* Notas opcionales */}
+        <div>
+          <label
+            htmlFor="notes"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
+            Notas adicionales (opcional)
+          </label>
+          <textarea
+            id="notes"
+            rows={3}
+            {...register("notes")}
+            onBlur={() => handleBlur("notes")}
+            aria-invalid={errors.notes ? "true" : "false"}
+            aria-describedby={errors.notes ? "notes-error" : "notes-help"}
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+              errors.notes ? "border-red-500" : "border-gray-300"
+            }`}
+            placeholder="Instrucciones de entrega, referencias, etc."
+          />
+          <p id="notes-help" className="text-gray-500 text-xs mt-1">
+            Máximo 300 caracteres
+          </p>
+          {errors.notes && (
+            <p
+              id="notes-error"
+              className="text-red-500 text-sm mt-1"
+              role="alert"
+            >
+              {errors.notes.message}
+            </p>
+          )}
+        </div>
+
+        {/* Acepta aviso */}
+        <div className="flex items-start">
+          <input
+            id="aceptaAviso"
+            type="checkbox"
+            {...register("aceptaAviso")}
+            aria-invalid={errors.aceptaAviso ? "true" : "false"}
+            aria-describedby={
+              errors.aceptaAviso ? "aceptaAviso-error" : undefined
+            }
+            className="mt-1 h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+          />
+          <label htmlFor="aceptaAviso" className="ml-2 text-sm text-gray-700">
+            Acepto el{" "}
+            <Link
+              href="/aviso-privacidad"
+              className="text-primary-600 underline"
+            >
+              aviso de privacidad
+            </Link>{" "}
+            *
+          </label>
+        </div>
+        {errors.aceptaAviso && (
+          <p
+            id="aceptaAviso-error"
+            className="text-red-500 text-sm mt-1"
+            role="alert"
+          >
+            {errors.aceptaAviso.message}
+          </p>
+        )}
+
+        {/* Botones */}
+        <div className="flex gap-4 pt-4">
+          <Link
+            href="/carrito"
+            className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+          >
+            Volver al carrito
+          </Link>
+          <button
+            type="submit"
+            disabled={!isValid}
+            className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex-1"
+            aria-busy={!isValid}
+          >
+            Guardar y continuar
+          </button>
+        </div>
       </form>
     </main>
   );
@@ -279,4 +496,3 @@ export default function DatosPageClient() {
     </Suspense>
   );
 }
-

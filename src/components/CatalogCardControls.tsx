@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import QtyStepper from "@/components/ui/QtyStepper";
 import { useCartStore } from "@/lib/store/cartStore";
-import { mxnFromCents, formatMXN } from "@/lib/utils/currency";
+import { mxnFromCents } from "@/lib/utils/currency";
 import { ShoppingCart } from "lucide-react";
 import type { CatalogItem } from "@/lib/supabase/catalog";
 
