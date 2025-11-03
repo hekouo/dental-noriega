@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import Link from "next/link";
@@ -59,6 +58,7 @@ export default function PagoClient() {
   const selectedItems = useSelectedItems();
   const setShipping = useCheckoutStore((s) => s.setShipping);
   const currentShippingMethod = useCheckoutStore((s) => s.shippingMethod);
+  const currentShippingCost = useCheckoutStore((s) => s.shippingCost);
 
   const [error, setError] = useState<string | null>(null);
 
