@@ -19,6 +19,13 @@ type FormValues = {
   honorific: string;
 };
 
+function makeOrderRef() {
+  // referencia legible tipo DDN-202511-ABC123
+  const rand = Math.random().toString(36).slice(2, 8).toUpperCase();
+  const d = new Date();
+  return `DDN-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}-${rand}`;
+}
+
 async function createMockOrder(payload: unknown) {
   // POST opcional a /api/orders/mock si ya existe; si no, simula con Promise
   try {
@@ -61,10 +68,11 @@ export default function PagoClient() {
 
   const handlePayNow = async () => {
     try {
-      await createMockOrder({ datos, items: selectedItems });
+      const orderRef = makeOrderRef();
+      await createMockOrder({ datos, items: selectedItems, orderRef });
       clearCart();
       resetCheckout();
-      router.push("/checkout/gracias");
+      router.push(`/checkout/gracias?orden=${encodeURIComponent(orderRef)}`);
     } catch (e) {
       console.error("payNow error", e);
       setError(
