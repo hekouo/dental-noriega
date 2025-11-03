@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import Link from "next/link";
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useCheckoutStore } from "@/lib/store/checkoutStore";
 import { useCartStore } from "@/lib/store/cartStore";
 import {
@@ -12,6 +12,7 @@ import {
 } from "@/lib/store/checkoutSelectors";
 import { formatMXN } from "@/lib/utils/currency";
 import CheckoutStepIndicator from "@/components/CheckoutStepIndicator";
+import CheckoutDebugPanel from "@/components/CheckoutDebugPanel";
 
 type FormValues = {
   paymentMethod: string;
@@ -41,14 +42,11 @@ export default function PagoClient() {
   const router = useRouter();
   const datos = useCheckoutStore((s) => s.datos);
   const resetCheckout = useCheckoutStore((s) => s.reset);
-  const items = useCartStore((s) => s.cartItems);
   const clearCart = useCartStore((s) => s.clearCart);
   const total = useSelectedTotal();
   const selectedItems = useSelectedItems();
 
-  const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const sendingRef = useRef(false);
 
   const {
     register,
@@ -62,27 +60,18 @@ export default function PagoClient() {
   });
 
   const handlePayNow = async () => {
-    if (sendingRef.current || !datos || !items.length) return;
-    sendingRef.current = true;
-    setSending(true);
-    setError(null);
-
     try {
-      const result = await createMockOrder({ datos, items: selectedItems });
-      if (!result.success) {
-        throw new Error(result.error || "Failed to create order");
-      }
+      await createMockOrder({ datos, items: selectedItems });
       clearCart();
       resetCheckout();
-      router.push(`/checkout/gracias?orden=${result.orderId}`);
+      router.push("/checkout/gracias");
     } catch (e) {
-      const error = e instanceof Error ? e : new Error(String(e));
-      console.error(error);
+      console.error("payNow error", e);
       setError(
-        error.message || "No se pudo procesar el pago. Intenta de nuevo.",
+        e instanceof Error
+          ? e.message
+          : "No se pudo procesar el pago. Intenta de nuevo.",
       );
-      sendingRef.current = false;
-      setSending(false);
     }
   };
 
@@ -206,14 +195,15 @@ export default function PagoClient() {
           </Link>
           <button
             type="submit"
-            disabled={sending}
-            className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex-1"
-            aria-busy={sending}
+            onClick={handlePayNow}
+            data-testid="btn-pagar-ahora"
+            className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 flex-1"
           >
-            {sending ? "Procesando..." : `Pagar ahora - ${formatMXN(total)}`}
+            Pagar ahora - {formatMXN(total)}
           </button>
         </div>
       </form>
+      <CheckoutDebugPanel />
     </div>
   );
 }

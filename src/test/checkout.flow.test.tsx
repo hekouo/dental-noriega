@@ -102,9 +102,7 @@ describe("Checkout flow", () => {
     fireEvent.change(cpInput, { target: { value: "12345" } });
     fireEvent.click(aceptaAvisoCheckbox);
 
-    const submitButton = screen.getByRole("button", {
-      name: /guardar y continuar/i,
-    });
+    const submitButton = screen.getByTestId("btn-continuar-pago");
     await waitFor(() => {
       expect(submitButton).not.toBeDisabled();
     });
@@ -112,6 +110,15 @@ describe("Checkout flow", () => {
     fireEvent.click(submitButton);
 
     await waitFor(() => {
+      expect(mockGetState).toHaveBeenCalled();
+      expect(mockSetDatos).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: "Juan",
+          last_name: "Pérez",
+          email: "juan@example.com",
+          phone: "5512345678",
+        }),
+      );
       expect(mockPush).toHaveBeenCalledWith("/checkout/pago");
     });
   });
@@ -137,7 +144,7 @@ describe("Checkout flow", () => {
 
     render(<PagoClient />);
 
-    const payButton = screen.getByRole("button", { name: /pagar ahora/i });
+    const payButton = screen.getByTestId("btn-pagar-ahora");
     fireEvent.click(payButton);
 
     await waitFor(() => {
@@ -151,9 +158,7 @@ describe("Checkout flow", () => {
       );
       expect(mockClearCart).toHaveBeenCalled();
       expect(mockResetCheckout).toHaveBeenCalled();
-      expect(mockPush).toHaveBeenCalledWith(
-        expect.stringContaining("/checkout/gracias?orden="),
-      );
+      expect(mockPush).toHaveBeenCalledWith("/checkout/gracias");
     });
   });
 

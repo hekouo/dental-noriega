@@ -9,6 +9,7 @@ import { useSelectedIds } from "@/lib/store/checkoutSelectors";
 import { useCheckoutStore } from "@/lib/store/checkoutStore";
 import { datosSchema, type DatosForm, MX_STATES } from "@/lib/checkout/schemas";
 import CheckoutStepIndicator from "@/components/CheckoutStepIndicator";
+import CheckoutDebugPanel from "@/components/CheckoutDebugPanel";
 import Link from "next/link";
 
 // eslint-disable-next-line sonarjs/cognitive-complexity -- Formulario largo pero estructurado, todos los campos son necesarios
@@ -17,15 +18,11 @@ function DatosPageContent() {
   const selectedIds = useSelectedIds();
   const datos = useCheckoutStore((s) => s.datos);
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isValid },
-    setValue,
-    watch,
-  } = useForm<DatosForm>({
+  const form = useForm<DatosForm>({
     resolver: zodResolver(datosSchema),
     mode: "onChange",
+    reValidateMode: "onChange",
+    criteriaMode: "all",
     defaultValues: datos || {
       name: "",
       last_name: "",
@@ -37,9 +34,13 @@ function DatosPageContent() {
       state: "",
       cp: "",
       notes: undefined,
-      aceptaAviso: false as unknown as true, // Type assertion para default inicial
+      aceptaAviso: false as unknown as true,
     },
   });
+
+  const { register, handleSubmit, formState, setValue, watch } = form;
+
+  const { errors, isValid, isSubmitting } = formState;
 
   // Máscara de teléfono: solo números, bloquea e, +, -, .
   useEffect(() => {
@@ -86,9 +87,13 @@ function DatosPageContent() {
     }
   };
 
-  const onSubmit: SubmitHandler<DatosForm> = (values) => {
-    useCheckoutStore.getState().setDatos(values); // avanza step a "pago"
-    router.push("/checkout/pago");
+  const onSubmit: SubmitHandler<DatosForm> = async (values) => {
+    try {
+      useCheckoutStore.getState().setDatos(values); // avanza step -> "pago"
+      router.push("/checkout/pago");
+    } catch (err) {
+      console.error("submit(datos) failed", err);
+    }
   };
 
   if (!selectedIds || selectedIds.length === 0) {
@@ -110,6 +115,7 @@ function DatosPageContent() {
       <h1 className="text-2xl font-semibold">Datos de Envío</h1>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" noValidate>
+        <CheckoutDebugPanel />
         {/* Nombre y Apellido */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
@@ -477,9 +483,14 @@ function DatosPageContent() {
           </Link>
           <button
             type="submit"
-            disabled={!isValid}
+            onClick={(e) => {
+              e.currentTarget.blur();
+              handleSubmit(onSubmit)();
+            }}
+            disabled={!isValid || isSubmitting}
+            aria-disabled={!isValid || isSubmitting}
+            data-testid="btn-continuar-pago"
             className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex-1"
-            aria-busy={!isValid}
           >
             Guardar y continuar
           </button>

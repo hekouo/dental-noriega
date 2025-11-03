@@ -66,14 +66,17 @@ export const datosSchema = z.object({
     message: "El apellido debe tener al menos 2 caracteres",
   }),
   email: emailNorm,
-  phone: reqRegex(phoneRegex, "Teléfono inválido (debe tener 10 dígitos)"),
+  phone: z
+    .string()
+    .transform((v) => v.replace(/\D/g, "")) // Solo números, permite espacios
+    .refine((v) => v.length === 10, { message: "Teléfono a 10 dígitos" }),
   address: req("La dirección es requerida").refine((s) => s.length >= 5, {
     message: "La dirección debe tener al menos 5 caracteres",
   }),
   neighborhood: req("La colonia es requerida"),
   city: req("La ciudad es requerida"),
   state: req("El estado es requerido"),
-  cp: reqRegex(zipRegex, "Código postal inválido (debe tener 5 dígitos)"),
+  cp: z.string().regex(/^\d{5}$/, { message: "CP de 5 dígitos" }),
   notes: z
     .string()
     .transform((s) => s.trim())
