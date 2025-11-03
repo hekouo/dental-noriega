@@ -5,10 +5,10 @@
 
 /**
  * Obtiene el peso en kg de un producto por su slug
- * @param slug Slug del producto
+ * @param _slug Slug del producto (no usado actualmente)
  * @returns Peso en kg (default: 0.2 kg)
  */
-export function itemKg(slug: string): number {
+export function itemKg(_slug: string): number {
   // Por ahora todos los productos pesan 0.2 kg por defecto
   // En el futuro se puede expandir con una tabla de pesos específicos
   return 0.2;
