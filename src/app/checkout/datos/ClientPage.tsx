@@ -455,6 +455,13 @@ function DatosPageContent() {
           <label htmlFor="aceptaAviso" className="ml-2 text-sm text-gray-700">
             Acepto el{" "}
             <Link
+              href="/terminos-condiciones"
+              className="text-primary-600 underline"
+            >
+              contrato
+            </Link>{" "}
+            y el{" "}
+            <Link
               href="/aviso-privacidad"
               className="text-primary-600 underline"
             >

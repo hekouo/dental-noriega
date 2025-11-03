@@ -34,10 +34,18 @@ export default function SiteFooter() {
             </li>
             <li>
               <Link
-                href="/privacidad"
+                href="/aviso-privacidad"
                 className="hover:text-primary-600 hover:underline"
               >
-                Privacidad
+                Aviso de privacidad
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/terminos-condiciones"
+                className="hover:text-primary-600 hover:underline"
+              >
+                Términos y condiciones
               </Link>
             </li>
           </ul>

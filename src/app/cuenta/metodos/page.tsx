@@ -3,21 +3,21 @@ import { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Mis Pedidos | Depósito Dental Noriega",
+  title: "Métodos de Pago | Depósito Dental Noriega",
   robots: { index: false, follow: false },
 };
 
 export const dynamic = "force-dynamic";
 
-export default function PedidosPage() {
+export default function MetodosPage() {
   return (
     <main className="max-w-4xl mx-auto px-4 py-10">
-      <h1 className="text-2xl font-semibold mb-4">Mis Pedidos</h1>
+      <h1 className="text-2xl font-semibold mb-4">Métodos de Pago</h1>
       <div className="bg-gray-50 rounded-lg p-8 text-center">
         <p className="text-gray-600 mb-6">Próximamente disponible</p>
         <p className="text-sm text-gray-500 mb-6">
-          Estamos trabajando en esta funcionalidad. Pronto podrás ver el
-          historial de tus pedidos aquí.
+          Estamos trabajando en esta funcionalidad. Pronto podrás gestionar tus
+          métodos de pago guardados aquí.
         </p>
         <div className="flex gap-3 justify-center flex-wrap">
           <Link href="/" className="btn btn-primary">

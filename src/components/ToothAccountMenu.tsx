@@ -66,13 +66,13 @@ export function ToothAccountMenu() {
       {open && (
         <div className="absolute right-0 mt-3 w-56 rounded-2xl bg-white p-2 shadow-xl ring-1 ring-black/5">
           <Link
-            href="/account"
+            href="/cuenta"
             className="block rounded-xl px-3 py-2 hover:bg-neutral-50"
           >
             Mi cuenta
           </Link>
           <Link
-            href="/orders"
+            href="/cuenta/pedidos"
             className="block rounded-xl px-3 py-2 hover:bg-neutral-50"
           >
             Mis pedidos
