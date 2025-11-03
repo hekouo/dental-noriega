@@ -1,7 +1,6 @@
 // src/components/ui/QtyStepper.tsx
 "use client";
-import { useState, useEffect } from "react";
-import { useCartStore } from "@/lib/store/cartStore";
+import { useState, useEffect, KeyboardEvent } from "react";
 
 type QtyProps = {
   value?: number; // opcional, si el padre es client
@@ -12,8 +11,6 @@ type QtyProps = {
   className?: string;
   // opcional, solo se usa si el padre también es client
   onValueChange?: (n: number) => void;
-  // para integrarse con el carrito sin callbacks del server:
-  productId?: string; // si viene, actualiza cartStore internamente
 };
 
 export default function QtyStepper({
@@ -24,7 +21,6 @@ export default function QtyStepper({
   disabled,
   className,
   onValueChange,
-  productId,
 }: QtyProps) {
   const [qty, setQty] = useState(value ?? defaultValue);
 
@@ -35,11 +31,39 @@ export default function QtyStepper({
     onValueChange?.(v);
   };
 
-  // Si viene productId, sincroniza con el store sin pedir callback del server
-  const setCartQty = useCartStore.getState?.().setCartQty;
+  // Sincronizar con value externo si cambia
   useEffect(() => {
-    if (productId && setCartQty) setCartQty(productId, undefined, qty);
-  }, [productId, qty, setCartQty]);
+    if (value !== undefined) {
+      setQty(value);
+    }
+  }, [value]);
+
+  // Validar entrada del teclado: bloquear e, -, +
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    // Bloquear: e, E, -, +, .
+    if (
+      e.key === "e" ||
+      e.key === "E" ||
+      e.key === "-" ||
+      e.key === "+" ||
+      e.key === "."
+    ) {
+      e.preventDefault();
+      return;
+    }
+    // Permitir: números, Backspace, Delete, ArrowLeft, ArrowRight, Tab
+    const allowedKeys = [
+      "Backspace",
+      "Delete",
+      "ArrowLeft",
+      "ArrowRight",
+      "Tab",
+      "Enter",
+    ];
+    if (!allowedKeys.includes(e.key) && !/^\d$/.test(e.key)) {
+      e.preventDefault();
+    }
+  };
 
   return (
     <div className={`inline-flex items-center gap-2 ${className ?? ""}`}>
@@ -58,7 +82,10 @@ export default function QtyStepper({
         min={min}
         max={max}
         value={qty}
-        onChange={(e) => setQtyClamped(parseInt(e.currentTarget.value, 10))}
+        onChange={(e) =>
+          setQtyClamped(parseInt(e.currentTarget.value, 10) || min)
+        }
+        onKeyDown={handleKeyDown}
         className="w-12 text-center border rounded"
         aria-label="Cantidad"
       />

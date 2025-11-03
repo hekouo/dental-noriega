@@ -45,20 +45,59 @@ export default function ProductActions({ product }: Props) {
 
     setTimeout(() => (busyRef.current = false), 250);
     console.info("✅ Agregado al carrito:", product.title, "x", qty);
+
+    // Analítica: add_to_cart
+    if (typeof window !== "undefined" && window.dataLayer) {
+      window.dataLayer.push({
+        event: "add_to_cart",
+        ecommerce: {
+          currency: "MXN",
+          value: price * qty,
+          items: [
+            {
+              item_id: product.id,
+              item_name: product.title,
+              price,
+              quantity: qty,
+            },
+          ],
+        },
+      });
+    }
   }
 
   function handleBuyNow() {
-    if (!canBuy) return;
+    if (!canBuy || busyRef.current) return;
 
+    busyRef.current = true;
     // Agregar al carrito primero
     addToCart({
       id: product.id,
       title: product.title,
       price,
       qty,
-      image_url: undefined,
+      image_url: product.image_url ?? undefined,
       selected: true,
     });
+
+    // Analítica: buy_now
+    if (typeof window !== "undefined" && window.dataLayer) {
+      window.dataLayer.push({
+        event: "buy_now",
+        ecommerce: {
+          currency: "MXN",
+          value: price * qty,
+          items: [
+            {
+              item_id: product.id,
+              item_name: product.title,
+              price,
+              quantity: qty,
+            },
+          ],
+        },
+      });
+    }
 
     // Redirigir a checkout
     router.push("/checkout");

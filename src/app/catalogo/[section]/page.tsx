@@ -5,9 +5,9 @@ import { listBySection } from "@/lib/supabase/catalog";
 import { getProductsBySectionFromView } from "@/lib/catalog/getProductsBySectionFromView.server";
 import { formatMXN, mxnFromCents } from "@/lib/utils/currency";
 import { ROUTES } from "@/lib/routes";
-import { MessageCircle, ShoppingCart } from "lucide-react";
+import { MessageCircle } from "lucide-react";
 import ImageWithFallback from "@/components/ui/ImageWithFallback";
-import AddToCartBtn from "@/components/AddToCartBtn";
+import CatalogCardControls from "@/components/CatalogCardControls";
 import { generateWhatsAppLink } from "@/lib/utils/whatsapp";
 
 export const revalidate = 300; // Cache 5 minutos
@@ -100,16 +100,7 @@ export default async function CatalogoSectionPage({ params }: Props) {
                   </p>
 
                   <div className="mt-auto space-y-2">
-                    <AddToCartBtn
-                      productId={product.id}
-                      productTitle={product.title}
-                      productPrice={mxnFromCents(product.price_cents)}
-                      image_url={product.image_url ?? undefined}
-                      className="w-full relative inline-flex items-center justify-center rounded-2xl px-4 py-3 text-sm font-semibold gap-2 text-neutral-900 bg-gradient-to-b from-white to-neutral-200 shadow-[inset_0_2px_6px_rgba(255,255,255,0.9),0_6px_14px_rgba(0,0,0,0.20)] ring-1 ring-inset ring-neutral-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-neutral-400 active:translate-y-[2px] active:shadow-[inset_0_1px_3px_rgba(255,255,255,0.8),0_4px_10px_rgba(0,0,0,0.18)] transition-transform"
-                    >
-                      <ShoppingCart size={20} />
-                      <span>Agregar al carrito</span>
-                    </AddToCartBtn>
+                    <CatalogCardControls item={product} />
 
                     <a
                       href={whatsappHref}

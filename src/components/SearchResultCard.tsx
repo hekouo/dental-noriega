@@ -1,11 +1,16 @@
+// src/components/SearchResultCard.tsx
 "use client";
 import Link from "next/link";
 import ImageWithFallback from "@/components/ui/ImageWithFallback";
-import { formatMXN, mxnFromCents } from "@/lib/utils/currency";
 import CatalogCardControls from "@/components/CatalogCardControls";
+import { formatMXN, mxnFromCents } from "@/lib/utils/currency";
 import type { CatalogItem } from "@/lib/supabase/catalog";
 
-export function CatalogCard({ item }: { item: CatalogItem }) {
+type Props = {
+  item: CatalogItem;
+};
+
+export default function SearchResultCard({ item }: Props) {
   return (
     <div className="rounded-2xl border p-3 flex flex-col">
       <Link href={`/catalogo/${item.section}/${item.product_slug}`}>

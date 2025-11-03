@@ -1,0 +1,15 @@
+// .size-limit.json
+[
+  {
+    "path": ".next/static/chunks/pages/_app-*.js",
+    "limit": "240 KB"
+  },
+  {
+    "path": ".next/static/chunks/main-*.js",
+    "limit": "150 KB"
+  },
+  {
+    "path": ".next/static/chunks/framework-*.js",
+    "limit": "50 KB"
+  }
+]

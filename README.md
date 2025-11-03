@@ -187,17 +187,61 @@ Para activar login y pagos:
    ```
 3. Reinicia el servidor
 
-## 🌍 Deploy en Vercel
+## 🎯 Operativa en 3 pasos
+
+### 1. Desarrollo local
 
 ```bash
-# Instalar Vercel CLI
-npm i -g vercel
+pnpm install
+pnpm dev
+```
 
-# Deploy
-vercel
+### 2. Pre-deploy (verificación)
 
-# Configurar variables de entorno en Vercel dashboard
-# Project Settings → Environment Variables
+```bash
+pnpm verify  # tsc + lint + build
+pnpm test    # unit tests
+```
+
+### 3. Deploy en Vercel
+
+- Push a `main` → deploy automático
+- Verificar variables de entorno en Vercel dashboard
+- Clear build cache si hay problemas
+
+## ✅ QA post-deploy
+
+Después de cada deploy, verificar estas rutas críticas:
+
+### Rutas públicas (deben responder 200 OK)
+
+- `/` - Home con productos destacados
+- `/destacados` - Grid de 8 productos destacados
+- `/catalogo` - Lista de secciones
+- `/catalogo/[section]` - Productos por sección
+- `/catalogo/[section]/[slug]` - PDP con quantity stepper y "Comprar ahora"
+- `/buscar?q=arco` - Búsqueda con resultados paginados
+
+### Funcionalidades MVP
+
+- ✅ **Quantity stepper** en todas las cards (FeaturedCard, CatalogCard)
+  - Validación: min 1, max 99
+  - Bloquea teclado: e, -, +, .
+- ✅ **Buy Now** en PDP: agrega al carrito y navega a `/checkout`
+- ✅ **Búsqueda** con debounce 250ms y paginación 20/offset
+- ✅ **404 con sugerencias**: muestra 4 productos de la misma sección
+- ✅ **Analítica**: eventos `add_to_cart`, `buy_now`, `view_item`, `search` (solo si `NEXT_PUBLIC_GTAG_ID` está configurado)
+
+### Guardrails
+
+- ✅ `images.domains` en `next.config.mjs` incluye `lh3.googleusercontent.com`
+- ✅ `sitemap.xml` y `robots.txt` en `/public` (Disallow: /api/)
+- ✅ Bundle size limit: 240KB gzip (configurado en `.size-limit.json`)
+
+### Debug routes (deben responder 404 en producción)
+
+- `/api/debug/*` - Solo disponible si `ALLOW_DEBUG_ROUTES=1`
+
 ```
 
 ### Variables en Vercel:
@@ -282,3 +326,4 @@ Para ver el contenido completo y SHA256 de cada script legado, consulta `ops/sql
 - ❌ Falla: Bloquea el merge
 - ⚠️ Soft: Solo aviso (primera vez)
 - ✅ Info: Solo información
+```
