@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { useEffect, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, type SubmitHandler } from "react-hook-form";
@@ -14,7 +15,6 @@ import Link from "next/link";
 function DatosPageContent() {
   const router = useRouter();
   const selectedIds = useSelectedIds();
-  const setDatos = useCheckoutStore((s) => s.setDatos);
   const datos = useCheckoutStore((s) => s.datos);
 
   const {
@@ -86,8 +86,8 @@ function DatosPageContent() {
     }
   };
 
-  const onSubmit: SubmitHandler<DatosForm> = (data) => {
-    setDatos(data);
+  const onSubmit: SubmitHandler<DatosForm> = (values) => {
+    useCheckoutStore.getState().setDatos(values); // avanza step a "pago"
     router.push("/checkout/pago");
   };
 
@@ -109,7 +109,7 @@ function DatosPageContent() {
 
       <h1 className="text-2xl font-semibold">Datos de Envío</h1>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" noValidate>
         {/* Nombre y Apellido */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
