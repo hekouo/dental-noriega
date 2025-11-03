@@ -1,9 +1,33 @@
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-export const fetchCache = "force-no-store";
+import React from "react";
+import { Metadata } from "next";
+import Link from "next/link";
 
-import DireccionesPageClient from "./ClientPage";
+export const metadata: Metadata = {
+  title: "Mis Direcciones | Depósito Dental Noriega",
+  robots: { index: false, follow: false },
+};
+
+export const dynamic = "force-dynamic";
 
 export default function DireccionesPage() {
-  return <DireccionesPageClient />;
+  return (
+    <main className="max-w-4xl mx-auto px-4 py-10">
+      <h1 className="text-2xl font-semibold mb-4">Mis Direcciones</h1>
+      <div className="bg-gray-50 rounded-lg p-8 text-center">
+        <p className="text-gray-600 mb-6">Próximamente disponible</p>
+        <p className="text-sm text-gray-500 mb-6">
+          Estamos trabajando en esta funcionalidad. Pronto podrás gestionar tus
+          direcciones de envío aquí.
+        </p>
+        <div className="flex gap-3 justify-center flex-wrap">
+          <Link href="/" className="btn btn-primary">
+            Volver al inicio
+          </Link>
+          <Link href="/catalogo" className="btn">
+            Ir al catálogo
+          </Link>
+        </div>
+      </div>
+    </main>
+  );
 }
