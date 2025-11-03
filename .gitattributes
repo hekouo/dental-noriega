@@ -1,3 +1,4 @@
-*
- text=auto eol=lf
-*.{js,jsx,ts,tsx,css,md,json,yml,yaml} text eol=lf
+* text=auto eol=lf
+*.{jpg,jpeg,png,gif,webp,ico} -text
+*.{woff,woff2,ttf,otf} -text
+*.{zip,7z,rar} -text
