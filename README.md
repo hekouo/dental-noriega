@@ -29,6 +29,25 @@ Catálogo completo con carrito "light" y consultas por WhatsApp. **Sin login ni 
 - ❌ Login/registro (Fase 2)
 - ❌ Pagos con Stripe (Fase 2)
 
+## 🚀 Fase 3.1 (Frontend Only)
+
+**Auto-cotización de envío, totales dinámicos y búsqueda mejorada**
+
+### Características nuevas:
+
+- ✅ **Auto-cotización de envío** por CP + peso (tabla de zonas: metro/nacional)
+- ✅ **Totales dinámicos** en `/checkout/pago` con desglose subtotal + envío
+- ✅ **Resumen completo** en `/checkout/gracias` con total final
+- ✅ **Página `/buscar`** con paginado y resultados optimizados
+- ✅ **Analytics integrado** (begin_checkout, add_shipping_info, purchase)
+
+### Debug del checkout
+
+Activar con `NEXT_PUBLIC_CHECKOUT_DEBUG=1`:
+- Muestra estado del formulario en tiempo real
+- Indica por qué el botón está deshabilitado
+- Útil para debugging en desarrollo/preview
+
 ## 🛒 Flujo Checkout (MVP)
 
 El checkout MVP permite completar pedidos sin integración de pago real. Flujo completo:
