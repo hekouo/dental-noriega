@@ -36,31 +36,14 @@ Catálogo completo con carrito "light" y consultas por WhatsApp. **Sin login ni 
 ### Características nuevas:
 
 - ✅ **Auto-cotización de envío** por CP + peso (tabla de zonas: metro/nacional)
-  - Configuración local con tabla de zonas (metro/nacional)
-  - Selector de método: pickup (gratis), standard, express
-  - Cálculo automático del costo según CP y peso del carrito
-
-- ✅ **Totales dinámicos** en `/checkout/pago`
-  - Desglose: subtotal + envío = total
-  - Actualización automática al cambiar método de envío
-
-- ✅ **Resumen completo** en `/checkout/gracias`
-  - Muestra total final con desglose de envío
-  - Referencia de orden (`DDN-YYYYMM-XXXXXX`)
-
-- ✅ **Página `/buscar`** con paginado
-  - Resultados paginados (20 por página)
-  - Resaltado de términos de búsqueda
-  - Optimizado para rendimiento
-
-- ✅ **Analytics integrado**
-  - `begin_checkout`: al entrar a `/checkout/datos`
-  - `add_shipping_info`: al seleccionar método de envío
-  - `purchase`: al completar el pedido
+- ✅ **Totales dinámicos** en `/checkout/pago` con desglose subtotal + envío
+- ✅ **Resumen completo** en `/checkout/gracias` con total final
+- ✅ **Página `/buscar`** con paginado y resultados optimizados
+- ✅ **Analytics integrado** (begin_checkout, add_shipping_info, purchase)
 
 ### Debug del checkout
 
-Activar con `NEXT_PUBLIC_CHECKOUT_DEBUG=1` (no usar en producción):
+Activar con `NEXT_PUBLIC_CHECKOUT_DEBUG=1`:
 - Muestra estado del formulario en tiempo real
 - Indica por qué el botón está deshabilitado
 - Útil para debugging en desarrollo/preview
