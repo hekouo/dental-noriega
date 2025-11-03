@@ -3,12 +3,14 @@ import { resolveProductBySlug } from "@/lib/catalog/resolveProductBySlug.server"
 import { formatMXNFromCents } from "@/lib/utils/currency";
 import ImageWithFallback from "@/components/ui/ImageWithFallback";
 import ProductActions from "@/components/product/ProductActions.client";
+import ProductViewTracker from "@/components/ProductViewTracker.client";
 import { ROUTES } from "@/lib/routes";
 import Link from "next/link";
 import { Package, Truck, Shield } from "lucide-react";
 import { normalizeSlug } from "@/lib/utils/slug";
 
-export const dynamic = process.env.NODE_ENV === "development" ? "force-dynamic" : "auto";
+export const dynamic =
+  process.env.NODE_ENV === "development" ? "force-dynamic" : "auto";
 export const revalidate = 300; // Cache 5 minutos
 
 type Props = {
@@ -37,6 +39,13 @@ export default async function ProductDetailPage({ params }: Props) {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Analítica: view_item */}
+      <ProductViewTracker
+        productId={product.id}
+        productName={product.title}
+        priceCents={product.price_cents}
+      />
+
       {/* Breadcrumb */}
       <div className="bg-white border-b">
         <div className="max-w-6xl mx-auto px-4 py-3">

@@ -1,16 +1,17 @@
-// src/components/FeaturedCardControls.tsx
+// src/components/CatalogCardControls.tsx
 "use client";
-import { useRef, useState } from "react";
+import { useState, useRef } from "react";
 import QtyStepper from "@/components/ui/QtyStepper";
 import { useCartStore } from "@/lib/store/cartStore";
 import { mxnFromCents, formatMXN } from "@/lib/utils/currency";
-import type { FeaturedItem } from "@/lib/catalog/getFeatured.server";
+import { ShoppingCart } from "lucide-react";
+import type { CatalogItem } from "@/lib/supabase/catalog";
 
 type Props = {
-  item: FeaturedItem;
+  item: CatalogItem;
 };
 
-export default function FeaturedCardControls({ item }: Props) {
+export default function CatalogCardControls({ item }: Props) {
   const addToCart = useCartStore((s) => s.addToCart);
   const [qty, setQty] = useState(1);
   const busyRef = useRef(false);
@@ -50,12 +51,9 @@ export default function FeaturedCardControls({ item }: Props) {
     }
   }
 
-  const msg = `Hola, me interesa: ${item.title} (${item.section}). Cantidad: ${qty}. Precio: ${formatMXN(mxnFromCents(item.price_cents))}`;
-  const wa = `https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP_PHONE}?text=${encodeURIComponent(msg)}`;
-
   return (
-    <div className="mt-auto pt-3 space-y-2">
-      <div className="flex items-center gap-3">
+    <div className="mt-auto pt-2 space-y-2">
+      <div className="flex items-center gap-2">
         <QtyStepper
           value={qty}
           onValueChange={setQty}
@@ -66,19 +64,12 @@ export default function FeaturedCardControls({ item }: Props) {
         <button
           onClick={onAdd}
           disabled={!canBuy}
-          className="px-3 py-2 rounded-lg text-sm bg-black text-white disabled:opacity-50"
+          className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm bg-black text-white disabled:opacity-50"
         >
-          Agregar
+          <ShoppingCart size={16} />
+          <span>Agregar</span>
         </button>
       </div>
-      <a
-        href={wa}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="block text-center text-xs text-green-600 hover:text-green-700 underline"
-      >
-        Consultar por WhatsApp
-      </a>
     </div>
   );
 }

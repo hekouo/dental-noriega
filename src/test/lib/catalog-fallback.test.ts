@@ -5,11 +5,10 @@ describe("catalog fallback from view", () => {
   it("should have fallback helpers structure", () => {
     // Verificar que los tipos están correctos
     const sections: string[] = [];
-    const fallbackSections: Array<{ slug: string; name: string }> = [];
 
-    // Si sections está vacío y fallback también, debería mostrar empty state
-    const finalSections = sections.length === 0 ? fallbackSections.map((s) => s.slug) : sections;
-    expect(finalSections).toEqual([]);
+    // Si sections está vacío, debería mostrar empty state
+    expect(sections).toEqual([]);
+    expect(sections.length).toBe(0);
   });
 
   it("should use fallback when sections is empty", () => {
@@ -19,7 +18,8 @@ describe("catalog fallback from view", () => {
       { slug: "equipos", name: "Equipos" },
     ];
 
-    const finalSections = sections.length === 0 ? fallbackSections.map((s) => s.slug) : sections;
+    const finalSections =
+      sections.length === 0 ? fallbackSections.map((s) => s.slug) : sections;
     expect(finalSections).toHaveLength(2);
     expect(finalSections[0]).toBe("ortodoncia-brackets");
   });
@@ -30,7 +30,8 @@ describe("catalog fallback from view", () => {
       { slug: "ortodoncia-brackets", name: "Ortodoncia Brackets" },
     ];
 
-    const finalSections = sections.length === 0 ? fallbackSections.map((s) => s.slug) : sections;
+    const finalSections =
+      sections.length === 0 ? fallbackSections.map((s) => s.slug) : sections;
     expect(finalSections).toEqual(["equipos", "consumibles"]);
     expect(finalSections).not.toEqual(fallbackSections.map((s) => s.slug));
   });
@@ -43,9 +44,9 @@ describe("catalog fallback from view", () => {
       { id: "3", title: "Producto 3" },
     ];
 
-    const finalProducts = productsFromDb.length === 0 ? productsFromView : productsFromDb;
+    const finalProducts =
+      productsFromDb.length === 0 ? productsFromView : productsFromDb;
     expect(finalProducts).toHaveLength(3);
     expect(finalProducts[0].title).toBe("Producto 1");
   });
 });
-

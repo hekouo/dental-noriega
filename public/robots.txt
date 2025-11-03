@@ -1,0 +1,12 @@
+# robots.txt
+User-agent: *
+Allow: /
+Allow: /catalogo
+Allow: /destacados
+Disallow: /api/
+Disallow: /checkout
+Disallow: /cuenta
+Disallow: /carrito
+
+Sitemap: https://dental-noriega.vercel.app/sitemap.xml
+

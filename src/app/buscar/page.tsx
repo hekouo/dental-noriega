@@ -1,55 +1,48 @@
 // src/app/buscar/page.tsx
-import Link from "next/link";
-import ProductImage from "@/components/ProductImage";
-import PointsBadge from "@/components/PointsBadge";
-import { searchProducts } from "@/lib/search";
-import { formatPrice } from "@/lib/utils/catalog";
-import { pointsFor } from "@/lib/utils/points";
+import dynamicImport from "next/dynamic";
+import { searchProductsServer } from "@/lib/search/search.server";
+import SearchResultCard from "@/components/SearchResultCard";
+import SearchTracker from "@/components/SearchTracker.client";
 import { ROUTES } from "@/lib/routes";
+import Link from "next/link";
 import { Search } from "lucide-react";
+
+const SearchInput = dynamicImport(
+  () => import("@/components/SearchInput.client"),
+  {
+    ssr: false,
+  },
+);
 
 export const revalidate = 300; // Cache 5 minutos
 
 type Props = {
-  searchParams: { q?: string };
+  searchParams: { q?: string; page?: string };
 };
 
 export default async function BuscarPage({ searchParams }: Props) {
   const q = searchParams.q ?? "";
-  const results = q ? await searchProducts(q) : [];
+  const page = parseInt(searchParams.page ?? "1", 10);
+  const limit = 20;
+  const offset = (page - 1) * limit;
+
+  const results = q ? await searchProductsServer(q, limit, offset) : [];
 
   return (
     <section className="space-y-6">
+      {/* Analítica: search */}
+      {q && <SearchTracker query={q} resultsCount={results.length} />}
+
       <div>
         <h1 className="text-3xl font-bold mb-4">Buscar Productos</h1>
-        <form action="/buscar" method="GET" className="flex gap-2">
-          <div className="relative flex-1">
-            <Search
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              size={20}
-            />
-            <input
-              name="q"
-              defaultValue={q}
-              autoComplete="off"
-              className="border rounded-lg px-10 py-3 w-full min-h-[44px]"
-              placeholder="Buscar por nombre, descripción o categoría..."
-              autoFocus
-            />
-          </div>
-          <button
-            className="btn btn-primary px-6 py-3 rounded-lg"
-            type="submit"
-          >
-            <span>Buscar</span>
-          </button>
-        </form>
+        <SearchInput />
       </div>
 
       {q && (
         <p className="text-gray-600">
           {results.length} resultado{results.length === 1 ? "" : "s"} para{" "}
           <strong>"{q}"</strong>
+          {page > 1 && ` (página ${page})`}
         </p>
       )}
 
@@ -70,37 +63,45 @@ export default async function BuscarPage({ searchParams }: Props) {
       )}
 
       {results.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {results.map((it, idx) => (
-            <Link
-              key={`${it.sectionSlug}-${it.slug}`}
-              href={ROUTES.product(it.sectionSlug, it.slug)}
-              prefetch={false}
-              className="border rounded-xl p-3 hover:shadow-lg transition-shadow"
-            >
-              <span className="block">
-                <div className="relative w-full aspect-[4/3] bg-gray-50 rounded-lg overflow-hidden mb-2">
-                  <ProductImage
-                    src={it.image}
-                    alt={it.title}
-                    sizes="(min-width:1024px) 25vw, (min-width:768px) 33vw, 50vw"
-                    priority={idx === 0}
-                  />
-                </div>
-                <div className="flex items-start justify-between gap-2 mb-1">
-                  <h3 className="font-medium text-sm line-clamp-2 flex-1">
-                    {it.title}
-                  </h3>
-                  <PointsBadge points={pointsFor(it.price, 1)} />
-                </div>
-                <p className="text-primary-700 font-semibold mb-1">
-                  {formatPrice(it.price)}
-                </p>
-                <p className="text-xs text-gray-500">{it.sectionName}</p>
-              </span>
-            </Link>
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {results.map((item) => (
+              <SearchResultCard
+                key={item.id}
+                item={{
+                  id: item.id,
+                  section: item.section,
+                  product_slug: item.product_slug,
+                  title: item.title,
+                  price_cents: item.price_cents,
+                  image_url: item.image_url ?? null,
+                  in_stock: item.in_stock ?? null,
+                  stock_qty: null,
+                }}
+              />
+            ))}
+          </div>
+
+          {/* Paginación simple */}
+          {results.length === limit && (
+            <div className="flex justify-center gap-2 pt-4">
+              {page > 1 && (
+                <Link
+                  href={`/buscar?q=${encodeURIComponent(q)}&page=${page - 1}`}
+                  className="btn btn-outline"
+                >
+                  ← Anterior
+                </Link>
+              )}
+              <Link
+                href={`/buscar?q=${encodeURIComponent(q)}&page=${page + 1}`}
+                className="btn btn-outline"
+              >
+                Siguiente →
+              </Link>
+            </div>
+          )}
+        </>
       )}
     </section>
   );
