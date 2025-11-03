@@ -29,6 +29,50 @@ Catálogo completo con carrito "light" y consultas por WhatsApp. **Sin login ni 
 - ❌ Login/registro (Fase 2)
 - ❌ Pagos con Stripe (Fase 2)
 
+## 🛒 Flujo Checkout (MVP)
+
+El checkout MVP permite completar pedidos sin integración de pago real. Flujo completo:
+
+### Pasos del checkout
+
+1. **Datos** (`/checkout/datos`): Formulario de datos de envío con validación robusta
+   - Validación en tiempo real con React Hook Form + Zod
+   - Campos requeridos: nombre, apellido, email, teléfono, dirección completa
+   - Botón deshabilitado hasta que el formulario sea válido
+
+2. **Pago** (`/checkout/pago`): Confirmación y método de pago
+   - Resumen de datos de envío y productos seleccionados
+   - Selección de método de pago (efectivo, transferencia, tarjeta)
+   - Genera `orderRef` tipo `DDN-YYYYMM-XXXXXX` antes de navegar
+
+3. **Gracias** (`/checkout/gracias`): Página de confirmación
+   - Muestra `orderRef` si está presente en URL (`?orden=...`)
+   - Nunca muestra 404, incluso sin parámetros
+   - CTAs para seguir comprando
+
+### Gestión de estado
+
+- **Zustand persistente**: Estado del checkout se guarda en `localStorage`
+- **Limpieza automática**: Tras completar el pago:
+  - Carrito se limpia (`clearCart()`)
+  - Checkout store se resetea (`resetCheckout()`)
+  - Usuario navega a `/checkout/gracias?orden=DDN-...`
+
+### Orden mock
+
+- Cada pedido genera una referencia única: `DDN-YYYYMM-XXXXXX`
+- Ejemplo: `DDN-202511-ABC123`
+- Se pasa como query param a la página de gracias
+- No requiere base de datos ni API real (MVP)
+
+### Debug del checkout
+
+Activar con `NEXT_PUBLIC_CHECKOUT_DEBUG=1`:
+
+- Muestra estado del formulario en tiempo real
+- Indica por qué el botón está deshabilitado
+- Útil para debugging en desarrollo/preview
+
 ## 📦 Instalación
 
 ```bash
