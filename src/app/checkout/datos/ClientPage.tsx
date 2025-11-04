@@ -118,7 +118,10 @@ function DatosPageContent() {
     <main className="mx-auto max-w-3xl p-6 space-y-6">
       <CheckoutStepIndicator currentStep="datos" />
 
-      <h1 className="text-2xl font-semibold">Datos de Envío</h1>
+                  <h1 className="text-2xl font-semibold mb-2">Datos de Envío</h1>
+                  <p className="text-gray-600 mb-6">
+                    Completa la información para enviar tu pedido
+                  </p>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" noValidate>
         <CheckoutDebugPanel />
@@ -269,7 +272,7 @@ function DatosPageContent() {
             className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
               errors.address ? "border-red-500" : "border-gray-300"
             }`}
-            placeholder="Calle y número"
+            placeholder="Ej: Av. Insurgentes Sur 123, Int. 45"
           />
           {errors.address && (
             <p
@@ -302,7 +305,7 @@ function DatosPageContent() {
             className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
               errors.neighborhood ? "border-red-500" : "border-gray-300"
             }`}
-            placeholder="Colonia o delegación"
+            placeholder="Ej: Roma Norte"
           />
           {errors.neighborhood && (
             <p
@@ -397,7 +400,7 @@ function DatosPageContent() {
               className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
                 errors.cp ? "border-red-500" : "border-gray-300"
               }`}
-              placeholder="12345"
+              placeholder="Ej: 06700"
               maxLength={5}
             />
             {errors.cp && (
@@ -430,7 +433,7 @@ function DatosPageContent() {
             className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
               errors.notes ? "border-red-500" : "border-gray-300"
             }`}
-            placeholder="Instrucciones de entrega, referencias, etc."
+            placeholder="Ej: Llame antes de entregar, portería abierta 24h..."
           />
           <p id="notes-help" className="text-gray-500 text-xs mt-1">
             Máximo 300 caracteres
@@ -488,25 +491,25 @@ function DatosPageContent() {
 
         {/* Botones */}
         <div className="flex gap-4 pt-4">
-          <Link
-            href="/carrito"
-            className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
-          >
-            Volver al carrito
-          </Link>
-          <button
-            type="submit"
-            onClick={(e) => {
-              e.currentTarget.blur();
-              handleSubmit(onSubmit)();
-            }}
-            disabled={!isValid || isSubmitting}
-            aria-disabled={!isValid || isSubmitting}
-            data-testid="btn-continuar-pago"
-            className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex-1"
-          >
-            Guardar y continuar
-          </button>
+                      <Link
+                        href="/carrito"
+                        className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+                      >
+                        ← Volver al carrito
+                      </Link>
+                      <button
+                        type="submit"
+                        onClick={(e) => {
+                          e.currentTarget.blur();
+                          handleSubmit(onSubmit)();
+                        }}
+                        disabled={!isValid || isSubmitting}
+                        aria-disabled={!isValid || isSubmitting}
+                        data-testid="btn-continuar-pago"
+                        className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex-1 font-semibold transition-colors"
+                      >
+                        Continuar al pago →
+                      </button>
         </div>
       </form>
     </main>

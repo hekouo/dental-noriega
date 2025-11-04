@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import Link from "next/link";
 import { Check } from "lucide-react";
 import type { CheckoutStep } from "@/lib/store/checkoutStore";
@@ -9,7 +10,7 @@ type Props = {
 };
 
 const steps: Array<{ key: CheckoutStep; label: string; href: string }> = [
-  { key: "datos", label: "Datos", href: "/checkout/datos" },
+  { key: "datos", label: "Datos de envío", href: "/checkout/datos" },
   { key: "pago", label: "Pago", href: "/checkout/pago" },
   { key: "gracias", label: "Confirmación", href: "/checkout/gracias" },
 ];

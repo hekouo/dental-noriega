@@ -180,7 +180,10 @@ export default function PagoClient() {
     <div className="max-w-4xl mx-auto p-6">
       <CheckoutStepIndicator currentStep="pago" />
 
-      <h1 className="text-2xl font-bold mb-6">Confirmar Pago</h1>
+      <h1 className="text-2xl font-bold mb-2">Confirmar Pago</h1>
+      <p className="text-gray-600 mb-6">
+        Revisa tu información y completa tu pedido
+      </p>
 
       {/* Resumen de envío compacto */}
       <div className="bg-gray-50 rounded-lg p-4 mb-6">
@@ -373,19 +376,36 @@ export default function PagoClient() {
         <div className="flex gap-4">
           <Link
             href="/checkout/datos"
-            className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+            className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
           >
-            Volver a datos
+            ← Volver a datos
           </Link>
           <button
             type="submit"
             onClick={handlePayNow}
             data-testid="btn-pagar-ahora"
-            className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 flex-1"
+            className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 flex-1 transition-colors font-semibold"
           >
             Pagar ahora - {formatMXN(total)}
           </button>
         </div>
+        <p className="text-xs text-gray-500 mt-3 text-center">
+          Al continuar, aceptas nuestros{" "}
+          <Link
+            href="/terminos-condiciones"
+            className="text-primary-600 underline hover:text-primary-700"
+          >
+            términos y condiciones
+          </Link>{" "}
+          y{" "}
+          <Link
+            href="/aviso-privacidad"
+            className="text-primary-600 underline hover:text-primary-700"
+          >
+            aviso de privacidad
+          </Link>
+          .
+        </p>
       </form>
       <CheckoutDebugPanel />
     </div>
