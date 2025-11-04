@@ -1,6 +1,6 @@
 // src/test/gracias.recos.test.tsx
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi } from "vitest";
+import { render } from "@testing-library/react";
 import Recommended from "@/app/checkout/gracias/Recommended.server";
 
 // Mock getProductsBySectionFromView

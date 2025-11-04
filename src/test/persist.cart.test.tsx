@@ -1,5 +1,5 @@
 // src/test/persist.cart.test.tsx
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useCartStore } from "@/lib/store/cartStore";
 import { getWithTTL, setWithTTL, LS_KEYS } from "@/lib/utils/persist";

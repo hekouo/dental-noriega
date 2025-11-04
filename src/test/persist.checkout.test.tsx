@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useCheckoutStore } from "@/lib/store/checkoutStore";
-import { getWithTTL, setWithTTL, LS_KEYS } from "@/lib/utils/persist";
+// Tests de persistencia checkout
 
 // Mock localStorage
 const localStorageMock = (() => {
