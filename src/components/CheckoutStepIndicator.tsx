@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import Link from "next/link";
 import { Check } from "lucide-react";
 import type { CheckoutStep } from "@/lib/store/checkoutStore";
