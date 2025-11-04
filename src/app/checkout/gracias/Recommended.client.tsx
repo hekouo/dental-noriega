@@ -1,0 +1,108 @@
+// src/app/checkout/gracias/Recommended.client.tsx
+"use client";
+
+import React, { useEffect, useState } from "react";
+import Link from "next/link";
+import ImageWithFallback from "@/components/ui/ImageWithFallback";
+import { formatMXN as formatMXNMoney } from "@/lib/utils/money";
+import { mxnFromCents } from "@/lib/utils/currency";
+import { ROUTES } from "@/lib/routes";
+
+type Props = {
+  section?: string;
+  excludeSlug?: string;
+};
+
+type Product = {
+  id: string;
+  section: string;
+  product_slug: string;
+  title: string;
+  price_cents: number;
+  image_url?: string | null;
+};
+
+export default function Recommended({ section, excludeSlug }: Props) {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const targetSection = section || "consumibles-y-profilaxis";
+
+  useEffect(() => {
+    async function fetchProducts() {
+      try {
+        const res = await fetch(
+          `/api/catalog/resolve?section=${encodeURIComponent(targetSection)}&limit=10`,
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.ok && data.products) {
+          const filtered = data.products
+            .filter((p: Product) => p.product_slug !== excludeSlug)
+            .slice(0, 4);
+          setProducts(filtered);
+        }
+      } catch (e) {
+        console.warn("[Recommended] Error:", e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchProducts();
+  }, [targetSection, excludeSlug]);
+
+  if (loading) {
+    return (
+      <section className="mt-12">
+        <h2 className="text-xl font-semibold mb-4">
+          Productos recomendados para ti
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div
+              key={i}
+              className="rounded-2xl border p-3 animate-pulse bg-gray-100 h-64"
+            />
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  if (products.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="mt-12">
+      <h2 className="text-xl font-semibold mb-4">
+        Productos recomendados para ti
+      </h2>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {products.map((product) => (
+          <Link
+            key={product.id}
+            href={ROUTES.product(product.section, product.product_slug)}
+            className="rounded-2xl border p-3 flex flex-col hover:shadow-md transition-shadow"
+          >
+            <div className="relative w-full aspect-square bg-white">
+              <ImageWithFallback
+                src={product.image_url}
+                width={400}
+                height={400}
+                alt={product.title}
+                className="w-full h-full object-contain"
+                square
+              />
+            </div>
+            <h3 className="mt-2 text-sm font-semibold line-clamp-2">
+              {product.title}
+            </h3>
+            <div className="text-blue-600 font-bold">
+              {formatMXNMoney(mxnFromCents(product.price_cents))}
+            </div>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}

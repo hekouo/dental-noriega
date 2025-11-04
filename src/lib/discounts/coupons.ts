@@ -4,6 +4,7 @@
  */
 
 export type CouponType = "percent" | "fixed";
+export type DiscountScope = "subtotal" | "shipping" | "none";
 
 export type Coupon = {
   code: string;
@@ -15,8 +16,16 @@ export type Coupon = {
   appliesToSection?: string;
 };
 
+/**
+ * Semilla de cupones disponibles
+ */
 export const COUPONS: Coupon[] = [
-  { code: "DENT10", type: "percent", value: 10, label: "10% de descuento" },
+  {
+    code: "DENT10",
+    type: "percent",
+    value: 10,
+    label: "10% de descuento",
+  },
   {
     code: "ENVIO99",
     type: "fixed",
@@ -32,28 +41,30 @@ export const COUPONS: Coupon[] = [
   },
 ];
 
-export type CouponContext = {
+type ValidationContext = {
   subtotal: number;
   shipping?: number;
   items: Array<{ section?: string; price: number; qty: number }>;
 };
 
-export type CouponValidation = {
+type ValidationResult = {
   ok: boolean;
   discount: number;
-  scope: "subtotal" | "shipping" | "none";
+  scope: DiscountScope;
   reason?: string;
   appliedCode?: string;
 };
 
 /**
- * Valida y aplica un cupón
+ * Valida y calcula el descuento de un cupón
  */
 export function validateCoupon(
   code: string,
-  ctx: CouponContext,
-): CouponValidation {
-  const coupon = COUPONS.find((c) => c.code === code.toUpperCase());
+  ctx: ValidationContext,
+): ValidationResult {
+  const coupon = COUPONS.find(
+    (c) => c.code.toUpperCase() === code.toUpperCase(),
+  );
 
   if (!coupon) {
     return {
@@ -64,10 +75,10 @@ export function validateCoupon(
     };
   }
 
-  // Validar expiración
+  // Verificar expiración si existe
   if (coupon.expiresAt) {
-    const expires = new Date(coupon.expiresAt).getTime();
-    if (Date.now() > expires) {
+    const expires = new Date(coupon.expiresAt);
+    if (Date.now() > expires.getTime()) {
       return {
         ok: false,
         discount: 0,
@@ -77,52 +88,53 @@ export function validateCoupon(
     }
   }
 
-  // Validar subtotal mínimo
+  // Verificar subtotal mínimo si existe
   if (coupon.minSubtotal && ctx.subtotal < coupon.minSubtotal) {
     return {
       ok: false,
       discount: 0,
       scope: "none",
-      reason: `Mínimo de compra: ${coupon.minSubtotal.toFixed(2)} MXN`,
+      reason: `Mínimo de compra: ${coupon.minSubtotal} MXN`,
     };
   }
 
-  // Validar sección si aplica
-  if (
-    coupon.appliesToSection &&
-    !ctx.items.some((i) => i.section === coupon.appliesToSection)
-  ) {
-    return {
-      ok: false,
-      discount: 0,
-      scope: "none",
-      reason: "Cupón no aplica a los productos seleccionados",
-    };
+  // Verificar sección si aplica
+  if (coupon.appliesToSection) {
+    const hasSection = ctx.items.some(
+      (item) => item.section === coupon.appliesToSection,
+    );
+    if (!hasSection) {
+      return {
+        ok: false,
+        discount: 0,
+        scope: "none",
+        reason: "Cupón no aplica a estos productos",
+      };
+    }
   }
 
   // Calcular descuento
   let discount = 0;
-  let scope: "subtotal" | "shipping" | "none" = "none";
+  let scope: DiscountScope = "none";
 
-  if (coupon.type === "percent") {
+  if (coupon.code === "ENVIO99") {
+    // Descuento fijo en envío
+    discount = Math.min(coupon.value, ctx.shipping ?? 0);
+    scope = "shipping";
+  } else if (coupon.type === "percent") {
+    // Descuento porcentual en subtotal
     discount = (ctx.subtotal * coupon.value) / 100;
     scope = "subtotal";
   } else if (coupon.type === "fixed") {
-    // ENVIO99 aplica a shipping
-    if (code.toUpperCase() === "ENVIO99") {
-      discount = Math.min(coupon.value, ctx.shipping ?? 0);
-      scope = "shipping";
-    } else {
-      discount = Math.min(coupon.value, ctx.subtotal);
-      scope = "subtotal";
-    }
+    // Descuento fijo en subtotal
+    discount = Math.min(coupon.value, ctx.subtotal);
+    scope = "subtotal";
   }
 
   return {
     ok: true,
-    discount,
+    discount: Math.max(0, discount),
     scope,
     appliedCode: coupon.code,
   };
 }
-

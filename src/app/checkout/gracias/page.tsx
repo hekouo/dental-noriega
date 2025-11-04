@@ -5,45 +5,35 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import CheckoutStepIndicator from "@/components/CheckoutStepIndicator";
 import { formatMXN as formatMXNMoney } from "@/lib/utils/money";
-import { getWithTTL, LS_KEYS } from "@/lib/utils/persist";
+import { getWithTTL, KEYS } from "@/lib/utils/persist";
 import type { ShippingMethod } from "@/lib/store/checkoutStore";
-import { ROUTES } from "@/lib/routes";
-import Recommended from "@/app/checkout/gracias/Recommended.server";
+import Recommended from "./Recommended.client";
 
 export const dynamic = "force-dynamic";
 
 type LastOrder = {
   orderRef: string;
   total: number;
-  subtotal?: number;
   shippingMethod: ShippingMethod;
   shippingCost: number;
-  discount?: number;
-  couponCode?: string;
-  items?: Array<{
-    section?: string;
-    slug?: string;
-    title: string;
-    price: number;
-    qty: number;
-  }>;
+  items?: Array<{ section?: string; slug?: string }>;
 };
 
 function GraciasContent() {
   const searchParams = useSearchParams();
   const [lastOrder, setLastOrder] = useState<LastOrder | null>(null);
-  const [mounted, setMounted] = useState(false);
 
   // Leer orderRef de URL
   const orderRefFromUrl =
     searchParams?.get("orden") || searchParams?.get("order") || "";
 
   useEffect(() => {
-    setMounted(true);
-    // Leer de persistencia TTL
-    const stored = getWithTTL<LastOrder>(LS_KEYS.LAST_ORDER);
-    if (stored) {
-      setLastOrder(stored);
+    // Intentar leer de persist.ts
+    if (typeof window !== "undefined") {
+      const stored = getWithTTL<LastOrder>(KEYS.LAST_ORDER);
+      if (stored) {
+        setLastOrder(stored);
+      }
     }
   }, []);
 
@@ -70,7 +60,7 @@ function GraciasContent() {
       <CheckoutStepIndicator currentStep="gracias" />
 
       <h1 className="text-2xl font-semibold mb-4">¡Gracias por tu compra!</h1>
-      
+
       {orderRef && (
         <div className="mb-6 p-4 bg-gray-50 rounded-lg">
           <p className="text-gray-700 mb-2">
@@ -91,7 +81,7 @@ function GraciasContent() {
       {(lastOrder || shippingMethod) && (
         <div className="mb-6 p-4 bg-gray-50 rounded-lg space-y-3">
           <h2 className="font-semibold text-lg mb-3">Resumen del pedido</h2>
-          
+
           {shippingMethod && (
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">Método de envío:</span>
@@ -100,14 +90,16 @@ function GraciasContent() {
               </span>
             </div>
           )}
-          
+
           {shippingMethod && shippingMethod !== "pickup" && (
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">Costo de envío:</span>
-              <span className="font-medium">{formatMXNMoney(shippingCost)}</span>
+              <span className="font-medium">
+                {formatMXNMoney(shippingCost)}
+              </span>
             </div>
           )}
-          
+
           {total > 0 && (
             <div className="flex justify-between font-semibold pt-2 border-t">
               <span>Total:</span>
@@ -122,20 +114,27 @@ function GraciasContent() {
       </p>
 
       <div className="flex gap-3 flex-wrap">
-        <Link href={ROUTES.destacados()} className="btn btn-primary">
+        <Link href="/catalogo" className="btn btn-primary">
           Continuar compra
         </Link>
-        <Link href={ROUTES.catalogIndex()} className="btn">
+        <Link href="/destacados" className="btn">
+          Ver destacados
+        </Link>
+        <Link href="/catalogo" className="btn">
           Ver catálogo completo
         </Link>
       </div>
 
       {/* Recomendaciones */}
-      {mounted && lastOrder?.items && lastOrder.items.length > 0 && (
-        <Recommended
-          section={lastOrder.items[0]?.section}
-          excludeSlug={lastOrder.items[0]?.slug}
-        />
+      {lastOrder?.items && lastOrder.items.length > 0 && (
+        <Suspense
+          fallback={<div className="mt-12">Cargando recomendaciones...</div>}
+        >
+          <Recommended
+            section={lastOrder.items[0]?.section}
+            excludeSlug={lastOrder.items[0]?.slug}
+          />
+        </Suspense>
       )}
 
       <section className="mt-10 text-sm text-gray-500">

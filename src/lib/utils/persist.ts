@@ -1,17 +1,29 @@
 // src/lib/utils/persist.ts
 /**
- * Utilidades de persistencia con TTL (Time To Live)
+ * Utilidades de persistencia local con TTL
  */
 
 export const TTL_48H = 1000 * 60 * 60 * 48;
 
-type StoredValue<T> = {
+type PersistedValue<T> = {
   exp: number;
   v: T;
 };
 
 /**
+ * Parsea un string de forma segura a tipo T
+ */
+export function safeParse<T>(raw: string): T | null {
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Obtiene un valor del localStorage con TTL
+ * Retorna null si expiró o no existe
  */
 export function getWithTTL<T>(key: string): T | null {
   if (typeof window === "undefined") return null;
@@ -20,10 +32,11 @@ export function getWithTTL<T>(key: string): T | null {
     const raw = localStorage.getItem(key);
     if (!raw) return null;
 
-    const parsed = safeParse<StoredValue<T>>(raw);
+    const parsed = safeParse<PersistedValue<T>>(raw);
     if (!parsed) return null;
 
-    if (parsed.exp < Date.now()) {
+    // Verificar expiración
+    if (Date.now() > parsed.exp) {
       localStorage.removeItem(key);
       return null;
     }
@@ -45,31 +58,29 @@ export function setWithTTL<T>(
   if (typeof window === "undefined") return;
 
   try {
-    const stored: StoredValue<T> = {
-      exp: Date.now() + ttlMs,
-      v: value,
-    };
-    localStorage.setItem(key, JSON.stringify(stored));
+    const exp = Date.now() + ttlMs;
+    const persisted: PersistedValue<T> = { exp, v: value };
+    localStorage.setItem(key, JSON.stringify(persisted));
   } catch {
-    // noop - localStorage puede estar lleno o deshabilitado
+    // noop - puede fallar si localStorage está lleno o deshabilitado
   }
 }
 
 /**
- * Parsea JSON de forma segura
+ * Remueve una clave del localStorage
  */
-export function safeParse<T>(raw: string): T | null {
+export function removeWithTTL(key: string): void {
+  if (typeof window === "undefined") return;
   try {
-    return JSON.parse(raw) as T;
+    localStorage.removeItem(key);
   } catch {
-    return null;
+    // noop
   }
 }
 
-// Claves de persistencia
-export const LS_KEYS = {
+// Claves constantes
+export const KEYS = {
   CART: "DDN_CART_V1",
   CHECKOUT: "DDN_CHECKOUT_V1",
   LAST_ORDER: "DDN_LAST_ORDER_V1",
 } as const;
-
