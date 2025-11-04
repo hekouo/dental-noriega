@@ -37,17 +37,14 @@ export default async function BuscarPage({ searchParams }: Props) {
     );
   }
 
-  const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    process.env.VERCEL_URL ||
-    "http://localhost:3000";
+  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "";
+  const apiUrl = base
+    ? `${base}/api/products/search?q=${encodeURIComponent(q)}&page=${page}`
+    : `/api/products/search?q=${encodeURIComponent(q)}&page=${page}`;
 
-  const res = await fetch(
-    `${siteUrl}/api/products/search?q=${encodeURIComponent(q)}&page=${page}`,
-    {
-      cache: "no-store",
-    },
-  );
+  const res = await fetch(apiUrl, {
+    cache: "no-store",
+  });
 
   const data = res.ok
     ? await res.json()

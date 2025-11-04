@@ -72,11 +72,9 @@ export async function getAllFromCatalog(): Promise<CatalogItem[]> {
 
   // 3) Fallback interno: endpoint /api/products/all si existe
   try {
-    const siteUrl =
-      process.env.NEXT_PUBLIC_SITE_URL ||
-      process.env.VERCEL_URL ||
-      "http://localhost:3000";
-    const res = await fetch(`${siteUrl}/api/products/all`, {
+    const base = process.env.NEXT_PUBLIC_SITE_URL ?? "";
+    const apiUrl = base ? `${base}/api/products/all` : "/api/products/all";
+    const res = await fetch(apiUrl, {
       method: "GET",
       cache: "no-store",
     });
