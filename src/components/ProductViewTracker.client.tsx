@@ -1,7 +1,7 @@
 // src/components/ProductViewTracker.client.tsx
 "use client";
 import { useEffect } from "react";
-import { trackViewItem } from "@/lib/utils/analytics";
+import { track } from "@/lib/analytics";
 import { mxnFromCents } from "@/lib/utils/currency";
 
 type Props = {
@@ -16,7 +16,7 @@ export default function ProductViewTracker({
   priceCents,
 }: Props) {
   useEffect(() => {
-    trackViewItem({
+    track("view_item", {
       id: productId,
       name: productName,
       price: mxnFromCents(priceCents),

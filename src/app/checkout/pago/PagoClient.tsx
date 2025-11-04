@@ -22,6 +22,7 @@ import { cartKg } from "@/lib/shipping/weights";
 import { track } from "@/lib/analytics";
 import { validateCoupon } from "@/lib/discounts/coupons";
 import { setWithTTL, KEYS, TTL_48H } from "@/lib/utils/persist";
+import Toast from "@/components/ui/Toast";
 
 type FormValues = {
   paymentMethod: string;
@@ -67,12 +68,24 @@ export default function PagoClient() {
   const couponCode = useCheckoutStore((s) => s.couponCode);
   const discount = useCheckoutStore((s) => s.discount);
   const discountScope = useCheckoutStore((s) => s.discountScope);
+  const lastAppliedCoupon = useCheckoutStore((s) => s.lastAppliedCoupon);
   const setCoupon = useCheckoutStore((s) => s.setCoupon);
   const clearCoupon = useCheckoutStore((s) => s.clearCoupon);
 
   const [error, setError] = useState<string | null>(null);
   const [couponInput, setCouponInput] = useState("");
   const [couponError, setCouponError] = useState<string | null>(null);
+  const [toast, setToast] = useState<{
+    message: string;
+    type: "error" | "success";
+  } | null>(null);
+
+  // Restaurar último cupón aplicado si existe
+  useEffect(() => {
+    if (lastAppliedCoupon && !couponCode && !couponInput) {
+      setCouponInput(lastAppliedCoupon);
+    }
+  }, [lastAppliedCoupon, couponCode, couponInput]);
 
   // Calcular envío basado en CP y peso
   const shippingData = useMemo(() => {
@@ -176,7 +189,9 @@ export default function PagoClient() {
     });
 
     if (!validation.ok) {
-      setCouponError(validation.reason || "Cupón no válido");
+      const errorMsg = validation.reason || "Cupón no válido";
+      setCouponError(errorMsg);
+      setToast({ message: errorMsg, type: "error" });
       return;
     }
 
@@ -190,6 +205,19 @@ export default function PagoClient() {
       scope: validation.scope,
       discount: validation.discount,
     });
+  };
+
+  const handleCouponBlur = () => {
+    if (couponInput.trim() && !couponCode) {
+      handleApplyCoupon();
+    }
+  };
+
+  const handleCouponKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleApplyCoupon();
+    }
   };
 
   const handlePayNow = async () => {
@@ -260,10 +288,29 @@ export default function PagoClient() {
     <div className="max-w-4xl mx-auto p-6">
       <CheckoutStepIndicator currentStep="pago" />
 
+      {/* Botón Volver al carrito */}
+      <div className="mb-4">
+        <Link
+          href="/carrito"
+          className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
+        >
+          ← Volver al carrito
+        </Link>
+      </div>
+
       <h1 className="text-2xl font-bold mb-2">Confirmar Pago</h1>
       <p className="text-gray-600 mb-6">
         Revisa tu información y completa tu pedido
       </p>
+
+      {/* Toast para notificaciones */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
 
       {/* Resumen de envío compacto */}
       <div className="bg-gray-50 rounded-lg p-4 mb-6">
@@ -422,9 +469,19 @@ export default function PagoClient() {
               setCouponInput(e.target.value);
               setCouponError(null);
             }}
+            onBlur={handleCouponBlur}
+            onKeyDown={handleCouponKeyDown}
             placeholder="Ingresa tu código"
             className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
             disabled={!!couponCode}
+            aria-label="Código de descuento"
+            aria-describedby={
+              couponError
+                ? "coupon-error"
+                : couponCode
+                  ? "coupon-success"
+                  : undefined
+            }
           />
           {couponCode ? (
             <button
@@ -449,11 +506,17 @@ export default function PagoClient() {
           )}
         </div>
         {couponError && (
-          <p className="text-red-500 text-sm mt-2">{couponError}</p>
+          <p
+            id="coupon-error"
+            className="text-red-500 text-sm mt-2"
+            role="alert"
+          >
+            {couponError}
+          </p>
         )}
         {couponCode && !couponError && (
-          <p className="text-green-600 text-sm mt-2">
-            Cupón {couponCode} aplicado
+          <p id="coupon-success" className="text-green-600 text-sm mt-2">
+            ✓ Cupón {couponCode} aplicado
           </p>
         )}
       </div>

@@ -46,11 +46,13 @@ type CheckoutPersisted = {
   couponCode?: string;
   discount?: number;
   discountScope?: DiscountScope;
+  lastAppliedCoupon?: string; // Último cupón aplicado exitosamente
 };
 
 type State = CheckoutPersisted & {
   checkoutItems: CheckoutItem[];
   orderId: string | null;
+  lastAppliedCoupon?: string;
   ingestFromCart: (cartItems: Item[], clearCart?: boolean) => void;
   upsertSingleToCheckout: (item: Item) => void;
   clearCheckout: () => void;
@@ -93,6 +95,7 @@ function rehydrateCheckout(): Partial<State> {
     couponCode: stored.couponCode,
     discount: stored.discount,
     discountScope: stored.discountScope,
+    lastAppliedCoupon: stored.lastAppliedCoupon,
   };
 }
 
@@ -107,6 +110,7 @@ export const useCheckoutStore = create<State>()((set, _get) => {
     couponCode: undefined,
     discount: undefined,
     discountScope: undefined,
+    lastAppliedCoupon: undefined,
 
     ingestFromCart: (cartItems, _clearCart = true) => {
       set((s) => {
@@ -240,6 +244,7 @@ export const useCheckoutStore = create<State>()((set, _get) => {
           couponCode: next.couponCode,
           discount: next.discount,
           discountScope: next.discountScope,
+          lastAppliedCoupon: next.lastAppliedCoupon,
         });
         return next;
       });
@@ -260,6 +265,7 @@ export const useCheckoutStore = create<State>()((set, _get) => {
           couponCode: next.couponCode,
           discount: next.discount,
           discountScope: next.discountScope,
+          lastAppliedCoupon: next.lastAppliedCoupon,
         });
         return next;
       });
@@ -272,6 +278,7 @@ export const useCheckoutStore = create<State>()((set, _get) => {
           couponCode: code,
           discount,
           discountScope: scope,
+          lastAppliedCoupon: code, // Guardar último cupón aplicado
         };
         persistCheckout({
           step: next.step,
@@ -281,6 +288,7 @@ export const useCheckoutStore = create<State>()((set, _get) => {
           couponCode: next.couponCode,
           discount: next.discount,
           discountScope: next.discountScope,
+          lastAppliedCoupon: next.lastAppliedCoupon,
         });
         return next;
       });
@@ -293,6 +301,7 @@ export const useCheckoutStore = create<State>()((set, _get) => {
           couponCode: undefined,
           discount: undefined,
           discountScope: undefined,
+          // lastAppliedCoupon se mantiene para referencia
         };
         persistCheckout({
           step: next.step,
@@ -302,6 +311,7 @@ export const useCheckoutStore = create<State>()((set, _get) => {
           couponCode: next.couponCode,
           discount: next.discount,
           discountScope: next.discountScope,
+          lastAppliedCoupon: next.lastAppliedCoupon,
         });
         return next;
       });
@@ -318,6 +328,7 @@ export const useCheckoutStore = create<State>()((set, _get) => {
         couponCode: undefined,
         discount: undefined,
         discountScope: undefined,
+        lastAppliedCoupon: undefined,
       });
       removeWithTTL(KEYS.CHECKOUT);
     },
