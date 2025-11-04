@@ -35,7 +35,7 @@ Catálogo completo con carrito "light" y consultas por WhatsApp. **Sin login ni 
 
 ### Características nuevas:
 
-- ✅ **Auto-cotización de envío** por CP + peso
+- ✅ **Auto-cotización de envío** por CP + peso (tabla de zonas: metro/nacional)
   - Configuración local con tabla de zonas (metro/nacional)
   - Selector de método: pickup (gratis), standard, express
   - Cálculo automático del costo según CP y peso del carrito
