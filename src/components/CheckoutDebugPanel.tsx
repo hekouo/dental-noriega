@@ -1,10 +1,12 @@
 "use client";
 
+import { Suspense } from "react";
 import { useFormContext } from "react-hook-form";
+import { useSearchParams } from "next/navigation";
 import { useCheckoutStore } from "@/lib/store/checkoutStore";
 import { useCartStore } from "@/lib/store/cartStore";
 
-export default function CheckoutDebugPanel() {
+function CheckoutDebugPanelContent() {
   // Hooks siempre se llaman primero, antes de cualquier early return
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const formContext = useFormContext();
@@ -12,8 +14,13 @@ export default function CheckoutDebugPanel() {
   const getValues = formContext?.getValues ?? (() => ({}));
   const datos = useCheckoutStore((s) => s.datos);
   const items = useCartStore((s) => s.cartItems);
+  const searchParams = useSearchParams();
+  const debugParam = searchParams?.get("debug") === "1";
 
-  if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG !== "1") return null;
+  const isDebugEnabled =
+    process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1" || debugParam;
+
+  if (!isDebugEnabled) return null;
 
   return (
     <div
@@ -40,5 +47,13 @@ export default function CheckoutDebugPanel() {
       {"\n"}datosStore: {JSON.stringify(Boolean(datos))}
       {"\n"}items: {items?.length ?? 0}
     </div>
+  );
+}
+
+export default function CheckoutDebugPanel() {
+  return (
+    <Suspense fallback={null}>
+      <CheckoutDebugPanelContent />
+    </Suspense>
   );
 }

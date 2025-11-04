@@ -1,10 +1,11 @@
 "use client";
 
+import React from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import Link from "next/link";
-import { useState } from "react";
-import { useCheckoutStore } from "@/lib/store/checkoutStore";
+import { useState, useEffect, useMemo } from "react";
+import { useCheckoutStore, type ShippingMethod } from "@/lib/store/checkoutStore";
 import { useCartStore } from "@/lib/store/cartStore";
 import {
   useSelectedTotal,
@@ -13,10 +14,14 @@ import {
 import { formatMXN } from "@/lib/utils/currency";
 import CheckoutStepIndicator from "@/components/CheckoutStepIndicator";
 import CheckoutDebugPanel from "@/components/CheckoutDebugPanel";
+import { cpToZone, quote } from "@/lib/shipping/config";
+import { cartKg } from "@/lib/shipping/weights";
+import { track } from "@/lib/analytics";
 
 type FormValues = {
   paymentMethod: string;
   honorific: string;
+  shippingMethod: ShippingMethod;
 };
 
 function makeOrderRef() {
@@ -50,26 +55,112 @@ export default function PagoClient() {
   const datos = useCheckoutStore((s) => s.datos);
   const resetCheckout = useCheckoutStore((s) => s.reset);
   const clearCart = useCartStore((s) => s.clearCart);
-  const total = useSelectedTotal();
+  const subtotal = useSelectedTotal();
   const selectedItems = useSelectedItems();
+  const setShipping = useCheckoutStore((s) => s.setShipping);
+  const currentShippingMethod = useCheckoutStore((s) => s.shippingMethod);
 
   const [error, setError] = useState<string | null>(null);
+
+  // Calcular envío basado en CP y peso
+  const shippingData = useMemo(() => {
+    if (!datos?.cp || !selectedItems.length) {
+      // Fallback a tarifas fijas
+      return {
+        zone: null as "metro" | "nacional" | null,
+        kg: 0,
+        prices: {
+          pickup: 0,
+          standard: 99,
+          express: 179,
+        },
+      };
+    }
+
+    const zone = cpToZone(datos.cp);
+    const kg = cartKg(selectedItems);
+    const prices = quote(zone, kg);
+
+    return {
+      zone,
+      kg,
+      prices: {
+        pickup: 0,
+        standard: prices.standard,
+        express: prices.express,
+      },
+    };
+  }, [datos?.cp, selectedItems]);
+
+  // Inicializar método de envío si no está seleccionado
+  useEffect(() => {
+    if (!currentShippingMethod && datos?.cp) {
+      setShipping("pickup", 0);
+    }
+  }, [currentShippingMethod, datos?.cp, setShipping]);
 
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm<FormValues>({
     defaultValues: {
       paymentMethod: "",
       honorific: "Dr.",
+      shippingMethod: currentShippingMethod || "pickup",
     },
   });
+
+  const selectedShippingMethod = watch("shippingMethod") as ShippingMethod;
+  const shippingCost = shippingData.prices[selectedShippingMethod] || 0;
+  const total = subtotal + shippingCost;
+
+  // Actualizar store cuando cambia el método de envío
+  useEffect(() => {
+    if (selectedShippingMethod) {
+      setShipping(selectedShippingMethod, shippingCost);
+      
+      // Analytics: add_shipping_info
+      if (selectedShippingMethod !== "pickup") {
+        track("add_shipping_info", {
+          shipping_tier: selectedShippingMethod,
+          value: total,
+          shipping: shippingCost,
+        });
+      }
+    }
+  }, [selectedShippingMethod, shippingCost, total, setShipping]);
 
   const handlePayNow = async () => {
     try {
       const orderRef = makeOrderRef();
       await createMockOrder({ datos, items: selectedItems, orderRef });
+      
+      // Guardar en sessionStorage
+      const lastOrder = {
+        orderRef,
+        total,
+        shippingMethod: selectedShippingMethod,
+        shippingCost,
+      };
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("ddn_last_order", JSON.stringify(lastOrder));
+      }
+
+      // Analytics: purchase
+      track("purchase", {
+        value: total,
+        currency: "MXN",
+        shipping: shippingCost,
+        items: selectedItems.map((item) => ({
+          id: item.id,
+          name: item.title,
+          price: item.price,
+          qty: item.qty,
+        })),
+      });
+
       clearCart();
       resetCheckout();
       router.push(`/checkout/gracias?orden=${encodeURIComponent(orderRef)}`);
@@ -121,6 +212,79 @@ export default function PagoClient() {
         </div>
       </div>
 
+      {/* Método de envío */}
+      <div className="bg-gray-50 rounded-lg p-4 mb-6">
+        <h2 className="font-semibold mb-3 text-sm text-gray-700">
+          Método de envío *
+        </h2>
+        <div className="space-y-2">
+          <label className="flex items-center p-3 border rounded-md cursor-pointer hover:bg-gray-100">
+            <input
+              type="radio"
+              value="pickup"
+              {...register("shippingMethod", {
+                required: "Selecciona un método de envío",
+              })}
+              className="mr-3"
+            />
+            <div className="flex-1">
+              <div className="font-medium">Recoger en tienda</div>
+              <div className="text-sm text-gray-600">Gratis</div>
+            </div>
+            <div className="font-semibold">{formatMXN(0)}</div>
+          </label>
+
+          <label className="flex items-center p-3 border rounded-md cursor-pointer hover:bg-gray-100">
+            <input
+              type="radio"
+              value="standard"
+              {...register("shippingMethod", {
+                required: "Selecciona un método de envío",
+              })}
+              className="mr-3"
+            />
+            <div className="flex-1">
+              <div className="font-medium">Estándar</div>
+              <div className="text-sm text-gray-600">
+                {shippingData.zone
+                  ? `Zona ${shippingData.zone} • ${shippingData.kg.toFixed(1)} kg`
+                  : "Envío estándar"}
+              </div>
+            </div>
+            <div className="font-semibold">
+              {formatMXN(shippingData.prices.standard)}
+            </div>
+          </label>
+
+          <label className="flex items-center p-3 border rounded-md cursor-pointer hover:bg-gray-100">
+            <input
+              type="radio"
+              value="express"
+              {...register("shippingMethod", {
+                required: "Selecciona un método de envío",
+              })}
+              className="mr-3"
+            />
+            <div className="flex-1">
+              <div className="font-medium">Express</div>
+              <div className="text-sm text-gray-600">
+                {shippingData.zone
+                  ? `Zona ${shippingData.zone} • ${shippingData.kg.toFixed(1)} kg`
+                  : "Entrega rápida"}
+              </div>
+            </div>
+            <div className="font-semibold">
+              {formatMXN(shippingData.prices.express)}
+            </div>
+          </label>
+        </div>
+        {errors.shippingMethod && (
+          <p className="text-red-500 text-sm mt-2">
+            {errors.shippingMethod.message}
+          </p>
+        )}
+      </div>
+
       {/* Resumen de productos */}
       <div className="bg-gray-50 rounded-lg p-4 mb-6">
         <h2 className="font-semibold mb-2 text-sm text-gray-700">
@@ -136,8 +300,20 @@ export default function PagoClient() {
             </li>
           ))}
         </ul>
-        <div className="mt-2 pt-2 border-t">
-          <div className="flex justify-between font-semibold">
+        <div className="mt-3 pt-3 border-t space-y-2">
+          <div className="flex justify-between text-sm">
+            <span>Subtotal:</span>
+            <span>{formatMXN(subtotal)}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span>Envío:</span>
+            <span>
+              {selectedShippingMethod === "pickup"
+                ? "Gratis"
+                : formatMXN(shippingCost)}
+            </span>
+          </div>
+          <div className="flex justify-between font-semibold pt-2 border-t">
             <span>Total:</span>
             <span>{formatMXN(total)}</span>
           </div>
