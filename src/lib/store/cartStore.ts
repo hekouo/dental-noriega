@@ -1,6 +1,7 @@
 "use client";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
+import { getWithTTL, setWithTTL, LS_KEYS } from "@/lib/utils/persist";
 
 // Tipos
 export type CartItem = {
@@ -36,6 +37,18 @@ const initial: CartState = {
 // Helper para generar key única
 const getKey = (id: string, variantId?: string) =>
   `${id}:${variantId || "default"}`;
+
+// Rehidratación con TTL al inicializar
+let rehydrated = false;
+if (typeof window !== "undefined" && !rehydrated) {
+  rehydrated = true;
+  const stored = getWithTTL<CartItem[]>(LS_KEYS.CART);
+  if (stored && stored.length > 0) {
+    // Inicializar con datos de TTL si existen
+    const initialState = { cartItems: stored };
+    // Se aplicará en el store después
+  }
+}
 
 export const useCartStore = create<CartStore>()(
   persist(
@@ -127,6 +140,10 @@ export const useCartStore = create<CartStore>()(
           _tripwire("clearCart");
           if (get().cartItems.length === 0) return;
           _safeSet({ cartItems: [] });
+          // Limpiar persistencia TTL
+          if (typeof window !== "undefined") {
+            localStorage.removeItem(LS_KEYS.CART);
+          }
         },
 
         toggleSelect: (id) => {

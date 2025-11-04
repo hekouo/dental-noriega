@@ -11,12 +11,14 @@ import {
   useSelectedTotal,
   useSelectedItems,
 } from "@/lib/store/checkoutSelectors";
-import { formatMXN } from "@/lib/utils/currency";
+import { formatMXN as formatMXNMoney } from "@/lib/utils/money";
 import CheckoutStepIndicator from "@/components/CheckoutStepIndicator";
 import CheckoutDebugPanel from "@/components/CheckoutDebugPanel";
 import { cpToZone, quote } from "@/lib/shipping/config";
 import { cartKg } from "@/lib/shipping/weights";
 import { track } from "@/lib/analytics";
+import { validateCoupon } from "@/lib/discounts/coupons";
+import { setWithTTL, LS_KEYS } from "@/lib/utils/persist";
 
 type FormValues = {
   paymentMethod: string;
@@ -59,8 +61,15 @@ export default function PagoClient() {
   const selectedItems = useSelectedItems();
   const setShipping = useCheckoutStore((s) => s.setShipping);
   const currentShippingMethod = useCheckoutStore((s) => s.shippingMethod);
+  const couponCode = useCheckoutStore((s) => s.couponCode);
+  const discount = useCheckoutStore((s) => s.discount);
+  const discountScope = useCheckoutStore((s) => s.discountScope);
+  const setCoupon = useCheckoutStore((s) => s.setCoupon);
+  const clearCoupon = useCheckoutStore((s) => s.clearCoupon);
 
   const [error, setError] = useState<string | null>(null);
+  const [couponInput, setCouponInput] = useState("");
+  const [couponError, setCouponError] = useState<string | null>(null);
 
   // Calcular envío basado en CP y peso
   const shippingData = useMemo(() => {
@@ -114,7 +123,20 @@ export default function PagoClient() {
 
   const selectedShippingMethod = watch("shippingMethod") as ShippingMethod;
   const shippingCost = shippingData.prices[selectedShippingMethod] || 0;
-  const total = subtotal + shippingCost;
+
+  // Calcular totales con descuento
+  const total = useMemo(() => {
+    let finalSubtotal = subtotal;
+    let finalShipping = shippingCost;
+
+    if (discountScope === "subtotal" && discount) {
+      finalSubtotal = Math.max(0, subtotal - discount);
+    } else if (discountScope === "shipping" && discount) {
+      finalShipping = Math.max(0, shippingCost - discount);
+    }
+
+    return Math.max(0, finalSubtotal + finalShipping);
+  }, [subtotal, shippingCost, discount, discountScope]);
 
   // Actualizar store cuando cambia el método de envío
   useEffect(() => {
@@ -132,27 +154,62 @@ export default function PagoClient() {
     }
   }, [selectedShippingMethod, shippingCost, total, setShipping]);
 
+  // Aplicar cupón
+  const handleApplyCoupon = () => {
+    const validation = validateCoupon(couponInput, {
+      subtotal,
+      shipping: shippingCost,
+      items: selectedItems.map((item) => ({
+        section: (item as any).section,
+        price: item.price,
+        qty: item.qty,
+      })),
+    });
+
+    if (validation.ok) {
+      setCoupon(validation.appliedCode!, validation.discount, validation.scope);
+      setCouponError(null);
+      track("apply_coupon", {
+        code: validation.appliedCode,
+        scope: validation.scope,
+        discount: validation.discount,
+      });
+    } else {
+      setCouponError(validation.reason || "Cupón no válido");
+      clearCoupon();
+    }
+  };
+
   const handlePayNow = async () => {
     try {
       const orderRef = makeOrderRef();
       await createMockOrder({ datos, items: selectedItems, orderRef });
       
-      // Guardar en sessionStorage
+      // Guardar en persistencia TTL
       const lastOrder = {
         orderRef,
         total,
+        subtotal,
         shippingMethod: selectedShippingMethod,
         shippingCost,
+        discount,
+        couponCode: couponCode || undefined,
+        items: selectedItems.map((item) => ({
+          section: (item as any).section,
+          slug: (item as any).product_slug || item.id,
+          title: item.title,
+          price: item.price,
+          qty: item.qty,
+        })),
       };
-      if (typeof window !== "undefined") {
-        sessionStorage.setItem("ddn_last_order", JSON.stringify(lastOrder));
-      }
+      setWithTTL(LS_KEYS.LAST_ORDER, lastOrder);
 
       // Analytics: purchase
       track("purchase", {
         value: total,
         currency: "MXN",
         shipping: shippingCost,
+        coupon: couponCode || undefined,
         items: selectedItems.map((item) => ({
           id: item.id,
           name: item.title,
@@ -234,7 +291,7 @@ export default function PagoClient() {
               <div className="font-medium">Recoger en tienda</div>
               <div className="text-sm text-gray-600">Gratis</div>
             </div>
-            <div className="font-semibold">{formatMXN(0)}</div>
+            <div className="font-semibold">{formatMXNMoney(0)}</div>
           </label>
 
           <label className="flex items-center p-3 border rounded-md cursor-pointer hover:bg-gray-100">
@@ -255,7 +312,7 @@ export default function PagoClient() {
               </div>
             </div>
             <div className="font-semibold">
-              {formatMXN(shippingData.prices.standard)}
+              {formatMXNMoney(shippingData.prices.standard)}
             </div>
           </label>
 
@@ -277,13 +334,59 @@ export default function PagoClient() {
               </div>
             </div>
             <div className="font-semibold">
-              {formatMXN(shippingData.prices.express)}
+              {formatMXNMoney(shippingData.prices.express)}
             </div>
           </label>
         </div>
         {errors.shippingMethod && (
           <p className="text-red-500 text-sm mt-2">
             {errors.shippingMethod.message}
+          </p>
+        )}
+      </div>
+
+      {/* Cupón de descuento */}
+      <div className="bg-gray-50 rounded-lg p-4 mb-6">
+        <h2 className="font-semibold mb-3 text-sm text-gray-700">
+          Código de descuento
+        </h2>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={couponInput}
+            onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+            placeholder="Ej: DENT10"
+            className="flex-1 px-3 py-2 border rounded-md text-sm"
+            disabled={!!couponCode}
+          />
+          {couponCode ? (
+            <button
+              type="button"
+              onClick={() => {
+                setCouponInput("");
+                clearCoupon();
+                setCouponError(null);
+              }}
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md text-sm hover:bg-gray-300"
+            >
+              Quitar
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleApplyCoupon}
+              className="px-4 py-2 bg-primary-600 text-white rounded-md text-sm hover:bg-primary-700"
+            >
+              Aplicar
+            </button>
+          )}
+        </div>
+        {couponError && (
+          <p className="text-red-500 text-sm mt-2">{couponError}</p>
+        )}
+        {couponCode && (
+          <p className="text-green-600 text-sm mt-2">
+            ✓ Cupón {couponCode} aplicado
           </p>
         )}
       </div>
@@ -298,7 +401,7 @@ export default function PagoClient() {
             <li key={item.id} className="flex justify-between text-sm">
               <span>{item.title}</span>
               <span>
-                {formatMXN(item.price)} x{item.qty}
+                {formatMXNMoney(item.price)} x{item.qty}
               </span>
             </li>
           ))}
@@ -306,19 +409,35 @@ export default function PagoClient() {
         <div className="mt-3 pt-3 border-t space-y-2">
           <div className="flex justify-between text-sm">
             <span>Subtotal:</span>
-            <span>{formatMXN(subtotal)}</span>
+            <span>{formatMXNMoney(subtotal)}</span>
           </div>
+          {discount && discountScope === "subtotal" && (
+            <div className="flex justify-between text-sm text-green-600">
+              <span>Descuento ({couponCode}):</span>
+              <span>-{formatMXNMoney(discount)}</span>
+            </div>
+          )}
           <div className="flex justify-between text-sm">
             <span>Envío:</span>
             <span>
               {selectedShippingMethod === "pickup"
                 ? "Gratis"
-                : formatMXN(shippingCost)}
+                : formatMXNMoney(
+                    discountScope === "shipping" && discount
+                      ? Math.max(0, shippingCost - discount)
+                      : shippingCost,
+                  )}
             </span>
           </div>
+          {discount && discountScope === "shipping" && (
+            <div className="flex justify-between text-sm text-green-600">
+              <span>Descuento envío ({couponCode}):</span>
+              <span>-{formatMXNMoney(discount)}</span>
+            </div>
+          )}
           <div className="flex justify-between font-semibold pt-2 border-t">
             <span>Total:</span>
-            <span>{formatMXN(total)}</span>
+            <span>{formatMXNMoney(total)}</span>
           </div>
         </div>
       </div>
@@ -386,7 +505,7 @@ export default function PagoClient() {
             data-testid="btn-pagar-ahora"
             className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 flex-1 transition-colors font-semibold"
           >
-            Pagar ahora - {formatMXN(total)}
+            Pagar ahora - {formatMXNMoney(total)}
           </button>
         </div>
         <p className="text-xs text-gray-500 mt-3 text-center">

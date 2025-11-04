@@ -4,38 +4,46 @@ import React, { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import CheckoutStepIndicator from "@/components/CheckoutStepIndicator";
-import { formatMXN } from "@/lib/utils/currency";
+import { formatMXN as formatMXNMoney } from "@/lib/utils/money";
+import { getWithTTL, LS_KEYS } from "@/lib/utils/persist";
 import type { ShippingMethod } from "@/lib/store/checkoutStore";
+import { ROUTES } from "@/lib/routes";
+import Recommended from "@/app/checkout/gracias/Recommended.server";
 
 export const dynamic = "force-dynamic";
 
 type LastOrder = {
   orderRef: string;
   total: number;
+  subtotal?: number;
   shippingMethod: ShippingMethod;
   shippingCost: number;
+  discount?: number;
+  couponCode?: string;
+  items?: Array<{
+    section?: string;
+    slug?: string;
+    title: string;
+    price: number;
+    qty: number;
+  }>;
 };
 
 function GraciasContent() {
   const searchParams = useSearchParams();
   const [lastOrder, setLastOrder] = useState<LastOrder | null>(null);
-  
-  // Leer orderRef de URL o sessionStorage
+  const [mounted, setMounted] = useState(false);
+
+  // Leer orderRef de URL
   const orderRefFromUrl =
     searchParams?.get("orden") || searchParams?.get("order") || "";
 
   useEffect(() => {
-    // Intentar leer de sessionStorage
-    if (typeof window !== "undefined") {
-      try {
-        const stored = sessionStorage.getItem("ddn_last_order");
-        if (stored) {
-          const parsed = JSON.parse(stored) as LastOrder;
-          setLastOrder(parsed);
-        }
-      } catch (e) {
-        console.warn("[Gracias] Error leyendo sessionStorage:", e);
-      }
+    setMounted(true);
+    // Leer de persistencia TTL
+    const stored = getWithTTL<LastOrder>(LS_KEYS.LAST_ORDER);
+    if (stored) {
+      setLastOrder(stored);
     }
   }, []);
 
@@ -96,14 +104,14 @@ function GraciasContent() {
           {shippingMethod && shippingMethod !== "pickup" && (
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">Costo de envío:</span>
-              <span className="font-medium">{formatMXN(shippingCost)}</span>
+              <span className="font-medium">{formatMXNMoney(shippingCost)}</span>
             </div>
           )}
           
           {total > 0 && (
             <div className="flex justify-between font-semibold pt-2 border-t">
               <span>Total:</span>
-              <span>{formatMXN(total)}</span>
+              <span>{formatMXNMoney(total)}</span>
             </div>
           )}
         </div>
@@ -114,13 +122,21 @@ function GraciasContent() {
       </p>
 
       <div className="flex gap-3 flex-wrap">
-        <Link href="/destacados" className="btn btn-primary">
-          Seguir comprando
+        <Link href={ROUTES.destacados()} className="btn btn-primary">
+          Continuar compra
         </Link>
-        <Link href="/catalogo" className="btn">
+        <Link href={ROUTES.catalogIndex()} className="btn">
           Ver catálogo completo
         </Link>
       </div>
+
+      {/* Recomendaciones */}
+      {mounted && lastOrder?.items && lastOrder.items.length > 0 && (
+        <Recommended
+          section={lastOrder.items[0]?.section}
+          excludeSlug={lastOrder.items[0]?.slug}
+        />
+      )}
 
       <section className="mt-10 text-sm text-gray-500">
         <p>

@@ -39,6 +39,9 @@ type State = {
   orderId: string | null;
   shippingMethod?: ShippingMethod;
   shippingCost?: number;
+  couponCode?: string;
+  discount?: number;
+  discountScope?: "subtotal" | "shipping" | "none";
   ingestFromCart: (cartItems: Item[], clearCart?: boolean) => void;
   upsertSingleToCheckout: (item: Item) => void;
   clearCheckout: () => void;
@@ -51,6 +54,8 @@ type State = {
   setDatos: (datos: DatosForm) => void;
   setOrderId: (orderId: string) => void;
   setShipping: (method: ShippingMethod, cost: number) => void;
+  setCoupon: (code: string, discount: number, scope: "subtotal" | "shipping" | "none") => void;
+  clearCoupon: () => void;
   reset: () => void;
 };
 
@@ -63,6 +68,9 @@ export const useCheckoutStore = create<State>()(
       orderId: null,
       shippingMethod: undefined,
       shippingCost: undefined,
+      couponCode: undefined,
+      discount: undefined,
+      discountScope: undefined,
 
       ingestFromCart: (cartItems, _clearCart = true) => {
         set((s) => {
@@ -197,6 +205,14 @@ export const useCheckoutStore = create<State>()(
         set((s) => ({ ...s, shippingMethod: method, shippingCost: cost }));
       },
 
+      setCoupon: (code: string, discount: number, scope: "subtotal" | "shipping" | "none") => {
+        set((s) => ({ ...s, couponCode: code, discount, discountScope: scope }));
+      },
+
+      clearCoupon: () => {
+        set((s) => ({ ...s, couponCode: undefined, discount: undefined, discountScope: undefined }));
+      },
+
       reset: () => {
         set({
           checkoutItems: [],
@@ -205,6 +221,9 @@ export const useCheckoutStore = create<State>()(
           orderId: null,
           shippingMethod: undefined,
           shippingCost: undefined,
+          couponCode: undefined,
+          discount: undefined,
+          discountScope: undefined,
         });
       },
     }),
@@ -216,6 +235,11 @@ export const useCheckoutStore = create<State>()(
         checkoutItems: s.checkoutItems,
         datos: s.datos,
         step: s.step,
+        shippingMethod: s.shippingMethod,
+        shippingCost: s.shippingCost,
+        couponCode: s.couponCode,
+        discount: s.discount,
+        discountScope: s.discountScope,
       }),
       version: 2, // Incrementar versión por cambios en estructura
     },
