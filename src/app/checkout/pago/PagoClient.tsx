@@ -21,7 +21,7 @@ import { cpToZone, quote } from "@/lib/shipping/config";
 import { cartKg } from "@/lib/shipping/weights";
 import { track } from "@/lib/analytics";
 import { validateCoupon } from "@/lib/discounts/coupons";
-import { setWithTTL, KEYS } from "@/lib/utils/persist";
+import { setWithTTL, KEYS, TTL_48H } from "@/lib/utils/persist";
 
 type FormValues = {
   paymentMethod: string;
@@ -203,13 +203,29 @@ export default function PagoClient() {
         total,
         shippingMethod: selectedShippingMethod,
         shippingCost,
-        items: selectedItems.map((item) => ({
-          id: item.id,
-          section: (item as any).section || "consumibles-y-profilaxis",
-          slug: (item as any).product_slug || "",
-        })),
+        items: selectedItems.map((item) => {
+          const section =
+            (item as any).section ??
+            (item as any).product?.section ??
+            "consumibles-y-profilaxis";
+          const slug =
+            (item as any).product_slug ??
+            (item as any).slug ??
+            (item as any).product?.slug ??
+            "";
+          if (!slug) {
+            console.warn("[PagoClient] Missing slug in lastOrder item", item);
+          }
+          return {
+            section,
+            slug,
+            title: item.title,
+            price: item.price,
+            qty: item.qty,
+          };
+        }),
       };
-      setWithTTL(KEYS.LAST_ORDER, lastOrder);
+      setWithTTL(KEYS.LAST_ORDER, lastOrder, TTL_48H);
 
       // Analytics: purchase
       track("purchase", {

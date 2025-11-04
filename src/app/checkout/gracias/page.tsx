@@ -7,7 +7,8 @@ import CheckoutStepIndicator from "@/components/CheckoutStepIndicator";
 import { formatMXN as formatMXNMoney } from "@/lib/utils/money";
 import { getWithTTL, KEYS } from "@/lib/utils/persist";
 import type { ShippingMethod } from "@/lib/store/checkoutStore";
-import Recommended from "./Recommended.client";
+import RecommendedClient from "./Recommended.client";
+import DebugLastOrder from "@/components/DebugLastOrder";
 
 export const dynamic = "force-dynamic";
 
@@ -125,17 +126,11 @@ function GraciasContent() {
         </Link>
       </div>
 
+      {/* Debug panel */}
+      {process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1" && <DebugLastOrder />}
+
       {/* Recomendaciones */}
-      {lastOrder?.items && lastOrder.items.length > 0 && (
-        <Suspense
-          fallback={<div className="mt-12">Cargando recomendaciones...</div>}
-        >
-          <Recommended
-            section={lastOrder.items[0]?.section}
-            excludeSlug={lastOrder.items[0]?.slug}
-          />
-        </Suspense>
-      )}
+      <RecommendedClient />
 
       <section className="mt-10 text-sm text-gray-500">
         <p>

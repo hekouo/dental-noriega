@@ -7,11 +7,7 @@ import ImageWithFallback from "@/components/ui/ImageWithFallback";
 import { formatMXN as formatMXNMoney } from "@/lib/utils/money";
 import { mxnFromCents } from "@/lib/utils/currency";
 import { ROUTES } from "@/lib/routes";
-
-type Props = {
-  section?: string;
-  excludeSlug?: string;
-};
+import { getWithTTL, KEYS } from "@/lib/utils/persist";
 
 type Product = {
   id: string;
@@ -22,33 +18,66 @@ type Product = {
   image_url?: string | null;
 };
 
-export default function Recommended({ section, excludeSlug }: Props) {
+type LastOrder = {
+  orderRef?: string;
+  items?: Array<{ section?: string; slug?: string }>;
+};
+
+export default function RecommendedClient() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const targetSection = section || "consumibles-y-profilaxis";
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchProducts() {
+    async function fetchRecommendations() {
       try {
-        const res = await fetch(
-          `/api/catalog/resolve?section=${encodeURIComponent(targetSection)}&limit=10`,
-        );
-        if (!res.ok) return;
+        // Leer DDN_LAST_ORDER_V1 del localStorage
+        const lastOrder = getWithTTL<LastOrder>(KEYS.LAST_ORDER);
+        const section =
+          lastOrder?.items?.[0]?.section || "consumibles-y-profilaxis";
+        const excludeSlug = lastOrder?.items?.[0]?.slug || "";
+
+        // Llamar a la nueva API
+        const apiUrl = `/api/products/by-section?section=${encodeURIComponent(
+          section,
+        )}&excludeSlug=${encodeURIComponent(excludeSlug)}&limit=4`;
+        const res = await fetch(apiUrl);
+
+        if (!res.ok) {
+          throw new Error(`API returned ${res.status}`);
+        }
+
         const data = await res.json();
-        if (data.ok && data.products) {
-          const filtered = data.products
-            .filter((p: Product) => p.product_slug !== excludeSlug)
-            .slice(0, 4);
-          setProducts(filtered);
+        if (data.items && Array.isArray(data.items) && data.items.length > 0) {
+          setProducts(data.items);
+        } else {
+          // Fallback: buscar "arco" como término genérico
+          const fallbackRes = await fetch(`/api/products/search?q=arco&page=1`);
+          if (fallbackRes.ok) {
+            const fallbackData = await fallbackRes.json();
+            if (
+              fallbackData.items &&
+              Array.isArray(fallbackData.items) &&
+              fallbackData.items.length > 0
+            ) {
+              setProducts(fallbackData.items.slice(0, 4));
+            } else {
+              setError("Sin recomendados disponibles");
+            }
+          } else {
+            setError("Sin recomendados disponibles");
+          }
         }
       } catch (e) {
-        console.warn("[Recommended] Error:", e);
+        console.warn("[RecommendedClient] Error:", e);
+        setError("Sin recomendados disponibles");
       } finally {
         setLoading(false);
       }
     }
-    fetchProducts();
-  }, [targetSection, excludeSlug]);
+
+    fetchRecommendations();
+  }, []);
 
   if (loading) {
     return (
@@ -68,8 +97,20 @@ export default function Recommended({ section, excludeSlug }: Props) {
     );
   }
 
-  if (products.length === 0) {
-    return null;
+  if (error || products.length === 0) {
+    return (
+      <section className="mt-12">
+        <h2 className="text-xl font-semibold mb-4">
+          Productos recomendados para ti
+        </h2>
+        <div className="text-center py-8 text-gray-500">
+          <p className="mb-4">{error || "Sin recomendados disponibles"}</p>
+          <Link href={ROUTES.catalogIndex()} className="btn btn-primary">
+            Ver catálogo completo
+          </Link>
+        </div>
+      </section>
+    );
   }
 
   return (
