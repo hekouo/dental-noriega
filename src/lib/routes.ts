@@ -10,4 +10,6 @@ export const ROUTES = {
   destacados: () => "/destacados",
   cuenta: () => "/account",
   carrito: () => "/carrito",
+  buscar: () => "/buscar",
+  tienda: () => "/tienda",
 };

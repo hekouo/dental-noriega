@@ -4,6 +4,7 @@ import Link from "next/link";
 import dynamicImport from "next/dynamic";
 import SearchResultCard from "@/components/SearchResultCard";
 import { ROUTES } from "@/lib/routes";
+import SearchTracker from "@/components/SearchTracker.client";
 
 export const dynamic = "force-dynamic";
 
@@ -67,22 +68,27 @@ export default async function BuscarPage({ searchParams }: Props) {
   const totalPages = Math.ceil(total / perPage);
 
   return (
-    <section className="space-y-6">
+    <section className="space-y-6" role="search">
+      {/* Analytics tracking */}
+      {total > 0 && <SearchTracker query={q} resultsCount={total} />}
+
       <div>
         <h1 className="text-3xl font-bold mb-4">Buscar Productos</h1>
         <SearchInput />
       </div>
 
-      <p className="text-gray-600">
-        {total} resultado{total !== 1 ? "s" : ""} para <strong>"{q}"</strong>
-        {page > 1 && ` (página ${page})`}
-      </p>
+      {items.length > 0 && (
+        <p className="text-gray-600">
+          {total} resultado{total !== 1 ? "s" : ""} para <strong>"{q}"</strong>
+          {page > 1 && ` (página ${page})`}
+        </p>
+      )}
 
       {items.length === 0 && (
         <div className="text-center py-12 text-gray-500">
           <p className="mb-4">No encontramos resultados para "{q}".</p>
-          <Link href={ROUTES.catalogIndex()} className="btn btn-primary">
-            <span>Ver todo el catálogo</span>
+          <Link href={ROUTES.tienda()} className="btn btn-primary">
+            <span>Ver tienda</span>
           </Link>
         </div>
       )}

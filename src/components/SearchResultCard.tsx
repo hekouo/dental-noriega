@@ -1,10 +1,13 @@
 // src/components/SearchResultCard.tsx
 "use client";
+import React from "react";
 import Link from "next/link";
 import ImageWithFallback from "@/components/ui/ImageWithFallback";
 import CatalogCardControls from "@/components/CatalogCardControls";
 import { formatMXN, mxnFromCents } from "@/lib/utils/currency";
+import { escapeRegExp } from "@/lib/search/normalize";
 import type { CatalogItem } from "@/lib/supabase/catalog";
+import { track } from "@/lib/analytics";
 
 type Props = {
   item: CatalogItem;
@@ -12,12 +15,13 @@ type Props = {
 };
 
 /**
- * Resalta el término de búsqueda en el texto
+ * Resalta el término de búsqueda en el texto (highlight seguro)
  */
 function highlightText(text: string, query?: string): JSX.Element {
   if (!query || !text) return <>{text}</>;
 
-  const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi");
+  const escaped = escapeRegExp(query);
+  const regex = new RegExp(`(${escaped})`, "gi");
   const parts = text.split(regex);
 
   return (
@@ -30,9 +34,20 @@ function highlightText(text: string, query?: string): JSX.Element {
 }
 
 export default function SearchResultCard({ item, highlightQuery }: Props) {
+  const handleClick = () => {
+    track("select_item", {
+      id: item.id,
+      title: item.title,
+      section: item.section,
+    });
+  };
+
   return (
     <div className="rounded-2xl border p-3 flex flex-col">
-      <Link href={`/catalogo/${item.section}/${item.product_slug}`}>
+      <Link
+        href={`/catalogo/${item.section}/${item.product_slug}`}
+        onClick={handleClick}
+      >
         <div className="relative w-full aspect-square bg-white">
           <ImageWithFallback
             src={item.image_url}
