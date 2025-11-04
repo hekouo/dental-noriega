@@ -37,7 +37,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.6,
       });
     }
-  } catch (e) {
+  } catch {
     // noop - seguir con URLs básicas
   }
 

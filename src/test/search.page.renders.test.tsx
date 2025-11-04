@@ -1,5 +1,4 @@
 // src/test/search.page.renders.test.tsx
-import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import BuscarPage from "@/app/buscar/page";
 

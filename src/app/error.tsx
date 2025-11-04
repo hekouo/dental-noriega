@@ -5,7 +5,7 @@ import React, { useEffect } from "react";
 import Link from "next/link";
 import { ROUTES } from "@/lib/routes";
 
-export default function Error({
+export default function ErrorPage({
   error,
   reset,
 }: {
