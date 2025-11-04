@@ -8,8 +8,8 @@ import WhatsappBubble from "@/components/WhatsappBubble";
 import CartBubble from "@/components/CartBubble";
 import { ToothAccountMenu } from "@/components/ToothAccountMenu";
 import { ROUTES } from "@/lib/routes";
-import { Search } from "lucide-react";
 import BrandMark from "@/components/BrandMark";
+import NavbarSearch from "@/components/NavbarSearch";
 
 // ConsultarDrawer removido - ya no se usa
 const CheckoutDevGuard = dynamic(
@@ -39,6 +39,14 @@ export const metadata: Metadata = {
     template: "%s · DENTAL NORIEGA",
   },
   description: "Catálogo y compras de DENTAL NORIEGA",
+  openGraph: {
+    type: "website",
+    locale: "es_MX",
+    siteName: "DENTAL NORIEGA",
+  },
+  twitter: {
+    card: "summary",
+  },
 };
 
 export const viewport: Viewport = {
@@ -73,31 +81,9 @@ export default function RootLayout({
             </Link>
 
             {/* Buscador desktop */}
-            <form
-              action="/buscar"
-              method="GET"
-              className="hidden md:flex items-center gap-2 flex-1 max-w-md"
-            >
-              <div className="relative flex-1">
-                <Search
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                  size={16}
-                />
-                <input
-                  type="search"
-                  name="q"
-                  placeholder="Buscar..."
-                  autoComplete="off"
-                  className="border rounded-lg pl-9 pr-3 py-2 text-sm w-full min-h-[44px]"
-                />
-              </div>
-              <button
-                className="btn btn-primary px-3 py-2 rounded-lg text-sm"
-                type="submit"
-              >
-                <span>Buscar</span>
-              </button>
-            </form>
+            <div className="hidden md:block">
+              <NavbarSearch />
+            </div>
 
             <div className="flex items-center gap-4 text-sm">
               <Link
@@ -120,27 +106,7 @@ export default function RootLayout({
 
           {/* Buscador móvil */}
           <div className="md:hidden px-4 pb-3">
-            <form action="/buscar" method="GET" className="flex gap-2">
-              <div className="relative flex-1">
-                <Search
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                  size={16}
-                />
-                <input
-                  type="search"
-                  name="q"
-                  placeholder="Buscar productos..."
-                  autoComplete="off"
-                  className="border rounded-lg pl-9 pr-3 py-2 text-sm w-full min-h-[44px]"
-                />
-              </div>
-              <button
-                className="btn btn-primary px-3 py-2 rounded-lg text-sm"
-                type="submit"
-              >
-                <span>Buscar</span>
-              </button>
-            </form>
+            <NavbarSearch />
           </div>
         </header>
 

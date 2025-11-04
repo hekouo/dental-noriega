@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { getAllFromCatalog } from "@/lib/catalog/getAllFromCatalog.server";
 import { tokenize, normalize, scoreMatch } from "@/lib/search/normalize";
+import { toNumberSafe } from "@/lib/utils/money";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -54,7 +55,18 @@ export async function GET(req: Request) {
 
     const total = filtered.length;
     const start = (page - 1) * perPage;
-    const items = filtered.slice(start, start + perPage);
+    const items = filtered.slice(start, start + perPage).map((it) => ({
+      id: it.id,
+      product_slug: it.product_slug,
+      section: it.section,
+      title: it.title,
+      price:
+        toNumberSafe(
+          (it as any).price ??
+            ((it as any).price_cents ? (it.price_cents as number) / 100 : 0),
+        ) ?? 0,
+      image_url: it.image_url ?? null,
+    }));
 
     return NextResponse.json({ items, total, page, perPage });
   } catch (error) {
