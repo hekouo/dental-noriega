@@ -105,6 +105,7 @@ export default async function BuscarPage({ searchParams }: Props) {
                   product_slug: it.product_slug,
                   title: it.title,
                   price_cents: it.price * 100,
+                  price: it.price,
                   image_url: it.image_url,
                   in_stock: null,
                   stock_qty: null,

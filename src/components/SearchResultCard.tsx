@@ -4,7 +4,7 @@ import React from "react";
 import Link from "next/link";
 import ImageWithFallback from "@/components/ui/ImageWithFallback";
 import CatalogCardControls from "@/components/CatalogCardControls";
-import { formatMXN, mxnFromCents } from "@/lib/utils/currency";
+import { formatMXN as formatMXNMoney } from "@/lib/utils/money";
 import { escapeRegExp } from "@/lib/search/normalize";
 import type { CatalogItem } from "@/lib/supabase/catalog";
 import { track } from "@/lib/analytics";
@@ -42,6 +42,14 @@ export default function SearchResultCard({ item, highlightQuery }: Props) {
     });
   };
 
+  // Precio normalizado: puede venir como price_cents (número) o price (número o string)
+  const priceValue =
+    typeof item.price_cents === "number"
+      ? item.price_cents / 100
+      : typeof (item as any).price === "number"
+        ? (item as any).price
+        : item.price_cents ?? 0;
+
   return (
     <div className="rounded-2xl border p-3 flex flex-col">
       <Link
@@ -63,7 +71,7 @@ export default function SearchResultCard({ item, highlightQuery }: Props) {
         {highlightQuery ? highlightText(item.title, highlightQuery) : item.title}
       </h3>
       <div className="text-blue-600 font-bold">
-        {formatMXN(mxnFromCents(item.price_cents))}
+        {formatMXNMoney(priceValue)}
       </div>
       {item.in_stock === false && (
         <span className="mt-1 inline-block rounded bg-red-100 px-2 py-0.5 text-[11px] text-red-700">
