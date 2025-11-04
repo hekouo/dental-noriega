@@ -6,26 +6,28 @@ import CheckoutStepIndicator from "@/components/CheckoutStepIndicator";
 vi.mock("next/navigation", () => ({
   useRouter: vi.fn(),
   useSearchParams: vi.fn(),
-  usePathname: vi.fn(),
 }));
 
-describe("Checkout Copy Improvements", () => {
+describe("Checkout Copy Tweaks", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("should show 'Datos de envío' instead of 'Datos' in step indicator", () => {
+  it("should render step indicator with improved labels", () => {
     render(<CheckoutStepIndicator currentStep="datos" />);
     expect(screen.getByText(/datos de envío/i)).toBeInTheDocument();
-  });
-
-  it("should show 'Pago' label in step indicator", () => {
-    render(<CheckoutStepIndicator currentStep="pago" />);
     expect(screen.getByText(/pago/i)).toBeInTheDocument();
+    expect(screen.getByText(/confirmación/i)).toBeInTheDocument();
   });
 
-  it("should show 'Confirmación' label in step indicator", () => {
-    render(<CheckoutStepIndicator currentStep="gracias" />);
+  it("should show correct step labels in all steps", () => {
+    const { rerender } = render(<CheckoutStepIndicator currentStep="datos" />);
+    expect(screen.getByText(/datos de envío/i)).toBeInTheDocument();
+
+    rerender(<CheckoutStepIndicator currentStep="pago" />);
+    expect(screen.getByText(/pago/i)).toBeInTheDocument();
+
+    rerender(<CheckoutStepIndicator currentStep="gracias" />);
     expect(screen.getByText(/confirmación/i)).toBeInTheDocument();
   });
 });
