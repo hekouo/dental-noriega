@@ -2,6 +2,7 @@
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
 import { Inter } from "next/font/google";
 import dynamic from "next/dynamic";
 import WhatsappBubble from "@/components/WhatsappBubble";
@@ -82,7 +83,11 @@ export default function RootLayout({
 
             {/* Buscador desktop */}
             <div className="hidden md:block">
-              <NavbarSearch />
+              <Suspense
+                fallback={<div className="flex-1 max-w-md min-h-[44px]" />}
+              >
+                <NavbarSearch />
+              </Suspense>
             </div>
 
             <div className="flex items-center gap-4 text-sm">
@@ -106,7 +111,9 @@ export default function RootLayout({
 
           {/* Buscador móvil */}
           <div className="md:hidden px-4 pb-3">
-            <NavbarSearch />
+            <Suspense fallback={<div className="min-h-[44px]" />}>
+              <NavbarSearch />
+            </Suspense>
           </div>
         </header>
 

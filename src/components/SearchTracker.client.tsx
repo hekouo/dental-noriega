@@ -1,7 +1,7 @@
 // src/components/SearchTracker.client.tsx
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { track } from "@/lib/analytics";
 
 type Props = {
@@ -10,10 +10,19 @@ type Props = {
 };
 
 export default function SearchTracker({ query, resultsCount }: Props) {
+  const trackedRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (query.trim() && resultsCount > 0) {
+    const trimmedQuery = query.trim();
+    // Solo trackear una vez por query
+    if (
+      trimmedQuery &&
+      resultsCount > 0 &&
+      trackedRef.current !== trimmedQuery
+    ) {
+      trackedRef.current = trimmedQuery;
       track("search", {
-        q: query,
+        q: trimmedQuery,
         total: resultsCount,
       });
     }

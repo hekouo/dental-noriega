@@ -87,8 +87,11 @@ export default async function BuscarPage({ searchParams }: Props) {
       {items.length === 0 && (
         <div className="text-center py-12 text-gray-500">
           <p className="mb-4">No encontramos resultados para "{q}".</p>
-          <Link href={ROUTES.tienda()} className="btn btn-primary">
-            <span>Ver tienda</span>
+          <p className="text-sm mb-6">
+            Intenta con otros términos o explora nuestros productos destacados.
+          </p>
+          <Link href={ROUTES.destacados()} className="btn btn-primary">
+            Ver destacados
           </Link>
         </div>
       )}
@@ -99,16 +102,18 @@ export default async function BuscarPage({ searchParams }: Props) {
             {items.map((it) => (
               <SearchResultCard
                 key={it.id}
-                item={{
-                  id: it.id,
-                  section: it.section,
-                  product_slug: it.product_slug,
-                  title: it.title,
-                  price_cents: it.price * 100,
-                  image_url: it.image_url,
-                  in_stock: null,
-                  stock_qty: null,
-                } as any}
+                item={
+                  {
+                    id: it.id,
+                    section: it.section,
+                    product_slug: it.product_slug,
+                    title: it.title,
+                    price_cents: it.price * 100,
+                    image_url: it.image_url,
+                    in_stock: null,
+                    stock_qty: null,
+                  } as any
+                }
                 highlightQuery={q}
               />
             ))}

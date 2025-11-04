@@ -34,23 +34,39 @@ export async function GET(req: Request) {
   try {
     const tokens = tokenize(q);
     const all = await getAllFromCatalog();
+    const { getMatchType } = await import("@/lib/search/normalize");
 
     const filtered = all
       .filter((it) => {
         const tTitle = normalize(it.title);
         const tSlug = normalize(it.product_slug ?? "");
-        // (opcional) section también ayuda
         const tSec = normalize(it.section ?? "");
         return tokens.every(
           (tk) =>
             tTitle.includes(tk) || tSlug.includes(tk) || tSec.includes(tk),
         );
       })
-      .map((it) => ({
-        it,
-        sc: scoreMatch(it as any, tokens),
-      }))
-      .sort((a, b) => b.sc - a.sc)
+      .map((it) => {
+        const match = getMatchType(it as any, q);
+        const tokenScore = scoreMatch(it as any, tokens);
+        return {
+          it,
+          matchType: match.type,
+          score: match.score + tokenScore,
+        };
+      })
+      .sort((a, b) => {
+        // Ordenar por tipo de match primero (exact > beginsWith > contains)
+        const typeOrder: Record<string, number> = {
+          exact: 3,
+          beginsWith: 2,
+          contains: 1,
+        };
+        const typeDiff = typeOrder[b.matchType] - typeOrder[a.matchType];
+        if (typeDiff !== 0) return typeDiff;
+        // Luego por score
+        return b.score - a.score;
+      })
       .map(({ it }) => it);
 
     const total = filtered.length;
@@ -82,4 +98,3 @@ export async function GET(req: Request) {
     );
   }
 }
-
