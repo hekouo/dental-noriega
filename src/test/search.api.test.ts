@@ -1,11 +1,10 @@
 // src/test/search.api.test.ts
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { GET } from "@/app/api/products/search/route";
-import { NextRequest } from "next/server";
 
-// Mock getAllFromView
-vi.mock("@/lib/catalog/getAllFromView.server", () => ({
-  getAllFromView: vi.fn(() =>
+// Mock getAllFromCatalog
+vi.mock("@/lib/catalog/getAllFromCatalog.server", () => ({
+  getAllFromCatalog: vi.fn(() =>
     Promise.resolve([
       {
         id: "1",
@@ -44,7 +43,7 @@ describe("GET /api/products/search", () => {
   });
 
   it("devuelve vacío si q está vacío", async () => {
-    const req = new NextRequest("http://localhost/api/products/search?q=");
+    const req = new Request("http://localhost/api/products/search?q=");
     const res = await GET(req);
     const data = await res.json();
 
@@ -56,7 +55,7 @@ describe("GET /api/products/search", () => {
   });
 
   it("devuelve items cuando q='arco'", async () => {
-    const req = new NextRequest(
+    const req = new Request(
       "http://localhost/api/products/search?q=arco&page=1",
     );
     const res = await GET(req);
@@ -71,7 +70,7 @@ describe("GET /api/products/search", () => {
   });
 
   it("devuelve bracket-ceramico-roth-azdent cuando q='bracket roth'", async () => {
-    const req = new NextRequest(
+    const req = new Request(
       "http://localhost/api/products/search?q=bracket%20roth&page=1",
     );
     const res = await GET(req);
@@ -88,10 +87,10 @@ describe("GET /api/products/search", () => {
 
   it("pagina correctamente (perPage=20)", async () => {
     // Mock más items para probar paginación
-    const { getAllFromView } = await import(
-      "@/lib/catalog/getAllFromView.server"
+    const { getAllFromCatalog } = await import(
+      "@/lib/catalog/getAllFromCatalog.server"
     );
-    vi.mocked(getAllFromView).mockResolvedValueOnce(
+    vi.mocked(getAllFromCatalog).mockResolvedValueOnce(
       Array.from({ length: 50 }, (_, i) => ({
         id: `id-${i}`,
         product_slug: `product-${i}`,
@@ -99,11 +98,11 @@ describe("GET /api/products/search", () => {
         title: `Product ${i}`,
         price: 100,
         price_cents: 10000,
-        image_url: null,
+        image_url: undefined,
       })),
     );
 
-    const req = new NextRequest(
+    const req = new Request(
       "http://localhost/api/products/search?q=product&page=1",
     );
     const res = await GET(req);
@@ -116,10 +115,10 @@ describe("GET /api/products/search", () => {
   });
 
   it("devuelve página 2 correctamente", async () => {
-    const { getAllFromView } = await import(
-      "@/lib/catalog/getAllFromView.server"
+    const { getAllFromCatalog } = await import(
+      "@/lib/catalog/getAllFromCatalog.server"
     );
-    vi.mocked(getAllFromView).mockResolvedValueOnce(
+    vi.mocked(getAllFromCatalog).mockResolvedValueOnce(
       Array.from({ length: 50 }, (_, i) => ({
         id: `id-${i}`,
         product_slug: `product-${i}`,
@@ -127,11 +126,11 @@ describe("GET /api/products/search", () => {
         title: `Product ${i}`,
         price: 100,
         price_cents: 10000,
-        image_url: null,
+        image_url: undefined,
       })),
     );
 
-    const req = new NextRequest(
+    const req = new Request(
       "http://localhost/api/products/search?q=product&page=2",
     );
     const res = await GET(req);

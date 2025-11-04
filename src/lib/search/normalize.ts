@@ -6,12 +6,30 @@
 /**
  * Normaliza un string: lower, sin acentos, colapsar espacios
  */
-export function normalize(s: string): string {
-  return s
+export function normalize(input: string): string {
+  if (!input) return "";
+
+  const map: Record<string, string> = {
+    Á: "A",
+    É: "E",
+    Í: "I",
+    Ó: "O",
+    Ú: "U",
+    Ü: "U",
+    Ñ: "N",
+    á: "a",
+    é: "e",
+    í: "i",
+    ó: "o",
+    ú: "u",
+    ü: "u",
+    ñ: "n",
+  };
+
+  return input
+    .replace(/[ÁÉÍÓÚÜÑáéíóúüñ]/g, (ch) => map[ch] ?? ch)
     .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // quitar acentos
-    .replace(/\s+/g, " ") // colapsar espacios
+    .replace(/\s+/g, " ")
     .trim();
 }
 
@@ -48,35 +66,26 @@ export function scoreMatch(
   item: SearchableItem,
   tokens: string[],
 ): number {
-  if (tokens.length === 0) return 0;
-
-  const normTitle = normalize(item.title);
-  const normSlug = normalize(item.product_slug);
-  const normSection = normalize(item.section);
+  const tTitle = normalize(item.title);
+  const tSlug = normalize(item.product_slug);
+  const tSec = normalize(item.section);
 
   let score = 0;
 
-  for (const token of tokens) {
-    const normToken = normalize(token);
+  for (const tk of tokens) {
+    const hitTitlePrefix = tTitle.startsWith(tk);
+    const hitSlugPrefix = tSlug.startsWith(tk);
+    const hitTitle = tTitle.includes(tk);
+    const hitSlug = tSlug.includes(tk);
+    const hitSec = tSec.includes(tk);
 
-    // Title matches (más peso)
-    if (normTitle.startsWith(normToken)) {
-      score += 10; // prefijo en título
-    } else if (normTitle.includes(normToken)) {
-      score += 5; // substring en título
-    }
+    if (hitTitlePrefix) score += 6;
+    else if (hitTitle) score += 4;
 
-    // Slug matches
-    if (normSlug.startsWith(normToken)) {
-      score += 8; // prefijo en slug
-    } else if (normSlug.includes(normToken)) {
-      score += 4; // substring en slug
-    }
+    if (hitSlugPrefix) score += 3;
+    else if (hitSlug) score += 2;
 
-    // Section matches (menos peso)
-    if (normSection.includes(normToken)) {
-      score += 2;
-    }
+    if (hitSec) score += 1;
   }
 
   return score;
