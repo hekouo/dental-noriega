@@ -1,4 +1,4 @@
-// src/lib/catalog/getProductsBySectionFromView.server.ts
+// src/lib/catalog/getBySection.server.ts
 import "server-only";
 
 import { createServerSupabase } from "@/lib/supabase/server";
@@ -15,10 +15,9 @@ function hasSupabaseEnvs(): boolean {
 }
 
 /**
- * Obtiene productos por sección desde la vista api_catalog_with_images.
- * Útil como fallback cuando la tabla sections está vacía o no hay section_id.
+ * Obtiene productos por sección desde la vista canónica api_catalog_with_images
  */
-export async function getProductsBySectionFromView(
+export async function getProductsBySection(
   section: string,
   limit = 100,
   offset = 0,
@@ -28,9 +27,8 @@ export async function getProductsBySectionFromView(
     return [];
   }
 
-  const supabase = createServerSupabase();
-
   try {
+    const supabase = createServerSupabase();
     const { data, error } = await supabase
       .from("api_catalog_with_images")
       .select(
@@ -41,7 +39,7 @@ export async function getProductsBySectionFromView(
       .range(offset, offset + limit - 1);
 
     if (error) {
-      console.warn("[getProductsBySectionFromView] Error:", error.message);
+      console.warn("[getProductsBySection] Error:", error.message);
       return [];
     }
 
@@ -61,7 +59,7 @@ export async function getProductsBySectionFromView(
       image_url: item.image_url ?? null,
     })) as CatalogItem[];
   } catch (error) {
-    console.warn("[getProductsBySectionFromView] Error:", error);
+    console.warn("[getProductsBySection] Error:", error);
     return [];
   }
 }

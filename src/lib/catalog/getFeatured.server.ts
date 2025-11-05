@@ -16,8 +16,24 @@ export type FeaturedItem = {
   position: number;
 };
 
+/**
+ * Verifica si las variables de entorno de Supabase están presentes
+ */
+function hasSupabaseEnvs(): boolean {
+  return !!(
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  );
+}
+
 // Devuelve máximo 8, ordenados por position
 export async function getFeatured(): Promise<FeaturedItem[]> {
+  // Verificar envs antes de intentar conectar
+  if (!hasSupabaseEnvs()) {
+    console.warn("[getFeatured] missing supabase envs (using empty list)");
+    return [];
+  }
+
   try {
     // 1) Traer featured crudo (product_id + position)
     const supabase = createServerSupabase();
@@ -62,7 +78,7 @@ export async function getFeatured(): Promise<FeaturedItem[]> {
       })
       .filter(Boolean) as FeaturedItem[];
   } catch (error) {
-    console.error("[getFeatured] Error:", error);
+    console.warn("[getFeatured] Error:", error);
     return [];
   }
 }

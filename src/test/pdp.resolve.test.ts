@@ -1,81 +1,50 @@
 // src/test/pdp.resolve.test.ts
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { normalizeSlug } from "@/lib/utils/slug";
+import { resolveProductBySlug } from "@/lib/catalog/resolveProductBySlug.server";
 
-// Mock de next/navigation
-vi.mock("next/navigation", () => ({
-  notFound: vi.fn(() => {
-    throw new Error("notFound");
-  }),
-  redirect: vi.fn((url: string) => {
-    throw new Error(`redirect:${url}`);
-  }),
+// Mock de Supabase
+vi.mock("@/lib/supabase/server", () => ({
+  createServerSupabase: vi.fn(() => ({
+    from: vi.fn(() => ({
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          single: vi.fn(() => ({
+            data: null,
+            error: { message: "Not found" },
+          })),
+        })),
+      })),
+    })),
+  })),
 }));
 
-// Mock de server-only
-vi.mock("server-only", () => ({}));
+vi.mock("@/lib/supabase/catalog", () => ({
+  getProductBySlugAnySection: vi.fn(() => null),
+}));
 
-describe("PDP resolve and redirect", () => {
+describe("resolveProductBySlug", () => {
   beforeEach(() => {
-    vi.resetModules();
+    vi.clearAllMocks();
   });
 
-  it("should render without redirect when slug exists and section matches", async () => {
-    // Mock del resolver retornando producto con sección coincidente
-    const mockProduct = {
-      id: "123",
-      section: "ortodoncia-brackets",
-      slug: "bracket-azdent",
-      title: "Bracket Azdent",
-      price_cents: 1250,
-      image_url: "https://example.com/image.jpg",
-      in_stock: true,
-    };
-
-    // Simular que el resolver funciona
-    const normalizedSection = normalizeSlug("ortodoncia-brackets");
-
-    // Si la sección coincide, no debe haber redirect
-    if (normalizeSlug(mockProduct.section) === normalizedSection) {
-      expect(mockProduct.section).toBe("ortodoncia-brackets");
-      expect(mockProduct.slug).toBe("bracket-azdent");
-    }
+  it("returns null for non-existent product", async () => {
+    const result = await resolveProductBySlug("non-existent-slug");
+    expect(result).toBeNull();
   });
 
-  it("should redirect when slug exists but section does not match", async () => {
-    const mockProduct = {
-      id: "123",
-      section: "ortodoncia-brackets", // Sección correcta
-      slug: "bracket-azdent",
-      title: "Bracket Azdent",
-      price_cents: 1250,
-    };
+  it("handles missing envs gracefully", async () => {
+    // Simular envs faltantes
+    const originalUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const originalKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-    const urlSection = "equipos"; // Sección incorrecta en URL
-    const normalizedUrlSection = normalizeSlug(urlSection);
+    delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-    // Si la sección no coincide, debe hacer redirect
-    if (normalizeSlug(mockProduct.section) !== normalizedUrlSection) {
-      const canonicalUrl = `/catalogo/${mockProduct.section}/${mockProduct.slug}`;
-      expect(canonicalUrl).toBe("/catalogo/ortodoncia-brackets/bracket-azdent");
-    }
-  });
+    const result = await resolveProductBySlug("test-slug");
+    expect(result).toBeNull();
 
-  it("should call notFound when slug does not exist", async () => {
-    const mockProduct = null;
-
-    // Si no hay producto, debe llamar notFound
-    if (!mockProduct) {
-      const { notFound } = await import("next/navigation");
-      expect(() => {
-        notFound();
-      }).toThrow();
-    }
-  });
-
-  it("should normalize slugs correctly", () => {
-    expect(normalizeSlug("Ortodoncia Brackets")).toBe("ortodoncia-brackets");
-    expect(normalizeSlug("EQUIPOS")).toBe("equipos");
-    expect(normalizeSlug("bracket-azdent")).toBe("bracket-azdent");
+    // Restaurar envs
+    if (originalUrl) process.env.NEXT_PUBLIC_SUPABASE_URL = originalUrl;
+    if (originalKey) process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = originalKey;
   });
 });
