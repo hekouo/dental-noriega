@@ -1,4 +1,5 @@
 import "server-only";
+// Nada de cookies() aquí ni fetch a /api/debug/* en producción.
 
 import { createServerSupabase } from "@/lib/supabase/server";
 

@@ -2,6 +2,10 @@ import Link from "next/link";
 import FeaturedGrid from "@/components/FeaturedGrid";
 import { getFeatured } from "@/lib/catalog/getFeatured.server";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
+
 const categories = [
   { title: "Consumibles y Profilaxis", href: "/tienda/consumibles" },
   { title: "Equipos", href: "/tienda/equipos" },
@@ -17,8 +21,6 @@ const categories = [
     href: "/tienda/ortodoncia-accesorios",
   },
 ];
-
-export const revalidate = 300;
 
 export default async function TiendaPage() {
   const featured = await getFeatured();
