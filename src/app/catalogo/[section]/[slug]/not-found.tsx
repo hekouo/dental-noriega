@@ -55,10 +55,13 @@ export default async function ProductNotFound({ params }: Props) {
                     section: item.section,
                     product_slug: item.product_slug,
                     title: item.title,
-                    price_cents: item.price_cents,
-                    image_url: item.image_url,
-                    in_stock: item.in_stock,
-                    stock_qty: item.stock_qty,
+                    price_cents: item.price_cents ?? 0,
+                    image_url: item.image_url ?? null,
+                    in_stock:
+                      (item.stock_qty ?? null) !== null
+                        ? (item.stock_qty ?? 0) > 0
+                        : null,
+                    stock_qty: item.stock_qty ?? null,
                   }}
                 />
               ))}

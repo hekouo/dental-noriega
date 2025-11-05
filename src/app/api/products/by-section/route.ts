@@ -11,7 +11,7 @@ type Response = {
     section: string;
     product_slug: string;
     title: string;
-    price_cents: number;
+    price_cents: number | null;
     image_url: string | null;
   }>;
 };
@@ -37,7 +37,7 @@ export async function GET(req: Request) {
         section: p.section,
         product_slug: p.product_slug,
         title: p.title,
-        price_cents: p.price_cents,
+        price_cents: p.price_cents ?? null,
         image_url: p.image_url ?? null,
       }));
 

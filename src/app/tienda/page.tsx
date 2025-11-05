@@ -22,8 +22,20 @@ const categories = [
   },
 ];
 
+/**
+ * Verifica si las variables de entorno de Supabase están presentes
+ */
+function hasSupabaseEnvs(): boolean {
+  return !!(
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  );
+}
+
 export default async function TiendaPage() {
   const featured = await getFeatured();
+  const hasEnvs = hasSupabaseEnvs();
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-gradient-to-r from-primary-600 to-primary-800 text-white py-12">
@@ -35,7 +47,23 @@ export default async function TiendaPage() {
 
       <div className="container mx-auto px-4 py-8">
         <h2 className="text-2xl font-bold mb-4">Destacados</h2>
-        <FeaturedGrid items={featured} />
+        {featured.length === 0 ? (
+          <div className="p-6 bg-gray-50 rounded-lg">
+            <p className="text-gray-700 mb-4">
+              {hasEnvs
+                ? "No hay productos destacados en este momento."
+                : "Catálogo no disponible."}
+            </p>
+            <Link
+              href="/buscar"
+              className="px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 inline-block"
+            >
+              Buscar productos
+            </Link>
+          </div>
+        ) : (
+          <FeaturedGrid items={featured} />
+        )}
       </div>
 
       <div className="max-w-7xl mx-auto px-4 pb-12">

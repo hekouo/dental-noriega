@@ -13,6 +13,16 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
+/**
+ * Verifica si las variables de entorno de Supabase están presentes
+ */
+function hasSupabaseEnvs(): boolean {
+  return !!(
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  );
+}
+
 type Props = { params: { section: string } };
 
 export default async function CatalogoSectionPage({ params }: Props) {
@@ -36,24 +46,90 @@ export default async function CatalogoSectionPage({ params }: Props) {
     );
   }
 
-  let products: Awaited<ReturnType<typeof listBySection>> = [];
+  const hasEnvs = hasSupabaseEnvs();
+  let productsFromCatalog: Awaited<ReturnType<typeof listBySection>> = [];
+  let productsFromView: Awaited<
+    ReturnType<typeof getProductsBySectionFromView>
+  > = [];
+  let errorOccurred = false;
+
   try {
-    products = await listBySection(section);
+    productsFromCatalog = await listBySection(section);
 
     // Fallback: si no hay productos desde el fetch principal, usar la vista
-    if (products.length === 0) {
-      products = await getProductsBySectionFromView(section);
+    if (productsFromCatalog.length === 0) {
+      productsFromView = await getProductsBySectionFromView(section);
     }
   } catch (error) {
     console.error("[catalogo/section] Error:", error);
+    errorOccurred = true;
   }
 
-  if (products.length === 0) {
+  // Usar productos del catálogo si hay, sino de la vista
+  const products =
+    productsFromCatalog.length > 0
+      ? productsFromCatalog
+      : productsFromView.map((p) => ({
+          id: p.id,
+          section: p.section,
+          product_slug: p.product_slug,
+          title: p.title,
+          price_cents: p.price_cents ?? 0,
+          image_url: p.image_url ?? null,
+          in_stock:
+            (p.stock_qty ?? null) !== null ? (p.stock_qty ?? 0) > 0 : null,
+          stock_qty: p.stock_qty ?? null,
+        }));
+
+  // Si faltan envs y no hay productos, mostrar mensaje de catálogo no disponible
+  if (!hasEnvs && products.length === 0) {
+    return (
+      <div className="p-6">
+        <h1 className="text-xl font-semibold">Catálogo no disponible</h1>
+        <p className="text-sm opacity-70 mt-1">
+          Intenta en{" "}
+          <Link href="/destacados" className="underline">
+            Destacados
+          </Link>{" "}
+          o{" "}
+          <Link href="/buscar" className="underline">
+            buscar
+          </Link>
+          .
+        </p>
+      </div>
+    );
+  }
+
+  // Si hay envs pero no hay productos, mostrar mensaje de sección vacía
+  if (hasEnvs && products.length === 0 && !errorOccurred) {
     return (
       <div className="p-6">
         <h1 className="text-xl font-semibold">Sin productos en esta sección</h1>
         <p className="text-sm opacity-70 mt-1">
           Prueba en{" "}
+          <Link href="/destacados" className="underline">
+            Destacados
+          </Link>{" "}
+          o{" "}
+          <Link href="/buscar" className="underline">
+            buscar
+          </Link>
+          .
+        </p>
+      </div>
+    );
+  }
+
+  // Si hubo error y no hay productos, mostrar mensaje genérico
+  if (errorOccurred && products.length === 0) {
+    return (
+      <div className="p-6">
+        <h1 className="text-xl font-semibold">
+          No pudimos cargar los productos
+        </h1>
+        <p className="text-sm opacity-70 mt-1">
+          Intenta en{" "}
           <Link href="/destacados" className="underline">
             Destacados
           </Link>{" "}

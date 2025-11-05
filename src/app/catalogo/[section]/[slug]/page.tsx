@@ -171,16 +171,40 @@ export default async function ProductDetailPage({ params }: Props) {
     );
   } catch (error) {
     console.error("[PDP] Error:", error);
+    // Verificar si faltan envs
+    const hasEnvs = !!(
+      process.env.NEXT_PUBLIC_SUPABASE_URL &&
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    );
+
     // No explotes: muestra vista amable en vez de exception
     return (
       <div className="p-6">
-        <h1 className="text-xl font-semibold">No pudimos cargar el producto</h1>
-        <p className="text-sm opacity-70">
-          Intenta otra vez o visita{" "}
-          <Link href="/destacados" className="underline">
-            Destacados
-          </Link>
-          .
+        <h1 className="text-xl font-semibold">
+          {hasEnvs ? "No pudimos cargar el producto" : "Catálogo no disponible"}
+        </h1>
+        <p className="text-sm opacity-70 mt-1">
+          {hasEnvs ? (
+            <>
+              Intenta otra vez o visita{" "}
+              <Link href="/destacados" className="underline">
+                Destacados
+              </Link>
+              .
+            </>
+          ) : (
+            <>
+              Intenta en{" "}
+              <Link href="/destacados" className="underline">
+                Destacados
+              </Link>{" "}
+              o{" "}
+              <Link href="/buscar" className="underline">
+                buscar
+              </Link>
+              .
+            </>
+          )}
         </p>
       </div>
     );
