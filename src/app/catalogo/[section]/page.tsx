@@ -1,6 +1,5 @@
 // src/app/catalogo/[section]/page.tsx
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { listBySection } from "@/lib/supabase/catalog";
 import { getProductsBySectionFromView } from "@/lib/catalog/getProductsBySectionFromView.server";
 import { formatMXN, mxnFromCents } from "@/lib/utils/currency";
@@ -10,20 +9,62 @@ import ImageWithFallback from "@/components/ui/ImageWithFallback";
 import CatalogCardControls from "@/components/CatalogCardControls";
 import { generateWhatsAppLink } from "@/lib/utils/whatsapp";
 
-export const revalidate = 300; // Cache 5 minutos
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
 
 type Props = { params: { section: string } };
 
 export default async function CatalogoSectionPage({ params }: Props) {
-  let products = await listBySection(params.section);
+  const section = decodeURIComponent(params.section ?? "").trim();
+  if (!section) {
+    return (
+      <div className="p-6">
+        <h1 className="text-xl font-semibold">Sección inválida</h1>
+        <p className="text-sm opacity-70 mt-1">
+          Prueba en{" "}
+          <Link href="/destacados" className="underline">
+            Destacados
+          </Link>{" "}
+          o{" "}
+          <Link href="/buscar" className="underline">
+            buscar
+          </Link>
+          .
+        </p>
+      </div>
+    );
+  }
 
-  // Fallback: si no hay productos desde el fetch principal, usar la vista
-  if (products.length === 0) {
-    products = await getProductsBySectionFromView(params.section);
+  let products: Awaited<ReturnType<typeof listBySection>> = [];
+  try {
+    products = await listBySection(section);
+
+    // Fallback: si no hay productos desde el fetch principal, usar la vista
+    if (products.length === 0) {
+      products = await getProductsBySectionFromView(section);
+    }
+  } catch (error) {
+    console.error("[catalogo/section] Error:", error);
   }
 
   if (products.length === 0) {
-    return notFound();
+    return (
+      <div className="p-6">
+        <h1 className="text-xl font-semibold">Sin productos en esta sección</h1>
+        <p className="text-sm opacity-70 mt-1">
+          Prueba en{" "}
+          <Link href="/destacados" className="underline">
+            Destacados
+          </Link>{" "}
+          o{" "}
+          <Link href="/buscar" className="underline">
+            buscar
+          </Link>
+          .
+        </p>
+      </div>
+    );
   }
 
   const sectionName = params.section
