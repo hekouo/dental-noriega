@@ -30,31 +30,6 @@ type FormValues = {
   shippingMethod: ShippingMethod;
 };
 
-function makeOrderRef() {
-  // referencia legible tipo DDN-202511-ABC123
-  const rand = Math.random().toString(36).slice(2, 8).toUpperCase();
-  const d = new Date();
-  return `DDN-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}-${rand}`;
-}
-
-async function createMockOrder(payload: unknown) {
-  // POST opcional a /api/orders/mock si ya existe; si no, simula con Promise
-  try {
-    const response = await fetch("/api/orders/mock", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (response.ok) {
-      return await response.json();
-    }
-  } catch (error) {
-    console.warn("[createMockOrder] Error en API, usando mock local:", error);
-  }
-  // Simula con Promise si no hay API o falla
-  await new Promise((r) => setTimeout(r, 300));
-  return { success: true, orderId: `mock-${Date.now()}` };
-}
 
 export default function PagoClient() {
   const router = useRouter();
@@ -221,9 +196,70 @@ export default function PagoClient() {
   };
 
   const handlePayNow = async () => {
+    if (!datos) {
+      setError("Faltan datos de envío");
+      return;
+    }
+
     try {
-      const orderRef = makeOrderRef();
-      await createMockOrder({ datos, items: selectedItems, orderRef });
+      // Preparar datos para la API
+      const orderPayload = {
+        items: selectedItems.map((item) => {
+          const slug =
+            (item as any).product_slug ??
+            (item as any).slug ??
+            (item as any).product?.slug ??
+            "";
+          return {
+            product_id: item.id,
+            slug,
+            title: item.title,
+            price_cents: Math.round(item.price * 100),
+            qty: item.qty,
+          };
+        }),
+        shipping: {
+          method: selectedShippingMethod,
+          cost_cents: Math.round(shippingCost * 100),
+        },
+        datos: {
+          nombre: datos.name,
+          telefono: datos.phone,
+          direccion: datos.address,
+          colonia: datos.neighborhood,
+          estado: datos.state,
+          cp: datos.cp,
+          notas: (datos as any).notes || undefined,
+        },
+        coupon:
+          couponCode && discount && discountScope
+            ? {
+                code: couponCode,
+                discount_cents: Math.round(discount * 100),
+                scope: discountScope,
+              }
+            : undefined,
+        totals: {
+          subtotal_cents: Math.round(subtotal * 100),
+          shipping_cents: Math.round(shippingCost * 100),
+          total_cents: Math.round(total * 100),
+        },
+      };
+
+      // Llamar a la API real
+      const response = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(orderPayload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Error al crear la orden: ${response.status}`);
+      }
+
+      const result = await response.json();
+      const orderRef = result.order_ref;
 
       // Guardar última orden en persist.ts
       const lastOrder = {
