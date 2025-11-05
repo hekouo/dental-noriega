@@ -30,7 +30,6 @@ type FormValues = {
   shippingMethod: ShippingMethod;
 };
 
-
 export default function PagoClient() {
   const router = useRouter();
   const datos = useCheckoutStore((s) => s.datos);
@@ -255,7 +254,9 @@ export default function PagoClient() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Error al crear la orden: ${response.status}`);
+        throw new Error(
+          errorData.error || `Error al crear la orden: ${response.status}`,
+        );
       }
 
       const result = await response.json();
@@ -267,6 +268,8 @@ export default function PagoClient() {
         total,
         shippingMethod: selectedShippingMethod,
         shippingCost,
+        couponCode: couponCode || undefined,
+        discount: discount || undefined,
         items: selectedItems.map((item) => {
           const section =
             (item as any).section ??

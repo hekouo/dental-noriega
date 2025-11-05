@@ -17,6 +17,8 @@ type LastOrder = {
   total: number;
   shippingMethod: ShippingMethod;
   shippingCost: number;
+  couponCode?: string;
+  discount?: number;
   items?: Array<{ section?: string; slug?: string }>;
 };
 
@@ -105,6 +107,12 @@ function GraciasContent() {
             <div className="flex justify-between font-semibold pt-2 border-t">
               <span>Total:</span>
               <span>{formatMXNMoney(total)}</span>
+            </div>
+          )}
+          {lastOrder?.couponCode && lastOrder?.discount && (
+            <div className="flex justify-between text-sm text-green-600 pt-1">
+              <span>Cupón {lastOrder.couponCode} aplicado:</span>
+              <span>-{formatMXNMoney(lastOrder.discount)}</span>
             </div>
           )}
         </div>
