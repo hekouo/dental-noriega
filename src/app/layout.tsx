@@ -35,15 +35,20 @@ const WarmupTrigger = dynamic(() => import("@/components/dev/WarmupTrigger"), {
 const inter = Inter({ subsets: ["latin"], display: "swap" });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL ?? "https://dental-noriega.vercel.app",
+  ),
   title: {
-    default: "DENTAL NORIEGA",
-    template: "%s · DENTAL NORIEGA",
+    default: "Depósito Dental Noriega",
+    template: "%s | Depósito Dental Noriega",
   },
-  description: "Catálogo y compras de DENTAL NORIEGA",
+  description:
+    "Catálogo dental con compra rápida, destacados y consulta por WhatsApp.",
+  robots: { index: true, follow: true },
   openGraph: {
     type: "website",
     locale: "es_MX",
-    siteName: "DENTAL NORIEGA",
+    siteName: "Depósito Dental Noriega",
   },
   twitter: {
     card: "summary",

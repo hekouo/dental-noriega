@@ -33,9 +33,14 @@ export function normalizePrice(value?: number | string | null): number {
 }
 
 /**
- * Verifica si un item tiene un precio comprable (price_cents > 0)
+ * Verifica si un item tiene un precio comprable (price_cents > 0 y stock_qty > 0)
  */
-export function hasPurchasablePrice(item: CatalogItem): boolean {
+export function hasPurchasablePrice(
+  item:
+    | CatalogItem
+    | { price_cents?: number | null; stock_qty?: number | null },
+): boolean {
   const priceCents = normalizePrice(item.price_cents);
-  return priceCents > 0;
+  const stockQty = normalizePrice(item.stock_qty);
+  return priceCents > 0 && stockQty > 0;
 }
