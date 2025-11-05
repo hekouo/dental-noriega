@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ShoppingCart } from "lucide-react";
 import { useCartStore } from "@/lib/store/cartStore";
-import { mxnFromCents, formatMXN } from "@/lib/utils/currency";
+import { mxnFromCents } from "@/lib/utils/currency";
 import { normalizePrice, hasPurchasablePrice } from "@/lib/catalog/model";
 import { getWhatsAppHref } from "@/lib/whatsapp";
 import type { FeaturedItem } from "@/lib/catalog/getFeatured.server";
