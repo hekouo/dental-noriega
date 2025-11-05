@@ -20,16 +20,23 @@ export async function POST(req: Request) {
     }
 
     // Importa sólo si hay API key para no romper el build
-    let Resend;
+    let Resend: any;
     try {
+      // @ts-expect-error - resend puede no estar instalado
       const resendModule = await import("resend");
-      Resend = resendModule.Resend || resendModule.default?.Resend || resendModule.default;
+      Resend =
+        resendModule.Resend ||
+        resendModule.default?.Resend ||
+        resendModule.default;
       if (!Resend) {
         throw new Error("Resend no disponible");
       }
     } catch (importError) {
       console.error("[email/confirm] Error importando resend:", importError);
-      return NextResponse.json({ ok: false, error: "resend_not_available" }, { status: 500 });
+      return NextResponse.json(
+        { ok: false, error: "resend_not_available" },
+        { status: 500 },
+      );
     }
     const resend = new Resend(apiKey);
 
@@ -43,6 +50,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[email/confirm] error:", err);
-    return NextResponse.json({ ok: false, error: "send_failed" }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: "send_failed" },
+      { status: 500 },
+    );
   }
 }
