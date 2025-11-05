@@ -5,7 +5,9 @@ import { fileURLToPath } from "node:url";
 import lighthouse from "lighthouse";
 import chromeLauncher from "chrome-launcher";
 
+// eslint-disable-next-line no-redeclare
 const __filename = fileURLToPath(import.meta.url);
+// eslint-disable-next-line no-redeclare
 const __dirname = path.dirname(__filename);
 
 const AUDIT_URL = process.env.AUDIT_URL || process.env.NEXT_PUBLIC_SITE_URL;
@@ -18,9 +20,6 @@ if (!AUDIT_URL) {
 
 const OUT_DIR = path.resolve(__dirname, "../../reports/lighthouse");
 fs.mkdirSync(OUT_DIR, { recursive: true });
-
-const configPath = path.resolve(__dirname, "../../config/lighthouse/lighthouserc.json");
-const configJson = JSON.parse(fs.readFileSync(configPath, "utf8"));
 
 (async () => {
   const chrome = await chromeLauncher.launch({
@@ -39,7 +38,9 @@ const configJson = JSON.parse(fs.readFileSync(configPath, "utf8"));
 
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   const base = path.join(OUT_DIR, `lh-${stamp}`);
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
   fs.writeFileSync(`${base}.html`, html);
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
   fs.writeFileSync(`${base}.json`, json);
 
   const scores = runnerResult.lhr.categories;
