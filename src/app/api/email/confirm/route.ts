@@ -19,11 +19,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true, skipped: true });
     }
 
-    // Importa sólo si hay API key para no romper el build
-    let Resend: any;
+    // Intentar importar resend solo si hay API key
+    // Usar require para evitar análisis estático de webpack
+    let Resend;
     try {
-      // @ts-expect-error - resend puede no estar instalado
-      const resendModule = await import("resend");
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const resendModule = require("resend");
       Resend =
         resendModule.Resend ||
         resendModule.default?.Resend ||
@@ -31,13 +32,31 @@ export async function POST(req: Request) {
       if (!Resend) {
         throw new Error("Resend no disponible");
       }
-    } catch (importError) {
-      console.error("[email/confirm] Error importando resend:", importError);
+    } catch (requireError: unknown) {
+      const errorMsg =
+        requireError instanceof Error
+          ? requireError.message
+          : String(requireError);
+      if (
+        errorMsg.includes("Cannot find module") ||
+        errorMsg.includes("MODULE_NOT_FOUND")
+      ) {
+        console.warn(
+          "[email/confirm] resend module not installed. Skipping send.",
+        );
+        return NextResponse.json({
+          ok: true,
+          skipped: true,
+          reason: "resend_not_installed",
+        });
+      }
+      console.error("[email/confirm] Error cargando resend:", requireError);
       return NextResponse.json(
         { ok: false, error: "resend_not_available" },
         { status: 500 },
       );
     }
+
     const resend = new Resend(apiKey);
 
     await resend.emails.send({
