@@ -1,7 +1,9 @@
 // src/app/catalogo/[section]/page.tsx
 import Link from "next/link";
+import type { Metadata } from "next";
 import { listBySection } from "@/lib/supabase/catalog";
 import { getProductsBySectionFromView } from "@/lib/catalog/getProductsBySectionFromView.server";
+import { getProductsBySection } from "@/lib/catalog/getBySection.server";
 import { formatMXN, mxnFromCents } from "@/lib/utils/currency";
 import { ROUTES } from "@/lib/routes";
 import { MessageCircle } from "lucide-react";
@@ -24,6 +26,60 @@ function hasSupabaseEnvs(): boolean {
 }
 
 type Props = { params: { section: string } };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const siteName =
+    process.env.NEXT_PUBLIC_SITE_NAME ?? "Depósito Dental Noriega";
+  const base =
+    process.env.NEXT_PUBLIC_SITE_URL ?? "https://dental-noriega.vercel.app";
+  const section = decodeURIComponent(params.section ?? "").trim();
+
+  // Intentar obtener productos de la sección (sin cookies, solo Supabase directo)
+  let items: Awaited<ReturnType<typeof getProductsBySection>> = [];
+  try {
+    items = await getProductsBySection(section, 1);
+  } catch {
+    // Silenciar errores en build - usar fallback
+  }
+
+  const sectionName = section
+    .replace(/-/g, " ")
+    .replace(/\b\w/g, (l) => l.toUpperCase());
+
+  const title = `${sectionName} | ${siteName}`;
+  const description = `Explora ${sectionName} en ${siteName}.`;
+  const image = items?.[0]?.image_url ?? "/og/cover.jpg";
+  const url = `${base}/catalogo/${section}`;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      type: "website",
+      url,
+      siteName,
+      title,
+      description,
+      images: [
+        {
+          url: image,
+          width: 1200,
+          height: 630,
+          alt: sectionName,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [image],
+    },
+    alternates: {
+      canonical: url,
+    },
+  };
+}
 
 export default async function CatalogoSectionPage({ params }: Props) {
   const section = decodeURIComponent(params.section ?? "").trim();

@@ -1,6 +1,8 @@
 import "server-only";
 import { notFound, redirect } from "next/navigation";
+import type { Metadata } from "next";
 import { resolveProductBySlug } from "@/lib/catalog/resolveProductBySlug.server";
+import { getProductBySectionSlug } from "@/lib/catalog/getProduct.server";
 import { formatMXNFromCents } from "@/lib/utils/currency";
 import ImageWithFallback from "@/components/ui/ImageWithFallback";
 import ProductActions from "@/components/product/ProductActions.client";
@@ -17,6 +19,67 @@ export const fetchCache = "force-no-store";
 type Props = {
   params: { section: string; slug: string };
 };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const siteName =
+    process.env.NEXT_PUBLIC_SITE_NAME ?? "Depósito Dental Noriega";
+  const base =
+    process.env.NEXT_PUBLIC_SITE_URL ?? "https://dental-noriega.vercel.app";
+  const section = decodeURIComponent(params.section ?? "");
+  const slug = decodeURIComponent(params.slug ?? "");
+
+  // Intentar obtener producto (sin cookies, solo Supabase directo)
+  let product: Awaited<ReturnType<typeof getProductBySectionSlug>> = null;
+  try {
+    product = await getProductBySectionSlug(section, slug);
+  } catch {
+    // Silenciar errores en build - usar fallback
+  }
+
+  if (!product) {
+    const title = `Producto no disponible | ${siteName}`;
+    return {
+      title,
+      description: "Producto no disponible.",
+      robots: { index: false },
+    };
+  }
+
+  const title = `${product.title} | ${siteName}`;
+  const description =
+    product.description?.slice(0, 150) ?? `${product.title} en ${siteName}`;
+  const image = product.image_url ?? "/og/cover.jpg";
+  const url = `${base}/catalogo/${product.section}/${product.product_slug}`;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      type: "product",
+      url,
+      siteName,
+      title,
+      description,
+      images: [
+        {
+          url: image,
+          width: 1200,
+          height: 630,
+          alt: product.title,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [image],
+    },
+    alternates: {
+      canonical: url,
+    },
+  };
+}
 
 export default async function ProductDetailPage({ params }: Props) {
   const section = decodeURIComponent(params.section ?? "");

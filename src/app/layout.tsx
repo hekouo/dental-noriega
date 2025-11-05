@@ -40,19 +40,32 @@ export const metadata: Metadata = {
     process.env.NEXT_PUBLIC_SITE_URL ?? "https://dental-noriega.vercel.app",
   ),
   title: {
-    default: "Depósito Dental Noriega",
-    template: "%s | Depósito Dental Noriega",
+    default: process.env.NEXT_PUBLIC_SITE_NAME ?? "Depósito Dental Noriega",
+    template: `%s | ${process.env.NEXT_PUBLIC_SITE_NAME ?? "Depósito Dental Noriega"}`,
   },
-  description:
-    "Catálogo dental con compra rápida, destacados y consulta por WhatsApp.",
+  description: "Insumos dentales a mejor precio. Envíos a todo México.",
   robots: { index: true, follow: true },
   openGraph: {
     type: "website",
+    url: "/",
     locale: "es_MX",
-    siteName: "Depósito Dental Noriega",
+    siteName: process.env.NEXT_PUBLIC_SITE_NAME ?? "Depósito Dental Noriega",
+    title: process.env.NEXT_PUBLIC_SITE_NAME ?? "Depósito Dental Noriega",
+    description: "Insumos dentales a mejor precio. Envíos a todo México.",
+    images: [
+      {
+        url: "/og/cover.jpg",
+        width: 1200,
+        height: 630,
+        alt: "Catálogo",
+      },
+    ],
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
+    title: process.env.NEXT_PUBLIC_SITE_NAME ?? "Depósito Dental Noriega",
+    description: "Insumos dentales a mejor precio. Envíos a todo México.",
+    images: ["/og/cover.jpg"],
   },
 };
 
