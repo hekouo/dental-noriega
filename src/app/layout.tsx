@@ -7,6 +7,7 @@ import { Inter } from "next/font/google";
 import dynamic from "next/dynamic";
 import WhatsappBubble from "@/components/WhatsappBubble";
 import CartBubble from "@/components/CartBubble";
+import CartSticky from "@/components/cart/CartSticky";
 import { ToothAccountMenu } from "@/components/ToothAccountMenu";
 import { ROUTES } from "@/lib/routes";
 import BrandMark from "@/components/BrandMark";
@@ -130,6 +131,7 @@ export default function RootLayout({
         {/* Flotantes */}
         <CartBubble />
         <WhatsappBubble />
+        <CartSticky />
 
         {/* Dev Guards */}
         <CheckoutDevGuard />

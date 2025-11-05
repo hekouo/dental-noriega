@@ -12,12 +12,22 @@ import CheckoutStepIndicator from "@/components/CheckoutStepIndicator";
 import CheckoutDebugPanel from "@/components/CheckoutDebugPanel";
 import Link from "next/link";
 import { track } from "@/lib/analytics";
+import { validateCoupon } from "@/lib/coupons";
+import { useSelectedTotal } from "@/lib/store/checkoutSelectors";
+import { formatMXN as formatMXNMoney } from "@/lib/utils/money";
 
 // eslint-disable-next-line sonarjs/cognitive-complexity -- Formulario largo pero estructurado, todos los campos son necesarios
 function DatosPageContent() {
   const router = useRouter();
   const selectedIds = useSelectedIds();
   const datos = useCheckoutStore((s) => s.datos);
+  const subtotal = useSelectedTotal();
+  const couponCode = useCheckoutStore((s) => s.couponCode);
+  const discount = useCheckoutStore((s) => s.discount);
+  const setCoupon = useCheckoutStore((s) => s.setCoupon);
+  const clearCoupon = useCheckoutStore((s) => s.clearCoupon);
+  const [couponInput, setCouponInput] = React.useState("");
+  const [couponError, setCouponError] = React.useState<string | null>(null);
 
   const form = useForm<DatosForm>({
     resolver: zodResolver(datosSchema),
@@ -118,10 +128,10 @@ function DatosPageContent() {
     <main className="mx-auto max-w-3xl p-6 space-y-6">
       <CheckoutStepIndicator currentStep="datos" />
 
-                  <h1 className="text-2xl font-semibold mb-2">Datos de Envío</h1>
-                  <p className="text-gray-600 mb-6">
-                    Completa la información para enviar tu pedido
-                  </p>
+      <h1 className="text-2xl font-semibold mb-2">Datos de Envío</h1>
+      <p className="text-gray-600 mb-6">
+        Completa la información para enviar tu pedido
+      </p>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" noValidate>
         <CheckoutDebugPanel />
@@ -489,27 +499,118 @@ function DatosPageContent() {
           </p>
         )}
 
+        {/* Cupón */}
+        <div>
+          <label
+            htmlFor="coupon"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
+            Cupón de descuento (opcional)
+          </label>
+          <div className="flex gap-2">
+            <input
+              id="coupon"
+              type="text"
+              value={couponInput}
+              onChange={(e) => {
+                setCouponInput(e.target.value.toUpperCase());
+                setCouponError(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  const coupon = validateCoupon(couponInput);
+                  if (coupon) {
+                    const discountAmount = (subtotal * coupon.pct) / 100;
+                    setCoupon(coupon.code, discountAmount, "subtotal");
+                    setCouponError(null);
+                  } else {
+                    setCouponError("Cupón no válido");
+                    clearCoupon();
+                  }
+                }
+              }}
+              onBlur={() => {
+                if (couponInput.trim()) {
+                  const coupon = validateCoupon(couponInput);
+                  if (coupon) {
+                    const discountAmount = (subtotal * coupon.pct) / 100;
+                    setCoupon(coupon.code, discountAmount, "subtotal");
+                    setCouponError(null);
+                  } else {
+                    setCouponError("Cupón no válido");
+                    clearCoupon();
+                  }
+                }
+              }}
+              className="flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+              placeholder="Ej: DDN10"
+            />
+            {couponCode && (
+              <button
+                type="button"
+                onClick={() => {
+                  setCouponInput("");
+                  clearCoupon();
+                  setCouponError(null);
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Quitar
+              </button>
+            )}
+          </div>
+          {couponError && (
+            <p className="text-red-500 text-sm mt-1" role="alert">
+              {couponError}
+            </p>
+          )}
+          {couponCode && discount && (
+            <p className="text-green-600 text-sm mt-1">
+              Cupón {couponCode} aplicado: -{formatMXNMoney(discount)}
+            </p>
+          )}
+        </div>
+
+        {/* Resumen con descuento */}
+        {couponCode && discount && (
+          <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+            <div className="flex justify-between text-sm">
+              <span>Subtotal:</span>
+              <span>{formatMXNMoney(subtotal)}</span>
+            </div>
+            <div className="flex justify-between text-sm text-green-600">
+              <span>Descuento ({couponCode}):</span>
+              <span>-{formatMXNMoney(discount)}</span>
+            </div>
+            <div className="flex justify-between font-semibold pt-2 border-t">
+              <span>Total:</span>
+              <span>{formatMXNMoney(subtotal - discount)}</span>
+            </div>
+          </div>
+        )}
+
         {/* Botones */}
         <div className="flex gap-4 pt-4">
-                      <Link
-                        href="/carrito"
-                        className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
-                      >
-                        ← Volver al carrito
-                      </Link>
-                      <button
-                        type="submit"
-                        onClick={(e) => {
-                          e.currentTarget.blur();
-                          handleSubmit(onSubmit)();
-                        }}
-                        disabled={!isValid || isSubmitting}
-                        aria-disabled={!isValid || isSubmitting}
-                        data-testid="btn-continuar-pago"
-                        className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex-1 font-semibold transition-colors"
-                      >
-                        Continuar al pago →
-                      </button>
+          <Link
+            href="/carrito"
+            className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+          >
+            ← Volver al carrito
+          </Link>
+          <button
+            type="submit"
+            onClick={(e) => {
+              e.currentTarget.blur();
+              handleSubmit(onSubmit)();
+            }}
+            disabled={!isValid || isSubmitting}
+            aria-disabled={!isValid || isSubmitting}
+            data-testid="btn-continuar-pago"
+            className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex-1 font-semibold transition-colors"
+          >
+            Continuar al pago →
+          </button>
         </div>
       </form>
     </main>
