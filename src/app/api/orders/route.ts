@@ -1,65 +1,209 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-export async function GET(req: Request) {
-  // Solo en desarrollo
-  if (process.env.NODE_ENV !== "development") {
-    return NextResponse.json(
-      { error: "Not available in production" },
-      { status: 403 },
-    );
+type OrderItem = {
+  product_id?: string;
+  slug?: string;
+  title?: string;
+  price_cents: number;
+  qty: number;
+};
+
+type ShippingMethod = "pickup" | "standard" | "express";
+
+type OrderRequest = {
+  items: OrderItem[];
+  shipping: {
+    method: ShippingMethod;
+    cost_cents: number;
+  };
+  datos: {
+    nombre: string;
+    telefono: string;
+    direccion: string;
+    colonia: string;
+    estado: string;
+    cp: string;
+    notas?: string;
+  };
+  coupon?: {
+    code: string;
+    discount_cents: number;
+    scope: "subtotal" | "shipping";
+  };
+  totals: {
+    subtotal_cents: number;
+    shipping_cents: number;
+    total_cents: number;
+  };
+};
+
+function validateOrderRequest(body: unknown): OrderRequest | null {
+  if (!body || typeof body !== "object") return null;
+
+  const req = body as Partial<OrderRequest>;
+
+  // Validar items
+  if (!Array.isArray(req.items) || req.items.length === 0) return null;
+  for (const item of req.items) {
+    if (
+      typeof item.price_cents !== "number" ||
+      typeof item.qty !== "number" ||
+      item.qty < 1
+    ) {
+      return null;
+    }
   }
 
-  const { searchParams } = new URL(req.url);
-  const orderId = searchParams.get("id");
-
-  if (!orderId) {
-    return NextResponse.json({ error: "Missing order ID" }, { status: 400 });
+  // Validar shipping
+  if (
+    !req.shipping ||
+    !["pickup", "standard", "express"].includes(req.shipping.method) ||
+    typeof req.shipping.cost_cents !== "number"
+  ) {
+    return null;
   }
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
+  // Validar datos
+  if (
+    !req.datos ||
+    typeof req.datos.nombre !== "string" ||
+    typeof req.datos.telefono !== "string" ||
+    typeof req.datos.direccion !== "string" ||
+    typeof req.datos.colonia !== "string" ||
+    typeof req.datos.estado !== "string" ||
+    typeof req.datos.cp !== "string"
+  ) {
+    return null;
+  }
 
+  // Validar totals
+  if (
+    !req.totals ||
+    typeof req.totals.subtotal_cents !== "number" ||
+    typeof req.totals.shipping_cents !== "number" ||
+    typeof req.totals.total_cents !== "number"
+  ) {
+    return null;
+  }
+
+  return req as OrderRequest;
+}
+
+export async function POST(req: NextRequest) {
   try {
-    // Verificar si la orden existe
-    const { data: order, error: orderError } = await supabase
-      .from("orders")
-      .select("*")
-      .eq("id", orderId)
-      .single();
+    const body = await req.json().catch(() => null);
+    const orderData = validateOrderRequest(body);
 
-    if (orderError || !order) {
-      return NextResponse.json({
-        ok: false,
-        exists: false,
-        error: orderError?.message,
-      });
+    if (!orderData) {
+      return NextResponse.json(
+        { error: "Datos de orden inválidos" },
+        { status: 400 },
+      );
     }
 
-    // Contar items
-    const { count: itemsCount } = await supabase
-      .from("order_items")
-      .select("*", { count: "exact", head: true })
-      .eq("order_id", orderId);
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+    // Si hay envs de Supabase, insertar en DB
+    if (supabaseUrl && serviceRoleKey) {
+      try {
+        const supabase = createClient(supabaseUrl, serviceRoleKey, {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false,
+          },
+        });
+
+        const { generateOrderRef } = await import("@/lib/orders/ref");
+        const orderRef = generateOrderRef();
+
+        // Insertar orden (adaptado al schema existente)
+        // Mapear shipping.method a fulfillment_method
+        const fulfillmentMethod =
+          orderData.shipping.method === "pickup" ? "pickup" : "delivery";
+
+        // Construir dirección completa para pickup_location o notas
+        const addressFull = `${orderData.datos.direccion}, ${orderData.datos.colonia}, ${orderData.datos.estado} ${orderData.datos.cp}`;
+        const pickupLocation =
+          orderData.shipping.method === "pickup"
+            ? "Tienda física"
+            : addressFull;
+
+        const { data: order, error: orderError } = await supabase
+          .from("orders")
+          .insert({
+            fulfillment_method: fulfillmentMethod,
+            pickup_location: pickupLocation,
+            contact_name: orderData.datos.nombre,
+            contact_phone: orderData.datos.telefono,
+            contact_email: null, // No disponible en datos
+            subtotal: orderData.totals.subtotal_cents / 100,
+            shipping_cost: orderData.totals.shipping_cents / 100,
+            discount_amount: (orderData.coupon?.discount_cents || 0) / 100,
+            total: orderData.totals.total_cents / 100,
+            status: "pending",
+          })
+          .select("id")
+          .single();
+
+        if (orderError || !order) {
+          console.error("[POST /api/orders] Error insertando orden:", orderError);
+          // Fallback a mock si falla la inserción
+          const { generateOrderRef: genRef } = await import("@/lib/orders/ref");
+          return NextResponse.json({
+            order_id: null,
+            order_ref: genRef(),
+          });
+        }
+
+        // Insertar items (adaptado al schema: sku, name, price, qty)
+        // Usar índice para evitar duplicados en sku
+        const orderItems = orderData.items.map((item, idx) => ({
+          order_id: order.id,
+          sku: item.product_id || item.slug || `item-${order.id}-${idx}`,
+          name: item.title || "Producto",
+          price: item.price_cents / 100,
+          qty: item.qty,
+        }));
+
+        const { error: itemsError } = await supabase
+          .from("order_items")
+          .insert(orderItems);
+
+        if (itemsError) {
+          console.error(
+            "[POST /api/orders] Error insertando items:",
+            itemsError,
+          );
+          // Orden ya creada, pero items fallaron - devolver igual
+        }
+
+        return NextResponse.json({
+          order_id: order.id,
+          order_ref: orderRef,
+        });
+      } catch (supabaseError) {
+        console.error("[POST /api/orders] Error con Supabase:", supabaseError);
+        // Fallback a mock si hay error de conexión
+        const { generateOrderRef } = await import("@/lib/orders/ref");
+        return NextResponse.json({
+          order_id: null,
+          order_ref: generateOrderRef(),
+        });
+      }
+    }
+
+    // Fallback mock si no hay envs
+    const { generateOrderRef } = await import("@/lib/orders/ref");
     return NextResponse.json({
-      ok: true,
-      exists: true,
-      itemsCount: itemsCount || 0,
-      total: order.total,
-      status: order.status,
-      customer_email: order.customer_email,
-      created_at: order.created_at,
+      order_id: null,
+      order_ref: generateOrderRef(),
     });
   } catch (error) {
-    console.error("[API] Orders diagnostic error:", error);
+    console.error("[POST /api/orders] Error inesperado:", error);
     return NextResponse.json(
-      {
-        ok: false,
-        error: "Internal server error",
-      },
+      { error: "Error interno del servidor" },
       { status: 500 },
     );
   }
