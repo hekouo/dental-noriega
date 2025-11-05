@@ -14,10 +14,15 @@ export default function FeaturedCarousel({ items }: { items: FeaturedItem[] }) {
       <div className="flex gap-4 min-w-max">
         {items.map((p) => {
           const price = p.price_cents ? mxnFromCents(p.price_cents) : null;
+          const href =
+            p.section && p.product_slug
+              ? `/catalogo/${p.section}/${p.product_slug}`
+              : `/catalogo`;
           return (
             <Link
               key={p.product_id}
-              href={`/catalogo/${p.section}/${p.product_slug}`}
+              href={href}
+              prefetch={false}
               className="flex-shrink-0 w-64 rounded-2xl border p-3 hover:shadow transition-shadow"
             >
               <div className="relative h-40 w-full bg-gray-50 rounded-xl overflow-hidden">

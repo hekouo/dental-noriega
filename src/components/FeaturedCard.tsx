@@ -11,14 +11,17 @@ type Props = {
 };
 
 export default function FeaturedCard({ item }: Props) {
-  const href = `/catalogo/${item.section}/${item.product_slug}`;
+  const href =
+    item.section && item.product_slug
+      ? `/catalogo/${item.section}/${item.product_slug}`
+      : `/catalogo`;
   const priceCents = item.price_cents ?? 0;
   const price = priceCents > 0 ? mxnFromCents(priceCents) : null;
   const inStock = item.stock_qty !== null ? item.stock_qty > 0 : null;
 
   return (
     <div className="border rounded-xl overflow-hidden flex flex-col">
-      <Link href={href} className="block">
+      <Link href={href} prefetch={false} className="block">
         <div className="relative w-full aspect-square bg-white">
           <ImageWithFallback
             src={item.image_url}
@@ -34,6 +37,7 @@ export default function FeaturedCard({ item }: Props) {
         <h3 className="mt-2 line-clamp-2">
           <Link
             href={href}
+            prefetch={false}
             className="text-sm font-medium hover:text-primary-600"
           >
             {item.title}
