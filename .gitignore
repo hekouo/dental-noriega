@@ -72,3 +72,7 @@ coverage/
 
 # Ignorar CSV de runtime (archivados)
 public/data/*.csv
+
+# Audit reports
+/reports/**
+!reports/.keep

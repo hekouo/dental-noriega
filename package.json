@@ -25,7 +25,9 @@
     "build:ci": "node scripts/prebuild-pages-manifest.js && next build && node scripts/budget.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "verify": "pnpm -s tsc && pnpm -s lint && pnpm -s build",
-    "budget": "node scripts/budget.mjs"
+    "budget": "node scripts/budget.mjs",
+    "audit:lh": "node scripts/audit/lighthouse.mjs",
+    "audit:axe": "playwright test scripts/audit/axe.spec.ts --reporter=list"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -48,6 +50,7 @@
     "zustand": "^5.0.1"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.0",
     "@axe-core/react": "^4.10.2",
     "@changesets/cli": "^2.29.7",
     "@commitlint/cli": "20.0.0",
@@ -66,6 +69,8 @@
     "@typescript-eslint/eslint-plugin": "^8.46.1",
     "@typescript-eslint/parser": "^8.46.1",
     "autoprefixer": "^10.4.20",
+    "axe-core": "^4.11.0",
+    "chrome-launcher": "^1.2.1",
     "eslint": "^8.57.1",
     "eslint-config-next": "^14.2.33",
     "eslint-config-prettier": "^10.1.8",
