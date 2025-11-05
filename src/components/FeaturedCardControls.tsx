@@ -14,15 +14,17 @@ export default function FeaturedCardControls({ item }: Props) {
   const addToCart = useCartStore((s) => s.addToCart);
   const [qty, setQty] = useState(1);
   const busyRef = useRef(false);
-  const canBuy = item.in_stock !== false;
+  const priceCents = item.price_cents ?? 0;
+  const canBuy = item.stock_qty !== null ? item.stock_qty > 0 : true;
 
   function onAdd() {
-    if (!canBuy || busyRef.current) return;
+    if (!canBuy || busyRef.current || priceCents === 0) return;
     busyRef.current = true;
+    const price = mxnFromCents(priceCents);
     addToCart({
-      id: item.id,
+      id: item.product_id,
       title: item.title,
-      price: mxnFromCents(item.price_cents),
+      price,
       qty,
       image_url: item.image_url ?? undefined,
       selected: true,
@@ -36,12 +38,12 @@ export default function FeaturedCardControls({ item }: Props) {
         event: "add_to_cart",
         ecommerce: {
           currency: "MXN",
-          value: mxnFromCents(item.price_cents) * qty,
+          value: price * qty,
           items: [
             {
-              item_id: item.id,
+              item_id: item.product_id,
               item_name: item.title,
-              price: mxnFromCents(item.price_cents),
+              price,
               quantity: qty,
             },
           ],
@@ -50,7 +52,8 @@ export default function FeaturedCardControls({ item }: Props) {
     }
   }
 
-  const msg = `Hola, me interesa: ${item.title} (${item.section}). Cantidad: ${qty}. Precio: ${formatMXN(mxnFromCents(item.price_cents))}`;
+  const priceStr = priceCents > 0 ? formatMXN(mxnFromCents(priceCents)) : "—";
+  const msg = `Hola, me interesa: ${item.title} (${item.section}). Cantidad: ${qty}. Precio: ${priceStr}`;
   const wa = `https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP_PHONE}?text=${encodeURIComponent(msg)}`;
 
   return (

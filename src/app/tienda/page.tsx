@@ -1,6 +1,6 @@
 import Link from "next/link";
 import FeaturedGrid from "@/components/FeaturedGrid";
-import { getFeaturedProducts } from "@/lib/data/catalog-index.server";
+import { getFeatured } from "@/lib/catalog/getFeatured.server";
 
 const categories = [
   { title: "Consumibles y Profilaxis", href: "/tienda/consumibles" },
@@ -21,7 +21,7 @@ const categories = [
 export const revalidate = 300;
 
 export default async function TiendaPage() {
-  const featured = await getFeaturedProducts();
+  const featured = await getFeatured();
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-gradient-to-r from-primary-600 to-primary-800 text-white py-12">
@@ -31,7 +31,10 @@ export default async function TiendaPage() {
         </div>
       </div>
 
-      <FeaturedGrid items={featured} title="Destacados" />
+      <div className="container mx-auto px-4 py-8">
+        <h2 className="text-2xl font-bold mb-4">Destacados</h2>
+        <FeaturedGrid items={featured} />
+      </div>
 
       <div className="max-w-7xl mx-auto px-4 pb-12">
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">

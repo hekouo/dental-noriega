@@ -2,7 +2,8 @@ import Link from "next/link";
 import dynamicImport from "next/dynamic";
 import { ShoppingBag, Package, Award, Truck } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
-import { getFeaturedProducts } from "@/lib/catalog/getFeatured.server";
+import { getFeatured } from "@/lib/catalog/getFeatured.server";
+import FeaturedCarousel from "@/components/FeaturedCarousel";
 import FeaturedGrid from "@/components/FeaturedGrid";
 
 // Dynamic import para componente no crítico
@@ -10,10 +11,11 @@ const FinalThanks = dynamicImport(() => import("@/components/FinalThanks"), {
   ssr: false,
 });
 
-export const revalidate = 300; // Cache 5 minutos
+export const revalidate = 60; // Cache leve
+export const dynamic = "force-dynamic"; // Si fetch depende de cookies del server wrapper
 
 export default async function HomePage() {
-  const featured = await getFeaturedProducts();
+  const items = await getFeatured();
 
   return (
     <main className="min-h-screen">
@@ -44,23 +46,17 @@ export default async function HomePage() {
       </section>
 
       {/* Productos Destacados */}
-      {featured.length > 0 ? (
-        <FeaturedGrid items={featured} />
-      ) : (
-        <section className="py-16 px-4 bg-white">
-          <div className="max-w-6xl mx-auto text-center">
-            <h2 className="text-3xl font-bold mb-4">
-              Aún no hay productos destacados
-            </h2>
-            <p className="text-gray-600 mb-8">
-              Explora nuestro catálogo completo
-            </p>
-            <Link href={ROUTES.catalogIndex()} className="btn btn-primary">
-              <span>Ver Catálogo</span>
-            </Link>
-          </div>
-        </section>
-      )}
+      <section className="container mx-auto px-4 py-8">
+        <h2 className="text-2xl font-bold mb-4">Destacados</h2>
+        <FeaturedCarousel items={items} />
+      </section>
+
+      <section className="container mx-auto px-4 py-8 space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xl font-semibold">También te puede interesar</h3>
+        </div>
+        <FeaturedGrid items={items} />
+      </section>
 
       {/* Features */}
       <section className="py-16 px-4 bg-gray-50">
