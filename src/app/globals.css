@@ -41,6 +41,16 @@ textarea {
   padding-bottom: calc(1rem + var(--safe-b));
 }
 
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
 @layer components {
   .btn-primary {
     @apply bg-primary-600 text-white hover:bg-primary-700 min-h-[44px];

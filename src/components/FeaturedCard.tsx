@@ -12,6 +12,9 @@ type Props = {
 
 export default function FeaturedCard({ item }: Props) {
   const href = `/catalogo/${item.section}/${item.product_slug}`;
+  const priceCents = item.price_cents ?? 0;
+  const price = priceCents > 0 ? mxnFromCents(priceCents) : null;
+  const inStock = item.stock_qty !== null ? item.stock_qty > 0 : null;
 
   return (
     <div className="border rounded-xl overflow-hidden flex flex-col">
@@ -37,9 +40,9 @@ export default function FeaturedCard({ item }: Props) {
           </Link>
         </h3>
         <p className="text-sm text-gray-600">
-          {formatMXN(mxnFromCents(item.price_cents))}
+          {price !== null ? formatMXN(price) : "—"}
         </p>
-        {item.in_stock === false && (
+        {inStock === false && (
           <div className="mt-1 text-[11px] inline-flex items-center px-2 py-0.5 rounded bg-red-100 text-red-700">
             Agotado
           </div>

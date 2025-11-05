@@ -1,11 +1,11 @@
 // src/app/destacados/page.tsx
-import { getFeaturedProducts } from "@/lib/catalog/getFeatured.server";
+import { getFeatured } from "@/lib/catalog/getFeatured.server";
 import FeaturedGrid from "@/components/FeaturedGrid";
 
 export const revalidate = 300;
 
 export default async function DestacadosPage() {
-  const items = await getFeaturedProducts();
+  const items = await getFeatured();
 
   return (
     <div className="container py-10">
