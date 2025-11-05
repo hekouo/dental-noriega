@@ -111,8 +111,10 @@ export default function RecommendedClient() {
 
         const sections = [
           ...new Set(lastOrder.items.map((i) => i.section).filter(Boolean)),
-        ];
-        const excludeSlugs = lastOrder.items.map((i) => i.slug).filter(Boolean);
+        ] as string[];
+        const excludeSlugs = lastOrder.items
+          .map((i) => i.slug)
+          .filter(Boolean) as string[];
 
         const foundProducts = await fetchRecommendationsBySections(
           sections,
