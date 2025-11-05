@@ -1,8 +1,11 @@
 // src/app/robots.ts
 import { MetadataRoute } from "next";
 
+export const dynamic = "force-static";
+
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "";
+  const baseUrl =
+    process.env.NEXT_PUBLIC_SITE_URL ?? "https://dental-noriega.vercel.app";
   return {
     rules: [
       {
@@ -10,7 +13,6 @@ export default function robots(): MetadataRoute.Robots {
         allow: "/",
       },
     ],
-    sitemap: baseUrl ? `${baseUrl}/sitemap.xml` : "/sitemap.xml",
+    sitemap: `${baseUrl}/sitemap.xml`,
   };
 }
-

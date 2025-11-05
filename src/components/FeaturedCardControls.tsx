@@ -157,12 +157,13 @@ export default function FeaturedCardControls({ item, compact = false }: Props) {
 
   // Versión compacta v2
   return (
-    <div className="mt-2">
+    <div className="mt-2 space-y-2">
       <div className="flex items-center gap-3">
-        <div className="flex items-center rounded-lg border px-2 py-1">
+        {/* QtyStepper compacto */}
+        <div className="flex items-center rounded-lg border h-9 px-3">
           <button
             type="button"
-            className="h-8 w-6 text-xl"
+            className="h-9 w-6 text-base font-medium"
             aria-label="Disminuir cantidad"
             onClick={() => setQty((q) => Math.max(1, q - 1))}
             disabled={isAdding || qty <= 1}
@@ -171,7 +172,7 @@ export default function FeaturedCardControls({ item, compact = false }: Props) {
           </button>
           <input
             aria-label="Cantidad"
-            className="w-10 text-center outline-none"
+            className="w-10 text-center outline-none text-base"
             inputMode="numeric"
             value={qty}
             onChange={(e) => {
@@ -185,7 +186,7 @@ export default function FeaturedCardControls({ item, compact = false }: Props) {
           />
           <button
             type="button"
-            className="h-8 w-6 text-xl"
+            className="h-9 w-6 text-base font-medium"
             aria-label="Aumentar cantidad"
             onClick={() => setQty((q) => Math.min(maxQty, q + 1))}
             disabled={isAdding || qty >= maxQty}
@@ -194,29 +195,29 @@ export default function FeaturedCardControls({ item, compact = false }: Props) {
           </button>
         </div>
 
+        {/* Botón Agregar con ícono */}
         <button
           type="button"
           onClick={onAdd}
           aria-busy={isAdding}
-          className="inline-flex items-center gap-2 rounded-xl bg-black px-4 py-2 text-white hover:bg-black/90 disabled:opacity-60"
+          className="inline-flex items-center gap-2 rounded-xl bg-black px-4 py-2 text-white hover:bg-black/90 disabled:opacity-60 h-9"
           disabled={isAdding}
         >
           <ShoppingCart className="h-4 w-4" />
-          Agregar
+          <span>Agregar</span>
         </button>
       </div>
 
+      {/* WhatsApp link en una sola línea */}
       {waHref && (
-        <div className="mt-2">
-          <a
-            href={waHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm underline text-muted-foreground"
-          >
-            Consultar por WhatsApp
-          </a>
-        </div>
+        <a
+          href={waHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-sm underline text-muted-foreground block"
+        >
+          Consultar por WhatsApp
+        </a>
       )}
     </div>
   );
