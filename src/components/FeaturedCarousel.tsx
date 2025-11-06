@@ -9,9 +9,9 @@ export default function FeaturedCarousel({ items }: { items: FeaturedItem[] }) {
   return (
     <div className="w-full overflow-x-auto no-scrollbar py-3">
       <div className="flex gap-4 min-w-max">
-        {items.map((item) => (
+        {items.map((item, index) => (
           <div key={item.product_id} className="flex-shrink-0 w-64">
-            <FeaturedCard item={item} />
+            <FeaturedCard item={item} priority={index === 0} />
           </div>
         ))}
       </div>

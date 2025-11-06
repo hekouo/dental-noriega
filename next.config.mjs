@@ -10,6 +10,28 @@ const nextConfig = {
     // Solo deshabilitar en desarrollo local si es necesario
     unoptimized: false, // Habilitar optimización para mejor performance
   },
+  async headers() {
+    return [
+      {
+        source: "/_next/static/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+      {
+        source: "/fonts/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+    ];
+  },
   webpack: (config, { isServer }) => {
     // Hacer resend opcional: no fallar si no está instalado
     if (isServer) {
