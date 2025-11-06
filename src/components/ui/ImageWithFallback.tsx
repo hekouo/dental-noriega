@@ -37,6 +37,10 @@ export default function ImageWithFallback({
         alt={alt}
         width={Number(width)}
         height={Number(height)}
+        sizes={
+          rest.sizes ??
+          "(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+        }
         // object-contain evita corte. Cambia a object-cover si prefieres recorte.
         className={`w-full h-auto object-contain ${className ?? ""}`}
         onError={() => {
