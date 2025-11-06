@@ -13,8 +13,8 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: [["line"], ["html", { outputFolder: "playwright-report" }]],
   use: {
-    baseURL: AUDIT_URL || "http://localhost:3000",
     headless: true,
+    baseURL: AUDIT_URL || "http://127.0.0.1:3002",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "retain-on-failure",
@@ -29,9 +29,9 @@ export default defineConfig({
   webServer: AUDIT_URL
     ? undefined
     : {
-        command: "pnpm dev --port 3000",
-        url: "http://localhost:3000",
-        reuseExistingServer: true,
+        command: "pnpm exec next start -p 3002",
+        url: "http://127.0.0.1:3002",
         timeout: 120000,
+        reuseExistingServer: false,
       },
 });
