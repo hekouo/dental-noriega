@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import lighthouse from "lighthouse";
-import chromeLauncher from "chrome-launcher";
+import { launch as launchChrome } from "chrome-launcher";
 
 // eslint-disable-next-line no-redeclare
 const __filename = fileURLToPath(import.meta.url);
@@ -22,8 +22,8 @@ const OUT_DIR = path.resolve(__dirname, "../../reports/lighthouse");
 fs.mkdirSync(OUT_DIR, { recursive: true });
 
 (async () => {
-  const chrome = await chromeLauncher.launch({
-    chromeFlags: ["--headless", "--no-sandbox"],
+  const chrome = await launchChrome({
+    chromeFlags: ["--headless=new", "--no-sandbox"],
   });
   const options = {
     logLevel: "info",
