@@ -1,55 +1,43 @@
-// scripts/audit/lighthouse.mjs
-import fs from "node:fs";
+import fs from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { launch as launchChrome } from "chrome-launcher";
 import lighthouse from "lighthouse";
-import chromeLauncher from "chrome-launcher";
 
-// eslint-disable-next-line no-redeclare
-const __filename = fileURLToPath(import.meta.url);
-// eslint-disable-next-line no-redeclare
-const __dirname = path.dirname(__filename);
+const AUDIT_URL = process.env.AUDIT_URL || "http://localhost:3000";
 
-const AUDIT_URL = process.env.AUDIT_URL || process.env.NEXT_PUBLIC_SITE_URL;
-if (!AUDIT_URL) {
-  console.error(
-    "❌ Define AUDIT_URL o NEXT_PUBLIC_SITE_URL para auditar (ej. https://<tu-deploy>.vercel.app)",
-  );
-  process.exit(1);
-}
+const reportsDir = path.join(process.cwd(), "reports", "lighthouse");
+await fs.mkdir(reportsDir, { recursive: true });
 
-const OUT_DIR = path.resolve(__dirname, "../../reports/lighthouse");
-fs.mkdirSync(OUT_DIR, { recursive: true });
+// Usa el Chrome instalado por browser-actions/setup-chrome
+// (ese action exporta CHROME_PATH en el entorno).
+const chrome = await launchChrome({
+  chromePath: process.env.CHROME_PATH,
+  chromeFlags: ["--headless=new", "--no-sandbox", "--disable-gpu"],
+});
 
-(async () => {
-  const chrome = await chromeLauncher.launch({
-    chromeFlags: ["--headless", "--no-sandbox"],
-  });
-  const options = {
-    logLevel: "info",
-    output: ["html", "json"],
-    onlyCategories: ["performance", "accessibility", "best-practices", "seo"],
-    port: chrome.port,
-  };
-  const runnerResult = await lighthouse(AUDIT_URL, options);
+const options = {
+  logLevel: "info",
+  output: ["html", "json"],
+  port: chrome.port,
+};
+const config = { extends: "lighthouse:default" };
 
-  const html = runnerResult.report[0];
-  const json = runnerResult.report[1];
+const runnerResult = await lighthouse(AUDIT_URL, options, config);
 
-  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const base = path.join(OUT_DIR, `lh-${stamp}`);
-  // eslint-disable-next-line security/detect-non-literal-fs-filename
-  fs.writeFileSync(`${base}.html`, html);
-  // eslint-disable-next-line security/detect-non-literal-fs-filename
-  fs.writeFileSync(`${base}.json`, json);
+// Timestamp simple para los archivos
+const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+const base = path.join(reportsDir, `lh-${timestamp}`);
 
-  const scores = runnerResult.lhr.categories;
-  console.log(
-    "✅ Lighthouse scores",
-    Object.fromEntries(Object.entries(scores).map(([k, v]) => [k, v.score])),
-  );
+// eslint-disable-next-line security/detect-non-literal-fs-filename
+await fs.writeFile(`${base}.html`, runnerResult.report[0], "utf8");
+// eslint-disable-next-line security/detect-non-literal-fs-filename
+await fs.writeFile(`${base}.json`, runnerResult.report[1], "utf8");
 
-  await chrome.kill();
-  console.log(`📁 Reportes: ${base}.html y ${base}.json`);
-})();
+console.log("Lighthouse scores:", {
+  performance: runnerResult.lhr.categories.performance.score,
+  accessibility: runnerResult.lhr.categories.accessibility.score,
+  best_practices: runnerResult.lhr.categories["best-practices"].score,
+  seo: runnerResult.lhr.categories.seo.score,
+});
 
+await chrome.kill();
