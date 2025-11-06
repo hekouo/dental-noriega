@@ -23,7 +23,6 @@ jobs:
     timeout-minutes: 30
     env:
       CI: true
-      AUDIT_URL: ${{ inputs.preview_url }}
 
     steps:
       - name: Checkout
@@ -57,6 +56,42 @@ jobs:
           ls -la
           ls -la scripts || true
           ls -la scripts/audit || true
+
+      - name: Resolve target URL or fallback
+        shell: bash
+        run: |
+          set -e
+          INPUT_URL="${{ inputs.preview_url }}"
+          echo "AUDIT_URL_INPUT=${INPUT_URL}" >> "$GITHUB_ENV"
+
+          echo "Probing ${INPUT_URL} ..."
+          if curl -sSfL --max-time 8 "${INPUT_URL}" >/dev/null; then
+            echo "Remote is reachable."
+            echo "AUDIT_URL=${INPUT_URL}" >> "$GITHUB_ENV"
+            echo "USING_REMOTE=1" >> "$GITHUB_ENV"
+          else
+            echo "Remote NOT reachable from runner. Will use local server."
+            echo "USING_REMOTE=0" >> "$GITHUB_ENV"
+          fi
+
+      - name: Build app (fallback local)
+        if: env.USING_REMOTE != '1'
+        run: pnpm build
+
+      - name: Start local server :3002
+        if: env.USING_REMOTE != '1'
+        run: |
+          pnpm exec next start -p 3002 &>/tmp/next.log &
+          echo "Started next on :3002"
+
+      - name: Wait for local server
+        if: env.USING_REMOTE != '1'
+        run: npx --yes wait-on --timeout 300000 http://127.0.0.1:3002
+
+      - name: Set AUDIT_URL to local
+        if: env.USING_REMOTE != '1'
+        run: |
+          echo "AUDIT_URL=http://127.0.0.1:3002" >> "$GITHUB_ENV"
 
       - name: Lighthouse
         run: pnpm audit:lh
