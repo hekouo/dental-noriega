@@ -26,6 +26,7 @@
   "include": [
     "next-env.d.ts",
     "src",
+    "scripts",
     "src/types",
     "next.config.mjs",
     ".next/types/**/*.ts"

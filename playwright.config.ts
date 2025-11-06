@@ -3,7 +3,8 @@ import { defineConfig, devices } from "@playwright/test";
 const AUDIT_URL = process.env.AUDIT_URL?.trim();
 
 export default defineConfig({
-  testDir: "./tests",
+  testDir: "scripts/audit",
+  testMatch: ["**/*.spec.ts"],
   timeout: 30000,
   expect: { timeout: 10000 },
   fullyParallel: true,
