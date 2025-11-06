@@ -54,11 +54,17 @@ jobs:
       - name: Install Playwright browsers (for Axe)
         run: npx playwright install --with-deps chromium
 
-      - name: Lighthouse
+      - name: List audit files (debug)
+        run: |
+          ls -la
+          ls -la scripts || true
+          ls -la scripts/audit || true
+
+            - name: Lighthouse
         run: pnpm audit:lh
 
       - name: Axe (accessibility)
-        run: pnpm audit:axe
+        run: pnpm exec playwright test scripts/audit/axe.spec.ts --reporter=list
 
       - name: Upload reports
         if: always()
