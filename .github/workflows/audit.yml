@@ -1,0 +1,53 @@
+name: Audit (Lighthouse + Axe)
+
+on:
+  workflow_dispatch:
+    inputs:
+      preview_url:
+        description: "URL a auditar (ej. https://tu-app.vercel.app)"
+        required: true
+        type: string
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.2
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+
+      # Asegura Google Chrome para Lighthouse
+      - name: Setup Chrome
+        uses: browser-actions/setup-chrome@v1
+
+      # Instala navegadores de Playwright para Axe
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: Lighthouse
+        run: AUDIT_URL="${{ inputs.preview_url }}" pnpm audit:lh
+
+      - name: Axe (accessibility)
+        run: AUDIT_URL="${{ inputs.preview_url }}" pnpm audit:axe
+
+      - name: Upload reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-reports
+          path: |
+            reports/lighthouse/**
+            reports/axe/**
