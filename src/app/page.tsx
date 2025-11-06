@@ -1,6 +1,9 @@
 import Link from "next/link";
 import dynamicImport from "next/dynamic";
-import { ShoppingBag, Package, Award, Truck } from "lucide-react";
+import { ShoppingBag } from "lucide-react";
+import { Package } from "lucide-react";
+import { Award } from "lucide-react";
+import { Truck } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
 import { getFeatured } from "@/lib/catalog/getFeatured.server";
 import FeaturedCarousel from "@/components/FeaturedCarousel";

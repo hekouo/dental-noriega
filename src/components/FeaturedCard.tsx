@@ -9,9 +9,10 @@ import type { FeaturedItem } from "@/lib/catalog/getFeatured.server";
 
 type Props = {
   item: FeaturedItem;
+  priority?: boolean;
 };
 
-export default function FeaturedCard({ item }: Props) {
+export default function FeaturedCard({ item, priority = false }: Props) {
   const href =
     item.section && item.product_slug
       ? `/catalogo/${item.section}/${item.product_slug}`
@@ -29,6 +30,8 @@ export default function FeaturedCard({ item }: Props) {
             alt={item.title}
             width={512}
             height={512}
+            priority={priority}
+            sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
             className="w-full h-full object-contain"
           />
         </div>
