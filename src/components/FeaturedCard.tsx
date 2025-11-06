@@ -39,7 +39,7 @@ export default function FeaturedCard({ item }: Props) {
           <Link
             href={href}
             prefetch={false}
-            className="text-sm font-medium hover:text-primary-600"
+            className="text-sm font-medium text-gray-900 hover:text-primary-600"
           >
             {item.title}
           </Link>
@@ -51,7 +51,7 @@ export default function FeaturedCard({ item }: Props) {
           {canPurchase ? (
             <FeaturedCardControls item={item} compact />
           ) : (
-            <p className="text-sm text-muted-foreground mt-2">Agotado</p>
+            <p className="text-sm text-gray-700 mt-2">Agotado</p>
           )}
         </div>
       </div>

@@ -34,14 +34,15 @@ export default function FeaturedCardControls({ item, compact = false }: Props) {
   ) {
     return (
       <div className="mt-2">
-        <p className="text-sm text-muted-foreground">Agotado</p>
+        <p className="text-sm text-gray-700">Agotado</p>
         {waHref && (
           <div className="mt-1">
             <a
               href={waHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm underline text-muted-foreground"
+              aria-label={`Consultar por WhatsApp: ${item.title}`}
+              className="text-sm underline text-gray-700 hover:text-gray-900"
             >
               Consultar por WhatsApp
             </a>
@@ -145,7 +146,8 @@ export default function FeaturedCardControls({ item, compact = false }: Props) {
               href={waHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm underline text-muted-foreground"
+              aria-label={`Consultar por WhatsApp: ${item.title}`}
+              className="text-sm underline text-gray-700 hover:text-gray-900"
             >
               Consultar por WhatsApp
             </a>
@@ -214,7 +216,8 @@ export default function FeaturedCardControls({ item, compact = false }: Props) {
           href={waHref}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-sm underline text-muted-foreground block"
+          aria-label={`Consultar por WhatsApp: ${item.title}`}
+          className="text-sm underline text-gray-700 hover:text-gray-900 block"
         >
           Consultar por WhatsApp
         </a>
