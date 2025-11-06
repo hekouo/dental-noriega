@@ -1,5 +1,7 @@
 name: Audit (Lighthouse + Axe)
 
+run-name: "Audit: ${{ inputs.preview_url }}"
+
 on:
   workflow_dispatch:
     inputs:
@@ -27,7 +29,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Importante: NO fijar "version" aquí; tomará la de package.json#packageManager
+      # Importante: no fijar 'version' aquí para no chocar con packageManager del package.json
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -37,16 +39,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: "pnpm"
+          cache: pnpm
 
       - name: Install deps
         run: pnpm install --frozen-lockfile
-
-      - name: Print tool versions
-        run: |
-          node -v
-          pnpm -v
-          google-chrome --version || true
 
       - name: Setup Chrome (for Lighthouse)
         uses: browser-actions/setup-chrome@v1
@@ -54,13 +50,15 @@ jobs:
       - name: Install Playwright browsers (for Axe)
         run: npx playwright install --with-deps chromium
 
-      - name: List audit files (debug)
+      - name: Prepare reports folders
         run: |
+          mkdir -p reports/lighthouse
+          mkdir -p reports/axe
           ls -la
           ls -la scripts || true
           ls -la scripts/audit || true
 
-            - name: Lighthouse
+      - name: Lighthouse
         run: pnpm audit:lh
 
       - name: Axe (accessibility)
