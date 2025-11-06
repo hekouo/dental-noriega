@@ -16,11 +16,8 @@ const PAGES = [
 test.describe("A11y (axe) smoke", () => {
   for (const route of PAGES) {
     test(`axe: ${route}`, async ({ page }) => {
-      const base =
-        process.env.AUDIT_URL ||
-        process.env.NEXT_PUBLIC_SITE_URL ||
-        "http://localhost:3000";
-      await page.goto(`${base}${route}`, { waitUntil: "domcontentloaded" });
+      // Usar rutas relativas - baseURL ya está configurado en playwright.config.ts
+      await page.goto(route, { waitUntil: "domcontentloaded" });
 
       const results = await new AxeBuilder({ page })
         .disableRules(["color-contrast"]) // opcional si hay falsos positivos iniciales

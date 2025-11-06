@@ -21,6 +21,7 @@ jobs:
     timeout-minutes: 30
     env:
       CI: true
+      AUDIT_URL: ${{ inputs.preview_url }}
 
     steps:
       - name: Checkout
@@ -51,16 +52,12 @@ jobs:
         uses: browser-actions/setup-chrome@v1
 
       - name: Install Playwright browsers (for Axe)
-        run: npx playwright install --with-deps
+        run: npx playwright install --with-deps chromium
 
       - name: Lighthouse
-        env:
-          AUDIT_URL: ${{ inputs.preview_url }}
         run: pnpm audit:lh
 
       - name: Axe (accessibility)
-        env:
-          AUDIT_URL: ${{ inputs.preview_url }}
         run: pnpm audit:axe
 
       - name: Upload reports
