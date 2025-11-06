@@ -62,7 +62,7 @@ jobs:
         run: pnpm audit:lh
 
       - name: Axe (accessibility)
-        run: pnpm exec playwright test scripts/audit/axe.spec.ts --reporter=list
+        run: pnpm exec playwright test --reporter=list
 
       - name: Upload reports
         if: always()
