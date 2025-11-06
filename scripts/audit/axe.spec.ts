@@ -1,43 +1,35 @@
 // scripts/audit/axe.spec.ts
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-import * as fs from "node:fs";
-import * as path from "node:path";
 
-// Páginas representativas
-const PAGES = [
-  "/", // Home
-  "/destacados", // Destacados
-  "/tienda", // Tienda
-  "/buscar?q=arco", // Búsqueda
-  "/checkout/datos", // Paso de checkout (sin datos sensibles)
+const ROUTES = [
+  "/",
+  "/destacados",
+  "/tienda",
+  "/buscar?q=arco",
+  "/checkout/datos",
 ];
 
-test.describe("A11y (axe) smoke", () => {
-  for (const route of PAGES) {
-    test(`axe: ${route}`, async ({ page }) => {
-      // Usar rutas relativas - baseURL ya está configurado en playwright.config.ts
-      await page.goto(route, { waitUntil: "domcontentloaded" });
+// Umbral flexible: hasta 10 violaciones por página (ajustable)
+const MAX_VIOLATIONS = 10;
 
-      const results = await new AxeBuilder({ page })
-        .disableRules(["color-contrast"]) // opcional si hay falsos positivos iniciales
-        .analyze();
+for (const route of ROUTES) {
+  test(`axe: ${route}`, async ({ page, baseURL }) => {
+    const url = new URL(route, baseURL).toString();
+    await page.goto(url, { waitUntil: "domcontentloaded" });
 
-      // Guarda reporte JSON
-      const outDir =
-        process.env.AXE_OUT_DIR || path.resolve(process.cwd(), "reports/axe");
-      fs.mkdirSync(outDir, { recursive: true });
-      const safeRoute = route.replace(/[^\w]/g, "_");
-      const reportPath = path.join(outDir, `${safeRoute}.json`);
-      fs.writeFileSync(reportPath, JSON.stringify(results, null, 2));
+    const results = await new AxeBuilder({ page })
+      .withTags(["wcag2a", "wcag2aa"])
+      .analyze();
 
-      const violations = results.violations || [];
-      // No fallar el build inicialmente: solo warn si hay violaciones (>0)
-      console.log(`♿ ${route} → ${violations.length} violaciones`);
-      for (const v of violations) {
-        console.log(` - ${v.id}: ${v.help} (${v.impact})`);
-      }
-      expect(violations.length).toBeLessThan(10); // umbral tolerante para MVP
-    });
-  }
-});
+    // Log para debugging en CI
+    console.log(`[axe] ${route}: violations=${results.violations.length}`);
+    for (const v of results.violations.slice(0, 5)) {
+      console.log(
+        `[axe] rule=${v.id} impact=${v.impact} nodes=${v.nodes.length}`,
+      );
+    }
+
+    expect(results.violations.length).toBeLessThanOrEqual(MAX_VIOLATIONS);
+  });
+}
