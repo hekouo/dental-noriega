@@ -21,23 +21,31 @@ jobs:
     timeout-minutes: 30
     env:
       CI: true
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Importante: NO fijar "version" aquí; tomará la de package.json#packageManager
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 10.18.2
+          run_install: false
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: pnpm
+          cache: "pnpm"
 
       - name: Install deps
         run: pnpm install --frozen-lockfile
+
+      - name: Print tool versions
+        run: |
+          node -v
+          pnpm -v
+          google-chrome --version || true
 
       - name: Setup Chrome (for Lighthouse)
         uses: browser-actions/setup-chrome@v1
@@ -45,11 +53,15 @@ jobs:
       - name: Install Playwright browsers (for Axe)
         run: npx playwright install --with-deps
 
-      - name: Run Lighthouse
-        run: AUDIT_URL="${{ inputs.preview_url }}" pnpm audit:lh
+      - name: Lighthouse
+        env:
+          AUDIT_URL: ${{ inputs.preview_url }}
+        run: pnpm audit:lh
 
-      - name: Run Axe (accessibility)
-        run: AUDIT_URL="${{ inputs.preview_url }}" pnpm audit:axe
+      - name: Axe (accessibility)
+        env:
+          AUDIT_URL: ${{ inputs.preview_url }}
+        run: pnpm audit:axe
 
       - name: Upload reports
         if: always()
