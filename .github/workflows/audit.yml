@@ -1,0 +1,61 @@
+name: Audit (Lighthouse + Axe)
+
+on:
+  workflow_dispatch:
+    inputs:
+      preview_url:
+        description: "URL a auditar (ej. https://dental-noriega.vercel.app)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: audit-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.2
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup Chrome (for Lighthouse)
+        uses: browser-actions/setup-chrome@v1
+
+      - name: Install Playwright browsers (for Axe)
+        run: npx playwright install --with-deps
+
+      - name: Run Lighthouse
+        run: AUDIT_URL="${{ inputs.preview_url }}" pnpm audit:lh
+
+      - name: Run Axe (accessibility)
+        run: AUDIT_URL="${{ inputs.preview_url }}" pnpm audit:axe
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-reports
+          path: |
+            reports/lighthouse/**
+            reports/axe/**
