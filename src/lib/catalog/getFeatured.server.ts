@@ -1,6 +1,7 @@
 import "server-only";
 // Nada de cookies() aquí ni fetch a /api/debug/* en producción.
 
+import { unstable_cache, revalidateTag } from "next/cache";
 import { createServerSupabase } from "@/lib/supabase/server";
 
 export type FeaturedItem = {
@@ -26,16 +27,13 @@ function hasSupabaseEnvs(): boolean {
   );
 }
 
-// Devuelve máximo 8, ordenados por position
-export async function getFeatured(): Promise<FeaturedItem[]> {
-  // Verificar envs antes de intentar conectar
+async function fetchFeatured(): Promise<FeaturedItem[]> {
   if (!hasSupabaseEnvs()) {
     console.warn("[getFeatured] missing supabase envs (using empty list)");
     return [];
   }
 
   try {
-    // 1) Traer featured crudo (product_id + position)
     const supabase = createServerSupabase();
     const { data: frows, error: ferr } = await supabase
       .from("featured")
@@ -45,8 +43,6 @@ export async function getFeatured(): Promise<FeaturedItem[]> {
 
     if (ferr || !frows?.length) return [];
 
-    // 2) Resolver cada product_id contra la vista canónica
-    //    OJO: usar in (...) para 1 roundtrip
     const ids = frows.map((r) => r.product_id);
     const { data: view, error: verr } = await supabase
       .from("api_catalog_with_images")
@@ -57,7 +53,6 @@ export async function getFeatured(): Promise<FeaturedItem[]> {
 
     if (verr || !view) return [];
 
-    // 3) Mapear respetando el orden por position
     const byId = new Map(view.map((v) => [v.id, v]));
     return frows
       .map((r) => {
@@ -81,6 +76,20 @@ export async function getFeatured(): Promise<FeaturedItem[]> {
     console.warn("[getFeatured] Error:", error);
     return [];
   }
+}
+
+const cachedGetFeatured = unstable_cache(fetchFeatured, ["featured-v1"], {
+  revalidate: 60,
+  tags: ["featured"],
+});
+
+// Devuelve máximo 8, ordenados por position
+export async function getFeatured(): Promise<FeaturedItem[]> {
+  return cachedGetFeatured();
+}
+
+export function revalidateFeatured() {
+  revalidateTag("featured");
 }
 
 // Alias para compatibilidad con código existente
