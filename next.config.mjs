@@ -1,11 +1,66 @@
+/* eslint-env node */
+/* global process */
+import { URL } from "node:url";
+
 // next.config.mjs
 /** @type {import('next').NextConfig} */
+const remotePatterns = [
+  {
+    protocol: "https",
+    hostname: "lh3.googleusercontent.com",
+    port: "",
+    pathname: "/**",
+  },
+  {
+    protocol: "https",
+    hostname: "drive.google.com",
+    port: "",
+    pathname: "/**",
+  },
+  {
+    protocol: "https",
+    hostname: "api.qrserver.com",
+    port: "",
+    pathname: "/**",
+  },
+];
+
+if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    const supabase = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL);
+    remotePatterns.push({
+      protocol: supabase.protocol.replace(":", ""),
+      hostname: supabase.hostname,
+      port: supabase.port,
+      pathname: "/**",
+    });
+}
+
 const nextConfig = {
   images: {
-    remotePatterns: [
-      { protocol: "https", hostname: "lh3.googleusercontent.com", port: "", pathname: "/**" },
-    ],
-    unoptimized: true,
+    formats: ["image/avif", "image/webp"],
+    remotePatterns,
+  },
+  async headers() {
+    return [
+      {
+        source: "/_next/static/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+      {
+        source: "/fonts/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+    ];
   },
   webpack: (config, { isServer }) => {
     // Hacer resend opcional: no fallar si no está instalado

@@ -96,6 +96,10 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const supabaseOrigin = process.env.NEXT_PUBLIC_SUPABASE_URL
+    ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).origin
+    : null;
+
   return (
     <html lang="es" suppressHydrationWarning>
       <head>
@@ -105,6 +109,9 @@ export default function RootLayout({
           crossOrigin=""
         />
         <link rel="preconnect" href="https://drive.google.com" crossOrigin="" />
+        {supabaseOrigin ? (
+          <link rel="preconnect" href={supabaseOrigin} crossOrigin="" />
+        ) : null}
       </head>
       <body
         className={`${inter.className} min-h-screen bg-white text-gray-900 flex flex-col`}

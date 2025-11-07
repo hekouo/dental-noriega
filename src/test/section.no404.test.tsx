@@ -28,6 +28,7 @@ vi.mock("@/lib/utils/whatsapp", () => ({
 }));
 
 vi.mock("@/components/ui/ImageWithFallback", () => ({
+  // Mock de next/image: usamos <img> simple en tests para evitar dependencias de Next.
   default: ({ alt }: { alt: string }) => <img alt={alt} />,
 }));
 
