@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { ShoppingCart, X, Trash2 } from "lucide-react";
 import {
   useCartStore,
@@ -98,54 +99,62 @@ function CartDrawer({ onClose }: { onClose: () => void }) {
             </div>
           )}
 
-          {cartItems.map((it) => (
-            <div
-              key={it.id}
-              className="flex items-center gap-3 border rounded-lg p-3"
-            >
-              <div className="h-16 w-16 bg-gray-100 rounded overflow-hidden relative flex-shrink-0">
-                <img
-                  src={it.image_url || "/img/products/placeholder.png"}
-                  alt={it.title}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <div className="grow min-w-0">
-                <p className="font-medium text-sm line-clamp-1">{it.title}</p>
-                <p className="text-xs text-gray-500">{formatMXN(it.price)}</p>
-                <div className="flex items-center gap-2 mt-2">
-                  <label
-                    htmlFor={`qty-${it.id}`}
-                    className="text-xs text-gray-600"
-                  >
-                    Cant:
-                  </label>
-                  <input
-                    id={`qty-${it.id}`}
-                    type="number"
-                    inputMode="numeric"
-                    min={1}
-                    value={it.qty}
-                    onChange={(e) =>
-                      setCartQty(
-                        it.id,
-                        it.variantId,
-                        Number(e.target.value) || 1,
-                      )
-                    }
-                    className="w-16 border rounded px-2 py-1 text-sm min-h-[44px]"
+          {cartItems.map((it) => {
+            const imageSrc =
+              it.image_url && it.image_url.length > 0
+                ? it.image_url
+                : "/img/products/placeholder.png";
+            return (
+              <div
+                key={it.id}
+                className="flex items-center gap-3 border rounded-lg p-3"
+              >
+                <div className="relative h-16 w-16 bg-gray-100 rounded overflow-hidden flex-shrink-0">
+                  <Image
+                    src={imageSrc}
+                    alt={it.title}
+                    fill
+                    sizes="64px"
+                    className="object-cover"
                   />
-                  <button
-                    onClick={() => removeFromCart(it.id, it.variantId)}
-                    className="ml-auto text-red-600 hover:bg-red-50 p-2 rounded min-h-[44px] min-w-[44px] flex items-center justify-center"
-                    aria-label={`Eliminar ${it.title}`}
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                </div>
+                <div className="grow min-w-0">
+                  <p className="font-medium text-sm line-clamp-1">{it.title}</p>
+                  <p className="text-xs text-gray-500">{formatMXN(it.price)}</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <label
+                      htmlFor={`qty-${it.id}`}
+                      className="text-xs text-gray-600"
+                    >
+                      Cant:
+                    </label>
+                    <input
+                      id={`qty-${it.id}`}
+                      type="number"
+                      inputMode="numeric"
+                      min={1}
+                      value={it.qty}
+                      onChange={(e) =>
+                        setCartQty(
+                          it.id,
+                          it.variantId,
+                          Number(e.target.value) || 1,
+                        )
+                      }
+                      className="w-16 border rounded px-2 py-1 text-sm min-h-[44px]"
+                    />
+                    <button
+                      onClick={() => removeFromCart(it.id, it.variantId)}
+                      className="ml-auto text-red-600 hover:bg-red-50 p-2 rounded min-h-[44px] min-w-[44px] flex items-center justify-center"
+                      aria-label={`Eliminar ${it.title}`}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Footer */}
