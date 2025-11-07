@@ -1,0 +1,29 @@
+## 📊 Resultados de Auditoría (Lighthouse + Axe)
+
+### Lighthouse Scores
+
+| Métrica | Score | Estado |
+|---------|-------|--------|
+| **Performance** | 73 | ❌ |
+| **Accessibility** | 96 | ✅ |
+| **Best Practices** | 96 | ✅ |
+| **SEO** | 100 | ✅ |
+
+### 🎯 Top 3 Oportunidades (con ahorro estimado)
+- **Serve images in next-gen formats**: 420ms
+- **Eliminate render-blocking resources**: 53ms
+- **Initial server response time was short**: 6ms
+
+### ♿ Violaciones Axe
+
+Total: **0** violaciones ✅
+
+### ✅ Criterios para Auto-merge
+
+- Performance ≥ 0.80: ❌ No cumple
+- Accessibility ≥ 0.90: ✅ Cumple
+- Best Practices ≥ 0.90: ✅ Cumple
+- SEO ≥ 0.90: ✅ Cumple
+- Axe ≤ 10 violaciones: ✅ Cumple
+
+**Estado general**: ⚠️ Requiere mejoras
