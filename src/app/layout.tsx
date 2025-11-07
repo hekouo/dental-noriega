@@ -5,13 +5,29 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { Inter } from "next/font/google";
 import dynamic from "next/dynamic";
-import WhatsappBubble from "@/components/WhatsappBubble";
-import CartBubble from "@/components/CartBubble";
-import CartSticky from "@/components/cart/CartSticky";
-import { ToothAccountMenu } from "@/components/ToothAccountMenu";
+const WhatsappBubble = dynamic(() => import("@/components/WhatsappBubble"), {
+  ssr: false,
+});
+const CartBubble = dynamic(() => import("@/components/CartBubble"), {
+  ssr: false,
+});
+const CartSticky = dynamic(() => import("@/components/cart/CartSticky"), {
+  ssr: false,
+});
+const ToothAccountMenu = dynamic(
+  () =>
+    import("@/components/ToothAccountMenu").then((m) => ({
+      default: m.ToothAccountMenu,
+    })),
+  {
+    ssr: false,
+  },
+);
 import { ROUTES } from "@/lib/routes";
 import BrandMark from "@/components/BrandMark";
-import NavbarSearch from "@/components/NavbarSearch";
+const NavbarSearch = dynamic(() => import("@/components/NavbarSearch"), {
+  ssr: false,
+});
 
 // ConsultarDrawer removido - ya no se usa
 const CheckoutDevGuard = dynamic(
@@ -80,6 +96,10 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const supabaseOrigin = process.env.NEXT_PUBLIC_SUPABASE_URL
+    ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).origin
+    : null;
+
   return (
     <html lang="es" suppressHydrationWarning>
       <head>
@@ -89,6 +109,9 @@ export default function RootLayout({
           crossOrigin=""
         />
         <link rel="preconnect" href="https://drive.google.com" crossOrigin="" />
+        {supabaseOrigin ? (
+          <link rel="preconnect" href={supabaseOrigin} crossOrigin="" />
+        ) : null}
       </head>
       <body
         className={`${inter.className} min-h-screen bg-white text-gray-900 flex flex-col`}

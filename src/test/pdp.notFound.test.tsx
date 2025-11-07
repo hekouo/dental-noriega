@@ -18,6 +18,7 @@ vi.mock("@/lib/utils/currency", () => ({
 }));
 
 vi.mock("@/components/ui/ImageWithFallback", () => ({
+  // Mock de next/image: se usa <img> en pruebas exclusivamente.
   default: ({ alt }: { alt: string }) => <img alt={alt} />,
 }));
 

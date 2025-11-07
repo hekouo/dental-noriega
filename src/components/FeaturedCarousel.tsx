@@ -11,7 +11,11 @@ export default function FeaturedCarousel({ items }: { items: FeaturedItem[] }) {
       <div className="flex gap-4 min-w-max">
         {items.map((item, index) => (
           <div key={item.product_id} className="flex-shrink-0 w-64">
-            <FeaturedCard item={item} priority={index === 0} />
+            <FeaturedCard
+              item={item}
+              priority={index === 0}
+              sizes="(max-width: 768px) 90vw, 50vw"
+            />
           </div>
         ))}
       </div>

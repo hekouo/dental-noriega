@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { SITE, waLink } from "@/lib/site";
 
 export default function FinalThanks() {
@@ -84,7 +85,14 @@ export default function FinalThanks() {
 
       <div className="flex md:justify-end">
         <div className="p-3 bg-white rounded-xl border">
-          <img src={qr} alt="Escanea para WhatsApp" width={180} height={180} />
+          <Image
+            src={qr}
+            alt="Escanea para WhatsApp"
+            width={180}
+            height={180}
+            sizes="180px"
+            className="w-full h-auto"
+          />
           <p className="text-xs text-center text-gray-500 mt-2">
             Escanéame para WhatsApp
           </p>
