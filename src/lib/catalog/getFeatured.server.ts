@@ -1,8 +1,12 @@
 import "server-only";
 // Nada de cookies() aquí ni fetch a /api/debug/* en producción.
 
-import { unstable_cache, revalidateTag } from "next/cache";
+import { unstable_cache } from "next/cache";
 import { createServerSupabase } from "@/lib/supabase/server";
+import {
+  FEATURED_TAG,
+  revalidateFeatured as revalidateFeaturedTag,
+} from "@/lib/catalog/cache";
 
 export type FeaturedItem = {
   product_id: string;
@@ -79,8 +83,8 @@ async function fetchFeatured(): Promise<FeaturedItem[]> {
 }
 
 const cachedGetFeatured = unstable_cache(fetchFeatured, ["featured-v1"], {
-  revalidate: 60,
-  tags: ["featured"],
+  revalidate: 120,
+  tags: [FEATURED_TAG],
 });
 
 // Devuelve máximo 8, ordenados por position
@@ -89,7 +93,7 @@ export async function getFeatured(): Promise<FeaturedItem[]> {
 }
 
 export function revalidateFeatured() {
-  revalidateTag("featured");
+  revalidateFeaturedTag();
 }
 
 // Alias para compatibilidad con código existente
