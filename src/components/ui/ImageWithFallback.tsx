@@ -19,6 +19,7 @@ export default function ImageWithFallback({
   className,
   width = 512,
   height = 512,
+  sizes,
   ...rest
 }: Props) {
   const norm = useMemo(() => normalizeImageUrl(src), [src]);
@@ -26,6 +27,8 @@ export default function ImageWithFallback({
   const [failed, setFailed] = useState<boolean>(!norm);
 
   const wrapperStyle = square ? { aspectRatio: "1 / 1" } : undefined;
+  const resolvedSizes =
+    sizes ?? "(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw";
 
   return (
     <div
@@ -37,6 +40,7 @@ export default function ImageWithFallback({
         alt={alt}
         width={Number(width)}
         height={Number(height)}
+        sizes={resolvedSizes}
         // object-contain evita corte. Cambia a object-cover si prefieres recorte.
         className={`w-full h-auto object-contain ${className ?? ""}`}
         onError={() => {
