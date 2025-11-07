@@ -1,7 +1,9 @@
 // src/lib/catalog/getBySection.server.ts
 import "server-only";
 
+import { unstable_cache } from "next/cache";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { CATALOG_TAG, revalidateCatalog } from "@/lib/catalog/cache";
 import type { CatalogItem } from "./model";
 
 /**
@@ -17,7 +19,7 @@ function hasSupabaseEnvs(): boolean {
 /**
  * Obtiene productos por sección desde la vista canónica api_catalog_with_images
  */
-export async function getProductsBySection(
+async function fetchProductsBySection(
   section: string,
   limit = 100,
   offset = 0,
@@ -63,3 +65,22 @@ export async function getProductsBySection(
     return [];
   }
 }
+
+const cachedGetProductsBySection = unstable_cache(
+  fetchProductsBySection,
+  ["catalog-section-v1"],
+  {
+    revalidate: 120,
+    tags: [CATALOG_TAG],
+  },
+);
+
+export async function getProductsBySection(
+  section: string,
+  limit = 100,
+  offset = 0,
+): Promise<CatalogItem[]> {
+  return cachedGetProductsBySection(section, limit, offset);
+}
+
+export { revalidateCatalog };

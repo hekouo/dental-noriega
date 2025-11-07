@@ -1,7 +1,9 @@
 import "server-only";
 // Nada de cookies() aquí ni fetch a /api/debug/* en producción.
 
+import { unstable_cache } from "next/cache";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { FEATURED_TAG, revalidateFeatured } from "@/lib/catalog/cache";
 
 export type FeaturedItem = {
   product_id: string;
@@ -26,8 +28,7 @@ function hasSupabaseEnvs(): boolean {
   );
 }
 
-// Devuelve máximo 8, ordenados por position
-export async function getFeatured(): Promise<FeaturedItem[]> {
+async function fetchFeatured(): Promise<FeaturedItem[]> {
   // Verificar envs antes de intentar conectar
   if (!hasSupabaseEnvs()) {
     console.warn("[getFeatured] missing supabase envs (using empty list)");
@@ -82,6 +83,18 @@ export async function getFeatured(): Promise<FeaturedItem[]> {
     return [];
   }
 }
+
+const cachedGetFeatured = unstable_cache(fetchFeatured, ["featured-v1"], {
+  revalidate: 120,
+  tags: [FEATURED_TAG],
+});
+
+// Devuelve máximo 8, ordenados por position
+export async function getFeatured(): Promise<FeaturedItem[]> {
+  return cachedGetFeatured();
+}
+
+export { revalidateFeatured };
 
 // Alias para compatibilidad con código existente
 export async function getFeaturedProducts(): Promise<

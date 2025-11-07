@@ -1,17 +1,25 @@
 // src/components/FeaturedCard.tsx
 "use client";
+import type { ReactNode } from "react";
 import Link from "next/link";
 import ImageWithFallback from "@/components/ui/ImageWithFallback";
-import FeaturedCardControls from "@/components/FeaturedCardControls";
 import { mxnFromCents, formatMXN } from "@/lib/utils/currency";
 import { hasPurchasablePrice } from "@/lib/catalog/model";
 import type { FeaturedItem } from "@/lib/catalog/getFeatured.server";
 
 type Props = {
   item: FeaturedItem;
+  priority?: boolean;
+  sizes?: string;
+  controls?: ReactNode;
 };
 
-export default function FeaturedCard({ item }: Props) {
+export default function FeaturedCard({
+  item,
+  priority = false,
+  sizes,
+  controls,
+}: Props) {
   const href =
     item.section && item.product_slug
       ? `/catalogo/${item.section}/${item.product_slug}`
@@ -29,6 +37,8 @@ export default function FeaturedCard({ item }: Props) {
             alt={item.title}
             width={512}
             height={512}
+            priority={priority}
+            sizes={sizes ?? "(min-width: 1024px) 33vw, 100vw"}
             className="w-full h-full object-contain"
           />
         </div>
@@ -44,15 +54,14 @@ export default function FeaturedCard({ item }: Props) {
             {item.title}
           </Link>
         </h3>
-        <div className="mt-2">
+        <div className="mt-2 space-y-2">
           <div className="text-lg font-semibold">
             {price !== null ? formatMXN(price) : "—"}
           </div>
-          {canPurchase ? (
-            <FeaturedCardControls item={item} compact />
-          ) : (
-            <p className="text-sm text-muted-foreground mt-2">Agotado</p>
-          )}
+          {controls}
+          {!controls && !canPurchase ? (
+            <p className="text-sm text-muted-foreground">Agotado</p>
+          ) : null}
         </div>
       </div>
     </div>

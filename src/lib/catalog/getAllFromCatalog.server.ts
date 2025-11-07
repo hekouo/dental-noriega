@@ -1,7 +1,9 @@
 // src/lib/catalog/getAllFromCatalog.server.ts
 import "server-only";
 
+import { unstable_cache } from "next/cache";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { CATALOG_TAG, revalidateCatalog } from "@/lib/catalog/cache";
 import type { CatalogItem } from "./model";
 
 /**
@@ -17,7 +19,7 @@ function hasSupabaseEnvs(): boolean {
 /**
  * Obtiene todos los productos del catálogo desde la vista canónica api_catalog_with_images
  */
-export async function getAllFromCatalog(): Promise<CatalogItem[]> {
+async function fetchAllFromCatalog(): Promise<CatalogItem[]> {
   if (!hasSupabaseEnvs()) {
     console.warn("[catalog] missing supabase envs (using empty list)");
     return [];
@@ -57,3 +59,18 @@ export async function getAllFromCatalog(): Promise<CatalogItem[]> {
     return [];
   }
 }
+
+const cachedGetAllFromCatalog = unstable_cache(
+  fetchAllFromCatalog,
+  ["catalog-all-v1"],
+  {
+    revalidate: 120,
+    tags: [CATALOG_TAG],
+  },
+);
+
+export async function getAllFromCatalog(): Promise<CatalogItem[]> {
+  return cachedGetAllFromCatalog();
+}
+
+export { revalidateCatalog };
