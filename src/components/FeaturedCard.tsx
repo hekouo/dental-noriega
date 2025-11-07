@@ -1,11 +1,24 @@
 // src/components/FeaturedCard.tsx
 "use client";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import ImageWithFallback from "@/components/ui/ImageWithFallback";
-import FeaturedCardControls from "@/components/FeaturedCardControls";
 import { mxnFromCents, formatMXN } from "@/lib/utils/currency";
 import { hasPurchasablePrice } from "@/lib/catalog/model";
 import type { FeaturedItem } from "@/lib/catalog/getFeatured.server";
+
+const FeaturedCardControls = dynamic(
+  () => import("@/components/FeaturedCardControls"),
+  {
+    ssr: false,
+    loading: () => (
+      <div
+        aria-hidden="true"
+        className="mt-3 h-10 rounded-lg bg-gray-100 animate-pulse"
+      />
+    ),
+  },
+);
 
 const blurDataURL =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
@@ -16,11 +29,7 @@ type Props = {
   sizes?: string;
 };
 
-export default function FeaturedCard({
-  item,
-  priority = false,
-  sizes,
-}: Props) {
+export default function FeaturedCard({ item, priority = false, sizes }: Props) {
   const href =
     item.section && item.product_slug
       ? `/catalogo/${item.section}/${item.product_slug}`
