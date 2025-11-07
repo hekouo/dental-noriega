@@ -1,5 +1,4 @@
 // src/components/FeaturedCard.tsx
-"use client";
 import Link from "next/link";
 import ImageWithFallback from "@/components/ui/ImageWithFallback";
 import { mxnFromCents, formatMXN } from "@/lib/utils/currency";
