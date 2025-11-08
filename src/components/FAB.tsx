@@ -12,16 +12,8 @@ export default function FAB({ children, offset = 16 }: Props) {
 
   useEffect(() => {
     const onResize = () => {
-      const safeB =
-        Number(
-          getComputedStyle(document.documentElement)
-            .getPropertyValue("--safe-b")
-            .replace("px", ""),
-        ) || 0;
-
-      // Heurística: teclado abierto si altura < 520px
       const kbOpen = window.innerHeight < 520;
-      setBottom((kbOpen ? 8 : offset) + safeB);
+      setBottom(kbOpen ? 8 : offset);
     };
 
     onResize();
@@ -34,7 +26,7 @@ export default function FAB({ children, offset = 16 }: Props) {
       style={{
         position: "fixed",
         right: 16,
-        bottom,
+        bottom: `calc(${bottom}px + env(safe-area-inset-bottom, 0px))`,
         zIndex: 50,
       }}
     >

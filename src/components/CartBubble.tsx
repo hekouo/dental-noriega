@@ -2,17 +2,68 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { ShoppingCart, X, Trash2 } from "lucide-react";
+import Link from "next/link";
+import FAB from "@/components/FAB";
 import {
   useCartStore,
   selectCartItems,
   selectCartCount,
 } from "@/lib/store/cartStore";
 import { formatMXN } from "@/lib/utils/currency";
-import Link from "next/link";
-import FAB from "@/components/FAB";
 import safeAreaStyles from "@/components/ui/safe-area.module.css";
-import buttonStyles from "@/components/ui/button.module.css";
+import { buttonOutline, buttonPrimary } from "@/lib/styles/button";
+
+const CartIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={2}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+    {...props}
+  >
+    <circle cx={9} cy={21} r={1} />
+    <circle cx={20} cy={21} r={1} />
+    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+  </svg>
+);
+
+const CloseIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={2}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+    {...props}
+  >
+    <line x1={18} y1={6} x2={6} y2={18} />
+    <line x1={6} y1={6} x2={18} y2={18} />
+  </svg>
+);
+
+const TrashIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={2}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+    {...props}
+  >
+    <polyline points="3 6 5 6 21 6" />
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+    <path d="M14 10v6" />
+    <path d="M10 10v6" />
+    <path d="M15 6V4a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v2" />
+  </svg>
+);
 
 export default function CartBubble() {
   const count = useCartStore(selectCartCount);
@@ -21,14 +72,13 @@ export default function CartBubble() {
   return (
     <>
       <FAB offset={88}>
-        {" "}
-        {/* Más arriba que WhatsApp (16 + 56 + 16 = 88) */}
         <button
           onClick={() => setOpen(true)}
-          className="h-14 w-14 rounded-full bg-primary-600 hover:bg-primary-700 text-white shadow-xl flex items-center justify-center transition-all hover:scale-110"
+          className="relative h-14 w-14 rounded-full bg-primary-600 hover:bg-primary-700 text-white shadow-xl flex items-center justify-center transition-transform duration-200 hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
           aria-label="Abrir carrito"
+          type="button"
         >
-          <ShoppingCart size={24} />
+          <CartIcon width={24} height={24} />
           {count > 0 && (
             <span className="absolute -top-1 -right-1 text-xs bg-white text-primary-700 font-bold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center shadow">
               {count}
@@ -51,7 +101,7 @@ function CartDrawer({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
-    const previousTouchAction = document.body.style.touchAction;
+    const previousTouch = document.body.style.touchAction;
     document.body.style.overflow = "hidden";
     document.body.style.touchAction = "none";
 
@@ -63,7 +113,7 @@ function CartDrawer({ onClose }: { onClose: () => void }) {
 
     return () => {
       document.body.style.overflow = previousOverflow;
-      document.body.style.touchAction = previousTouchAction;
+      document.body.style.touchAction = previousTouch;
       window.removeEventListener("keydown", onKey);
     };
   }, [onClose]);
@@ -81,26 +131,29 @@ function CartDrawer({ onClose }: { onClose: () => void }) {
         aria-labelledby="cart-title"
         className={`absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-xl flex flex-col overscroll-contain ${safeAreaStyles.pbSafe}`}
       >
-        {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
           <h2 id="cart-title" className="text-lg font-semibold">
             Tu carrito
           </h2>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-full min-h-[44px] min-w-[44px] flex items-center justify-center"
+            className="p-2 hover:bg-gray-100 rounded-full min-h-[44px] min-w-[44px] flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
             aria-label="Cerrar carrito"
             autoFocus
+            type="button"
           >
-            <X size={20} />
+            <CloseIcon width={20} height={20} />
           </button>
         </div>
 
-        {/* Items */}
         <div className="grow space-y-3 overflow-y-auto p-4">
           {cartItems.length === 0 && (
             <div className="text-center py-12 text-gray-500">
-              <ShoppingCart size={48} className="mx-auto mb-4 opacity-30" />
+              <CartIcon
+                width={48}
+                height={48}
+                className="mx-auto mb-4 opacity-30"
+              />
               <p>Aún no agregas productos.</p>
             </div>
           )}
@@ -151,10 +204,11 @@ function CartDrawer({ onClose }: { onClose: () => void }) {
                     />
                     <button
                       onClick={() => removeFromCart(it.id, it.variantId)}
-                      className="ml-auto text-red-600 hover:bg-red-50 p-2 rounded min-h-[44px] min-w-[44px] flex items-center justify-center"
+                      className="ml-auto text-red-600 hover:bg-red-50 p-2 rounded min-h-[44px] min-w-[44px] flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
                       aria-label={`Eliminar ${it.title}`}
+                      type="button"
                     >
-                      <Trash2 size={16} />
+                      <TrashIcon width={16} height={16} />
                     </button>
                   </div>
                 </div>
@@ -163,7 +217,6 @@ function CartDrawer({ onClose }: { onClose: () => void }) {
           })}
         </div>
 
-        {/* Footer */}
         <div className="border-t p-4 bg-gray-50">
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm text-gray-600">Total</span>
@@ -174,13 +227,14 @@ function CartDrawer({ onClose }: { onClose: () => void }) {
           <div className="flex gap-2">
             <button
               onClick={clearCart}
-              className={`${buttonStyles.outline} px-4 py-2 text-sm`}
+              className={`${buttonOutline} flex-1 px-4 py-2`}
+              type="button"
             >
               <span>Vaciar</span>
             </button>
             <Link
               href="/checkout"
-              className={`${buttonStyles.primary} px-4 py-2 text-sm flex-1 text-center`}
+              className={`${buttonPrimary} flex-1 px-4 py-2 text-center`}
               onClick={onClose}
             >
               <span>Continuar</span>

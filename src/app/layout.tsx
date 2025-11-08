@@ -102,11 +102,7 @@ export default function RootLayout({
     : null;
 
   return (
-    <html
-      lang="es"
-      suppressHydrationWarning
-      className={safeAreaStyles.rootVars}
-    >
+    <html lang="es" suppressHydrationWarning>
       <head>
         <link
           rel="preconnect"
@@ -122,7 +118,6 @@ export default function RootLayout({
         className={`${inter.className} min-h-screen bg-white text-gray-900 flex flex-col`}
       >
         <CheckoutDevGuard />
-        <CartDevGuard />
         <header className="border-b bg-white sticky top-0 z-40">
           <nav className="max-w-6xl mx-auto flex items-center justify-between p-4 gap-4">
             <Link href={ROUTES.home()}>
@@ -179,6 +174,7 @@ export default function RootLayout({
 
         {/* Dev Guards */}
         <CheckoutDevGuard />
+        <CartDevGuard />
         {process.env.NEXT_PUBLIC_DEBUG === "1" ? <WarmupTrigger /> : null}
 
         {/* Footer */}

@@ -4,15 +4,13 @@ import FeaturedCard from "@/components/FeaturedCard";
 import FeaturedCardControlsLazy from "@/components/FeaturedCardControls.lazy.client";
 import { hasPurchasablePrice } from "@/lib/catalog/model";
 import type { FeaturedItem } from "@/lib/catalog/getFeatured.server";
-import noScrollbarStyles from "@/components/ui/no-scrollbar.module.css";
+import styles from "@/components/ui/no-scrollbar.module.css";
 
 export default function FeaturedCarousel({ items }: { items: FeaturedItem[] }) {
   if (!items?.length) return null;
 
   return (
-    <div
-      className={`w-full overflow-x-auto py-3 ${noScrollbarStyles.noScrollbar}`}
-    >
+    <div className={`w-full overflow-x-auto ${styles.noScrollbar} py-3`}>
       <div className="flex gap-4 min-w-max">
         {items.map((item, index) => (
           <div key={item.product_id} className="flex-shrink-0 w-64">
