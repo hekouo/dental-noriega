@@ -6,12 +6,9 @@ import { Suspense } from "react";
 import { Inter } from "next/font/google";
 import dynamic from "next/dynamic";
 import WhatsappBubble from "@/components/WhatsappBubble";
-import CartBubble from "@/components/CartBubble";
-import CartSticky from "@/components/cart/CartSticky";
-import { ToothAccountMenu } from "@/components/ToothAccountMenu";
 import { ROUTES } from "@/lib/routes";
 import BrandMark from "@/components/BrandMark";
-import NavbarSearch from "@/components/NavbarSearch";
+import safeAreaStyles from "@/components/ui/safe-area.module.css";
 
 // ConsultarDrawer removido - ya no se usa
 const CheckoutDevGuard = dynamic(
@@ -32,6 +29,25 @@ const FinalThanks = dynamic(() => import("@/components/FinalThanks"), {
 const WarmupTrigger = dynamic(() => import("@/components/dev/WarmupTrigger"), {
   ssr: false,
 });
+const CartBubble = dynamic(() => import("@/components/CartBubble"), {
+  ssr: false,
+  loading: () => null,
+});
+const CartSticky = dynamic(() => import("@/components/cart/CartSticky"), {
+  ssr: false,
+});
+const NavbarSearch = dynamic(() => import("@/components/NavbarSearch"), {
+  ssr: false,
+});
+const ToothAccountMenu = dynamic(
+  () =>
+    import("@/components/ToothAccountMenu").then((m) => ({
+      default: m.ToothAccountMenu,
+    })),
+  {
+    ssr: false,
+  },
+);
 
 const inter = Inter({ subsets: ["latin"], display: "swap" });
 
@@ -136,7 +152,9 @@ export default function RootLayout({
           </div>
         </header>
 
-        <main className="max-w-6xl mx-auto p-4 flex-1 w-full pb-safe">
+        <main
+          className={`max-w-6xl mx-auto p-4 flex-1 w-full ${safeAreaStyles.pbSafe}`}
+        >
           {children}
           <FinalThanks />
         </main>

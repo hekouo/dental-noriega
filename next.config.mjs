@@ -1,23 +1,57 @@
+/* eslint-env node */
+/* global process */
+import { URL } from "node:url";
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
+
 // next.config.mjs
 /** @type {import('next').NextConfig} */
+const withBundleAnalyzer = process.env.ANALYZE === "true"
+  ? require("@next/bundle-analyzer")({
+      enabled: true,
+      openAnalyzer: false,
+    })
+  : (x) => x;
+
+const remotePatterns = [
+  {
+    protocol: "https",
+    hostname: "lh3.googleusercontent.com",
+    port: "",
+    pathname: "/**",
+  },
+  {
+    protocol: "https",
+    hostname: "drive.google.com",
+    port: "",
+    pathname: "/**",
+  },
+  {
+    protocol: "https",
+    hostname: "api.qrserver.com",
+    port: "",
+    pathname: "/**",
+  },
+];
+
+if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+  const supabase = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL);
+  remotePatterns.push({
+    protocol: supabase.protocol.replace(":", ""),
+    hostname: supabase.hostname,
+    port: supabase.port,
+    pathname: "/**",
+  });
+}
+
 const nextConfig = {
   images: {
-    remotePatterns: [
-      { protocol: "https", hostname: "lh3.googleusercontent.com", port: "", pathname: "/**" },
-    ],
-    unoptimized: true,
+    formats: ["image/avif", "image/webp"],
+    remotePatterns,
   },
   async headers() {
     return [
-      {
-        source: "/og/:path*",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "public, max-age=31536000, immutable",
-          },
-        ],
-      },
       {
         source: "/_next/static/:path*",
         headers: [
@@ -49,4 +83,5 @@ const nextConfig = {
     return config;
   },
 };
-export default nextConfig;
+
+export default withBundleAnalyzer(nextConfig);
