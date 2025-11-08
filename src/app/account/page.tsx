@@ -1,6 +1,7 @@
 import Link from "next/link";
+import { Settings, Package, CreditCard, User } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
-import { User, Settings, Package, CreditCard } from "lucide-react";
+import buttonStyles from "@/components/ui/button.module.css";
 
 export default function AccountPage() {
   return (
@@ -9,9 +10,7 @@ export default function AccountPage() {
         <div className="bg-white rounded-lg shadow-lg p-8">
           <div className="text-center mb-8">
             <User size={64} className="text-primary-600 mx-auto mb-4" />
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Mi Cuenta
-            </h1>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Mi Cuenta</h1>
             <p className="text-gray-600">
               Gestión de cuenta y configuración personal
             </p>
@@ -72,9 +71,9 @@ export default function AccountPage() {
           </div>
 
           <div className="text-center">
-            <Link 
-              href={ROUTES.home()} 
-              className="btn btn-primary"
+            <Link
+              href={ROUTES.home()}
+              className={`${buttonStyles.primary} px-4`}
             >
               Volver al Inicio
             </Link>

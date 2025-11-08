@@ -6,6 +6,7 @@ import Link from "next/link";
 import { getWithTTL, KEYS } from "@/lib/utils/persist";
 import FeaturedGrid from "@/components/FeaturedGrid";
 import type { FeaturedItem } from "@/lib/catalog/getFeatured.server";
+import buttonStyles from "@/components/ui/button.module.css";
 
 type LastOrder = {
   orderRef?: string;
@@ -164,10 +165,10 @@ export default function RecommendedClient() {
         <div className="text-center py-8 text-gray-500">
           <p className="mb-4">{error || "Sin recomendados disponibles"}</p>
           <div className="flex gap-3 justify-center">
-            <Link href="/destacados" className="btn btn-primary">
+            <Link href="/destacados" className={`${buttonStyles.primary} px-4`}>
               Ver destacados
             </Link>
-            <Link href="/buscar" className="btn">
+            <Link href="/buscar" className={`${buttonStyles.outline} px-4`}>
               Buscar productos
             </Link>
           </div>

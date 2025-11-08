@@ -5,6 +5,8 @@ import dynamicImport from "next/dynamic";
 import SearchResultCard from "@/components/SearchResultCard";
 import { ROUTES } from "@/lib/routes";
 import SearchTracker from "@/components/SearchTracker.client";
+import buttonStyles from "@/components/ui/button.module.css";
+import type { CatalogItem } from "@/lib/supabase/catalog";
 
 export const dynamic = "force-dynamic";
 
@@ -51,21 +53,32 @@ export default async function BuscarPage({ searchParams }: Props) {
     ? await res.json()
     : { items: [], total: 0, page, perPage: 20 };
 
-  const { items, total, perPage } = data as {
-    items: Array<{
-      id: string;
-      section: string;
-      product_slug: string;
-      title: string;
-      price: number;
-      image_url: string | null;
-    }>;
-    total: number;
-    page: number;
-    perPage: number;
+  type SearchResponseItem = {
+    id: string;
+    section: string;
+    product_slug: string;
+    title: string;
+    price: number;
+    image_url: string | null;
+    stock_qty?: number | null;
   };
 
-  const totalPages = Math.ceil(total / perPage);
+  const rawItems = (data.items ?? []) as SearchResponseItem[];
+  const total = Number(data.total ?? 0);
+  const perPage = Number(data.perPage ?? 20);
+
+  const items: CatalogItem[] = rawItems.map((it) => ({
+    id: it.id,
+    section: it.section,
+    product_slug: it.product_slug,
+    title: it.title,
+    price_cents: Math.round((it.price ?? 0) * 100),
+    image_url: it.image_url,
+    in_stock: null,
+    stock_qty: it.stock_qty ?? null,
+  }));
+
+  const totalPages = Math.ceil(total / perPage || 1);
 
   return (
     <section className="space-y-6" role="search">
@@ -90,7 +103,10 @@ export default async function BuscarPage({ searchParams }: Props) {
           <p className="text-sm mb-6">
             Intenta con otros términos o explora nuestros productos destacados.
           </p>
-          <Link href={ROUTES.destacados()} className="btn btn-primary">
+          <Link
+            href={ROUTES.destacados()}
+            className={`${buttonStyles.primary} px-4`}
+          >
             Ver destacados
           </Link>
         </div>
@@ -99,23 +115,8 @@ export default async function BuscarPage({ searchParams }: Props) {
       {items.length > 0 && (
         <>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {items.map((it) => (
-              <SearchResultCard
-                key={it.id}
-                item={
-                  {
-                    id: it.id,
-                    section: it.section,
-                    product_slug: it.product_slug,
-                    title: it.title,
-                    price_cents: it.price * 100,
-                    image_url: it.image_url,
-                    in_stock: null,
-                    stock_qty: null,
-                  } as any
-                }
-                highlightQuery={q}
-              />
+            {items.map((item) => (
+              <SearchResultCard key={item.id} item={item} highlightQuery={q} />
             ))}
           </div>
 
@@ -125,7 +126,7 @@ export default async function BuscarPage({ searchParams }: Props) {
               {page > 1 && (
                 <Link
                   href={`/buscar?q=${encodeURIComponent(q)}&page=${page - 1}`}
-                  className="btn btn-outline"
+                  className={`${buttonStyles.outline} px-3`}
                 >
                   ← Anterior
                 </Link>
@@ -136,7 +137,7 @@ export default async function BuscarPage({ searchParams }: Props) {
               {page < totalPages && (
                 <Link
                   href={`/buscar?q=${encodeURIComponent(q)}&page=${page + 1}`}
-                  className="btn btn-outline"
+                  className={`${buttonStyles.outline} px-3`}
                 >
                   Siguiente →
                 </Link>

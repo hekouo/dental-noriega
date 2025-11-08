@@ -1,6 +1,7 @@
 import React from "react";
 import { Metadata } from "next";
 import Link from "next/link";
+import buttonStyles from "@/components/ui/button.module.css";
 
 export const metadata: Metadata = {
   title: "Mis Pedidos | Depósito Dental Noriega",
@@ -20,10 +21,10 @@ export default function PedidosPage() {
           historial de tus pedidos aquí.
         </p>
         <div className="flex gap-3 justify-center flex-wrap">
-          <Link href="/" className="btn btn-primary">
+          <Link href="/" className={`${buttonStyles.primary} px-4`}>
             Volver al inicio
           </Link>
-          <Link href="/catalogo" className="btn">
+          <Link href="/catalogo" className={`${buttonStyles.outline} px-4`}>
             Ir al catálogo
           </Link>
         </div>

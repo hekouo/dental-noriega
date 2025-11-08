@@ -1,0 +1,8 @@
+.rootVars {
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-b: var(--safe-area-bottom);
+}
+
+.pbSafe {
+  padding-bottom: calc(1rem + var(--safe-area-bottom));
+}

@@ -1,13 +1,14 @@
 "use client";
 
+import React, { memo, useState } from "react";
 import { formatMXN } from "@/lib/utils/currency";
-import { pointsFor } from "@/lib/utils/points";
+import PointsBadge from "@/components/PointsBadge";
+import { ShoppingCart, CreditCard } from "lucide-react";
+import buttonStyles from "@/components/ui/button.module.css";
 import { useCartStore } from "@/lib/store/cartStore";
 import { useCheckoutStore } from "@/lib/store/checkoutStore";
-import { ShoppingCart, CreditCard } from "lucide-react";
-import { useState, memo } from "react";
 import ProductImage from "@/components/ProductImage";
-import PointsBadge from "@/components/PointsBadge";
+import { pointsFor } from "@/lib/utils/points";
 
 interface ProductCardProps {
   sku: string;
@@ -96,7 +97,7 @@ export const ProductCard = memo(function ProductCard({
           <button
             onClick={handleAddToCart}
             disabled={isAdding}
-            className="w-full btn btn-primary flex items-center justify-center gap-2 disabled:opacity-50"
+            className={`${buttonStyles.primary} w-full flex items-center justify-center gap-2`}
           >
             <ShoppingCart size={18} />
             {isAdding ? "Agregado!" : "Agregar al Carrito"}
@@ -105,7 +106,7 @@ export const ProductCard = memo(function ProductCard({
           <button
             onClick={handleAddToCheckout}
             disabled={isAddingToCheckout}
-            className="w-full btn btn-secondary flex items-center justify-center gap-2 disabled:opacity-50"
+            className={`${buttonStyles.secondary} w-full flex items-center justify-center gap-2`}
           >
             <CreditCard size={18} />
             {isAddingToCheckout ? "Agregado!" : "Añadir al Checkout"}

@@ -2,6 +2,7 @@
 import React from "react";
 import Link from "next/link";
 import { ROUTES } from "@/lib/routes";
+import buttonStyles from "@/components/ui/button.module.css";
 
 export default function NotFound() {
   return (
@@ -11,17 +12,16 @@ export default function NotFound() {
         La página que buscas no existe.
       </p>
       <div className="flex flex-col sm:flex-row gap-4 justify-center">
-        <Link href={ROUTES.home()} className="btn btn-primary">
+        <Link href={ROUTES.home()} className={`${buttonStyles.primary} px-4`}>
           Ir al inicio
         </Link>
-        <Link href={ROUTES.buscar()} className="btn btn-outline">
+        <Link href={ROUTES.buscar()} className={`${buttonStyles.outline} px-4`}>
           Buscar productos
         </Link>
-        <Link href={ROUTES.tienda()} className="btn btn-outline">
+        <Link href={ROUTES.tienda()} className={`${buttonStyles.outline} px-4`}>
           Ver tienda
         </Link>
       </div>
     </main>
   );
 }
-

@@ -5,13 +5,30 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { Inter } from "next/font/google";
 import dynamic from "next/dynamic";
-import WhatsappBubble from "@/components/WhatsappBubble";
-import CartBubble from "@/components/CartBubble";
-import CartSticky from "@/components/cart/CartSticky";
-import { ToothAccountMenu } from "@/components/ToothAccountMenu";
+import safeAreaStyles from "@/components/ui/safe-area.module.css";
+const WhatsappBubble = dynamic(() => import("@/components/WhatsappBubble"), {
+  ssr: false,
+});
+const CartBubble = dynamic(() => import("@/components/CartBubble"), {
+  ssr: false,
+});
+const CartSticky = dynamic(() => import("@/components/cart/CartSticky"), {
+  ssr: false,
+});
+const ToothAccountMenu = dynamic(
+  () =>
+    import("@/components/ToothAccountMenu").then((m) => ({
+      default: m.ToothAccountMenu,
+    })),
+  {
+    ssr: false,
+  },
+);
 import { ROUTES } from "@/lib/routes";
 import BrandMark from "@/components/BrandMark";
-import NavbarSearch from "@/components/NavbarSearch";
+const NavbarSearch = dynamic(() => import("@/components/NavbarSearch"), {
+  ssr: false,
+});
 
 // ConsultarDrawer removido - ya no se usa
 const CheckoutDevGuard = dynamic(
@@ -80,8 +97,16 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const supabaseOrigin = process.env.NEXT_PUBLIC_SUPABASE_URL
+    ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).origin
+    : null;
+
   return (
-    <html lang="es" suppressHydrationWarning>
+    <html
+      lang="es"
+      suppressHydrationWarning
+      className={safeAreaStyles.rootVars}
+    >
       <head>
         <link
           rel="preconnect"
@@ -89,11 +114,15 @@ export default function RootLayout({
           crossOrigin=""
         />
         <link rel="preconnect" href="https://drive.google.com" crossOrigin="" />
+        {supabaseOrigin ? (
+          <link rel="preconnect" href={supabaseOrigin} crossOrigin="" />
+        ) : null}
       </head>
       <body
         className={`${inter.className} min-h-screen bg-white text-gray-900 flex flex-col`}
       >
         <CheckoutDevGuard />
+        <CartDevGuard />
         <header className="border-b bg-white sticky top-0 z-40">
           <nav className="max-w-6xl mx-auto flex items-center justify-between p-4 gap-4">
             <Link href={ROUTES.home()}>
@@ -136,7 +165,9 @@ export default function RootLayout({
           </div>
         </header>
 
-        <main className="max-w-6xl mx-auto p-4 flex-1 w-full pb-safe">
+        <main
+          className={`max-w-6xl mx-auto p-4 flex-1 w-full ${safeAreaStyles.pbSafe}`}
+        >
           {children}
           <FinalThanks />
         </main>
@@ -148,7 +179,6 @@ export default function RootLayout({
 
         {/* Dev Guards */}
         <CheckoutDevGuard />
-        <CartDevGuard />
         {process.env.NEXT_PUBLIC_DEBUG === "1" ? <WarmupTrigger /> : null}
 
         {/* Footer */}

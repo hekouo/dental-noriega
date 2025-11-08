@@ -1,12 +1,14 @@
 "use client";
 
+import React, { useState } from "react";
 import Link from "next/link";
 import { ShoppingCart, User, Menu, X } from "lucide-react";
 import { useCartStore } from "@/lib/store/cartStore";
 import { getBrowserSupabase } from "@/lib/supabase/client";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ROUTES } from "@/lib/routes";
+import buttonStyles from "@/components/ui/button.module.css";
 
 export function TopNav() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -115,7 +117,10 @@ export function TopNav() {
                 </div>
               </div>
             ) : (
-              <Link href={ROUTES.cuenta()} className="btn btn-primary">
+              <Link
+                href={ROUTES.cuenta()}
+                className={`${buttonStyles.primary} px-4`}
+              >
                 <span>Iniciar Sesión</span>
               </Link>
             )}

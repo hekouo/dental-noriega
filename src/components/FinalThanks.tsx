@@ -1,6 +1,8 @@
 "use client";
 
+import Image from "next/image";
 import { SITE, waLink } from "@/lib/site";
+import buttonStyles from "@/components/ui/button.module.css";
 
 export default function FinalThanks() {
   const msg = `Hola, vengo desde ${SITE.name}.`;
@@ -57,7 +59,7 @@ export default function FinalThanks() {
             href={wa}
             target="_blank"
             rel="noopener noreferrer"
-            className="btn btn-primary px-4 py-2 rounded-lg"
+            className={`${buttonStyles.primary} px-4 py-2`}
           >
             <span>Escribir por WhatsApp</span>
           </a>
@@ -84,7 +86,14 @@ export default function FinalThanks() {
 
       <div className="flex md:justify-end">
         <div className="p-3 bg-white rounded-xl border">
-          <img src={qr} alt="Escanea para WhatsApp" width={180} height={180} />
+          <Image
+            src={qr}
+            alt="Escanea para WhatsApp"
+            width={180}
+            height={180}
+            sizes="180px"
+            className="w-full h-auto"
+          />
           <p className="text-xs text-center text-gray-500 mt-2">
             Escanéame para WhatsApp
           </p>

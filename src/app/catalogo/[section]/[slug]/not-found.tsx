@@ -1,9 +1,10 @@
 // src/app/catalogo/[section]/[slug]/not-found.tsx
 import Link from "next/link";
-import { getProductsBySectionFromView } from "@/lib/catalog/getProductsBySectionFromView.server";
-import SearchResultCard from "@/components/SearchResultCard";
-import { ROUTES } from "@/lib/routes";
 import { Package } from "lucide-react";
+import { ROUTES } from "@/lib/routes";
+import SearchResultCard from "@/components/SearchResultCard";
+import { getProductsBySection } from "@/lib/catalog/getBySection.server";
+import buttonStyles from "@/components/ui/button.module.css";
 
 type Props = {
   params: { section: string; slug: string };
@@ -11,7 +12,7 @@ type Props = {
 
 export default async function ProductNotFound({ params }: Props) {
   // Obtener 4 sugerencias de la misma sección
-  const suggestions = await getProductsBySectionFromView(params.section, 4, 0);
+  const suggestions = await getProductsBySection(params.section, 4, 0);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -32,10 +33,16 @@ export default async function ProductNotFound({ params }: Props) {
             El producto que buscas no existe o ha sido eliminado.
           </p>
           <div className="flex gap-4 justify-center">
-            <Link href={ROUTES.catalogIndex()} className="btn btn-primary">
+            <Link
+              href={ROUTES.catalogIndex()}
+              className={`${buttonStyles.primary} px-4`}
+            >
               <span>Ver catálogo completo</span>
             </Link>
-            <Link href={ROUTES.destacados()} className="btn btn-outline">
+            <Link
+              href={ROUTES.destacados()}
+              className={`${buttonStyles.outline} px-4`}
+            >
               <span>Ver destacados</span>
             </Link>
           </div>

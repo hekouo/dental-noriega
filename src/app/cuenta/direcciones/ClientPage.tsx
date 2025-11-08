@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Plus, Trash2, Edit } from "lucide-react";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { getBrowserSupabase } from "@/lib/supabase/client";
-import { Plus, Edit, Trash2 } from "lucide-react";
+import buttonStyles from "@/components/ui/button.module.css";
 
 type Address = {
   id: string;
@@ -83,10 +84,7 @@ export default function DireccionesPageClient() {
 
     try {
       if (editingId) {
-        await s
-          .from("addresses")
-          .update(addressData)
-          .eq("id", editingId);
+        await s.from("addresses").update(addressData).eq("id", editingId);
       } else {
         await s.from("addresses").insert(addressData);
       }
@@ -126,7 +124,7 @@ export default function DireccionesPageClient() {
           <h1 className="text-3xl font-bold">Mis Direcciones</h1>
           <button
             onClick={() => setShowForm(!showForm)}
-            className="btn btn-primary flex items-center gap-2"
+            className={`${buttonStyles.primary} flex items-center gap-2 px-4`}
           >
             <Plus size={20} />
             Nueva Dirección
@@ -201,7 +199,10 @@ export default function DireccionesPageClient() {
               </div>
 
               <div className="flex gap-2">
-                <button type="submit" className="btn btn-primary">
+                <button
+                  type="submit"
+                  className={`${buttonStyles.primary} px-4`}
+                >
                   Guardar
                 </button>
                 <button
@@ -210,7 +211,7 @@ export default function DireccionesPageClient() {
                     setShowForm(false);
                     setEditingId(null);
                   }}
-                  className="btn btn-secondary"
+                  className={`${buttonStyles.secondary} px-4`}
                 >
                   Cancelar
                 </button>
@@ -271,4 +272,3 @@ export default function DireccionesPageClient() {
     </AuthGuard>
   );
 }
-

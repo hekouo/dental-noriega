@@ -5,6 +5,7 @@ import React, { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Search } from "lucide-react";
 import Link from "next/link";
+import buttonStyles from "@/components/ui/button.module.css";
 
 type SearchResult = {
   id: string;
@@ -196,7 +197,7 @@ export default function NavbarSearch() {
         disabled={!value.trim()}
         type="button"
         aria-label="Buscar"
-        className="btn btn-primary px-3 py-2 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]"
+        className={`${buttonStyles.primary} gap-2 rounded-lg px-3 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed`}
       >
         <Search size={16} aria-hidden="true" />
         <span className="hidden sm:inline">Buscar</span>

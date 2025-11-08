@@ -9,6 +9,7 @@ import Link from "next/link";
 import { ROUTES } from "@/lib/routes";
 import RecentlyViewed from "@/components/RecentlyViewed";
 import ImageWithFallback from "@/components/ui/ImageWithFallback";
+import buttonStyles from "@/components/ui/button.module.css";
 
 type Props = {
   section: string;
@@ -105,10 +106,16 @@ export default function ProductResolver({ section, slug, children }: Props) {
             )}
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href={ROUTES.catalogIndex()} className="btn btn-primary">
+              <Link
+                href={ROUTES.catalogIndex()}
+                className={`${buttonStyles.primary} px-4`}
+              >
                 Ver Catálogo
               </Link>
-              <Link href={ROUTES.home()} className="btn btn-secondary">
+              <Link
+                href={ROUTES.home()}
+                className={`${buttonStyles.secondary} px-4`}
+              >
                 Ir al Inicio
               </Link>
             </div>
@@ -163,10 +170,10 @@ export default function ProductResolver({ section, slug, children }: Props) {
 
                 <div className="mt-6">
                   <div className="flex gap-4">
-                    <button className="btn btn-primary flex-1">
+                    <button className={`${buttonStyles.primary} flex-1`}>
                       <span>Agregar al Carrito</span>
                     </button>
-                    <button className="btn btn-secondary flex-1">
+                    <button className={`${buttonStyles.secondary} flex-1`}>
                       <span>Comprar Ahora</span>
                     </button>
                   </div>

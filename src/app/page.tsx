@@ -5,6 +5,7 @@ import { ROUTES } from "@/lib/routes";
 import { getFeatured } from "@/lib/catalog/getFeatured.server";
 import FeaturedCarousel from "@/components/FeaturedCarousel";
 import FeaturedGrid from "@/components/FeaturedGrid";
+import buttonStyles from "@/components/ui/button.module.css";
 
 // Dynamic import para componente no crítico
 const FinalThanks = dynamicImport(() => import("@/components/FinalThanks"), {
@@ -12,7 +13,6 @@ const FinalThanks = dynamicImport(() => import("@/components/FinalThanks"), {
 });
 
 export const revalidate = 60; // Cache leve
-export const dynamic = "force-dynamic"; // Si fetch depende de cookies del server wrapper
 
 export default async function HomePage() {
   const items = await getFeatured();
@@ -31,13 +31,13 @@ export default async function HomePage() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href={ROUTES.destacados()}
-              className="btn btn-primary bg-white text-primary-600 hover:bg-gray-100 text-lg px-8 py-3"
+              className={`${buttonStyles.outline} text-primary-600 border-primary-200 bg-white hover:bg-gray-100 text-lg px-8 py-3`}
             >
               <span>Ver Productos Destacados</span>
             </Link>
             <Link
               href={ROUTES.catalogIndex()}
-              className="btn bg-primary-700 text-white hover:bg-primary-800 text-lg px-8 py-3"
+              className={`${buttonStyles.primary} text-lg px-8 py-3`}
             >
               <span>Explorar Catálogo</span>
             </Link>
@@ -111,7 +111,7 @@ export default async function HomePage() {
           </p>
           <Link
             href={ROUTES.cuenta()}
-            className="btn btn-primary text-lg px-8 py-3"
+            className={`${buttonStyles.primary} text-lg px-8 py-3`}
           >
             <span>Crear Cuenta</span>
           </Link>

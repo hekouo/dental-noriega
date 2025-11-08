@@ -4,6 +4,7 @@
 import React, { useEffect } from "react";
 import Link from "next/link";
 import { ROUTES } from "@/lib/routes";
+import buttonStyles from "@/components/ui/button.module.css";
 
 export default function ErrorPage({
   error,
@@ -23,22 +24,21 @@ export default function ErrorPage({
         Hubo un error al cargar esta página.
       </p>
       <div className="flex flex-col sm:flex-row gap-4 justify-center mb-4">
-        <button onClick={reset} className="btn btn-primary">
+        <button onClick={reset} className={`${buttonStyles.primary} px-4`}>
           Intentar de nuevo
         </button>
-        <Link href={ROUTES.home()} className="btn btn-outline">
+        <Link href={ROUTES.home()} className={`${buttonStyles.outline} px-4`}>
           Ir al inicio
         </Link>
       </div>
       <div className="flex flex-col sm:flex-row gap-4 justify-center">
-        <Link href={ROUTES.buscar()} className="btn btn-outline">
+        <Link href={ROUTES.buscar()} className={`${buttonStyles.outline} px-4`}>
           Buscar productos
         </Link>
-        <Link href={ROUTES.tienda()} className="btn btn-outline">
+        <Link href={ROUTES.tienda()} className={`${buttonStyles.outline} px-4`}>
           Ver tienda
         </Link>
       </div>
     </main>
   );
 }
-
