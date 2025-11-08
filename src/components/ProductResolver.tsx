@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
+import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
   resolveProductClient,
@@ -9,12 +10,12 @@ import Link from "next/link";
 import { ROUTES } from "@/lib/routes";
 import RecentlyViewed from "@/components/RecentlyViewed";
 import ImageWithFallback from "@/components/ui/ImageWithFallback";
-import buttonStyles from "@/components/ui/button.module.css";
+import { buttonOutline, buttonPrimary } from "@/lib/styles/button";
 
 type Props = {
   section: string;
   slug: string;
-  children: React.ReactNode;
+  children: ReactNode;
 };
 
 export default function ProductResolver({ section, slug, children }: Props) {
@@ -106,16 +107,10 @@ export default function ProductResolver({ section, slug, children }: Props) {
             )}
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link
-                href={ROUTES.catalogIndex()}
-                className={`${buttonStyles.primary} px-4`}
-              >
+              <Link href={ROUTES.catalogIndex()} className={buttonPrimary}>
                 Ver Catálogo
               </Link>
-              <Link
-                href={ROUTES.home()}
-                className={`${buttonStyles.secondary} px-4`}
-              >
+              <Link href={ROUTES.home()} className={buttonOutline}>
                 Ir al Inicio
               </Link>
             </div>
@@ -170,10 +165,10 @@ export default function ProductResolver({ section, slug, children }: Props) {
 
                 <div className="mt-6">
                   <div className="flex gap-4">
-                    <button className={`${buttonStyles.primary} flex-1`}>
+                    <button className={`${buttonPrimary} flex-1`} type="button">
                       <span>Agregar al Carrito</span>
                     </button>
-                    <button className={`${buttonStyles.secondary} flex-1`}>
+                    <button className={`${buttonOutline} flex-1`} type="button">
                       <span>Comprar Ahora</span>
                     </button>
                   </div>

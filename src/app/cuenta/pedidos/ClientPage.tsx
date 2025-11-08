@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AuthGuard } from "@/components/auth/AuthGuard";
 import { getBrowserSupabase } from "@/lib/supabase/client";
 import { formatMXN } from "@/lib/utils/currency";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import Link from "next/link";
 import { ROUTES } from "@/lib/routes";
-import { AuthGuard } from "@/components/auth/AuthGuard";
-import buttonStyles from "@/components/ui/button.module.css";
+import { buttonPrimary } from "@/lib/styles/button";
 
 const statusLabels: Record<string, string> = {
   pending: "Pendiente",
@@ -24,11 +24,11 @@ const statusColors: Record<string, string> = {
   cancelled: "bg-red-100 text-red-800",
 };
 
-type OrderItemRecord = {
+type OrderItem = {
   id: string;
+  quantity: number;
   product_name: string;
   price: number;
-  quantity: number;
 };
 
 type Order = {
@@ -36,7 +36,7 @@ type Order = {
   status: string;
   created_at: string;
   total_amount: number;
-  order_items?: OrderItemRecord[];
+  order_items?: OrderItem[];
 };
 
 export default function PedidosPageClient() {
@@ -88,10 +88,7 @@ export default function PedidosPageClient() {
           {orders.length === 0 ? (
             <div className="bg-white rounded-lg shadow-sm p-8 text-center">
               <p className="text-gray-500 mb-4">No tienes pedidos aún</p>
-              <Link
-                href={ROUTES.catalogIndex()}
-                className={`${buttonStyles.primary} px-4`}
-              >
+              <Link href={ROUTES.catalogIndex()} className={buttonPrimary}>
                 Ver Catálogo
               </Link>
             </div>
@@ -130,7 +127,7 @@ export default function PedidosPageClient() {
                       Productos ({order.order_items?.length || 0})
                     </h4>
                     <div className="space-y-2">
-                      {order.order_items?.map((item: OrderItemRecord) => (
+                      {order.order_items?.map((item: OrderItem) => (
                         <div
                           key={item.id}
                           className="flex justify-between text-sm"

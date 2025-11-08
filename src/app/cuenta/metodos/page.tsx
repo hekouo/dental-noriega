@@ -1,7 +1,7 @@
 import React from "react";
 import { Metadata } from "next";
 import Link from "next/link";
-import buttonStyles from "@/components/ui/button.module.css";
+import { buttonOutline, buttonPrimary } from "@/lib/styles/button";
 
 export const metadata: Metadata = {
   title: "Métodos de Pago | Depósito Dental Noriega",
@@ -21,10 +21,10 @@ export default function MetodosPage() {
           métodos de pago guardados aquí.
         </p>
         <div className="flex gap-3 justify-center flex-wrap">
-          <Link href="/" className={`${buttonStyles.primary} px-4`}>
+          <Link href="/" className={buttonPrimary}>
             Volver al inicio
           </Link>
-          <Link href="/catalogo" className={`${buttonStyles.outline} px-4`}>
+          <Link href="/catalogo" className={buttonOutline}>
             Ir al catálogo
           </Link>
         </div>

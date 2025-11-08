@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import buttonStyles from "@/components/ui/button.module.css";
 import { loginSchema, registerSchema } from "@/lib/validations/auth";
 import { loginAction, registerAction } from "@/lib/actions/auth";
+import { buttonPrimary } from "@/lib/styles/button";
 
 export default function CuentaPage() {
   const [mode, setMode] = useState<"login" | "register">("login");
@@ -153,7 +153,7 @@ export default function CuentaPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className={`${buttonStyles.primary} w-full`}
+            className={`${buttonPrimary} w-full disabled:opacity-50`}
           >
             {(() => {
               if (isLoading) return "Procesando...";

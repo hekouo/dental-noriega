@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { SITE, waLink } from "@/lib/site";
-import buttonStyles from "@/components/ui/button.module.css";
+import { buttonPrimary } from "@/lib/styles/button";
 
 export default function FinalThanks() {
   const msg = `Hola, vengo desde ${SITE.name}.`;
@@ -59,7 +59,7 @@ export default function FinalThanks() {
             href={wa}
             target="_blank"
             rel="noopener noreferrer"
-            className={`${buttonStyles.primary} px-4 py-2`}
+            className={`${buttonPrimary} px-4 py-2`}
           >
             <span>Escribir por WhatsApp</span>
           </a>

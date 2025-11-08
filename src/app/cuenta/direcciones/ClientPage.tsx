@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Plus, Trash2, Edit } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Plus, Edit, Trash2 } from "lucide-react";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { getBrowserSupabase } from "@/lib/supabase/client";
-import buttonStyles from "@/components/ui/button.module.css";
+import { buttonOutline, buttonPrimary } from "@/lib/styles/button";
 
 type Address = {
   id: string;
@@ -17,7 +17,7 @@ type Address = {
   city: string;
   state: string;
   zip: string;
-  is_default: boolean;
+  is_default?: boolean;
 };
 
 export default function DireccionesPageClient() {
@@ -124,7 +124,8 @@ export default function DireccionesPageClient() {
           <h1 className="text-3xl font-bold">Mis Direcciones</h1>
           <button
             onClick={() => setShowForm(!showForm)}
-            className={`${buttonStyles.primary} flex items-center gap-2 px-4`}
+            className={`${buttonPrimary} flex items-center gap-2`}
+            type="button"
           >
             <Plus size={20} />
             Nueva Dirección
@@ -199,10 +200,7 @@ export default function DireccionesPageClient() {
               </div>
 
               <div className="flex gap-2">
-                <button
-                  type="submit"
-                  className={`${buttonStyles.primary} px-4`}
-                >
+                <button type="submit" className={`${buttonPrimary} px-4 py-2`}>
                   Guardar
                 </button>
                 <button
@@ -211,7 +209,7 @@ export default function DireccionesPageClient() {
                     setShowForm(false);
                     setEditingId(null);
                   }}
-                  className={`${buttonStyles.secondary} px-4`}
+                  className={`${buttonOutline} px-4 py-2`}
                 >
                   Cancelar
                 </button>

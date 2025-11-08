@@ -15,7 +15,7 @@ import { track } from "@/lib/analytics";
 import { validateCoupon } from "@/lib/coupons";
 import { useSelectedTotal } from "@/lib/store/checkoutSelectors";
 import { formatMXN as formatMXNMoney } from "@/lib/utils/money";
-import buttonStyles from "@/components/ui/button.module.css";
+import { buttonPrimary } from "@/lib/styles/button";
 
 // eslint-disable-next-line sonarjs/cognitive-complexity -- Formulario largo pero estructurado, todos los campos son necesarios
 function DatosPageContent() {
@@ -118,7 +118,7 @@ function DatosPageContent() {
       <section className="mx-auto max-w-3xl p-6 text-center">
         <h1 className="text-2xl font-semibold">No hay nada para procesar</h1>
         <p className="opacity-70 mt-2">Vuelve al carrito y agrega productos.</p>
-        <Link href="/carrito" className={`${buttonStyles.primary} mt-4 px-4`}>
+        <Link href="/carrito" className={`${buttonPrimary} mt-4`}>
           <span>Ir al carrito</span>
         </Link>
       </section>

@@ -9,7 +9,7 @@ import { getWithTTL, KEYS } from "@/lib/utils/persist";
 import type { ShippingMethod } from "@/lib/store/checkoutStore";
 import RecommendedClient from "./Recommended.client";
 import DebugLastOrder from "@/components/DebugLastOrder";
-import buttonStyles from "@/components/ui/button.module.css";
+import { buttonOutline, buttonPrimary } from "@/lib/styles/button";
 
 export const dynamic = "force-dynamic";
 
@@ -124,13 +124,13 @@ function GraciasContent() {
       </p>
 
       <div className="flex gap-3 flex-wrap">
-        <Link href="/catalogo" className={`${buttonStyles.primary} px-6`}>
+        <Link href="/catalogo" className={buttonPrimary}>
           Continuar compra
         </Link>
-        <Link href="/destacados" className={`${buttonStyles.outline} px-6`}>
+        <Link href="/destacados" className={buttonOutline}>
           Ver destacados
         </Link>
-        <Link href="/catalogo" className={`${buttonStyles.outline} px-6`}>
+        <Link href="/catalogo" className={buttonOutline}>
           Ver catálogo completo
         </Link>
       </div>

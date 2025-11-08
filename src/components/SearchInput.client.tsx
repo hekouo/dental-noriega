@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Search } from "lucide-react";
-import buttonStyles from "@/components/ui/button.module.css";
+import { buttonPrimary } from "@/lib/styles/button";
 
 export default function SearchInput() {
   const router = useRouter();
@@ -72,7 +72,7 @@ export default function SearchInput() {
           autoFocus
         />
       </div>
-      <button className={`${buttonStyles.primary} px-6 py-3`} type="submit">
+      <button className={`${buttonPrimary} px-6 py-3`} type="submit">
         <span>Buscar</span>
       </button>
     </form>

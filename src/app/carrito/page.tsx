@@ -13,7 +13,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useCallback, useRef, startTransition } from "react";
 import { ROUTES } from "@/lib/routes";
-import buttonStyles from "@/components/ui/button.module.css";
+import { buttonPrimary } from "@/lib/styles/button";
 
 export default function CarritoPage() {
   const busyRef = useRef(false);
@@ -57,10 +57,7 @@ export default function CarritoPage() {
           <p className="text-gray-600 mb-6">
             Agrega productos para comenzar tu compra
           </p>
-          <Link
-            href={ROUTES.destacados()}
-            className={`${buttonStyles.primary} px-4`}
-          >
+          <Link href={ROUTES.destacados()} className={buttonPrimary}>
             <span>Ver Productos</span>
           </Link>
         </div>
@@ -180,7 +177,7 @@ export default function CarritoPage() {
             <button
               onClick={onContinuar}
               disabled={busyRef.current || selectedCount === 0}
-              className={`${buttonStyles.primary} w-full`}
+              className={`${buttonPrimary} w-full block text-center disabled:opacity-50 disabled:cursor-not-allowed`}
               aria-busy={busyRef.current}
             >
               {(() => {

@@ -5,7 +5,7 @@ import { ROUTES } from "@/lib/routes";
 import { getFeatured } from "@/lib/catalog/getFeatured.server";
 import FeaturedCarousel from "@/components/FeaturedCarousel";
 import FeaturedGrid from "@/components/FeaturedGrid";
-import buttonStyles from "@/components/ui/button.module.css";
+import { buttonBase, buttonPrimary } from "@/lib/styles/button";
 
 // Dynamic import para componente no crítico
 const FinalThanks = dynamicImport(() => import("@/components/FinalThanks"), {
@@ -31,13 +31,13 @@ export default async function HomePage() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href={ROUTES.destacados()}
-              className={`${buttonStyles.outline} text-primary-600 border-primary-200 bg-white hover:bg-gray-100 text-lg px-8 py-3`}
+              className={`${buttonBase} rounded-lg bg-white text-primary-600 hover:bg-gray-100 text-lg px-8 py-3`}
             >
               <span>Ver Productos Destacados</span>
             </Link>
             <Link
               href={ROUTES.catalogIndex()}
-              className={`${buttonStyles.primary} text-lg px-8 py-3`}
+              className={`${buttonBase} rounded-lg bg-primary-700 text-white hover:bg-primary-800 text-lg px-8 py-3`}
             >
               <span>Explorar Catálogo</span>
             </Link>
@@ -111,7 +111,7 @@ export default async function HomePage() {
           </p>
           <Link
             href={ROUTES.cuenta()}
-            className={`${buttonStyles.primary} text-lg px-8 py-3`}
+            className={`${buttonPrimary} text-lg px-8 py-3`}
           >
             <span>Crear Cuenta</span>
           </Link>

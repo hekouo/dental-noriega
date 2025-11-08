@@ -1,11 +1,10 @@
 // src/app/catalogo/page.tsx
-import React from "react";
 import Link from "next/link";
 import { listSectionsFromCatalog } from "@/lib/supabase/catalog";
 import { getSectionsFromCatalogView } from "@/lib/catalog/getSectionsFromCatalogView.server";
 import { ROUTES } from "@/lib/routes";
 import { Package } from "lucide-react";
-import buttonStyles from "@/components/ui/button.module.css";
+import { buttonPrimary } from "@/lib/styles/button";
 
 export const revalidate = 300; // Cache 5 minutos
 
@@ -34,10 +33,7 @@ export default async function CatalogoIndexPage() {
           <div className="bg-white rounded-lg shadow p-12 text-center">
             <Package size={48} className="mx-auto mb-4 text-gray-400" />
             <p className="text-gray-500 mb-2">Aún no hay secciones</p>
-            <Link
-              href={ROUTES.destacados()}
-              className={`${buttonStyles.primary} px-4`}
-            >
+            <Link href={ROUTES.destacados()} className={buttonPrimary}>
               <span>Ver Destacados</span>
             </Link>
           </div>
