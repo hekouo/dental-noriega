@@ -1,10 +1,79 @@
 import Link from "next/link";
 import dynamicImport from "next/dynamic";
-import { ShoppingBag, Package, Award, Truck } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
 import { getFeatured } from "@/lib/catalog/getFeatured.server";
 import FeaturedCarousel from "@/components/FeaturedCarousel";
 import FeaturedGrid from "@/components/FeaturedGrid";
+import { buttonBase, buttonPrimary } from "@/lib/styles/button";
+
+const ShoppingBagIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={2}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+    {...props}
+  >
+    <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+    <line x1={3} y1={6} x2={21} y2={6} />
+    <path d="M16 10a4 4 0 0 1-8 0" />
+  </svg>
+);
+
+const PackageIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={2}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+    {...props}
+  >
+    <line x1={16.5} y1={9.4} x2={7.5} y2={4.21} />
+    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+    <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+    <line x1={12} y1={22.08} x2={12} y2={12} />
+  </svg>
+);
+
+const AwardIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={2}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+    {...props}
+  >
+    <circle cx={12} cy={8} r={7} />
+    <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" />
+  </svg>
+);
+
+const TruckIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={2}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+    {...props}
+  >
+    <path d="M1 3h15v13H1z" />
+    <path d="M16 8h4l3 3v5h-7V8z" />
+    <circle cx={5.5} cy={18.5} r={2.5} />
+    <circle cx={18.5} cy={18.5} r={2.5} />
+  </svg>
+);
 
 // Dynamic import para componente no crítico
 const FinalThanks = dynamicImport(() => import("@/components/FinalThanks"), {
@@ -31,13 +100,13 @@ export default async function HomePage() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href={ROUTES.destacados()}
-              className="btn btn-primary bg-white text-primary-600 hover:bg-gray-100 text-lg px-8 py-3"
+              className={`${buttonBase} rounded-lg bg-white text-primary-600 hover:bg-gray-100 text-lg px-8 py-3`}
             >
               <span>Ver Productos Destacados</span>
             </Link>
             <Link
               href={ROUTES.catalogIndex()}
-              className="btn bg-primary-700 text-white hover:bg-primary-800 text-lg px-8 py-3"
+              className={`${buttonBase} rounded-lg bg-primary-700 text-white hover:bg-primary-800 text-lg px-8 py-3`}
             >
               <span>Explorar Catálogo</span>
             </Link>
@@ -64,7 +133,7 @@ export default async function HomePage() {
           <div className="grid md:grid-cols-4 gap-8">
             <div className="text-center">
               <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-100 text-primary-600 rounded-full mb-4">
-                <ShoppingBag size={32} />
+                <ShoppingBagIcon width={32} height={32} />
               </div>
               <h3 className="font-semibold mb-2">Compra Fácil</h3>
               <p className="text-gray-600 text-sm">
@@ -73,7 +142,7 @@ export default async function HomePage() {
             </div>
             <div className="text-center">
               <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-100 text-primary-600 rounded-full mb-4">
-                <Package size={32} />
+                <PackageIcon width={32} height={32} />
               </div>
               <h3 className="font-semibold mb-2">Entrega o Recogida</h3>
               <p className="text-gray-600 text-sm">
@@ -82,7 +151,7 @@ export default async function HomePage() {
             </div>
             <div className="text-center">
               <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-100 text-primary-600 rounded-full mb-4">
-                <Award size={32} />
+                <AwardIcon width={32} height={32} />
               </div>
               <h3 className="font-semibold mb-2">Programa de Puntos</h3>
               <p className="text-gray-600 text-sm">
@@ -91,7 +160,7 @@ export default async function HomePage() {
             </div>
             <div className="text-center">
               <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-100 text-primary-600 rounded-full mb-4">
-                <Truck size={32} />
+                <TruckIcon width={32} height={32} />
               </div>
               <h3 className="font-semibold mb-2">Envío Seguro</h3>
               <p className="text-gray-600 text-sm">Seguimiento de tu pedido</p>
@@ -111,7 +180,7 @@ export default async function HomePage() {
           </p>
           <Link
             href={ROUTES.cuenta()}
-            className="btn btn-primary text-lg px-8 py-3"
+            className={`${buttonPrimary} text-lg px-8 py-3`}
           >
             <span>Crear Cuenta</span>
           </Link>

@@ -3,8 +3,24 @@
 
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { Search } from "lucide-react";
 import Link from "next/link";
+import { buttonPrimary } from "@/lib/styles/button";
+
+const SearchIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={2}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+    {...props}
+  >
+    <circle cx={11} cy={11} r={8} />
+    <path d="m21 21-4.35-4.35" />
+  </svg>
+);
 
 type SearchResult = {
   id: string;
@@ -127,10 +143,10 @@ export default function NavbarSearch() {
   return (
     <div className="relative flex items-center gap-2 flex-1 max-w-md">
       <div className="relative flex-1">
-        <Search
+        <SearchIcon
           className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-          size={16}
-          aria-hidden="true"
+          width={16}
+          height={16}
         />
         <input
           ref={inputRef}
@@ -196,9 +212,9 @@ export default function NavbarSearch() {
         disabled={!value.trim()}
         type="button"
         aria-label="Buscar"
-        className="btn btn-primary px-3 py-2 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]"
+        className={`${buttonPrimary} gap-2 rounded-lg px-3 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed`}
       >
-        <Search size={16} aria-hidden="true" />
+        <SearchIcon width={16} height={16} />
         <span className="hidden sm:inline">Buscar</span>
       </button>
     </div>
