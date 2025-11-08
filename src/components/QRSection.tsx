@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 const PHONE = process.env.NEXT_PUBLIC_WA_PHONE || "525531033715";
 const SITE = process.env.NEXT_PUBLIC_SITE_NAME || "DENTAL NORIEGA";
 
@@ -10,12 +12,13 @@ export default function QRSection() {
 
   return (
     <div className="flex items-center gap-4 p-4 border rounded-xl bg-white">
-      <img
+      <Image
         src={qr}
         alt="QR WhatsApp"
         width={200}
         height={200}
-        className="flex-shrink-0"
+        sizes="200px"
+        className="flex-shrink-0 h-auto w-auto"
       />
       <div className="text-sm text-gray-600">
         <p className="mb-2">Escanéalo para escribirnos por WhatsApp.</p>
