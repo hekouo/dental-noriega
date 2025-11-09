@@ -44,13 +44,19 @@ AUDIT_URL="https://<tu-deploy>.vercel.app" pnpm audit:axe
 - Verifica que `trailingSlash: false` esté aplicado en `next.config.mjs`.
 - Confirma que la purga de Tailwind esté activa (CSS inicial ≤ 40 KB).
 
-## Estado Actual (Post-Optimización)
+## Estado Actual (Post-Optimización - 2025-11-09)
 
-**Performance:** 94-99  
+**Performance:** 99 (producción)  
 **Accessibility:** 96  
 **Best Practices:** 96  
 **SEO:** 100  
 **Axe:** 0 violaciones  
-**LCP:** 1.5-1.6s  
-**TBT:** 70-280ms  
+**LCP:** 1.9s  
+**TBT:** 60ms  
+**FCP:** 0.9s  
 **CSS inicial:** 35.7 KB
+
+### Última Auditoría
+- **Fecha:** 2025-11-09 23:08 UTC
+- **URL:** https://dental-noriega.vercel.app
+- **Artifacts:** `reports/lighthouse/lh-2025-11-09T23-08-33-*.json/html`

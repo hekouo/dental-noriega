@@ -7,6 +7,19 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [2025-11-09] - Auditoría Final Post-Merge
+
+### Auditoría Final (Producción)
+- **Performance**: 99 (objetivo ≥0.80) ✅
+- **Accessibility**: 96 (objetivo ≥0.90) ✅
+- **Best Practices**: 96 (objetivo ≥0.90) ✅
+- **SEO**: 100 (objetivo ≥0.90) ✅
+- **LCP**: 1.9s (objetivo <2.5s) ✅
+- **TBT**: 60ms (objetivo <300ms) ✅
+- **FCP**: 0.9s (objetivo <1.8s) ✅
+- **Axe**: 0 violaciones en todas las rutas ✅
+- **CSS inicial**: 35.7 KB (objetivo ≤40 KB) ✅
+
 ### Performance
 - **feat(perf):** Optimización de imágenes LCP con prioridad y formatos AVIF/WebP (#77)
 - **feat(perf):** Fuentes con next/font + preconnect/preload y headers de caché (#78)
