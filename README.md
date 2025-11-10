@@ -1,4 +1,5 @@
 ![CI](https://github.com/hekouo/dental-noriega/actions/workflows/ci.yml/badge.svg)
+![Audit](https://github.com/hekouo/dental-noriega/actions/workflows/audit.yml/badge.svg)
 
 # DENTAL NORIEGA - Catálogo Digital
 
@@ -25,7 +26,7 @@ Catálogo completo con carrito "light" y consultas por WhatsApp. **Sin login ni 
 - ✅ Productos destacados
 - ✅ Carrito persistente (localStorage)
 - ✅ Consulta por WhatsApp
-- ✅ Performance optimizado (Lighthouse ≥85)
+- ✅ Performance optimizado (Lighthouse 100)
 - ❌ Login/registro (Fase 2)
 - ❌ Pagos con Stripe (Fase 2)
 
@@ -228,10 +229,24 @@ npm run lh:mobile:html
 
 ### Objetivos de Lighthouse (móvil):
 
-- **Performance**: ≥85
-- **Accessibility**: ≥95
-- **Best Practices**: ≥95
-- **SEO**: ≥95
+- **Performance**: ≥80 (actual: 100)
+- **Accessibility**: ≥90 (actual: 96)
+- **Best Practices**: ≥90 (actual: 96)
+- **SEO**: ≥90 (actual: 100)
+
+### Auditoría Final (2025-11-10)
+
+**Performance:** 100 | **Accessibility:** 96 | **Best Practices:** 96 | **SEO:** 100
+
+- **LCP**: 1.8s
+- **TBT**: 50ms
+- **FCP**: 1.0s
+- **CSS inicial**: 36.0 KB
+- **Axe**: 0 violaciones
+
+**Artifacts:** Ver [docs/audits/2025-11-10/](docs/audits/2025-11-10/)
+
+**Release:** [v1.0.0](https://github.com/hekouo/dental-noriega/releases/tag/v1.0.0) | [PR Meta #92](https://github.com/hekouo/dental-noriega/pull/92)
 
 ## 📁 Estructura
 

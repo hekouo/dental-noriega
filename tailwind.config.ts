@@ -6,7 +6,11 @@ const animate = require("tailwindcss-animate");
 
 const config = {
   darkMode: ["class"],
-  content: ["./{src,app,components,lib}/**/*.{ts,tsx,js,jsx,mdx}"],
+  content: [
+    "./src/app/**/*.{ts,tsx,mdx}",
+    "./src/components/**/*.{ts,tsx}",
+    "./src/lib/**/*.{ts,tsx}",
+  ],
   theme: {
     extend: {
       colors: {

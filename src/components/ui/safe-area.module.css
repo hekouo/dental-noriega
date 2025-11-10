@@ -1,0 +1,5 @@
+/* src/components/ui/safe-area.module.css */
+.pbSafe {
+  padding-bottom: calc(1rem + var(--safe-b, 0px));
+}
+
