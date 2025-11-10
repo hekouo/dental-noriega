@@ -1,57 +1,88 @@
-# QA rápido: SEO / Performance / Accesibilidad
+# QA SEO - Métricas y KPIs
 
-## Cómo correr
+Este documento registra las métricas de rendimiento y SEO obtenidas de las auditorías automatizadas.
 
-### Lighthouse (requiere URL pública o local):
+## Última Auditoría
 
-```bash
-AUDIT_URL="https://<tu-deploy>.vercel.app" pnpm audit:lh
-```
+**Fecha**: 2025-11-10  
+**Audit Run**: [#82](https://github.com/hekouo/dental-noriega/actions/runs/19245505899)  
+**URL auditada**: https://dental-noriega.vercel.app  
+**Conclusión**: ✅ Success
 
-### Axe + Playwright (usa la misma AUDIT_URL o NEXT_PUBLIC_SITE_URL; si no, intenta localhost:3000):
+## KPIs Principales
 
-```bash
-AUDIT_URL="https://<tu-deploy>.vercel.app" pnpm audit:axe
-```
+### Core Web Vitals
 
-## Dónde ver reportes
+- **FCP (First Contentful Paint)**: 1.2s ✅
+  - Objetivo: <1.8s
+  - Estado: Cumple objetivo
 
-- **Lighthouse**: `reports/lighthouse/*.html` y `.json`
-- **Axe**: `reports/axe/*.json`
-- **Artifacts archivados**: `docs/audits/2025-11-10/` (auditoría final)
+- **LCP (Largest Contentful Paint)**: 2.3s ✅
+  - Objetivo: <2.5s
+  - Estado: Cumple objetivo
 
-## Umbrales (MVP)
+- **SI (Speed Index)**: 2.6s ✅
+  - Estado: Buen rendimiento
 
-- **Perf** ≥ 0.75, **A11y** ≥ 0.90, **Best Practices** ≥ 0.90, **SEO** ≥ 0.90 (solo warnings)
-- **Axe**: < 10 violaciones por página (temporal)
+### Métricas Adicionales
 
-## Páginas incluidas
+- **TBT (Total Blocking Time)**: <300ms (objetivo)
+- **CLS (Cumulative Layout Shift)**: <0.1 (objetivo)
 
-- `/`, `/destacados`, `/tienda`, `/buscar?q=arco`, `/checkout/datos`
+## SEO
 
-## Tips
+- **robots.txt**: Configurado correctamente
+  - Allow: `/`
+  - Disallow: `/api/`
+  - Sitemap: https://dental-noriega.vercel.app/sitemap.xml
 
-- Corre `audit:lh` sobre previsualización de Vercel (Preview URL) para métricas reales en CDN.
-- Repite después de cambios de imágenes o layout.
+- **manifest.json**: PWA manifest completo
+  - Name: Depósito Dental Noriega
+  - Short name: Dental Noriega
+  - Theme color: #0ea5e9
 
-## Estado Actual (Post-Optimización - 2025-11-10)
+- **Metadatos por defecto**: Configurados en `layout.tsx`
+  - `metadataBase`: https://dental-noriega.vercel.app
+  - `openGraph`: Configurado con imágenes fallback
+  - `twitter:card`: summary_large_image
 
-**Performance:** 100 (producción)  
-**Accessibility:** 96  
-**Best Practices:** 96  
-**SEO:** 100  
-**Axe:** 0 violaciones  
-**LCP:** 1.8s  
-**TBT:** 50ms  
-**FCP:** 1.0s  
-**CSS inicial:** 36.0 KB
+## Accesibilidad
 
-### Última Auditoría
+- **Axe violations**: 0 ✅
+- **ARIA labels**: Implementados en componentes críticos
+- **Alt text**: Obligatorio en todas las imágenes
+- **Keyboard navigation**: Soporte completo en QuantityInput
 
-- **Fecha:** 2025-11-10 00:54 UTC
-- **URL:** https://dental-noriega.vercel.app
-- **Artifacts:**
-  - `docs/audits/2025-11-10/lighthouse.json`
-  - `docs/audits/2025-11-10/lighthouse.html`
-- **Release:** [v1.0.0](https://github.com/hekouo/dental-noriega/releases/tag/v1.0.0)
-- **PR Meta:** [#92](https://github.com/hekouo/dental-noriega/pull/92)
+## Best Practices
+
+- **Favicon**: ✅ Presente (fix 404)
+- **HTTPS**: ✅ Habilitado
+- **Console errors**: ✅ Sin errores críticos
+- **Bundle size**: Optimizado (lucide-react reemplazado con SVG inline)
+
+## Artifacts
+
+Los reportes completos están disponibles en:
+- **GitHub Actions**: [Audit Run #82](https://github.com/hekouo/dental-noriega/actions/runs/19245505899)
+- **Artifact**: `audit-2025-11-10` (retention: 14 días)
+- **Archivos**: `lighthouse.html`, `lighthouse.json`
+
+## Historial
+
+### v1.1.1 (2025-11-10)
+- FCP: 1.2s
+- LCP: 2.3s
+- SI: 2.6s
+- Favicon 404 corregido
+- SEO defaults implementados
+
+### v1.1.0 (2025-11-10)
+- Repo hardened
+- CI/Audit weekly configurado
+- Branch protection activado
+
+### v1.0.0 (2025-11-10)
+- Performance: 100
+- LCP: 1.8s
+- TBT: 50ms
+- FCP: 1.0s
