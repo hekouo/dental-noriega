@@ -10,6 +10,9 @@ on:
         required: true
         type: string
 
+  schedule:
+    - cron: "0 9 * * 1"  # lunes 09:00 UTC
+
 permissions:
   contents: read
 
@@ -110,5 +113,6 @@ jobs:
         with:
           name: audit-reports
           path: |
+          retention-days: 14
             reports/lighthouse/**
             reports/axe/**
