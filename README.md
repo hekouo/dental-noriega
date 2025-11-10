@@ -215,6 +215,34 @@ Estos casos aseguran que el catálogo funciona correctamente incluso con datos i
 
 ## 📊 Lighthouse (Performance)
 
+### Objetivos de Lighthouse (móvil):
+
+- **Performance**: ≥80 (actual: 100)
+- **Accessibility**: ≥90 (actual: 96)
+- **Best Practices**: ≥90 (actual: 96)
+- **SEO**: ≥90 (actual: 100)
+
+### Auditoría Final (2025-11-10)
+
+**Performance:** 100 | **Accessibility:** 96 | **Best Practices:** 96 | **SEO:** 100
+
+- **LCP**: 1.8s
+- **TBT**: 50ms
+- **FCP**: 1.0s
+- **CSS inicial**: 36.0 KB
+- **Axe**: 0 violaciones
+
+**Artifacts:** Ver [docs/audits/2025-11-10/](docs/audits/2025-11-10/)
+
+**Release:** [v1.0.0](https://github.com/hekouo/dental-noriega/releases/tag/v1.0.0) | [PR Meta #92](https://github.com/hekouo/dental-noriega/pull/92)
+
+### Últimos Runs (v1.1.0)
+
+- **CI Run #88**: [success](https://github.com/hekouo/dental-noriega/actions/runs/19223898116)
+- **Audit Run #63**: [failure](https://github.com/hekouo/dental-noriega/actions/runs/19223902450) (timeout/red esperado)
+
+**Release:** [v1.1.0](https://github.com/hekouo/dental-noriega/releases/tag/v1.1.0) - Repo hardened: CI/Audit weekly, husky, templates, branch protection
+
 ```bash
 # 1. Levantar el servidor de producción
 npm run build
