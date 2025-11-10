@@ -1,6 +1,7 @@
 import React from "react";
 import { Metadata } from "next";
 import Link from "next/link";
+import { COMPANY, LAST_UPDATED } from "@/lib/legal/company-info";
 
 export const metadata: Metadata = {
   title: "Aviso de privacidad | Depósito Dental Noriega",
@@ -8,15 +9,6 @@ export const metadata: Metadata = {
 };
 
 export const dynamic = "force-dynamic";
-
-const COMPANY = {
-  name: "Depósito Dental Noriega",
-  email: "contacto@tudominio.com",
-  address: "CDMX, México",
-  phone: "55 3103 3715",
-};
-
-const LAST_UPDATED = "2025-11-03";
 
 export default function AvisoPrivacidadPage() {
   return (

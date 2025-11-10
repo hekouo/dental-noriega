@@ -8,6 +8,7 @@ import { useState, useEffect, useMemo } from "react";
 import {
   useCheckoutStore,
   type ShippingMethod,
+  type CheckoutItem,
 } from "@/lib/store/checkoutStore";
 import { useCartStore } from "@/lib/store/cartStore";
 import {
@@ -23,11 +24,28 @@ import { track } from "@/lib/analytics";
 import { validateCoupon } from "@/lib/discounts/coupons";
 import { setWithTTL, KEYS, TTL_48H } from "@/lib/utils/persist";
 import Toast from "@/components/ui/Toast";
+import type { DatosForm } from "@/lib/checkout/schemas";
 
 type FormValues = {
   paymentMethod: string;
   honorific: string;
   shippingMethod: ShippingMethod;
+};
+
+// Tipo extendido para items del checkout que pueden tener propiedades adicionales
+type ExtendedCheckoutItem = CheckoutItem & {
+  section?: string;
+  product_slug?: string;
+  slug?: string;
+  product?: {
+    section?: string;
+    slug?: string;
+  };
+};
+
+// Tipo extendido para datos de checkout que pueden tener notas
+type ExtendedDatosForm = DatosForm & {
+  notes?: string;
 };
 
 export default function PagoClient() {
@@ -145,6 +163,18 @@ export default function PagoClient() {
     }
   }, [selectedShippingMethod, shippingCost, total, setShipping]);
 
+  // Helper para obtener section de un item
+  const getItemSection = (item: CheckoutItem): string => {
+    const extended = item as ExtendedCheckoutItem;
+    return extended.section ?? extended.product?.section ?? "consumibles-y-profilaxis";
+  };
+
+  // Helper para obtener slug de un item
+  const getItemSlug = (item: CheckoutItem): string => {
+    const extended = item as ExtendedCheckoutItem;
+    return extended.product_slug ?? extended.slug ?? extended.product?.slug ?? "";
+  };
+
   const handleApplyCoupon = () => {
     const code = couponInput.trim().toUpperCase();
     if (!code) {
@@ -156,7 +186,7 @@ export default function PagoClient() {
       subtotal,
       shipping: shippingCost,
       items: selectedItems.map((item) => ({
-        section: (item as any).section,
+        section: getItemSection(item),
         price: item.price,
         qty: item.qty,
       })),
@@ -203,20 +233,13 @@ export default function PagoClient() {
     try {
       // Preparar datos para la API
       const orderPayload = {
-        items: selectedItems.map((item) => {
-          const slug =
-            (item as any).product_slug ??
-            (item as any).slug ??
-            (item as any).product?.slug ??
-            "";
-          return {
-            product_id: item.id,
-            slug,
-            title: item.title,
-            price_cents: Math.round(item.price * 100),
-            qty: item.qty,
-          };
-        }),
+        items: selectedItems.map((item) => ({
+          product_id: item.id,
+          slug: getItemSlug(item),
+          title: item.title,
+          price_cents: Math.round(item.price * 100),
+          qty: item.qty,
+        })),
         shipping: {
           method: selectedShippingMethod,
           cost_cents: Math.round(shippingCost * 100),
@@ -228,7 +251,7 @@ export default function PagoClient() {
           colonia: datos.neighborhood,
           estado: datos.state,
           cp: datos.cp,
-          notas: (datos as any).notes || undefined,
+          notas: (datos as ExtendedDatosForm).notes || undefined,
         },
         coupon:
           couponCode && discount && discountScope
@@ -255,12 +278,16 @@ export default function PagoClient() {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(
-          errorData.error || `Error al crear la orden: ${response.status}`,
+          (errorData as { error?: string }).error || `Error al crear la orden: ${response.status}`,
         );
       }
 
       const result = await response.json();
-      const orderRef = result.order_ref;
+      const orderRef = (result as { order_ref?: string }).order_ref;
+
+      if (!orderRef) {
+        throw new Error("No se recibió order_ref de la API");
+      }
 
       // Guardar última orden en persist.ts
       const lastOrder = {
@@ -271,15 +298,8 @@ export default function PagoClient() {
         couponCode: couponCode || undefined,
         discount: discount || undefined,
         items: selectedItems.map((item) => {
-          const section =
-            (item as any).section ??
-            (item as any).product?.section ??
-            "consumibles-y-profilaxis";
-          const slug =
-            (item as any).product_slug ??
-            (item as any).slug ??
-            (item as any).product?.slug ??
-            "";
+          const section = getItemSection(item);
+          const slug = getItemSlug(item);
           if (!slug) {
             console.warn("[PagoClient] Missing slug in lastOrder item", item);
           }
