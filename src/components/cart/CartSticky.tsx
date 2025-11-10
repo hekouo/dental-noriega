@@ -28,10 +28,11 @@ export default function CartSticky() {
       {/* Móvil: barra inferior */}
       <Link
         href="/carrito"
-        className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-black text-white px-4 py-3 flex items-center justify-between shadow-lg"
+        aria-label={`Ver carrito con ${count} ${count === 1 ? "producto" : "productos"}`}
+        className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-black text-white px-4 py-3 flex items-center justify-between shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
       >
         <div className="flex items-center gap-3">
-          <ShoppingCart className="h-5 w-5" />
+          <ShoppingCart className="h-5 w-5" aria-hidden="true" />
           <span className="font-medium">
             {count} {count === 1 ? "producto" : "productos"}
           </span>
@@ -42,10 +43,11 @@ export default function CartSticky() {
       {/* Desktop: burbuja flotante abajo-derecha */}
       <Link
         href="/carrito"
-        className="hidden md:flex fixed bottom-6 right-6 z-50 bg-black text-white px-6 py-4 rounded-full shadow-xl hover:bg-black/90 transition-all items-center gap-3"
+        aria-label={`Ver carrito con ${count} ${count === 1 ? "producto" : "productos"}`}
+        className="hidden md:flex fixed bottom-6 right-6 z-50 bg-black text-white px-6 py-4 rounded-full shadow-xl hover:bg-black/90 transition-all items-center gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
       >
         <div className="relative">
-          <ShoppingCart className="h-6 w-6" />
+          <ShoppingCart className="h-6 w-6" aria-hidden="true" />
           {count > 0 && (
             <span className="absolute -top-2 -right-2 bg-white text-black text-xs font-bold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center">
               {count}

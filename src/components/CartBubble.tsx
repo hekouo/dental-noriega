@@ -173,6 +173,7 @@ function CartDrawer({ onClose }: { onClose: () => void }) {
                           Number(e.target.value) || 1,
                         )
                       }
+                      aria-label={`Cantidad de ${it.title}`}
                       className="w-16 border rounded px-2 py-1 text-sm min-h-[44px]"
                     />
                     <button
@@ -200,7 +201,8 @@ function CartDrawer({ onClose }: { onClose: () => void }) {
           <div className="flex gap-2">
             <button
               onClick={clearCart}
-              className="border rounded-lg px-4 py-2 text-sm hover:bg-gray-100 min-h-[44px]"
+              aria-label="Vaciar carrito"
+              className="border rounded-lg px-4 py-2 text-sm hover:bg-gray-100 min-h-[44px] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
               type="button"
             >
               <span>Vaciar</span>
