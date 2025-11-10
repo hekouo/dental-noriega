@@ -7,6 +7,7 @@ import { normalizePrice, hasPurchasablePrice } from "@/lib/catalog/model";
 import { getWhatsAppHref } from "@/lib/whatsapp";
 import type { FeaturedItem } from "@/lib/catalog/getFeatured.server";
 import { useCartStore } from "@/lib/store/cartStore";
+import QuantityInput from "@/components/cart/QuantityInput";
 
 type Props = {
   item: FeaturedItem;
@@ -115,55 +116,26 @@ export default function FeaturedCardControls({ item, compact = false }: Props) {
     setQty(Math.min(maxQty, Math.max(1, next)));
   };
 
-  const qtyInput = (
-    <input
-      aria-label="Cantidad"
-      className={
-        compact
-          ? "w-10 text-center outline-none text-base"
-          : "w-10 text-center outline-none"
-      }
-      inputMode="numeric"
-      value={qty}
-      onChange={(e) => {
-        const v = parseInt(e.target.value.replace(/[^\d]/g, "") || "1", 10);
-        handleQtyChange(v);
-      }}
-      disabled={isAdding}
-    />
-  );
-
   if (!compact) {
     return (
       <div className="mt-auto pt-3 space-y-2">
         <div className="flex items-center gap-3">
-          <div className="flex items-center rounded-lg border px-2 py-1">
-            <button
-              type="button"
-              className="h-8 w-6 text-xl"
-              aria-label="Disminuir cantidad"
-              onClick={() => handleQtyChange(qty - 1)}
-              disabled={isAdding || qty <= 1}
-            >
-              –
-            </button>
-            {qtyInput}
-            <button
-              type="button"
-              className="h-8 w-6 text-xl"
-              aria-label="Aumentar cantidad"
-              onClick={() => handleQtyChange(qty + 1)}
-              disabled={isAdding || qty >= maxQty}
-            >
-              +
-            </button>
-          </div>
+          <QuantityInput
+            value={qty}
+            onChange={handleQtyChange}
+            min={1}
+            max={maxQty}
+            disabled={isAdding}
+            ariaLabel="Cantidad"
+          />
           <button
             type="button"
             onClick={onAdd}
             aria-busy={isAdding}
-            className="inline-flex items-center gap-2 rounded-xl bg-black px-4 py-2 text-white hover:bg-black/90 disabled:opacity-60"
+            aria-label="Agregar al carrito"
+            className="inline-flex items-center gap-2 rounded-xl bg-black px-4 py-2 text-white hover:bg-black/90 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
             disabled={isAdding}
+            title="Agregar al carrito"
           >
             <ShoppingCartIcon className="h-4 w-4" />
             Agregar
@@ -176,6 +148,7 @@ export default function FeaturedCardControls({ item, compact = false }: Props) {
               target="_blank"
               rel="noopener noreferrer"
               className="text-sm underline text-muted-foreground"
+              aria-label="Consultar por WhatsApp"
             >
               Consultar por WhatsApp
             </a>
@@ -188,34 +161,24 @@ export default function FeaturedCardControls({ item, compact = false }: Props) {
   return (
     <div className="mt-2 space-y-2">
       <div className="flex items-center gap-3">
-        <div className="flex items-center rounded-lg border h-9 px-3">
-          <button
-            type="button"
-            className="h-9 w-6 text-base font-medium"
-            aria-label="Disminuir cantidad"
-            onClick={() => handleQtyChange(qty - 1)}
-            disabled={isAdding || qty <= 1}
-          >
-            –
-          </button>
-          {qtyInput}
-          <button
-            type="button"
-            className="h-9 w-6 text-base font-medium"
-            aria-label="Aumentar cantidad"
-            onClick={() => handleQtyChange(qty + 1)}
-            disabled={isAdding || qty >= maxQty}
-          >
-            +
-          </button>
-        </div>
+        <QuantityInput
+          value={qty}
+          onChange={handleQtyChange}
+          min={1}
+          max={maxQty}
+          disabled={isAdding}
+          compact
+          ariaLabel="Cantidad"
+        />
 
         <button
           type="button"
           onClick={onAdd}
           aria-busy={isAdding}
-          className="inline-flex items-center gap-2 rounded-xl bg-black px-4 py-2 text-white hover:bg-black/90 disabled:opacity-60 h-9"
+          aria-label="Agregar al carrito"
+          className="inline-flex items-center gap-2 rounded-xl bg-black px-4 py-2 text-white hover:bg-black/90 disabled:opacity-60 h-9 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
           disabled={isAdding}
+          title="Agregar al carrito"
         >
           <ShoppingCartIcon className="h-4 w-4" />
           <span>Agregar</span>
@@ -228,6 +191,7 @@ export default function FeaturedCardControls({ item, compact = false }: Props) {
           target="_blank"
           rel="noopener noreferrer"
           className="text-sm underline text-muted-foreground block"
+          aria-label="Consultar por WhatsApp"
         >
           Consultar por WhatsApp
         </a>
