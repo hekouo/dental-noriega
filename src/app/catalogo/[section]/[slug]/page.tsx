@@ -102,9 +102,41 @@ export default async function ProductDetailPage({ params }: Props) {
 
     const image_url = product.image_url;
     const price = formatMXNFromCents(product.price_cents);
+    const base =
+      process.env.NEXT_PUBLIC_SITE_URL ?? "https://dental-noriega.vercel.app";
+    const canonicalUrl = `${base}/catalogo/${product.section}/${product.slug}`;
+
+    // JSON-LD Product schema
+    const jsonLd = {
+      "@context": "https://schema.org",
+      "@type": "Product",
+      name: product.title,
+      description:
+        product.description ?? `${product.title} en Depósito Dental Noriega`,
+      image: image_url ? [image_url] : [],
+      url: canonicalUrl,
+      offers: {
+        "@type": "Offer",
+        price: product.price_cents
+          ? (product.price_cents / 100).toFixed(2)
+          : "0",
+        priceCurrency: "MXN",
+        availability:
+          product.in_stock && product.price_cents && product.price_cents > 0
+            ? "https://schema.org/InStock"
+            : "https://schema.org/OutOfStock",
+        url: canonicalUrl,
+      },
+    };
 
     return (
       <div className="min-h-screen bg-gray-50">
+        {/* JSON-LD Product schema */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+
         {/* Analítica: view_item */}
         <ProductViewTracker
           productId={product.id}
