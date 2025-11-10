@@ -5,6 +5,48 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.1.0] - 2025-11-10
+
+### Repo Hardened: CI/Audit Weekly, Husky, Templates, Branch Protection
+
+Este release marca la finalización del sprint de endurecimiento del repositorio, mejorando la calidad del código, automatización y protección de branches.
+
+**Métricas y Runs:**
+
+- **CI Run #88**: [success](https://github.com/hekouo/dental-noriega/actions/runs/19223898116)
+- **Audit Run #63**: [failure](https://github.com/hekouo/dental-noriega/actions/runs/19223902450) (timeout/red esperado)
+
+### Cambios Clave
+
+- **CI/CD:**
+  - Audit automático semanal (lunes 09:00 UTC)
+  - Artifacts con retención de 14 días
+  - Husky pre-commit hook configurado
+  - Lint-staged con eslint + prettier
+
+- **Templates y Documentación:**
+  - Pull request template con checklist
+  - Issue templates para bugs y features
+  - README actualizado con sección de branch protection
+
+- **Branch Protection:**
+  - Required checks: `build`
+  - Require PR before merging: ON
+  - Require conversation resolution: ON
+  - Require linear history: ON
+  - Allow force pushes: OFF
+  - Allow deletions: OFF
+
+- **Calidad de Código:**
+  - Eliminación de `any` en rutas API y componentes
+  - Helpers movidos fuera de páginas para fast refresh
+  - TypeScript estricto en todos los archivos
+
+**Enlaces:**
+- [Release v1.1.0](https://github.com/hekouo/dental-noriega/releases/tag/v1.1.0)
+- [PR #98](https://github.com/hekouo/dental-noriega/pull/98) - Templates + Husky
+- [PR #100](https://github.com/hekouo/dental-noriega/pull/100) - Audit cron + retention
+
 ## [1.0.0] - 2025-11-10
 
 ### 🎉 Release: Audit Complete
