@@ -2,8 +2,9 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import QtyStepper from "@/components/ui/QtyStepper";
+import QuantityInput from "@/components/cart/QuantityInput";
 import { useCartStore } from "@/lib/store/cartStore";
+import { useCheckoutStore } from "@/lib/store/checkoutStore";
 import { mxnFromCents, formatMXNFromCents } from "@/lib/utils/currency";
 
 type Product = {
@@ -23,6 +24,9 @@ type Props = {
 export default function ProductActions({ product }: Props) {
   const [qty, setQty] = useState(1);
   const addToCart = useCartStore((s) => s.addToCart);
+  const upsertSingleToCheckout = useCheckoutStore(
+    (s) => s.upsertSingleToCheckout,
+  );
   const router = useRouter();
   const busyRef = useRef(false);
 
@@ -70,14 +74,13 @@ export default function ProductActions({ product }: Props) {
     if (!canBuy || busyRef.current) return;
 
     busyRef.current = true;
-    // Agregar al carrito primero
-    addToCart({
+    // Guardar en checkoutStore directamente
+    upsertSingleToCheckout({
       id: product.id,
       title: product.title,
       price,
       qty,
       image_url: product.image_url ?? undefined,
-      selected: true,
     });
 
     // Analítica: buy_now
@@ -121,12 +124,13 @@ export default function ProductActions({ product }: Props) {
           <label htmlFor="qty" className="text-sm font-medium text-gray-700">
             Cantidad:
           </label>
-          <QtyStepper
+          <QuantityInput
             value={qty}
-            onValueChange={setQty}
+            onChange={setQty}
             min={1}
-            max={99}
+            max={999}
             disabled={!canBuy}
+            ariaLabel="Cantidad de producto"
           />
         </div>
 
@@ -134,7 +138,9 @@ export default function ProductActions({ product }: Props) {
           <button
             onClick={handleAddToCart}
             disabled={!canBuy}
-            className="w-full bg-primary-600 text-white px-6 py-3 rounded-md hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            aria-label="Agregar al carrito"
+            className="w-full bg-primary-600 text-white px-6 py-3 rounded-md hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+            title="Agregar al carrito"
           >
             Agregar al carrito
           </button>
@@ -142,9 +148,11 @@ export default function ProductActions({ product }: Props) {
           <button
             onClick={handleBuyNow}
             disabled={!canBuy}
-            className="w-full bg-green-600 text-white px-6 py-3 rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+            aria-label="Comprar ahora"
+            className="w-full bg-green-600 text-white px-6 py-3 rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2"
+            title="Comprar ahora"
           >
-            Comprar ya
+            Comprar ahora
           </button>
 
           <a

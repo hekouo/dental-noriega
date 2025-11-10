@@ -1,7 +1,7 @@
 // src/components/CatalogCardControls.tsx
 "use client";
 import { useState, useRef } from "react";
-import QtyStepper from "@/components/ui/QtyStepper";
+import QuantityInput from "@/components/cart/QuantityInput";
 import { useCartStore } from "@/lib/store/cartStore";
 import { mxnFromCents } from "@/lib/utils/currency";
 import { ShoppingCart } from "lucide-react";
@@ -54,17 +54,21 @@ export default function CatalogCardControls({ item }: Props) {
   return (
     <div className="mt-auto pt-2 space-y-2">
       <div className="flex items-center gap-2">
-        <QtyStepper
+        <QuantityInput
           value={qty}
-          onValueChange={setQty}
+          onChange={setQty}
           min={1}
-          max={99}
+          max={999}
           disabled={!canBuy}
+          compact
+          ariaLabel="Cantidad"
         />
         <button
           onClick={onAdd}
           disabled={!canBuy}
-          className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm bg-black text-white disabled:opacity-50"
+          aria-label="Agregar al carrito"
+          className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm bg-black text-white disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+          title="Agregar al carrito"
         >
           <ShoppingCart size={16} />
           <span>Agregar</span>
