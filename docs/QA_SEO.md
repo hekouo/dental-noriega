@@ -33,3 +33,25 @@ AUDIT_URL="https://<tu-deploy>.vercel.app" pnpm audit:axe
 
 - Corre `audit:lh` sobre previsualización de Vercel (Preview URL) para métricas reales en CDN.
 - Repite después de cambios de imágenes o layout.
+
+## Estado Actual (Post-Optimización - 2025-11-10)
+
+**Performance:** 100 (producción)  
+**Accessibility:** 96  
+**Best Practices:** 96  
+**SEO:** 100  
+**Axe:** 0 violaciones  
+**LCP:** 1.8s  
+**TBT:** 50ms  
+**FCP:** 1.0s  
+**CSS inicial:** 36.0 KB
+
+### Última Auditoría
+
+- **Fecha:** 2025-11-10 00:54 UTC
+- **URL:** https://dental-noriega.vercel.app
+- **Artifacts:** 
+  - `docs/audits/2025-11-10/lighthouse.json`
+  - `docs/audits/2025-11-10/lighthouse.html`
+- **Release:** [v1.0.0](https://github.com/hekouo/dental-noriega/releases/tag/v1.0.0)
+- **PR Meta:** [#92](https://github.com/hekouo/dental-noriega/pull/92)
