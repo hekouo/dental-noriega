@@ -50,7 +50,7 @@ AUDIT_URL="https://<tu-deploy>.vercel.app" pnpm audit:axe
 
 - **Fecha:** 2025-11-10 00:54 UTC
 - **URL:** https://dental-noriega.vercel.app
-- **Artifacts:** 
+- **Artifacts:**
   - `docs/audits/2025-11-10/lighthouse.json`
   - `docs/audits/2025-11-10/lighthouse.html`
 - **Release:** [v1.0.0](https://github.com/hekouo/dental-noriega/releases/tag/v1.0.0)

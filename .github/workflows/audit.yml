@@ -28,7 +28,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Importante: no fijar 'version' aquí para no chocar con packageManager del package.json
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Prepare pnpm from packageManager
+        run: corepack prepare pnpm@$(jq -r '.packageManager' package.json | cut -d'@' -f2 | cut -d'+' -f1) --activate
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:

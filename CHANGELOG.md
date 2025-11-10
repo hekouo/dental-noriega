@@ -80,4 +80,3 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 - Sizes correctos para responsive images
 - Defer de componentes adicionales
 - Final tuning de imágenes optimizadas
-

@@ -99,7 +99,7 @@
   },
   "engines": {
     "pnpm": "10",
-    "node": ">=20.19 <21"
+    "node": ">=20 <21"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,css,md,json}": [

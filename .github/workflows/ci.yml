@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [chore/wip-pre-restart]
+    branches: [main]
   pull_request:
-    branches: [chore/wip-pre-restart]
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -24,22 +24,21 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Setup corepack para habilitar pnpm
-      - name: Setup Corepack
+      - name: Enable Corepack
         run: corepack enable
 
-      # Setup pnpm con versión específica
+      - name: Prepare pnpm from packageManager
+        run: corepack prepare pnpm@$(jq -r '.packageManager' package.json | cut -d'@' -f2 | cut -d'+' -f1) --activate
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 10.18.2
           run_install: false
 
-      # Setup Node con cache de pnpm
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20.19.0'
+          node-version: '20'
           cache: 'pnpm'
           cache-dependency-path: pnpm-lock.yaml
 
