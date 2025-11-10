@@ -18,6 +18,7 @@ AUDIT_URL="https://<tu-deploy>.vercel.app" pnpm audit:axe
 
 - **Lighthouse**: `reports/lighthouse/*.html` y `.json`
 - **Axe**: `reports/axe/*.json`
+- **Artifacts archivados**: `docs/audits/2025-11-10/` (auditoría final)
 
 ## Umbrales (MVP)
 

@@ -1,0 +1,139 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - navigation [ref=e3]:
+      - link "Logo Depósito Dental Noriega Depósito Dental Noriega" [ref=e4] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e5]:
+          - img "Logo Depósito Dental Noriega" [ref=e7]
+          - generic [ref=e12]: Depósito Dental Noriega
+      - generic [ref=e14]:
+        - generic [ref=e15]:
+          - img [ref=e16]
+          - combobox "Buscar productos" [ref=e19]
+        - button "Buscar" [disabled] [ref=e20]:
+          - img [ref=e21]
+          - generic [ref=e24]: Buscar
+      - generic [ref=e25]:
+        - link "Catálogo" [ref=e26] [cursor=pointer]:
+          - /url: /catalogo
+          - generic [ref=e27]: Catálogo
+        - link "Destacados" [ref=e28] [cursor=pointer]:
+          - /url: /destacados
+          - generic [ref=e29]: Destacados
+        - generic [ref=e30]:
+          - button "Ir a checkout" [ref=e31] [cursor=pointer]: "0"
+          - button "Cuenta" [ref=e32] [cursor=pointer]:
+            - img [ref=e33]
+  - main [ref=e36]:
+    - generic [ref=e37]:
+      - generic [ref=e39]:
+        - heading "Catálogo Completo" [level=1] [ref=e40]
+        - paragraph [ref=e41]: Explora todas nuestras categorías
+      - generic [ref=e42]:
+        - heading "Destacados" [level=2] [ref=e43]
+        - generic [ref=e44]:
+          - paragraph [ref=e45]: No hay productos destacados en este momento.
+          - link "Buscar productos" [ref=e46] [cursor=pointer]:
+            - /url: /buscar
+      - generic [ref=e48]:
+        - link "Consumibles y Profilaxis" [ref=e49] [cursor=pointer]:
+          - /url: /tienda/consumibles
+          - heading "Consumibles y Profilaxis" [level=2] [ref=e51]
+        - link "Equipos" [ref=e52] [cursor=pointer]:
+          - /url: /tienda/equipos
+          - heading "Equipos" [level=2] [ref=e54]
+        - link "Instrumental Clínico" [ref=e55] [cursor=pointer]:
+          - /url: /tienda/instrumental-clinico
+          - heading "Instrumental Clínico" [level=2] [ref=e57]
+        - link "Instrumental Ortodoncia" [ref=e58] [cursor=pointer]:
+          - /url: /tienda/instrumental-ortodoncia
+          - heading "Instrumental Ortodoncia" [level=2] [ref=e60]
+        - 'link "Ortodoncia: Brackets y Tubos" [ref=e61] [cursor=pointer]':
+          - /url: /tienda/ortodoncia-brackets
+          - 'heading "Ortodoncia: Brackets y Tubos" [level=2] [ref=e63]'
+        - 'link "Ortodoncia: Arcos y Resortes" [ref=e64] [cursor=pointer]':
+          - /url: /tienda/ortodoncia-arcos
+          - 'heading "Ortodoncia: Arcos y Resortes" [level=2] [ref=e66]'
+        - 'link "Ortodoncia: Accesorios y Retenedores" [ref=e67] [cursor=pointer]':
+          - /url: /tienda/ortodoncia-accesorios
+          - 'heading "Ortodoncia: Accesorios y Retenedores" [level=2] [ref=e69]'
+    - generic [ref=e70]:
+      - generic [ref=e71]:
+        - heading "Gracias por revisar el catálogo" [level=2] [ref=e72]
+        - paragraph [ref=e73]: Estamos listos para ayudarte con tus compras y dudas técnicas. Escríbenos y con gusto te atendemos.
+        - list [ref=e74]:
+          - listitem [ref=e75]:
+            - strong [ref=e76]: "WhatsApp:"
+            - link "+52 553 103 3715" [ref=e77] [cursor=pointer]:
+              - /url: https://wa.me/525531033715?text=Hola%2C%20vengo%20desde%20Deposito%20Dental%20Noriega.
+          - listitem [ref=e78]:
+            - strong [ref=e79]: "Email:"
+            - link "dental.noriega721@gmail.com" [ref=e80] [cursor=pointer]:
+              - /url: mailto:dental.noriega721@gmail.com
+          - listitem [ref=e81]:
+            - strong [ref=e82]: "Ubicación:"
+            - link "Ver en Google Maps" [ref=e83] [cursor=pointer]:
+              - /url: https://maps.app.goo.gl/ruP2HHjLXtoKqnB57
+        - generic [ref=e84]:
+          - link "Escribir por WhatsApp" [ref=e85] [cursor=pointer]:
+            - /url: https://wa.me/525531033715?text=Hola%2C%20vengo%20desde%20Deposito%20Dental%20Noriega.
+            - generic [ref=e86]: Escribir por WhatsApp
+          - generic [ref=e87]:
+            - link "Facebook" [ref=e88] [cursor=pointer]:
+              - /url: https://www.facebook.com/dental.noriega/?locale=es_LA
+            - link "Instagram" [ref=e89] [cursor=pointer]:
+              - /url: https://www.instagram.com/deposito.dental.noriega
+      - generic [ref=e91]:
+        - img "Escanea para WhatsApp" [ref=e92]
+        - paragraph [ref=e93]: Escanéame para WhatsApp
+  - alert [ref=e94]
+  - button "Abrir carrito" [ref=e96] [cursor=pointer]:
+    - img [ref=e97]
+  - link "Chatear por WhatsApp" [ref=e102] [cursor=pointer]:
+    - /url: https://wa.me/525531033715?text=Hola%2C%20vengo%20desde%20Deposito%20Dental%20Noriega.%20P%C3%A1gina%3A%20%2Ftienda.%20%C2%BFMe%20ayudas%3F
+    - img [ref=e103]
+  - contentinfo [ref=e106]:
+    - generic [ref=e107]:
+      - generic [ref=e108]:
+        - heading "Deposito Dental Noriega" [level=3] [ref=e109]
+        - paragraph [ref=e110]: Insumos y equipos dentales. Servicio a clínicas, consultorios y mayoristas.
+      - generic [ref=e111]:
+        - heading "Información" [level=3] [ref=e112]
+        - list [ref=e113]:
+          - listitem [ref=e114]:
+            - link "Envíos" [ref=e115] [cursor=pointer]:
+              - /url: /envios
+          - listitem [ref=e116]:
+            - link "Devoluciones" [ref=e117] [cursor=pointer]:
+              - /url: /devoluciones
+          - listitem [ref=e118]:
+            - link "Aviso de privacidad" [ref=e119] [cursor=pointer]:
+              - /url: /aviso-privacidad
+          - listitem [ref=e120]:
+            - link "Términos y condiciones" [ref=e121] [cursor=pointer]:
+              - /url: /terminos-condiciones
+      - generic [ref=e122]:
+        - heading "Contacto" [level=3] [ref=e123]
+        - paragraph [ref=e124]:
+          - text: "WhatsApp:"
+          - link "+52 55 3103 3715" [ref=e125] [cursor=pointer]:
+            - /url: https://wa.me/525531033715
+        - paragraph [ref=e126]:
+          - text: "Email:"
+          - link "dental.noriega721@gmail.com" [ref=e127] [cursor=pointer]:
+            - /url: mailto:dental.noriega721@gmail.com
+        - paragraph [ref=e128]:
+          - link "Ver ubicación en Maps" [ref=e129] [cursor=pointer]:
+            - /url: https://maps.app.goo.gl/ruP2HHjLXtoKqnB57
+      - generic [ref=e130]:
+        - heading "Síguenos" [level=3] [ref=e131]
+        - generic [ref=e132]:
+          - link "Facebook" [ref=e133] [cursor=pointer]:
+            - /url: https://www.facebook.com/dental.noriega/?locale=es_LA
+          - link "Instagram" [ref=e134] [cursor=pointer]:
+            - /url: https://www.instagram.com/deposito.dental.noriega
+    - generic [ref=e135]: © 2025 Deposito Dental Noriega · Todos los derechos reservados
+```

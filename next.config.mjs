@@ -1,9 +1,19 @@
 /* eslint-env node */
 /* global process */
 import { URL } from "node:url";
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
 
 // next.config.mjs
 /** @type {import('next').NextConfig} */
+const withBundleAnalyzer = process.env.ANALYZE === "true"
+  ? require("@next/bundle-analyzer")({
+      enabled: true,
+      openAnalyzer: false,
+    })
+  : (x) => x;
+
 const remotePatterns = [
   {
     protocol: "https",
@@ -26,13 +36,13 @@ const remotePatterns = [
 ];
 
 if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    const supabase = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL);
-    remotePatterns.push({
-      protocol: supabase.protocol.replace(":", ""),
-      hostname: supabase.hostname,
-      port: supabase.port,
-      pathname: "/**",
-    });
+  const supabase = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL);
+  remotePatterns.push({
+    protocol: supabase.protocol.replace(":", ""),
+    hostname: supabase.hostname,
+    port: supabase.port,
+    pathname: "/**",
+  });
 }
 
 const nextConfig = {
@@ -40,6 +50,7 @@ const nextConfig = {
     formats: ["image/avif", "image/webp"],
     remotePatterns,
   },
+  trailingSlash: false,
   async headers() {
     return [
       {
@@ -60,34 +71,12 @@ const nextConfig = {
           },
         ],
       },
-    ];
-  },
-  async headers() {
-    return [
       {
-        source: "/og/:path*",
+        source: "/:path*",
         headers: [
           {
             key: "Cache-Control",
-            value: "public, max-age=31536000, immutable",
-          },
-        ],
-      },
-      {
-        source: "/_next/static/:path*",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "public, max-age=31536000, immutable",
-          },
-        ],
-      },
-      {
-        source: "/fonts/:path*",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "public, max-age=31536000, immutable",
+            value: "public, max-age=0, s-maxage=60, stale-while-revalidate=300",
           },
         ],
       },
@@ -104,4 +93,5 @@ const nextConfig = {
     return config;
   },
 };
-export default nextConfig;
+
+export default withBundleAnalyzer(nextConfig);
