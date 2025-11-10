@@ -56,32 +56,31 @@ export const metadata: Metadata = {
     process.env.NEXT_PUBLIC_SITE_URL ?? "https://dental-noriega.vercel.app",
   ),
   title: {
-    default: process.env.NEXT_PUBLIC_SITE_NAME ?? "Depósito Dental Noriega",
-    template: `%s | ${process.env.NEXT_PUBLIC_SITE_NAME ?? "Depósito Dental Noriega"}`,
+    default: "Depósito Dental Noriega",
+    template: "%s · Dental Noriega",
   },
-  description: "Insumos dentales a mejor precio. Envíos a todo México.",
-  robots: { index: true, follow: true },
+  description: "Suministros dentales con envío y asesoría.",
   openGraph: {
     type: "website",
     url: "/",
-    locale: "es_MX",
     siteName: process.env.NEXT_PUBLIC_SITE_NAME ?? "Depósito Dental Noriega",
-    title: process.env.NEXT_PUBLIC_SITE_NAME ?? "Depósito Dental Noriega",
-    description: "Insumos dentales a mejor precio. Envíos a todo México.",
+    title: "Depósito Dental Noriega",
+    description: "Suministros dentales con envío y asesoría.",
     images: [
       {
-        url: "/og/cover.jpg",
+        url: "/og-default.jpg",
         width: 1200,
         height: 630,
-        alt: "Catálogo",
+        alt: "Depósito Dental Noriega",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: process.env.NEXT_PUBLIC_SITE_NAME ?? "Depósito Dental Noriega",
-    description: "Insumos dentales a mejor precio. Envíos a todo México.",
-    images: ["/og/cover.jpg"],
+    creator: "@dentalnoriega",
+    title: "Depósito Dental Noriega",
+    description: "Suministros dentales con envío y asesoría.",
+    images: ["/og-default.jpg"],
   },
 };
 
