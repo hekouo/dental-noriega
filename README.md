@@ -62,6 +62,7 @@ Catálogo completo con carrito "light" y consultas por WhatsApp. **Sin login ni 
 ### Debug del checkout
 
 Activar con `NEXT_PUBLIC_CHECKOUT_DEBUG=1` (no usar en producción):
+
 - Muestra estado del formulario en tiempo real
 - Indica por qué el botón está deshabilitado
 - Útil para debugging en desarrollo/preview
