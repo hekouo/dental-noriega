@@ -5,6 +5,53 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.1.1] - 2025-11-10
+
+### Cart Buy-Now + Qty, A11y, SEO Defaults, Favicon, Audit Artifacts OK
+
+Este release incluye mejoras de UX en el carrito, accesibilidad, SEO por defecto y corrección de favicon.
+
+**Métricas y Runs:**
+
+- **Audit Run #82**: [success](https://github.com/hekouo/dental-noriega/actions/runs/19245505899)
+- **FCP**: 1.2s (objetivo <1.8s) ✅
+- **LCP**: 2.3s (objetivo <2.5s) ✅
+- **SI**: 2.6s ✅
+
+### Cambios Clave
+
+- **Carrito y UX:**
+  - Componente `QuantityInput` reutilizable con accesibilidad completa
+  - Botón "Comprar ahora" en PDP que redirige a checkout con item prellenado
+  - Quantity stepper en todas las listas de productos (Featured, Tienda, Catálogo)
+  - Integración con `checkoutStore` para bypass del carrito
+
+- **Accesibilidad (A11y):**
+  - `alt` obligatorio en `ImageWithFallback` con fallback "Producto"
+  - `loading="lazy"` por defecto en imágenes
+  - `aria-label` en botones icónicos (carrito, cerrar, etc.)
+  - `role="status"` y `aria-live` en loaders/toasts
+  - Asociación `label htmlFor` e `id` en formularios de checkout
+  - Soporte de teclado ArrowUp/ArrowDown en `QuantityInput`
+
+- **SEO:**
+  - `robots.ts` con reglas allow `/` y disallow `/api/`
+  - `manifest.ts` con PWA manifest completo
+  - Metadatos por defecto en `layout.tsx` con `metadataBase`, `openGraph` y `twitter:card`
+  - Sitemap URL configurada
+
+- **Best Practices:**
+  - `favicon.ico` 48x48 añadido a `/public/` (fix 404)
+  - Reemplazo de `lucide-react` icons con inline SVG en rutas públicas
+  - Reducción de bundle size y mejora de TBT
+
+**Enlaces:**
+- [Release v1.1.1](https://github.com/hekouo/dental-noriega/releases/tag/v1.1.1)
+- [PR #102](https://github.com/hekouo/dental-noriega/pull/102) - Cart buy-now + qty
+- [PR #103](https://github.com/hekouo/dental-noriega/pull/103) - A11y improvements
+- [PR #104](https://github.com/hekouo/dental-noriega/pull/104) - SEO defaults
+- [PR #105](https://github.com/hekouo/dental-noriega/pull/105) - Favicon + audit docs
+
 ## [1.1.0] - 2025-11-10
 
 ### Repo Hardened: CI/Audit Weekly, Husky, Templates, Branch Protection
