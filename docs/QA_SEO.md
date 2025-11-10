@@ -2,13 +2,26 @@
 
 ## Cómo correr
 
-### Lighthouse (requiere URL pública o local):
+### Workflow de GitHub Actions (recomendado)
+
+El audit se ejecuta manualmente desde GitHub Actions:
+
+1. Ve a [Actions → Audit (Lighthouse + Axe)](https://github.com/hekouo/dental-noriega/actions/workflows/audit.yml)
+2. Haz clic en "Run workflow"
+3. Ingresa la URL a auditar (por defecto: `https://dental-noriega.vercel.app`)
+4. Los artifacts se guardan automáticamente con retención de 14 días
+
+**Nota:** El audit también se ejecuta automáticamente cada lunes a las 09:00 UTC.
+
+### Local (desarrollo)
+
+#### Lighthouse (requiere URL pública o local):
 
 ```bash
 AUDIT_URL="https://<tu-deploy>.vercel.app" pnpm audit:lh
 ```
 
-### Axe + Playwright (usa la misma AUDIT_URL o NEXT_PUBLIC_SITE_URL; si no, intenta localhost:3000):
+#### Axe + Playwright (usa la misma AUDIT_URL o NEXT_PUBLIC_SITE_URL; si no, intenta localhost:3000):
 
 ```bash
 AUDIT_URL="https://<tu-deploy>.vercel.app" pnpm audit:axe

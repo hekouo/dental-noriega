@@ -213,6 +213,14 @@ Los tests incluyen casos de borde para:
 
 Estos casos aseguran que el catálogo funciona correctamente incluso con datos incompletos o en entornos de preview sin configuración completa.
 
+## 🔒 Branch Protection
+
+El branch `main` tiene protección activa con los siguientes checks requeridos:
+
+- **build**: Verifica que el proyecto compile correctamente
+
+Para más información sobre las reglas de protección, consulta la configuración en GitHub.
+
 ## 📊 Lighthouse (Performance)
 
 ```bash
