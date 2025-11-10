@@ -236,6 +236,26 @@ Estos casos aseguran que el catálogo funciona correctamente incluso con datos i
 
 **Release:** [v1.0.0](https://github.com/hekouo/dental-noriega/releases/tag/v1.0.0) | [PR Meta #92](https://github.com/hekouo/dental-noriega/pull/92)
 
+### Cómo correr Audit manual
+
+El workflow **Audit (Lighthouse + Axe)** se ejecuta automáticamente cada lunes a las 09:00 UTC y también puede ejecutarse manualmente desde GitHub Actions.
+
+#### Pasos para ejecutar manualmente:
+
+1. **Ir a GitHub Actions**: Navega a [Actions](https://github.com/hekouo/dental-noriega/actions/workflows/audit.yml) y selecciona el workflow "Audit (Lighthouse + Axe)".
+
+2. **Ejecutar workflow**: Haz clic en "Run workflow", ingresa la URL a auditar (por defecto: `https://dental-noriega.vercel.app`) y ejecuta.
+
+3. **Ver artifacts**: Una vez completado, los resultados se guardan en el artifact `audit-YYYY-MM-DD` con `retention-days: 14`. Los archivos también se suben a `docs/audits/YYYY-MM-DD/` en el repositorio.
+
+#### Artifacts disponibles:
+
+- `lighthouse.html` - Reporte HTML de Lighthouse
+- `lighthouse.json` - Datos JSON de Lighthouse
+- `README.txt` - Placeholder si no se generaron reportes (timeout/error)
+
+Los artifacts están disponibles por 14 días desde la ejecución del workflow.
+
 ### Últimos Runs (v1.1.0)
 
 - **CI Run #88**: [success](https://github.com/hekouo/dental-noriega/actions/runs/19223898116)

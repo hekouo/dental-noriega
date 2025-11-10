@@ -3,7 +3,7 @@ import Link from "next/link";
 import { listSectionsFromCatalog } from "@/lib/supabase/catalog";
 import { getSectionsFromCatalogView } from "@/lib/catalog/getSectionsFromCatalogView.server";
 import { ROUTES } from "@/lib/routes";
-import { Package } from "lucide-react";
+// Package icon replaced with inline SVG to reduce bundle size
 
 export const revalidate = 300; // Cache 5 minutos
 
@@ -30,7 +30,22 @@ export default async function CatalogoIndexPage() {
       <div className="max-w-7xl mx-auto px-4 py-12">
         {sections.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-12 text-center">
-            <Package size={48} className="mx-auto mb-4 text-gray-400" />
+            <svg
+              width={48}
+              height={48}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="mx-auto mb-4 text-gray-400"
+              aria-hidden="true"
+            >
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+              <line x1="12" y1="22.08" x2="12" y2="12" />
+            </svg>
             <p className="text-gray-500 mb-2">Aún no hay secciones</p>
             <Link href={ROUTES.destacados()} className="btn btn-primary">
               <span>Ver Destacados</span>
