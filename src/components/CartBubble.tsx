@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import {
   useCartStore,
   selectCartItems,
@@ -141,10 +142,12 @@ function CartDrawer({ onClose }: { onClose: () => void }) {
                 className="flex items-center gap-3 border rounded-lg p-3"
               >
                 <div className="relative h-16 w-16 bg-gray-100 rounded overflow-hidden flex-shrink-0">
-                  <img
+                  <Image
                     src={imageSrc}
                     alt={it.title}
-                    className="w-full h-full object-cover"
+                    fill
+                    sizes="64px"
+                    className="object-cover"
                   />
                 </div>
                 <div className="grow min-w-0">

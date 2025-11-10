@@ -2,7 +2,7 @@
 "use client";
 import Link from "next/link";
 import ImageWithFallback from "@/components/ui/ImageWithFallback";
-import FeaturedCardControls from "@/components/FeaturedCardControls";
+import FeaturedCardControlsLazy from "@/components/FeaturedCardControls.lazy.client";
 import { mxnFromCents, formatMXN } from "@/lib/utils/currency";
 import { hasPurchasablePrice } from "@/lib/catalog/model";
 import type { FeaturedItem } from "@/lib/catalog/getFeatured.server";
@@ -36,6 +36,7 @@ export default function FeaturedCard({ item, priority = false, sizes }: Props) {
               sizes ?? "(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
             }
             className="w-full h-full object-contain"
+            fetchPriority={priority ? "high" : "auto"}
           />
         </div>
       </Link>
@@ -55,7 +56,7 @@ export default function FeaturedCard({ item, priority = false, sizes }: Props) {
             {price !== null ? formatMXN(price) : "—"}
           </div>
           {canPurchase ? (
-            <FeaturedCardControls item={item} compact />
+            <FeaturedCardControlsLazy item={item} compact />
           ) : (
             <p className="text-sm text-muted-foreground mt-2">Agotado</p>
           )}

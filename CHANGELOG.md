@@ -10,6 +10,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 ## [2025-11-09] - Auditoría Final Post-Merge
 
 ### Auditoría Final (Producción)
+
 - **Performance**: 99 (objetivo ≥0.80) ✅
 - **Accessibility**: 96 (objetivo ≥0.90) ✅
 - **Best Practices**: 96 (objetivo ≥0.90) ✅
@@ -21,6 +22,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 - **CSS inicial**: 35.7 KB (objetivo ≤40 KB) ✅
 
 ### Performance
+
 - **feat(perf):** Optimización de imágenes LCP con prioridad y formatos AVIF/WebP (#77)
 - **feat(perf):** Fuentes con next/font + preconnect/preload y headers de caché (#78)
 - **feat(perf):** CSS crítico inline y defer de CSS no crítico (#78)
@@ -33,9 +35,11 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 - **feat(perf):** Quick wins adicionales de performance (#81)
 
 ### Accesibilidad
+
 - **chore(a11y):** Labels accesibles, enlaces descriptivos y contraste AA (#79)
 
 ### Mejoras
+
 - Performance mejorado de ~75-80 a 99 (+19-24 puntos)
 - LCP mejorado de ~3.0s a 1.5-1.6s (-1.4s)
 - TBT mejorado de ~1000ms a 70-280ms (-720-930ms)
@@ -47,12 +51,14 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 ## [2025-11-09]
 
 ### Performance
+
 - CSS crítico inline implementado para above-the-fold
 - Script inline para diferir CSS no crítico antes del parse
 - Optimización de rehidratación del store de Zustand
 - Lazy loading mejorado con IntersectionObserver + requestIdleCallback
 
 ### Accesibilidad
+
 - Mejoras de contraste AA
 - Labels accesibles implementados
 - Enlaces descriptivos mejorados
@@ -60,9 +66,9 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 ## [2025-11-07]
 
 ### Performance
+
 - Prioridad LCP en imágenes hero
 - Formatos AVIF/WebP optimizados
 - Sizes correctos para responsive images
 - Defer de componentes adicionales
 - Final tuning de imágenes optimizadas
-

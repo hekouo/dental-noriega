@@ -5,12 +5,15 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { Inter } from "next/font/google";
 import dynamic from "next/dynamic";
-import WhatsappBubble from "@/components/WhatsappBubble";
 import { ROUTES } from "@/lib/routes";
 import BrandMark from "@/components/BrandMark";
 import safeAreaStyles from "@/components/ui/safe-area.module.css";
+import CriticalCSS from "@/components/CriticalCSS";
 
-// ConsultarDrawer removido - ya no se usa
+const WhatsappBubble = dynamic(() => import("@/components/WhatsappBubble"), {
+  ssr: false,
+});
+
 const CheckoutDevGuard = dynamic(
   () => import("@/components/CheckoutDevGuard"),
   {
@@ -96,15 +99,23 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const supabaseOrigin = process.env.NEXT_PUBLIC_SUPABASE_URL
+    ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).origin
+    : null;
+
   return (
     <html lang="es" suppressHydrationWarning>
       <head>
+        <CriticalCSS />
         <link
           rel="preconnect"
           href="https://lh3.googleusercontent.com"
           crossOrigin=""
         />
         <link rel="preconnect" href="https://drive.google.com" crossOrigin="" />
+        {supabaseOrigin ? (
+          <link rel="preconnect" href={supabaseOrigin} crossOrigin="" />
+        ) : null}
       </head>
       <body
         className={`${inter.className} min-h-screen bg-white text-gray-900 flex flex-col`}
@@ -171,9 +182,6 @@ export default function RootLayout({
 
         {/* Footer */}
         <SiteFooter />
-
-        {/* Drawer global */}
-        {/* ConsultarDrawer removido */}
       </body>
     </html>
   );

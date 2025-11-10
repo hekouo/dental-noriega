@@ -15,7 +15,7 @@ export default function FeaturedCarousel({ items }: { items: FeaturedItem[] }) {
             <FeaturedCard
               item={item}
               priority={index === 0}
-              sizes="(max-width: 768px) 90vw, 50vw"
+              sizes="(max-width: 768px) 90vw, (max-width: 1024px) 50vw, 512px"
             />
           </div>
         ))}

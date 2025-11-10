@@ -81,7 +81,6 @@ const FinalThanks = dynamicImport(() => import("@/components/FinalThanks"), {
 });
 
 export const revalidate = 60; // Cache leve
-export const dynamic = "force-dynamic"; // Si fetch depende de cookies del server wrapper
 
 export default async function HomePage() {
   const items = await getFeatured();

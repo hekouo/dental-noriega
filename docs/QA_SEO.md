@@ -57,6 +57,7 @@ AUDIT_URL="https://<tu-deploy>.vercel.app" pnpm audit:axe
 **CSS inicial:** 35.7 KB
 
 ### Última Auditoría
+
 - **Fecha:** 2025-11-09 23:08 UTC
 - **URL:** https://dental-noriega.vercel.app
 - **Artifacts:** `reports/lighthouse/lh-2025-11-09T23-08-33-*.json/html`
