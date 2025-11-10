@@ -13,6 +13,7 @@ let md = `# LEGACY SQL SNAPSHOT\n\nTotal: ${files.length} archivos\n\n`;
 
 for (const f of files) {
   const p = path.join(legacyDir, f);
+  // eslint-disable-next-line security/detect-non-literal-fs-filename -- Script interno: path construido desde directorio fijo y nombres de archivos filtrados por extensión .sql
   const buf = await fs.readFile(p);
   const sha = crypto.createHash("sha256").update(buf).digest("hex");
   const text = buf.toString("utf8");
