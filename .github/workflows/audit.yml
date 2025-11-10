@@ -60,7 +60,6 @@ jobs:
 
       - name: Ensure audit dir
         run: mkdir -p "${{ steps.meta.outputs.dir }}"
-        run: pnpm install --frozen-lockfile
 
       - name: Setup Chrome (for Lighthouse)
         uses: browser-actions/setup-chrome@v1
