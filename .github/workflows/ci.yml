@@ -56,3 +56,11 @@ jobs:
 
       - name: Build
         run: pnpm -s build
+      - name: Upload coverage (optional)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/
+          if-no-files-found: warn
+          retention-days: 7

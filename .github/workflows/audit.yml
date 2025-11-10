@@ -49,6 +49,17 @@ jobs:
           cache: pnpm
 
       - name: Install deps
+
+        run: pnpm install --frozen-lockfile
+      - name: Meta
+        id: meta
+        shell: bash
+        run: |
+          echo "date=$(date -u +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
+          echo "dir=docs/audits/$(date -u +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
+
+      - name: Ensure audit dir
+        run: mkdir -p "${{ steps.meta.outputs.dir }}"
         run: pnpm install --frozen-lockfile
 
       - name: Setup Chrome (for Lighthouse)
@@ -107,12 +118,30 @@ jobs:
       - name: Axe (accessibility)
         run: pnpm exec playwright test --reporter=list
 
-      - name: Upload reports
+      - name: Collect audit artifacts
         if: always()
+        shell: bash
+        run: |
+          # Si ya existen lighthouse.html/json en algún lado, muévelos
+          for f in lighthouse.html lighthouse.json; do
+            if [ -f "$f" ]; then mv -f "$f" "${{ steps.meta.outputs.dir }}/" || true; fi
+            if [ -f "reports/lighthouse/$f" ]; then mv -f "reports/lighthouse/$f" "${{ steps.meta.outputs.dir }}/" || true; fi
+            if [ -f "docs/audits/$f" ]; then mv -f "docs/audits/$f" "${{ steps.meta.outputs.dir }}/" || true; fi
+          done
+          # Si hay reports/axe, también copiarlos
+          if [ -d "reports/axe" ] && [ "$(ls -A reports/axe)" ]; then
+            cp -r reports/axe/* "${{ steps.meta.outputs.dir }}/" || true
+          fi
+          # Si no hay nada, deja un marcador para no fallar el upload
+          if ! ls "${{ steps.meta.outputs.dir }}/"* >/dev/null 2>&1; then
+            echo "No reports were generated (timeout/red). Adding placeholder." > "${{ steps.meta.outputs.dir }}/README.txt"
+          fi
+
+      - name: Upload results
         uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: audit-reports
-          path: |
+          name: audit-${{ steps.meta.outputs.date }}
+          path: ${{ steps.meta.outputs.dir }}/
+          if-no-files-found: warn
           retention-days: 14
-            reports/lighthouse/**
-            reports/axe/**
