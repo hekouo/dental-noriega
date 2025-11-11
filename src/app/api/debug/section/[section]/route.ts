@@ -26,7 +26,7 @@ export async function GET(
     const { data, error } = await supa
       .from("api_catalog_with_images")
       .select(
-        "id, product_slug, section, title, description, price, image_url, stock_qty, active"
+        "id, product_slug, section, title, description, price, image_url, in_stock, active"
       )
       .eq("section", section)
       .order("created_at", { ascending: false, nullsFirst: false })
@@ -49,7 +49,7 @@ export async function GET(
       .select("*", { count: "exact", head: true })
       .eq("section", section)
       .eq("active", true)
-      .gt("stock_qty", 0);
+      .eq("in_stock", true);
 
     if (error) {
       dbg(`[debug/section] Error para sección '${section}':`, error);

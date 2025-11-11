@@ -35,7 +35,7 @@ export async function GET() {
       const { data, error } = await supa
         .from("api_catalog_with_images")
         .select(
-          "id, product_slug, section, title, description, price, image_url, stock_qty, active"
+          "id, product_slug, section, title, description, price, image_url, in_stock, active"
         )
         .in("product_slug", slugs);
 
@@ -62,13 +62,13 @@ export async function GET() {
         .from("api_catalog_with_images")
         .select("*", { count: "exact", head: true })
         .eq("active", true)
-        .gt("stock_qty", 0);
+        .eq("in_stock", true);
 
       // Fallback: obtener todos los productos sin filtrar por active, luego filtrar en memoria
       const { data: fallbackData, error: fallbackError } = await supa
         .from("api_catalog_with_images")
         .select(
-          "id, product_slug, section, title, description, price, image_url, stock_qty, active"
+          "id, product_slug, section, title, description, price, image_url, in_stock, active"
         )
         .order("created_at", { ascending: false, nullsFirst: false })
         .limit(50);

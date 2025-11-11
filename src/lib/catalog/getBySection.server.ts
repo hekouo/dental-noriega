@@ -18,7 +18,7 @@ export async function getBySection(section: string): Promise<Product[]> {
   const { data, error } = await supa
     .from("api_catalog_with_images")
     .select(
-      "id, product_slug, section, title, description, price, image_url, stock_qty, active"
+      "id, product_slug, section, title, description, price, image_url, in_stock, active"
     )
     .eq("section", section)
     .order("created_at", { ascending: false, nullsFirst: false });
@@ -51,7 +51,7 @@ export async function getBySection(section: string): Promise<Product[]> {
         id: firstRaw.id,
         product_slug: firstRaw.product_slug,
         active: firstRaw.active,
-        stock_qty: firstRaw.stock_qty,
+        in_stock: firstRaw.in_stock,
         price: firstRaw.price,
       }));
       dbg("[bySection] DEBUG - Tras mapRow:", JSON.stringify({

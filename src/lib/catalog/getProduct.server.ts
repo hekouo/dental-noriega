@@ -22,7 +22,7 @@ export async function getProduct(
   let { data, error } = await supa
     .from("api_catalog_with_images")
     .select(
-      "id, product_slug, section, title, description, price, image_url, stock_qty, active"
+      "id, product_slug, section, title, description, price, image_url, in_stock, active"
     )
     .eq("section", section)
     .eq("product_slug", slug)
@@ -35,7 +35,7 @@ export async function getProduct(
     const result = await supa
       .from("api_catalog_with_images")
       .select(
-        "id, product_slug, section, title, description, price, image_url, stock_qty, active"
+        "id, product_slug, section, title, description, price, image_url, in_stock, active"
       )
       .eq("product_slug", slug)
       .limit(1)

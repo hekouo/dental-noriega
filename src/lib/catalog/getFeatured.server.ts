@@ -63,7 +63,7 @@ export async function getFeatured(): Promise<Product[]> {
     const { data: fallbackData, error: fallbackError } = await supa
       .from("api_catalog_with_images")
       .select(
-        "id, product_slug, section, title, description, price, image_url, stock_qty, active"
+        "id, product_slug, section, title, description, price, image_url, in_stock, active"
       )
       .order("created_at", { ascending: false, nullsFirst: false })
       .limit(50);
@@ -95,7 +95,7 @@ export async function getFeatured(): Promise<Product[]> {
     const { data: fallbackData } = await supa
       .from("api_catalog_with_images")
       .select(
-        "id, product_slug, section, title, description, price, image_url, stock_qty, active"
+        "id, product_slug, section, title, description, price, image_url, in_stock, active"
       )
       .or("active.is.null,active.eq.true")
       .order("created_at", { ascending: false, nullsFirst: false })
@@ -117,7 +117,7 @@ export async function getFeatured(): Promise<Product[]> {
     const { data: fallbackData } = await supa
       .from("api_catalog_with_images")
       .select(
-        "id, product_slug, section, title, description, price, image_url, stock_qty, active"
+        "id, product_slug, section, title, description, price, image_url, in_stock, active"
       )
       .or("active.is.null,active.eq.true")
       .order("created_at", { ascending: false, nullsFirst: false })
@@ -141,7 +141,7 @@ export async function getFeatured(): Promise<Product[]> {
       id: firstRaw.id,
       product_slug: firstRaw.product_slug,
       active: firstRaw.active,
-      stock_qty: firstRaw.stock_qty,
+      in_stock: firstRaw.in_stock,
       price: firstRaw.price,
     }));
     dbg("[featured] DEBUG - Tras mapRow:", JSON.stringify({
