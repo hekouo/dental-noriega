@@ -32,13 +32,24 @@ export async function GET(
       .order("created_at", { ascending: false, nullsFirst: false })
       .limit(50);
 
-    // Incluir todos los productos sin filtrar por active
-    const filteredData = (data ?? []).slice(0, 12);
-
-    const rawCount = filteredData.length;
-    let mappedCount = 0;
-    let sampleRaw: unknown = null;
-    let sampleMapped: CatalogItem | null = null;
+    // Obtener conteos para debug (siempre incluirlos en endpoints de debug)
+    const { count: totalInSection } = await supa
+      .from("api_catalog_with_images")
+      .select("*", { count: "exact", head: true })
+      .eq("section", section);
+    
+    const { count: activeInSection } = await supa
+      .from("api_catalog_with_images")
+      .select("*", { count: "exact", head: true })
+      .eq("section", section)
+      .eq("active", true);
+    
+    const { count: stockInSection } = await supa
+      .from("api_catalog_with_images")
+      .select("*", { count: "exact", head: true })
+      .eq("section", section)
+      .eq("active", true)
+      .gt("stock_qty", 0);
 
     if (error) {
       dbg(`[debug/section] Error para sección '${section}':`, error);
@@ -57,6 +68,16 @@ export async function GET(
         },
       });
     }
+
+    // Incluir todos los productos sin filtrar por active
+    const filteredData = (data ?? []).slice(0, 12);
+
+    const rawCount = filteredData.length;
+    let mappedCount = 0;
+    let sampleRaw: unknown = null;
+    let sampleMapped: CatalogItem | null = null;
+
+    if (filteredData.length > 0) {
       // Mapear con mapRow y convertir a CatalogItem
       const products: Product[] = filteredData.map((r: any) => mapRow(r));
       // Ordenar por slug alfabéticamente después de mapear
@@ -82,63 +103,20 @@ export async function GET(
       sampleMapped = catalogItems[0] ?? null;
     }
 
-    // Obtener conteos para debug (siempre incluirlos en endpoints de debug)
-    const { count: totalInSection } = await supa
-      .from("api_catalog_with_images")
-      .select("*", { count: "exact", head: true })
-      .eq("section", section);
-    
-    const { count: activeInSection } = await supa
-      .from("api_catalog_with_images")
-      .select("*", { count: "exact", head: true })
-      .eq("section", section)
-      .eq("active", true);
-    
-    const { count: stockInSection } = await supa
-      .from("api_catalog_with_images")
-      .select("*", { count: "exact", head: true })
-      .eq("section", section)
-      .eq("active", true)
-      .gt("stock_qty", 0);
-
-    // Obtener conteos para debug (siempre incluirlos en endpoints de debug)
-    const { count: totalInSection } = await supa
-      .from("api_catalog_with_images")
-      .select("*", { count: "exact", head: true })
-      .eq("section", section);
-    
-    const { count: activeInSection } = await supa
-      .from("api_catalog_with_images")
-      .select("*", { count: "exact", head: true })
-      .eq("section", section)
-      .eq("active", true);
-    
-    const { count: stockInSection } = await supa
-      .from("api_catalog_with_images")
-      .select("*", { count: "exact", head: true })
-      .eq("section", section)
-      .eq("active", true)
-      .gt("stock_qty", 0);
-
-    if (error) {
-      dbg(`[debug/section] Error para sección '${section}':`, error);
-      return NextResponse.json({
-        section,
-        error: error.message,
-        rawCount: 0,
-        mappedCount: 0,
-        sampleRaw: null,
-        sampleMapped: null,
-        debug: {
-          totalInSection: totalInSection ?? 0,
-          activeInSection: activeInSection ?? 0,
-          stockInSection: stockInSection ?? 0,
-          queryError: error.message,
-        },
-      });
-    }
-
-    if (filteredData.length > 0) {
+    return NextResponse.json({
+      section,
+      rawCount,
+      mappedCount,
+      sampleRaw,
+      sampleMapped,
+      debug: {
+        totalInSection: totalInSection ?? 0,
+        activeInSection: activeInSection ?? 0,
+        stockInSection: stockInSection ?? 0,
+        dataLength: data?.length ?? 0,
+        filteredLength: filteredData.length,
+      },
+    });
   } catch (error) {
     dbg(`[debug/section] Error para sección '${section}':`, error);
     return NextResponse.json(
@@ -152,4 +130,3 @@ export async function GET(
     );
   }
 }
-
