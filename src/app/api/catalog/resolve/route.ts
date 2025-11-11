@@ -83,7 +83,7 @@ export async function GET(req: Request) {
           title: s.title,
           price_cents: s.price,
           image_url: s.image_url,
-          inStock: s.inStock ?? true,
+          in_stock: s.in_stock ?? true,
         })),
       };
       if (DEBUG) console.log("[resolve] token match:", redirectTo);

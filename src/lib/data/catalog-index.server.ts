@@ -54,7 +54,7 @@ export async function findBySectionSlug(
     title: item.title,
     price: Math.round(item.price_cents / 100),
     image_url: item.image_url ?? undefined,
-    inStock: item.in_stock,
+    in_stock: item.in_stock,
   };
 }
 
@@ -92,7 +92,7 @@ export async function findBySlugAnySection(
     title: item.title,
     price: Math.round(item.price_cents / 100),
     image_url: item.image_url ?? undefined,
-    inStock: item.in_stock,
+    in_stock: item.in_stock,
   };
 }
 
