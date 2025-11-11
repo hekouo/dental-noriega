@@ -321,8 +321,8 @@ export const useCheckoutStore = create<State>()((set, _get) => {
       set({
         checkoutItems: [],
         step: "datos",
-        datos: null,
-        orderId: null,
+      datos: null,
+      orderId: null,
         shippingMethod: undefined,
         shippingCost: undefined,
         couponCode: undefined,
@@ -351,4 +351,4 @@ export const selectSelectedTotal = (state: State) =>
   state.checkoutItems.reduce(
     (a, i) => a + (i.selected ? (i.price ?? 0) * (i.qty ?? 1) : 0),
     0,
-  );
+);

@@ -23,7 +23,9 @@ export async function getProductBySectionSlug(
   slug: string,
 ): Promise<CatalogItem | null> {
   if (!hasSupabaseEnvs()) {
-    console.warn("[catalog] missing supabase envs (using null)");
+    if (process.env.NEXT_RUNTIME) {
+      console.warn("[catalog] missing supabase envs (using null)");
+    }
     return null;
   }
 
@@ -67,7 +69,9 @@ export async function getProductBySlug(
   slug: string,
 ): Promise<CatalogItem | null> {
   if (!hasSupabaseEnvs()) {
-    console.warn("[catalog] missing supabase envs (using null)");
+    if (process.env.NEXT_RUNTIME) {
+      console.warn("[catalog] missing supabase envs (using null)");
+    }
     return null;
   }
 
