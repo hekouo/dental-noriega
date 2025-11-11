@@ -45,8 +45,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const title = `${product.title} | ${siteName}`;
   const description =
     product.description?.slice(0, 150) ?? `${product.title} en ${siteName}`;
-  // eslint-disable-next-line no-restricted-syntax
-  const image = product.imageUrl ?? "/og/cover.jpg"; // Product usa imageUrl
+  const image = product.image_url ?? "/og/cover.jpg";
   const url = `${base}/catalogo/${product.section}/${product.slug}`;
 
   return {
@@ -89,8 +88,7 @@ export default async function ProductDetailPage({ params }: Props) {
     return notFound(); // 404 limpio, no error
   }
 
-  // eslint-disable-next-line no-restricted-syntax
-  const image_url = product.imageUrl; // Product usa imageUrl
+  const image_url = product.image_url;
   const price = new Intl.NumberFormat("es-MX", {
     style: "currency",
     currency: "MXN",
@@ -98,7 +96,7 @@ export default async function ProductDetailPage({ params }: Props) {
   const base =
     process.env.NEXT_PUBLIC_SITE_URL ?? "https://dental-noriega.vercel.app";
   const canonicalUrl = `${base}/catalogo/${product.section}/${product.slug}`;
-  const soldOut = !(product.active ?? true) || !(product.inStock ?? false);
+  const soldOut = !(product.is_active ?? true) || !(product.in_stock ?? false);
 
     // JSON-LD Product schema
     const jsonLd = {
@@ -218,10 +216,9 @@ export default async function ProductDetailPage({ params }: Props) {
                   section: product.section,
                   product_slug: product.slug,
                   price_cents: Math.round(product.price * 100),
-                  // eslint-disable-next-line no-restricted-syntax
-                  image_url: product.imageUrl ?? undefined, // Product usa imageUrl, ProductActions usa image_url
-                  in_stock: product.inStock && product.active,
-                  is_active: product.active ?? true,
+                  image_url: product.image_url ?? undefined,
+                  in_stock: product.in_stock,
+                  is_active: product.is_active,
                 }}
               />
 

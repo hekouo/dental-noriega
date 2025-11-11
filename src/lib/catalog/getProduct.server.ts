@@ -1,53 +1,37 @@
-"use server";
+import "server-only";
 
 import { unstable_noStore as noStore } from "next/cache";
 import { getPublicSupabase } from "@/lib/supabase/public";
-import { mapRow, Product } from "./mapDbToProduct";
-
-// Helper para logs de debug solo en desarrollo
-const dbg = (...args: unknown[]) => {
-  if (process.env.NODE_ENV !== "production") {
-    console.log(...args);
-  }
-};
+import { mapDbToCatalogItem, type CatalogItem } from "./mapDbToProduct";
 
 export async function getProduct(
   section: string,
-  slug: string
-): Promise<Product | null> {
+  slug: string,
+): Promise<CatalogItem | null> {
   noStore();
-  const supa = getPublicSupabase();
+  const sb = getPublicSupabase();
 
   // Primero intentar por section + slug
-  let { data, error } = await supa
+  let { data, error } = await sb
     .from("api_catalog_with_images")
     .select("*")
     .eq("section", section)
     .eq("product_slug", slug)
-    .limit(1)
     .maybeSingle();
 
   // Si no encuentra, intentar solo por slug (para evitar 404 falsos)
   if (!data && !error) {
-    dbg(`[getProduct] No encontrado por section+slug, intentando solo por slug`);
-    const result = await supa
+    const result = await sb
       .from("api_catalog_with_images")
       .select("*")
       .eq("product_slug", slug)
-      .limit(1)
       .maybeSingle();
     data = result.data;
     error = result.error;
   }
 
-  if (error) {
-    dbg("[getProduct] supabase error", error);
-    return null;
-  }
+  if (error) return null;
+  if (!data) return null;
 
-  if (!data) {
-    return null;
-  }
-
-  return mapRow(data);
+  return mapDbToCatalogItem(data);
 }
