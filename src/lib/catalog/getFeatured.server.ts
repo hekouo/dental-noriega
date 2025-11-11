@@ -1,12 +1,8 @@
 import "server-only";
 // Nada de cookies() aquí ni fetch a /api/debug/* en producción.
 
-import { unstable_cache } from "next/cache";
+import { unstable_cache, revalidateTag } from "next/cache";
 import { getPublicSupabase } from "@/lib/supabase/public";
-import {
-  FEATURED_TAG,
-  revalidateFeatured as revalidateFeaturedTag,
-} from "@/lib/catalog/cache";
 
 export type FeaturedItem = {
   product_id: string;
@@ -21,25 +17,17 @@ export type FeaturedItem = {
   position: number;
 };
 
-/**
- * Verifica si las variables de entorno de Supabase están presentes
- */
-function hasSupabaseEnvs(): boolean {
-  return !!(
-    process.env.NEXT_PUBLIC_SUPABASE_URL &&
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
-}
-
-type FeaturedOpts = { region?: string | null }; // lo que sacabas de cookies
+const FEATURED_CACHE_KEY = "featured:v3"; // bump para invalidar v2/v1
 
 /**
  * Función pura que NO llama cookies() dentro de unstable_cache
  */
-async function _fetchFeatured(opts: FeaturedOpts): Promise<FeaturedItem[]> {
-  if (!hasSupabaseEnvs()) {
-    // Solo loggear en runtime, no en build
-    if (process.env.NEXT_RUNTIME) {
+async function fetchFeaturedPure(regionKey: string): Promise<FeaturedItem[]> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!url || !anon) {
+    if (process.env.NODE_ENV !== "production") {
       console.warn("[getFeatured] missing supabase envs (using empty list)");
     }
     return [];
@@ -48,13 +36,13 @@ async function _fetchFeatured(opts: FeaturedOpts): Promise<FeaturedItem[]> {
   try {
     const supabase = getPublicSupabase();
     if (!supabase) {
-      if (process.env.NEXT_RUNTIME) {
+      if (process.env.NODE_ENV !== "production") {
         console.warn("[getFeatured] supabase client not available");
       }
       return [];
     }
 
-    // NO llames cookies aquí. Usa opts.region si lo necesitas en el futuro.
+    // NO llames cookies aquí. Usa regionKey si lo necesitas en el futuro.
     const { data: frows, error: ferr } = await supabase
       .from("featured")
       .select("product_id, position")
@@ -105,34 +93,36 @@ async function _fetchFeatured(opts: FeaturedOpts): Promise<FeaturedItem[]> {
       })
       .filter(Boolean) as FeaturedItem[];
   } catch (error) {
-    if (process.env.NEXT_RUNTIME) {
+    if (process.env.NODE_ENV !== "production") {
       console.warn("[getFeatured] Error:", error);
     }
     return [];
   }
 }
 
-// Cachea solo la parte pura (sin cookies)
+// Cachea solo la parte pura (sin cookies) con fallback si trae 0 items
 export const getFeaturedCached = unstable_cache(
-  async (key: string) => _fetchFeatured({ region: key }),
-  ["featured:list:v1"],
-  { revalidate: 60, tags: [FEATURED_TAG] } // 1 minuto
+  async (regionKey: string) => {
+    const items = await fetchFeaturedPure(regionKey);
+    // Fallback: si caché trae 0, rehacer una vez sin caché
+    if (!items?.length) {
+      return fetchFeaturedPure(regionKey);
+    }
+    return items;
+  },
+  [FEATURED_CACHE_KEY],
+  { revalidate: 60, tags: ["featured"] }
 );
 
 // Wrapper por request: lee cookies AQUÍ, fuera de la cache
 export async function getFeatured(): Promise<FeaturedItem[]> {
-  // Por ahora no usamos cookies, pero la estructura está lista
-  // Si en el futuro necesitas region, puedes hacer:
-  // const { cookies } = await import('next/headers');
-  // const region = cookies().get('region')?.value ?? null;
-  // return getFeaturedCached(region ?? 'no-region');
-  
-  // Por ahora, usa una key estable
-  return getFeaturedCached("no-region");
+  const { cookies } = await import("next/headers");
+  const region = cookies().get("region")?.value ?? "no-region";
+  return getFeaturedCached(region);
 }
 
 export function revalidateFeatured() {
-  revalidateFeaturedTag();
+  revalidateTag("featured");
 }
 
 // Alias para compatibilidad con código existente

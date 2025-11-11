@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
-
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+import { revalidateTag } from "next/cache";
 
 export async function GET() {
-  return NextResponse.json({ ok: true, at: Date.now() });
+  revalidateTag("featured");
+  revalidateTag("catalog");
+  return NextResponse.json({
+    ok: true,
+    revalidated: ["featured", "catalog"],
+    at: new Date().toISOString(),
+  });
 }
