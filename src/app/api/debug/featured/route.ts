@@ -61,24 +61,29 @@ export async function GET() {
       if (!fallbackError && fallbackData) {
         rawData = fallbackData;
         rawCount = fallbackData.length;
+        dbg(`[debug/featured] Fallback devolvió ${rawCount} productos`);
+      } else {
+        dbg("[debug/featured] Fallback error:", fallbackError);
       }
     }
 
     // Mapear con mapRow y convertir a CatalogItem
     const products: Product[] = rawData.map((r: any) => mapRow(r));
-    const catalogItems: CatalogItem[] = products.map((p) => ({
-      id: p.id,
-      product_slug: p.slug,
-      section: p.section,
-      title: p.title,
-      description: p.description ?? null,
-      price_cents: Math.round(p.price * 100),
-      currency: "mxn",
-      stock_qty: p.inStock ? 1 : 0,
-      // eslint-disable-next-line no-restricted-syntax
-      image_url: p.imageUrl ?? null, // Product usa imageUrl, CatalogItem usa image_url
-      in_stock: p.active && p.inStock,
-    }));
+    const catalogItems: CatalogItem[] = products
+      .filter((p) => p.active && p.inStock)
+      .map((p) => ({
+        id: p.id,
+        product_slug: p.slug,
+        section: p.section,
+        title: p.title,
+        description: p.description ?? null,
+        price_cents: Math.round(p.price * 100),
+        currency: "mxn",
+        stock_qty: p.inStock ? 1 : 0,
+        // eslint-disable-next-line no-restricted-syntax
+        image_url: p.imageUrl ?? null, // Product usa imageUrl, CatalogItem usa image_url
+        in_stock: p.active && p.inStock,
+      }));
 
     mappedCount = catalogItems.length;
 
