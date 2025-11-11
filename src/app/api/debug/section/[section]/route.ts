@@ -22,31 +22,16 @@ export async function GET(
   const section = decodeURIComponent(params.section ?? "");
 
   try {
-    // Obtener todos los productos de la sección sin filtrar por active, luego filtrar en memoria
-    // Intentar primero con in_stock, si falla intentar sin especificar columnas de stock
-    let { data, error } = await supa
+    // Obtener todos los productos de la sección usando select("*") para evitar problemas con columnas
+    const { data, error } = await supa
       .from("api_catalog_with_images")
-      .select(
-        "id, product_slug, section, title, description, price, image_url, in_stock, active"
-      )
+      .select("*")
       .eq("section", section)
       .order("created_at", { ascending: false, nullsFirst: false })
       .limit(50);
     
-    // Si falla con in_stock, intentar sin especificar columnas de stock
-    if (error && error.message.includes("does not exist")) {
-      dbg(`[debug/section] Error con in_stock, intentando sin columnas de stock:`, error.message);
-      const result = await supa
-        .from("api_catalog_with_images")
-        .select("*")
-        .eq("section", section)
-        .order("created_at", { ascending: false, nullsFirst: false })
-        .limit(50);
-      data = result.data;
-      error = result.error;
-      if (!error && data && data.length > 0) {
-        dbg(`[debug/section] Columnas disponibles en primer item:`, Object.keys(data[0]));
-      }
+    if (!error && data && data.length > 0) {
+      dbg(`[debug/section] Columnas disponibles en primer item:`, Object.keys(data[0]));
     }
 
     // Obtener conteos para debug (siempre incluirlos en endpoints de debug)
