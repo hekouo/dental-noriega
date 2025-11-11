@@ -5,7 +5,8 @@ export type Product = {
   title: string;
   description?: string;
   price: number;
-  imageUrl?: string;
+  // eslint-disable-next-line no-restricted-syntax
+  imageUrl?: string; // Tipo interno Product usa camelCase, UI usa snake_case
   inStock: boolean;
   active: boolean;
 };
@@ -33,7 +34,8 @@ export function mapRow(r: {
     title: r.title ?? "",
     description: r.description ?? "",
     price,
-    imageUrl: r.image_url ?? undefined,
+    // eslint-disable-next-line no-restricted-syntax
+    imageUrl: r.image_url ?? undefined, // Tipo interno Product usa camelCase
     inStock,
     active,
   };

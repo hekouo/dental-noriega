@@ -217,7 +217,8 @@ export default async function ProductDetailPage({ params }: Props) {
                   section: product.section,
                   product_slug: product.slug,
                   price_cents: Math.round(product.price * 100),
-                  image_url: product.imageUrl ?? undefined,
+                  // eslint-disable-next-line no-restricted-syntax
+                  image_url: product.imageUrl ?? undefined, // Product usa imageUrl, ProductActions usa image_url
                   in_stock: product.active && product.inStock, // Lógica correcta
                 }}
               />
