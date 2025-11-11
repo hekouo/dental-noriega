@@ -13,8 +13,9 @@ const mockItem: FeaturedItem = {
   description: null,
   price_cents: 10000,
   currency: "mxn",
-  stock_qty: 10,
   image_url: "https://example.com/image.jpg",
+  in_stock: true,
+  is_active: true,
   position: 1,
 };
 

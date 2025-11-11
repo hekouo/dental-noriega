@@ -67,8 +67,9 @@ describe("FeaturedCardControls UI", () => {
       description: null,
       price_cents: 100,
       currency: "mxn",
-      stock_qty: 5,
       image_url: null,
+      in_stock: true,
+      is_active: true,
       position: 0,
     };
 
