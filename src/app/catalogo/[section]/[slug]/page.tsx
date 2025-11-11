@@ -89,7 +89,8 @@ export default async function ProductDetailPage({ params }: Props) {
     return notFound(); // 404 limpio, no error
   }
 
-  const image_url = product.imageUrl;
+  // eslint-disable-next-line no-restricted-syntax
+  const image_url = product.imageUrl; // Product usa imageUrl
   const price = new Intl.NumberFormat("es-MX", {
     style: "currency",
     currency: "MXN",
