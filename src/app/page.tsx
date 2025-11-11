@@ -86,6 +86,7 @@ export const dynamic = "force-dynamic"; // temporal hasta estabilizar cache
 export default async function HomePage() {
   const items = await getFeatured();
 
+  // Sanity check: si el array llega vacío, registra un log una sola vez
   if (!items?.length) {
     if (process.env.NEXT_RUNTIME) {
       console.warn("[featured] empty result in runtime");

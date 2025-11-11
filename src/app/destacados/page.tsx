@@ -3,22 +3,40 @@ import Link from "next/link";
 import { getFeatured } from "@/lib/catalog/getFeatured.server";
 import FeaturedGrid from "@/components/FeaturedGrid";
 
-export const dynamic = "force-dynamic"; // temporal hasta estabilizar cache
-// opcionalmente: export const revalidate = 60;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
+
+/**
+ * Verifica si las variables de entorno de Supabase están presentes
+ */
+function hasSupabaseEnvs(): boolean {
+  return !!(
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  );
+}
 
 export default async function DestacadosPage() {
   const items = await getFeatured();
+  const hasEnvs = hasSupabaseEnvs();
 
+  // Sanity check: si el array llega vacío, registra un log una sola vez
   if (!items?.length) {
     if (process.env.NEXT_RUNTIME) {
       console.warn("[featured] empty result in runtime");
     }
+  }
+
+  if (items.length === 0) {
     return (
       <div className="container py-10">
         <h1 className="text-3xl font-bold mb-6">Productos Destacados</h1>
         <div className="p-6 bg-gray-50 rounded-lg">
           <p className="text-gray-700 mb-4">
-            No hay productos destacados en este momento.
+            {hasEnvs
+              ? "No hay productos destacados en este momento."
+              : "Catálogo no disponible."}
           </p>
           <div className="flex gap-4">
             <Link
