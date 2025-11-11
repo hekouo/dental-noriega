@@ -36,7 +36,8 @@ function productToFeaturedItem(p: Product, position: number): FeaturedItem {
     price_cents: Math.round(p.price * 100), // convertir a centavos
     currency: "mxn",
     stock_qty: p.inStock ? 1 : 0,
-    image_url: p.imageUrl ?? null,
+    // eslint-disable-next-line no-restricted-syntax
+    image_url: p.imageUrl ?? null, // Product usa imageUrl, FeaturedItem usa image_url
     position,
   };
 }
