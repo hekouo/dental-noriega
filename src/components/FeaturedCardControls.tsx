@@ -51,15 +51,30 @@ export default function FeaturedCardControls({ item, compact = false }: Props) {
     `Hola, me interesa el producto: ${item.title} (${item.product_slug}). ¿Lo tienes disponible?`,
   );
 
-  if (
-    !canPurchase ||
-    !item.price_cents ||
-    item.price_cents <= 0 ||
-    maxQty <= 0
-  ) {
+  if (soldOut) {
     return (
       <div className="mt-2">
         <p className="text-sm text-muted-foreground">Agotado</p>
+        {waHref && (
+          <div className="mt-1">
+            <a
+              href={waHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm underline text-muted-foreground"
+            >
+              Consultar por WhatsApp
+            </a>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (!item.price_cents || item.price_cents <= 0) {
+    return (
+      <div className="mt-2">
+        <p className="text-sm text-muted-foreground">Consultar precio</p>
         {waHref && (
           <div className="mt-1">
             <a

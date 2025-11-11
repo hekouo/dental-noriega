@@ -18,11 +18,14 @@ export default function FeaturedCarousel({ items }: { items: FeaturedItem[] }) {
               priority={index === 0}
               sizes="(max-width: 768px) 90vw, 50vw"
               controls={
-                hasPurchasablePrice(item) ? (
-                  <FeaturedCardControlsLazy item={item} compact />
-                ) : (
-                  <p className="text-sm text-muted-foreground">Agotado</p>
-                )
+                (() => {
+                  const soldOut = !(item.is_active ?? true) || !(item.in_stock ?? false);
+                  return !soldOut && hasPurchasablePrice(item) ? (
+                    <FeaturedCardControlsLazy item={item} compact />
+                  ) : soldOut ? (
+                    <p className="text-sm text-muted-foreground">Agotado</p>
+                  ) : null;
+                })()
               }
             />
           </div>

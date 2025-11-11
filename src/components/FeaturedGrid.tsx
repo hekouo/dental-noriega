@@ -9,11 +9,12 @@ export default function FeaturedGrid({ items }: { items: FeaturedItem[] }) {
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
       {items.map((item, index) => {
-        const controls = hasPurchasablePrice(item) ? (
+        const soldOut = !(item.is_active ?? true) || !(item.in_stock ?? false);
+        const controls = !soldOut && hasPurchasablePrice(item) ? (
           <FeaturedCardControlsLazy item={item} compact />
-        ) : (
+        ) : soldOut ? (
           <p className="text-sm text-muted-foreground">Agotado</p>
-        );
+        ) : null;
 
         return (
           <FeaturedCard
