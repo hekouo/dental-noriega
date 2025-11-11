@@ -64,8 +64,6 @@ export async function GET() {
         .eq("active", true)
         .gt("stock_qty", 0);
 
-      dbg(`[debug/featured] Total productos: ${totalCount}, activos: ${activeCount}, con stock: ${stockCount}`);
-
       const { data: fallbackData, error: fallbackError } = await supa
         .from("api_catalog_with_images")
         .select(
