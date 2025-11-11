@@ -38,7 +38,7 @@ export async function getBySection(section: string): Promise<Product[]> {
     filtered = data ?? [];
   }
 
-  const products = filtered.map(mapRow).filter((p) => p.active && p.inStock);
+  const products = filtered.map(mapRow).filter((p) => p.inStock);
 
   // Ordenar por created_at desc, luego por slug asc
   products.sort((a, b) => {

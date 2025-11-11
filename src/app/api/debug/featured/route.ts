@@ -97,7 +97,7 @@ export async function GET() {
     // Mapear con mapRow y convertir a CatalogItem
     const products: Product[] = rawData.map((r: any) => mapRow(r));
     const catalogItems: CatalogItem[] = products
-      .filter((p) => p.active && p.inStock)
+      .filter((p) => p.inStock)
       .map((p) => ({
         id: p.id,
         product_slug: p.slug,

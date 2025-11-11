@@ -85,7 +85,7 @@ export async function getFeatured(): Promise<Product[]> {
     
     filtered = filtered.slice(0, 12);
 
-    return filtered.map(mapRow).filter((p) => p.active && p.inStock);
+    return filtered.map(mapRow).filter((p) => p.inStock);
   }
 
   const slugs = featuredData.map((x) => x.product_slug);
@@ -117,7 +117,7 @@ export async function getFeatured(): Promise<Product[]> {
       }
     ).slice(0, 12);
     
-    return filtered.map(mapRow).filter((p) => p.active && p.inStock);
+    return filtered.map(mapRow).filter((p) => p.inStock);
   }
 
   // Si la query devuelve 0 filas, usar fallback
@@ -139,7 +139,7 @@ export async function getFeatured(): Promise<Product[]> {
       }
     ).slice(0, 12);
     
-    return filtered.map(mapRow).filter((p) => p.active && p.inStock);
+    return filtered.map(mapRow).filter((p) => p.inStock);
   }
 
   // Debug: imprimir primer item desde DB y tras mapRow (solo en dev)

@@ -57,7 +57,7 @@ export async function GET(
       // Ordenar por slug alfabéticamente después de mapear
       products.sort((a, b) => a.slug.localeCompare(b.slug));
       const catalogItems: CatalogItem[] = products
-        .filter((p) => p.active && p.inStock)
+        .filter((p) => p.inStock)
         .map((p) => ({
           id: p.id,
           product_slug: p.slug,
