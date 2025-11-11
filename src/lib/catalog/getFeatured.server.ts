@@ -1,10 +1,9 @@
 import "server-only";
-
 import { unstable_noStore as noStore } from "next/cache";
 import { getPublicSupabase } from "@/lib/supabase/public";
-import { mapDbToCatalogItem, type CatalogItem } from "./mapDbToProduct";
+import { mapDbToCatalogItem } from "./mapDbToProduct";
 
-export async function getFeatured(limit = 12): Promise<CatalogItem[]> {
+export async function getFeatured(limit = 12) {
   noStore();
   const sb = getPublicSupabase();
 
@@ -23,12 +22,8 @@ export async function getFeatured(limit = 12): Promise<CatalogItem[]> {
       .in("id", ids);
 
     if (error) throw error;
-
-    const map = new Map((data ?? []).map((r) => [r.id, r]));
-    const ordered = ids
-      .map((id) => map.get(id))
-      .filter((item): item is NonNullable<typeof item> => Boolean(item));
-
+    const map = new Map(data!.map((r) => [r.id, r]));
+    const ordered = ids.map((id) => map.get(id)).filter(Boolean);
     return ordered.map(mapDbToCatalogItem);
   }
 
@@ -42,27 +37,37 @@ export async function getFeatured(limit = 12): Promise<CatalogItem[]> {
     .limit(limit);
 
   if (error) throw error;
-
   return (data ?? []).map(mapDbToCatalogItem);
 }
 
-// Legacy: mantener para compatibilidad con componentes que esperan FeaturedItem
-export type FeaturedItem = CatalogItem & {
+// Legacy export para compatibilidad
+export type FeaturedItem = {
   product_id: string;
   product_slug: string;
+  section: string;
+  title: string;
+  description: string | null;
+  price_cents: number | null;
+  currency: string | null;
+  image_url: string | null;
+  in_stock: boolean | null;
+  is_active: boolean | null;
   position: number;
-  price_cents: number; // Legacy: mantener para compatibilidad
-  image_url?: string | null; // Permitir null para compatibilidad
-  description?: string | null; // Permitir null para compatibilidad
 };
 
 export async function getFeaturedItems(): Promise<FeaturedItem[]> {
   const items = await getFeatured();
   return items.map((item, idx) => ({
-    ...item,
     product_id: item.id,
     product_slug: item.slug,
+    section: item.section,
+    title: item.title,
+    description: item.description ?? null,
+    price_cents: Math.round(item.price * 100),
+    currency: "mxn",
+    image_url: item.image_url ?? null,
+    in_stock: item.in_stock,
+    is_active: item.is_active,
     position: idx,
-    price_cents: Math.round(item.price * 100), // Convertir de pesos a centavos para compatibilidad
   }));
 }

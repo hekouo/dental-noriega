@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { unstable_noStore as noStore } from "next/cache";
 import { getPublicSupabase } from "@/lib/supabase/public";
-import { mapDbToCatalogItem, type CatalogItem } from "@/lib/catalog/mapDbToProduct";
+import { mapDbToCatalogItem } from "@/lib/catalog/mapDbToProduct";
+import type { CatalogItem } from "@/lib/catalog/model";
 
 // Helper para logs de debug solo en desarrollo
 const dbg = (...args: unknown[]) => {
@@ -81,12 +82,13 @@ export async function GET(
     }
 
     // Filtrar en memoria: activos y en stock
-    const catalogItems: CatalogItem[] = (data ?? [])
-      .map((r: any) => mapDbToCatalogItem(r))
-      .filter((p) => p.is_active && p.in_stock);
+    const products = (data ?? []).map((r: any) => mapDbToCatalogItem(r));
+    const filteredProducts = products.filter(
+      (p) => p.is_active && p.in_stock,
+    );
     // Ordenar por slug alfabéticamente después de mapear
-    catalogItems.sort((a, b) => a.slug.localeCompare(b.slug));
-    const filteredData = catalogItems.slice(0, 12);
+    filteredProducts.sort((a, b) => a.slug.localeCompare(b.slug));
+    const filteredData = filteredProducts.slice(0, 12);
 
     const rawCount = filteredData.length;
     let mappedCount = 0;
@@ -94,16 +96,23 @@ export async function GET(
     let sampleMapped: CatalogItem | null = null;
 
     if (filteredData.length > 0) {
-      // Convertir a CatalogItem para compatibilidad con el tipo esperado
-      const catalogItemsForResponse: Array<CatalogItem & { price_cents: number; currency: string }> = filteredData.map((p) => ({
-        ...p,
+      // Convertir a CatalogItem (ya es CatalogItem, solo agregar campos faltantes)
+      const catalogItems: CatalogItem[] = filteredData.map((p) => ({
+        id: p.id,
+        product_slug: p.slug,
+        section: p.section,
+        title: p.title,
+        description: p.description ?? null,
         price_cents: Math.round(p.price * 100),
         currency: "mxn",
+        image_url: p.image_url ?? null,
+        in_stock: p.in_stock,
+        is_active: p.is_active,
       }));
 
-      mappedCount = catalogItemsForResponse.length;
-      sampleRaw = data?.[0] ?? null;
-      sampleMapped = catalogItemsForResponse[0] ?? null;
+      mappedCount = catalogItems.length;
+      sampleRaw = filteredData[0];
+      sampleMapped = catalogItems[0] ?? null;
     }
 
     return NextResponse.json({
@@ -112,13 +121,13 @@ export async function GET(
       mappedCount,
       sampleRaw,
       sampleMapped,
-      debug: {
-        totalInSection: totalInSection ?? 0,
-        activeInSection: activeInSection ?? 0,
-        stockInSection: stockInSection ?? null,
-        dataLength: data?.length ?? 0,
-        filteredLength: filteredData.length,
-      },
+        debug: {
+          totalInSection: totalInSection ?? 0,
+          activeInSection: activeInSection ?? 0,
+          stockInSection: stockInSection ?? null,
+          dataLength: data?.length ?? 0,
+          filteredLength: filteredData.length,
+        },
     });
   } catch (error) {
     dbg(`[debug/section] Error para sección '${section}':`, error);

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { unstable_noStore as noStore } from "next/cache";
 import { getPublicSupabase } from "@/lib/supabase/public";
-import { mapDbToCatalogItem, type CatalogItem } from "@/lib/catalog/mapDbToProduct";
+import { mapDbToCatalogItem } from "@/lib/catalog/mapDbToProduct";
 
 export const dynamic = "force-dynamic";
 
@@ -10,34 +10,30 @@ export async function GET() {
   const sb = getPublicSupabase();
 
   try {
-    // Verificar si hay filas en featured
+    // ¿Hay filas en featured?
     const { data: featRows, error: featErr } = await sb
       .from("featured")
       .select("position, product_id")
       .order("position", { ascending: true, nullsFirst: true })
       .limit(12);
 
-    let fromFeatured = false;
-    let items: CatalogItem[] = [];
+    const fromFeatured = !featErr && featRows && featRows.length > 0;
 
-    if (!featErr && featRows && featRows.length > 0) {
-      fromFeatured = true;
-      const ids = featRows.map((f) => f.product_id);
+    let items: ReturnType<typeof mapDbToCatalogItem>[] = [];
+
+    if (fromFeatured) {
+      const ids = featRows!.map((f) => f.product_id);
       const { data, error } = await sb
         .from("api_catalog_with_images")
         .select("*")
         .in("id", ids);
 
-      if (!error && data) {
-        const map = new Map((data ?? []).map((r) => [r.id, r]));
-        const ordered = ids
-          .map((id) => map.get(id))
-          .filter((item): item is NonNullable<typeof item> => Boolean(item));
-
-        items = ordered.map(mapDbToCatalogItem);
-      }
+      if (error) throw error;
+      const map = new Map(data!.map((r) => [r.id, r]));
+      const ordered = ids.map((id) => map.get(id)).filter(Boolean);
+      items = ordered.map(mapDbToCatalogItem);
     } else {
-      // Fallback
+      // Fallback solo si *no hay* filas en featured
       const { data, error } = await sb
         .from("api_catalog_with_images")
         .select("*")
@@ -46,9 +42,8 @@ export async function GET() {
         .order("created_at", { ascending: false })
         .limit(12);
 
-      if (!error && data) {
-        items = (data ?? []).map(mapDbToCatalogItem);
-      }
+      if (error) throw error;
+      items = (data ?? []).map(mapDbToCatalogItem);
     }
 
     return NextResponse.json({
@@ -58,13 +53,8 @@ export async function GET() {
     });
   } catch (error) {
     return NextResponse.json(
-      {
-        fromFeatured: false,
-        count: 0,
-        sample: null,
-        error: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 }
+      { error: String(error), fromFeatured: false, count: 0, sample: null },
+      { status: 500 },
     );
   }
 }

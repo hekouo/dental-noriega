@@ -1,10 +1,9 @@
 import "server-only";
-
 import { unstable_noStore as noStore } from "next/cache";
 import { getPublicSupabase } from "@/lib/supabase/public";
-import { mapDbToCatalogItem, type CatalogItem } from "./mapDbToProduct";
+import { mapDbToCatalogItem } from "./mapDbToProduct";
 
-export async function getBySection(section: string): Promise<CatalogItem[]> {
+export async function getBySection(section: string) {
   noStore();
   const sb = getPublicSupabase();
 
@@ -16,6 +15,5 @@ export async function getBySection(section: string): Promise<CatalogItem[]> {
     .limit(200);
 
   if (error) throw error;
-
   return (data ?? []).map(mapDbToCatalogItem);
 }

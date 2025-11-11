@@ -6,6 +6,7 @@ export type DbRow = {
   title: string | null;
   description?: string | null;
   image_url?: string | null;
+
   // columnas que pueden existir en diferentes vistas
   price_cents?: number | null;
   price?: number | null; // legacy, ignorar si price_cents existe
@@ -27,14 +28,14 @@ export type CatalogItem = {
   is_active: boolean;
 };
 
-const toBool = (v: unknown, fallback = false): boolean =>
+const toBool = (v: unknown, fallback = false) =>
   typeof v === "boolean" ? v : fallback;
 
 export function mapDbToCatalogItem(r: DbRow): CatalogItem {
   const cents =
-    r.price_cents ??
-    (typeof r.price === "number" ? Math.round(r.price * 100) : 0);
+    r.price_cents ?? (typeof r.price === "number" ? Math.round(r.price * 100) : 0);
   const price = Math.max(0, Number(cents || 0) / 100);
+
   const is_active = toBool(r.is_active ?? r.active, true);
   const in_stock = toBool(
     r.in_stock ?? (typeof r.stock_qty === "number" ? r.stock_qty > 0 : undefined),
@@ -54,9 +55,8 @@ export function mapDbToCatalogItem(r: DbRow): CatalogItem {
   };
 }
 
-// Legacy: mantener Product type para compatibilidad temporal
+// Legacy exports para compatibilidad temporal
 export type Product = CatalogItem;
-
 export function mapRow(r: DbRow): Product {
   return mapDbToCatalogItem(r);
 }
