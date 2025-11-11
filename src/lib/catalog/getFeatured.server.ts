@@ -59,14 +59,14 @@ export async function getFeatured(): Promise<Product[]> {
   // Si no hay featured o hay error, usar fallback
   if (!featuredData || featuredData.length === 0) {
     dbg("[featured] No hay productos destacados, usando fallback");
-    // Fallback: 12 más recientes activos (o null) y en stock
+    // Fallback: 12 más recientes activos (o null) y (stock_qty>0 o null)
     const { data: fallbackData, error: fallbackError } = await supa
       .from("api_catalog_with_images")
       .select(
         "id, product_slug, section, title, description, price, image_url, stock_qty, active"
       )
       .or("active.is.null,active.eq.true")
-      .gt("stock_qty", 0)
+      .or("stock_qty.is.null,stock_qty.gt.0")
       .order("created_at", { ascending: false, nullsFirst: false })
       .limit(12);
 
@@ -97,7 +97,7 @@ export async function getFeatured(): Promise<Product[]> {
         "id, product_slug, section, title, description, price, image_url, stock_qty, active"
       )
       .or("active.is.null,active.eq.true")
-      .gt("stock_qty", 0)
+      .or("stock_qty.is.null,stock_qty.gt.0")
       .order("created_at", { ascending: false, nullsFirst: false })
       .limit(12);
     return (fallbackData ?? []).map(mapRow).filter((p) => p.active && p.inStock);
@@ -112,7 +112,7 @@ export async function getFeatured(): Promise<Product[]> {
         "id, product_slug, section, title, description, price, image_url, stock_qty, active"
       )
       .or("active.is.null,active.eq.true")
-      .gt("stock_qty", 0)
+      .or("stock_qty.is.null,stock_qty.gt.0")
       .order("created_at", { ascending: false, nullsFirst: false })
       .limit(12);
     return (fallbackData ?? []).map(mapRow).filter((p) => p.active && p.inStock);

@@ -22,7 +22,7 @@ export async function GET(
   const section = decodeURIComponent(params.section ?? "");
 
   try {
-    // Incluir productos con active=true o null
+    // Incluir productos con active=true o null, y (stock_qty>0 o stock_qty=null)
     const { data, error } = await supa
       .from("api_catalog_with_images")
       .select(
@@ -30,7 +30,7 @@ export async function GET(
       )
       .eq("section", section)
       .or("active.is.null,active.eq.true")
-      .gt("stock_qty", 0)
+      .or("stock_qty.is.null,stock_qty.gt.0")
       .order("created_at", { ascending: false, nullsFirst: false })
       .limit(12);
 
