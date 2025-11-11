@@ -80,10 +80,17 @@ const FinalThanks = dynamicImport(() => import("@/components/FinalThanks"), {
   ssr: false,
 });
 
-export const revalidate = 60; // Cache leve
+export const dynamic = "force-dynamic"; // temporal hasta estabilizar cache
+// opcionalmente: export const revalidate = 60;
 
 export default async function HomePage() {
   const items = await getFeatured();
+
+  if (!items?.length) {
+    if (process.env.NEXT_RUNTIME) {
+      console.warn("[featured] empty result in runtime");
+    }
+  }
 
   return (
     <main className="min-h-screen">

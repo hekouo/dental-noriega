@@ -2,7 +2,7 @@ import "server-only";
 // Nada de cookies() aquí ni fetch a /api/debug/* en producción.
 
 import { unstable_cache } from "next/cache";
-import { createServerSupabase } from "@/lib/supabase/server";
+import { getPublicSupabase } from "@/lib/supabase/client";
 import {
   FEATURED_TAG,
   revalidateFeatured as revalidateFeaturedTag,
@@ -21,25 +21,24 @@ export type FeaturedItem = {
   position: number;
 };
 
-/**
- * Verifica si las variables de entorno de Supabase están presentes
- */
-function hasSupabaseEnvs(): boolean {
-  return !!(
-    process.env.NEXT_PUBLIC_SUPABASE_URL &&
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
-}
+type FeaturedOpts = { region?: string | null }; // lo que sacabas de cookies
 
-async function fetchFeatured(): Promise<FeaturedItem[]> {
-  if (!hasSupabaseEnvs()) {
-    console.warn("[getFeatured] missing supabase envs (using empty list)");
+/**
+ * Fetch puro de featured (sin cookies, sin cache)
+ */
+async function _fetchFeatured(opts: FeaturedOpts): Promise<FeaturedItem[]> {
+  const s = getPublicSupabase();
+  if (!s) {
+    // Solo loggear en runtime, no en build
+    if (process.env.NEXT_RUNTIME) {
+      console.warn("[getFeatured] missing supabase envs (using empty list)");
+    }
     return [];
   }
 
   try {
-    const supabase = createServerSupabase();
-    const { data: frows, error: ferr } = await supabase
+    // NO llames cookies aquí. Usa opts.region si lo necesitas.
+    const { data: frows, error: ferr } = await s
       .from("featured")
       .select("product_id, position")
       .order("position", { ascending: true })
@@ -47,8 +46,8 @@ async function fetchFeatured(): Promise<FeaturedItem[]> {
 
     if (ferr || !frows?.length) return [];
 
-    const ids = frows.map((r) => r.product_id);
-    const { data: view, error: verr } = await supabase
+    const ids = frows.map((r: { product_id: string }) => r.product_id);
+    const { data: view, error: verr } = await s
       .from("api_catalog_with_images")
       .select(
         "id, product_slug, section, title, description, price_cents, currency, stock_qty, image_url",
@@ -57,39 +56,49 @@ async function fetchFeatured(): Promise<FeaturedItem[]> {
 
     if (verr || !view) return [];
 
-    const byId = new Map(view.map((v) => [v.id, v]));
+    const byId = new Map(
+      view.map((v: { id: string }) => [v.id, v]),
+    );
     return frows
-      .map((r) => {
+      .map((r: { product_id: string; position: number }) => {
         const v = byId.get(r.product_id);
         if (!v) return null;
         return {
-          product_id: v.id,
-          product_slug: v.product_slug,
-          section: v.section,
-          title: v.title,
-          description: v.description ?? null,
-          price_cents: v.price_cents ?? null,
-          currency: v.currency ?? "mxn",
-          stock_qty: v.stock_qty ?? null,
-          image_url: v.image_url ?? null,
+          product_id: (v as { id: string }).id,
+          product_slug: (v as { product_slug: string }).product_slug,
+          section: (v as { section: string }).section,
+          title: (v as { title: string }).title,
+          description: (v as { description: string | null }).description ?? null,
+          price_cents: (v as { price_cents: number | null }).price_cents ?? null,
+          currency: (v as { currency: string | null }).currency ?? "mxn",
+          stock_qty: (v as { stock_qty: number | null }).stock_qty ?? null,
+          image_url: (v as { image_url: string | null }).image_url ?? null,
           position: r.position,
         } satisfies FeaturedItem;
       })
       .filter(Boolean) as FeaturedItem[];
   } catch (error) {
-    console.warn("[getFeatured] Error:", error);
+    if (process.env.NEXT_RUNTIME) {
+      console.warn("[getFeatured] Error:", error);
+    }
     return [];
   }
 }
 
-const cachedGetFeatured = unstable_cache(fetchFeatured, ["featured-v1"], {
-  revalidate: 120,
-  tags: [FEATURED_TAG],
-});
+// cachea solo la parte pura (sin cookies)
+export const getFeaturedCached = unstable_cache(
+  async (key: string) => _fetchFeatured({ region: key }),
+  ["featured:list:v1"],
+  { revalidate: 60, tags: [FEATURED_TAG] } // 1 minuto
+);
 
-// Devuelve máximo 8, ordenados por position
+// wrapper por request: lee cookies AQUÍ, fuera de la cache
 export async function getFeatured(): Promise<FeaturedItem[]> {
-  return cachedGetFeatured();
+  // importa cookies solo aquí
+  const { cookies } = await import("next/headers");
+  const region = cookies().get("region")?.value ?? null;
+  // pasa la señal como key (string estable)
+  return getFeaturedCached(region ?? "no-region");
 }
 
 export function revalidateFeatured() {

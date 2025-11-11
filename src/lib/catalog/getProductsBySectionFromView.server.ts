@@ -24,7 +24,9 @@ export async function getProductsBySectionFromView(
   offset = 0,
 ): Promise<CatalogItem[]> {
   if (!hasSupabaseEnvs()) {
-    console.warn("[catalog] missing supabase envs (using empty list)");
+    if (process.env.NEXT_RUNTIME) {
+      console.warn("[catalog] missing supabase envs (using empty list)");
+    }
     return [];
   }
 

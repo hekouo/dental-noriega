@@ -18,7 +18,9 @@ export type CatalogItem = {
 export async function getFeaturedProducts(): Promise<CatalogItem[]> {
   const sb = createAnonClient();
   if (!sb) {
-    console.warn("[catalog] missing supabase envs");
+    if (process.env.NEXT_RUNTIME) {
+      console.warn("[catalog] missing supabase envs");
+    }
     return [];
   }
   try {
@@ -75,7 +77,9 @@ export async function getBySectionSlug(
 ): Promise<CatalogItem | null> {
   const sb = createAnonClient();
   if (!sb) {
-    console.warn("[catalog] missing supabase envs");
+    if (process.env.NEXT_RUNTIME) {
+      console.warn("[catalog] missing supabase envs");
+    }
     return null;
   }
   try {
@@ -114,7 +118,9 @@ export async function getProductBySlugAnySection(
 ): Promise<CatalogItem | null> {
   const sb = createAnonClient();
   if (!sb) {
-    console.warn("[catalog] missing supabase envs");
+    if (process.env.NEXT_RUNTIME) {
+      console.warn("[catalog] missing supabase envs");
+    }
     return null;
   }
   try {
@@ -142,7 +148,9 @@ export async function listBySection(
 ): Promise<CatalogItem[]> {
   const sb = createAnonClient();
   if (!sb) {
-    console.warn("[catalog] missing supabase envs");
+    if (process.env.NEXT_RUNTIME) {
+      console.warn("[catalog] missing supabase envs");
+    }
     return [];
   }
   try {
@@ -190,7 +198,9 @@ export async function searchProducts(
 ): Promise<CatalogItem[]> {
   const sb = createAnonClient();
   if (!sb) {
-    console.warn("[catalog] missing supabase envs");
+    if (process.env.NEXT_RUNTIME) {
+      console.warn("[catalog] missing supabase envs");
+    }
     return [];
   }
   try {
@@ -216,7 +226,9 @@ export async function searchProducts(
 export async function listCatalog(): Promise<CatalogItem[]> {
   const sb = createAnonClient();
   if (!sb) {
-    console.warn("[catalog] missing supabase envs");
+    if (process.env.NEXT_RUNTIME) {
+      console.warn("[catalog] missing supabase envs");
+    }
     return [];
   }
   try {
@@ -241,7 +253,9 @@ export async function listCatalog(): Promise<CatalogItem[]> {
 export async function listSectionsFromCatalog(): Promise<string[]> {
   const sb = createAnonClient();
   if (!sb) {
-    console.warn("[catalog] missing supabase envs");
+    if (process.env.NEXT_RUNTIME) {
+      console.warn("[catalog] missing supabase envs");
+    }
     return [];
   }
   try {
