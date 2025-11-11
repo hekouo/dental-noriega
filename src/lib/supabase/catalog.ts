@@ -10,7 +10,7 @@ export type CatalogItem = {
   price_cents: number;
   image_url: string | null;
   in_stock: boolean | null; // null = desconocido/preview
-  stock_qty: number | null;
+  is_active?: boolean | null;
 };
 
 // Nota: lógica de inventario previa eliminada por no usarse en este módulo
@@ -37,7 +37,7 @@ export async function getFeaturedProducts(): Promise<CatalogItem[]> {
           price_cents,
           image_url,
           in_stock,
-          stock_qty
+          active
         )
       `,
       )
@@ -62,7 +62,7 @@ export async function getFeaturedProducts(): Promise<CatalogItem[]> {
         price_cents: item.price_cents,
         image_url: item.image_url,
         in_stock: item.in_stock,
-        stock_qty: item.stock_qty,
+        is_active: (item as any).active ?? true,
       } satisfies CatalogItem;
     });
   } catch (error) {
@@ -86,7 +86,7 @@ export async function getBySectionSlug(
     const { data, error } = await sb
       .from("api_catalog_with_images")
       .select(
-        "id, section, product_slug, title, price_cents, image_url, in_stock, stock_qty",
+        "id, section, product_slug, title, price_cents, image_url, in_stock, active",
       )
       .eq("section", section)
       .eq("product_slug", slug)
@@ -105,7 +105,7 @@ export async function getBySectionSlug(
       price_cents: data.price_cents,
       image_url: data.image_url, // Ya viene normalizada de la vista
       in_stock: data.in_stock,
-      stock_qty: data.stock_qty,
+      is_active: (data as any).active ?? true,
     };
   } catch (error) {
     console.error("[getBySectionSlug] Error:", error);
@@ -127,7 +127,7 @@ export async function getProductBySlugAnySection(
     const { data, error } = await sb
       .from("api_catalog_with_images")
       .select(
-        "id, section, product_slug, title, price_cents, image_url, in_stock, stock_qty",
+        "id, section, product_slug, title, price_cents, image_url, in_stock, active",
       )
       .eq("product_slug", slug)
       .single();
@@ -158,7 +158,7 @@ export async function listBySection(
     const { data, error } = await sb
       .from("api_catalog_with_images")
       .select(
-        "id, section, product_slug, sku, title, price_cents, image_url, in_stock, stock_qty",
+        "id, section, product_slug, sku, title, price_cents, image_url, in_stock, active",
       )
       .eq("active", true)
       .eq("section", section)
@@ -183,7 +183,7 @@ export async function listBySection(
         price_cents: item.price_cents,
         image_url: item.image_url,
         in_stock: item.in_stock,
-        stock_qty: item.stock_qty,
+        is_active: (item as any).active ?? true,
       } satisfies CatalogItem;
     });
   } catch (error) {
@@ -207,7 +207,7 @@ export async function searchProducts(
     const { data, error } = await sb
       .from("api_catalog_with_images")
       .select(
-        "id, section, product_slug, title, price_cents, image_url, in_stock, stock_qty",
+        "id, section, product_slug, title, price_cents, image_url, in_stock, active",
       )
       .ilike("normalized_title", `%${query.toLowerCase()}%`)
       .limit(limit);
@@ -235,7 +235,7 @@ export async function listCatalog(): Promise<CatalogItem[]> {
     const { data, error } = await sb
       .from("api_catalog_with_images")
       .select(
-        "id, section, product_slug, title, price_cents, image_url, in_stock, stock_qty",
+        "id, section, product_slug, title, price_cents, image_url, in_stock, active",
       )
       .order("title", { ascending: true });
 

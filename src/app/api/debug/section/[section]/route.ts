@@ -75,7 +75,7 @@ export async function GET(
           totalInSection: totalInSection ?? 0,
           activeInSection: activeInSection ?? 0,
           stockInSection: stockInSection ?? null,
-          dataLength: data?.length ?? 0,
+          dataLength: (data as unknown[] | null)?.length ?? 0,
           filteredLength: 0,
         },
       });

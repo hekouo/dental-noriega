@@ -9,6 +9,6 @@ export function toCardProps(x: CatalogItem) {
     price_cents: x.price_cents,
     image_url: x.image_url,
     in_stock: x.in_stock,
-    stock_qty: x.stock_qty,
+    is_active: x.is_active ?? true,
   };
 }
