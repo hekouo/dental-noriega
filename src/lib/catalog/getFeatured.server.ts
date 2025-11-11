@@ -52,6 +52,7 @@ export type FeaturedItem = CatalogItem & {
   product_slug: string;
   position: number;
   price_cents: number; // Legacy: mantener para compatibilidad
+  image_url?: string | null; // Permitir null para compatibilidad
 };
 
 export async function getFeaturedItems(): Promise<FeaturedItem[]> {

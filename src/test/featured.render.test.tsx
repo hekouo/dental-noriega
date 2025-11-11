@@ -31,7 +31,7 @@ describe("FeaturedGrid render", () => {
         description: null,
         price_cents: 10000,
         currency: "mxn",
-        image_url: null,
+        image_url: undefined,
         in_stock: true,
         is_active: true,
         position: 0,

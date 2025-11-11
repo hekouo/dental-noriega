@@ -35,7 +35,7 @@ function mapToFeaturedItem(
     product_slug: p.slug || p.product_slug || "",
     section: p.section || section,
     title: p.title,
-    description: p.description ?? null,
+    description: p.description ?? undefined,
     price_cents: p.price_cents ?? 0,
     currency: p.currency ?? "mxn",
     image_url: p.image_url ?? undefined,
