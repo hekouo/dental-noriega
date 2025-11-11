@@ -5,7 +5,7 @@ export type Product = {
   title: string;
   description?: string;
   price: number;
-  image_url?: string;
+  imageUrl?: string;
   inStock: boolean;
   active: boolean;
 };
@@ -24,6 +24,8 @@ export function mapRow(r: {
   const price = Number(r.price ?? 0);
   const stockQty = Number(r.stock_qty ?? 0);
   const active = r.active ?? true;
+  const inStock = active && stockQty > 0;
+  
   return {
     id: r.id,
     section: r.section,
@@ -31,9 +33,8 @@ export function mapRow(r: {
     title: r.title ?? "",
     description: r.description ?? "",
     price,
-    image_url: r.image_url ?? undefined,
-    inStock: active && stockQty > 0,
+    imageUrl: r.image_url ?? undefined,
+    inStock,
     active,
   };
 }
-

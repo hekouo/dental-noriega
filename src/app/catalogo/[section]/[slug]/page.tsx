@@ -45,7 +45,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const title = `${product.title} | ${siteName}`;
   const description =
     product.description?.slice(0, 150) ?? `${product.title} en ${siteName}`;
-      const image = product.image_url ?? "/og/cover.jpg";
+      const image = product.imageUrl ?? "/og/cover.jpg";
   const url = `${base}/catalogo/${product.section}/${product.slug}`;
 
   return {
@@ -88,7 +88,7 @@ export default async function ProductDetailPage({ params }: Props) {
     return notFound(); // 404 limpio, no error
   }
 
-  const image_url = product.image_url;
+  const image_url = product.imageUrl;
   const price = new Intl.NumberFormat("es-MX", {
     style: "currency",
     currency: "MXN",
@@ -216,7 +216,7 @@ export default async function ProductDetailPage({ params }: Props) {
                   section: product.section,
                   product_slug: product.slug,
                   price_cents: Math.round(product.price * 100),
-                  image_url: product.image_url ?? undefined,
+                  image_url: product.imageUrl ?? undefined,
                   in_stock: product.active && product.inStock, // Lógica correcta
                 }}
               />

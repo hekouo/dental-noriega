@@ -87,13 +87,6 @@ export const fetchCache = "force-no-store";
 export default async function HomePage() {
   const items = await getFeaturedItems();
 
-  // Sanity check: si el array llega vacío, registra un log una sola vez
-  if (!items?.length) {
-    if (process.env.NODE_ENV !== "production") {
-      console.warn("[featured] empty result in runtime");
-    }
-  }
-
   return (
     <main className="min-h-screen">
       {/* Hero Section */}

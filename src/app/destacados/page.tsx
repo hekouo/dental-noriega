@@ -21,13 +21,6 @@ export default async function DestacadosPage() {
   const items = await getFeaturedItems();
   const hasEnvs = hasSupabaseEnvs();
 
-  // Sanity check: si el array llega vacío, registra un log una sola vez
-  if (!items?.length) {
-    if (process.env.NODE_ENV !== "production") {
-      console.warn("[featured] empty result in runtime");
-    }
-  }
-
   if (items.length === 0) {
     return (
       <div className="container py-10">
