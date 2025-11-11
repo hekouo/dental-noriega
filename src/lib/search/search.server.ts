@@ -40,7 +40,7 @@ export async function searchProductsServer(
       .or(
         `section.ilike.%${normalizedQuery}%,normalized_title.ilike.%${normalizedQuery}%`,
       )
-      .eq("active", true)
+      .eq("is_active", true)
       .order("title", { ascending: true })
       .range(offset, offset + limit - 1);
 

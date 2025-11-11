@@ -21,7 +21,7 @@ export type ProductLite = {
   price: number;
   image_url?: string;
   currency?: string;
-  inStock: boolean | null;
+  in_stock: boolean | null;
 };
 
 export async function getAll(): Promise<ProductLite[]> {
@@ -33,7 +33,7 @@ export async function getAll(): Promise<ProductLite[]> {
     title: item.title,
     price: Math.round(item.price_cents / 100),
     image_url: item.image_url ?? undefined,
-    inStock: item.in_stock,
+    in_stock: item.in_stock,
   }));
 }
 
@@ -73,7 +73,7 @@ export async function findByTitleTokens(
     title: item.title,
     price: Math.round(item.price_cents / 100),
     image_url: item.image_url ?? undefined,
-    inStock: item.in_stock,
+    in_stock: item.in_stock,
   }));
 }
 

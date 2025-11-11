@@ -20,9 +20,9 @@ async function fetchAllFromCatalog(): Promise<CatalogItem[]> {
     const { data, error } = await supabase
       .from("api_catalog_with_images")
       .select(
-        "id, product_slug, section, title, description, price, currency, stock_qty, image_url, active"
+        "id, product_slug, section, title, description, price_cents, currency, image_url, in_stock, is_active"
       )
-      .eq("active", true)
+      .eq("is_active", true)
       .range(0, 1999); // suficiente para catálogo actual
 
     if (error) {
@@ -40,11 +40,11 @@ async function fetchAllFromCatalog(): Promise<CatalogItem[]> {
       section: String(d.section),
       title: String(d.title),
       description: d.description ?? null,
-      price_cents: d.price ? Math.round(Number(d.price) * 100) : null,
+      price_cents: d.price_cents ?? null,
       currency: d.currency ?? "mxn",
-      stock_qty: d.stock_qty ?? null,
       image_url: d.image_url ?? null,
-      in_stock: d.active && (d.stock_qty ?? 0) > 0,
+      in_stock: d.in_stock ?? false,
+      is_active: d.is_active ?? true,
     })) as CatalogItem[];
   } catch (error) {
     dbg("[getAllFromCatalog] Error:", error);

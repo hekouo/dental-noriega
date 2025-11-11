@@ -11,7 +11,7 @@ type Suggestion = {
   title?: string;
   price_cents?: number;
   image_url?: string;
-  inStock?: boolean;
+  in_stock?: boolean;
 };
 
 type ResolveOk = {
@@ -49,7 +49,7 @@ export async function GET(req: Request) {
           title: product.title,
           price_cents: product.price,
           image_url: product.image_url,
-          inStock: product.inStock ?? true,
+          in_stock: product.in_stock ?? true,
         },
         redirectTo,
         suggestions: [],
@@ -74,7 +74,7 @@ export async function GET(req: Request) {
           title: product.title,
           price_cents: product.price,
           image_url: product.image_url,
-          inStock: product.inStock ?? true,
+          in_stock: product.in_stock ?? true,
         },
         redirectTo,
         suggestions: results.slice(1, 6).map((s) => ({

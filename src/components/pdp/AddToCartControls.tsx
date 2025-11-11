@@ -12,7 +12,8 @@ type Props = {
     image_url?: string;
     section: string;
     slug: string;
-    inStock?: boolean;
+    in_stock?: boolean;
+    is_active?: boolean;
   };
 };
 
@@ -20,7 +21,8 @@ export default function AddToCartControls({ product }: Props) {
   const addToCart = useCartStore((s) => s.addToCart);
   const [qty, setQty] = useState(1);
   const busyRef = useRef(false);
-  const canBuy = product.inStock !== false;
+  const soldOut = !product.in_stock || !product.is_active;
+  const canBuy = !soldOut;
 
   function onAdd() {
     if (busyRef.current || !canBuy) return;

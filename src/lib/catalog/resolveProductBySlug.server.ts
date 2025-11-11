@@ -72,7 +72,7 @@ export async function resolveProductBySlug(
     const { data, error } = await supabase
       .from("api_catalog_with_images")
       .select(
-        "id, section, product_slug, title, description, price_cents, currency, stock_qty, image_url",
+        "id, section, product_slug, title, description, price_cents, currency, image_url, in_stock, is_active",
       )
       .eq("product_slug", normalizedSlug)
       .limit(1)
@@ -96,7 +96,7 @@ export async function resolveProductBySlug(
       title: String(data.title),
       price_cents,
       image_url: data.image_url ?? null,
-      in_stock: data.stock_qty !== null ? data.stock_qty > 0 : null,
+      in_stock: data.in_stock ?? null,
       sku: null,
       description: data.description ?? null,
     };

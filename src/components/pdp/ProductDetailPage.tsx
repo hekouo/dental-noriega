@@ -11,13 +11,16 @@ type Props = {
     title: string;
     price: number; // centavos
     image_url?: string;
-    inStock?: boolean;
+    in_stock?: boolean;
+    is_active?: boolean;
     sku?: string;
     description?: string;
   };
 };
 
 export default function ProductDetailPage({ product }: Props) {
+  const soldOut = !product.in_stock || !product.is_active;
+  
   return (
     <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8 py-8">
       <div className="w-full">
@@ -33,7 +36,7 @@ export default function ProductDetailPage({ product }: Props) {
       <div>
         <h1 className="text-2xl font-semibold">{product.title}</h1>
         <div className="text-xl mt-2">{formatMXN(product.price)}</div>
-        {product.inStock === false ? (
+        {soldOut ? (
           <div className="mt-2 text-sm text-red-600">Agotado</div>
         ) : (
           <div className="mt-2 text-sm text-green-600">Disponible</div>
@@ -50,7 +53,8 @@ export default function ProductDetailPage({ product }: Props) {
             image_url: product.image_url,
             section: product.section,
             slug: product.slug,
-            inStock: product.inStock,
+            in_stock: product.in_stock,
+            is_active: product.is_active,
           }}
         />
       </div>
