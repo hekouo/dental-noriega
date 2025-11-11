@@ -24,7 +24,7 @@ describe("FeaturedCardControls UI", () => {
     vi.clearAllMocks();
   });
 
-  it("shows quantity input and Add button with cart icon when price_cents=100 and stock_qty=5", () => {
+  it("shows quantity input and Add button with cart icon when price_cents=100 and in_stock=true", () => {
     const item: FeaturedItem = {
       product_id: "1",
       product_slug: "test-product",
@@ -33,8 +33,9 @@ describe("FeaturedCardControls UI", () => {
       description: null,
       price_cents: 100, // 100 centavos = 1 MXN
       currency: "mxn",
-      stock_qty: 5,
       image_url: null,
+      in_stock: true,
+      is_active: true,
       position: 0,
     };
 
@@ -84,7 +85,7 @@ describe("FeaturedCardControls UI", () => {
     }
   });
 
-  it("shows 'Agotado' when stock_qty is 0", () => {
+  it("shows 'Agotado' when in_stock is false", () => {
     const item: FeaturedItem = {
       product_id: "1",
       product_slug: "test-product",
@@ -93,8 +94,9 @@ describe("FeaturedCardControls UI", () => {
       description: null,
       price_cents: 100,
       currency: "mxn",
-      stock_qty: 0,
       image_url: null,
+      in_stock: false,
+      is_active: true,
       position: 0,
     };
 
