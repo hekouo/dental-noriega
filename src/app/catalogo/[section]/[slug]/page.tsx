@@ -1,16 +1,13 @@
 import "server-only";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { resolveProductBySlug } from "@/lib/catalog/resolveProductBySlug.server";
-import { getProductBySectionSlug } from "@/lib/catalog/getProduct.server";
-import { formatMXNFromCents } from "@/lib/utils/currency";
+import { getProduct } from "@/lib/catalog/getProduct.server";
 import ImageWithFallback from "@/components/ui/ImageWithFallback";
 import ProductActions from "@/components/product/ProductActions.client";
 import ProductViewTracker from "@/components/ProductViewTracker.client";
 import { ROUTES } from "@/lib/routes";
 import Link from "next/link";
 import { Package, Truck, Shield } from "lucide-react";
-import { normalizeSlug } from "@/lib/utils/slug";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -28,10 +25,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const section = decodeURIComponent(params.section ?? "");
   const slug = decodeURIComponent(params.slug ?? "");
 
-  // Intentar obtener producto (sin cookies, solo Supabase directo)
-  let product: Awaited<ReturnType<typeof getProductBySectionSlug>> = null;
+  // Intentar obtener producto
+  let product: Awaited<ReturnType<typeof getProduct>> = null;
   try {
-    product = await getProductBySectionSlug(section, slug);
+    product = await getProduct(section, slug);
   } catch {
     // Silenciar errores en build - usar fallback
   }
@@ -48,8 +45,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const title = `${product.title} | ${siteName}`;
   const description =
     product.description?.slice(0, 150) ?? `${product.title} en ${siteName}`;
-  const image = product.image_url ?? "/og/cover.jpg";
-  const url = `${base}/catalogo/${product.section}/${product.product_slug}`;
+      const image = product.image_url ?? "/og/cover.jpg";
+  const url = `${base}/catalogo/${product.section}/${product.slug}`;
 
   return {
     title,
@@ -84,27 +81,22 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function ProductDetailPage({ params }: Props) {
   const section = decodeURIComponent(params.section ?? "");
   const slug = decodeURIComponent(params.slug ?? "");
-  const normalizedSlug = normalizeSlug(slug);
-  const normalizedSection = normalizeSlug(section);
 
-  try {
-    // Resolver producto por slug (con fallback a vista)
-    const product = await resolveProductBySlug(normalizedSlug);
+  const product = await getProduct(section, slug);
 
-    if (!product) {
-      return notFound(); // 404 limpio, no error
-    }
+  if (!product) {
+    return notFound(); // 404 limpio, no error
+  }
 
-    // Redirigir a la ruta canónica si la sección no coincide
-    if (normalizeSlug(product.section) !== normalizedSection) {
-      redirect(`/catalogo/${product.section}/${product.slug}`);
-    }
-
-    const image_url = product.image_url;
-    const price = formatMXNFromCents(product.price_cents);
-    const base =
-      process.env.NEXT_PUBLIC_SITE_URL ?? "https://dental-noriega.vercel.app";
-    const canonicalUrl = `${base}/catalogo/${product.section}/${product.slug}`;
+  const image_url = product.image_url;
+  const price = new Intl.NumberFormat("es-MX", {
+    style: "currency",
+    currency: "MXN",
+  }).format(product.price);
+  const base =
+    process.env.NEXT_PUBLIC_SITE_URL ?? "https://dental-noriega.vercel.app";
+  const canonicalUrl = `${base}/catalogo/${product.section}/${product.slug}`;
+  const soldOut = !product.active || !product.inStock;
 
     // JSON-LD Product schema
     const jsonLd = {
@@ -117,14 +109,11 @@ export default async function ProductDetailPage({ params }: Props) {
       url: canonicalUrl,
       offers: {
         "@type": "Offer",
-        price: product.price_cents
-          ? (product.price_cents / 100).toFixed(2)
-          : "0",
+        price: product.price > 0 ? product.price.toFixed(2) : "0",
         priceCurrency: "MXN",
-        availability:
-          product.in_stock && product.price_cents && product.price_cents > 0
-            ? "https://schema.org/InStock"
-            : "https://schema.org/OutOfStock",
+        availability: !soldOut && product.price > 0
+          ? "https://schema.org/InStock"
+          : "https://schema.org/OutOfStock",
         url: canonicalUrl,
       },
     };
@@ -141,7 +130,7 @@ export default async function ProductDetailPage({ params }: Props) {
         <ProductViewTracker
           productId={product.id}
           productName={product.title}
-          priceCents={product.price_cents}
+          priceCents={Math.round(product.price * 100)}
         />
 
         {/* Breadcrumb */}
@@ -165,7 +154,7 @@ export default async function ProductDetailPage({ params }: Props) {
               >
                 {product.section
                   .replace(/-/g, " ")
-                  .replace(/\b\w/g, (l) => l.toUpperCase())}
+                  .replace(/\b\w/g, (l: string) => l.toUpperCase())}
               </Link>
               <span>/</span>
               <span className="text-gray-900 font-medium">{product.title}</span>
@@ -209,12 +198,12 @@ export default async function ProductDetailPage({ params }: Props) {
                 <div className="flex items-center space-x-2">
                   <span
                     className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      product.in_stock
+                      !soldOut
                         ? "bg-green-100 text-green-800"
                         : "bg-red-100 text-red-800"
                     }`}
                   >
-                    {product.in_stock ? "En stock" : "Agotado"}
+                    {!soldOut ? "En stock" : "Agotado"}
                   </span>
                 </div>
               </div>
@@ -226,8 +215,8 @@ export default async function ProductDetailPage({ params }: Props) {
                   title: product.title,
                   section: product.section,
                   product_slug: product.slug,
-                  price_cents: product.price_cents,
-                  in_stock: product.in_stock ?? undefined,
+                  price_cents: Math.round(product.price * 100),
+                  in_stock: !soldOut,
                 }}
               />
 
@@ -264,44 +253,4 @@ export default async function ProductDetailPage({ params }: Props) {
         </div>
       </div>
     );
-  } catch (error) {
-    console.error("[PDP] Error:", error);
-    // Verificar si faltan envs
-    const hasEnvs = !!(
-      process.env.NEXT_PUBLIC_SUPABASE_URL &&
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    );
-
-    // No explotes: muestra vista amable en vez de exception
-    return (
-      <div className="p-6">
-        <h1 className="text-xl font-semibold">
-          {hasEnvs ? "No pudimos cargar el producto" : "Catálogo no disponible"}
-        </h1>
-        <p className="text-sm opacity-70 mt-1">
-          {hasEnvs ? (
-            <>
-              Intenta otra vez o visita{" "}
-              <Link href="/destacados" className="underline">
-                Destacados
-              </Link>
-              .
-            </>
-          ) : (
-            <>
-              Intenta en{" "}
-              <Link href="/destacados" className="underline">
-                Destacados
-              </Link>{" "}
-              o{" "}
-              <Link href="/buscar" className="underline">
-                buscar
-              </Link>
-              .
-            </>
-          )}
-        </p>
-      </div>
-    );
-  }
 }

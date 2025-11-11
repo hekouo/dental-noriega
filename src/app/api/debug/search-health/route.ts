@@ -1,20 +1,24 @@
 import { NextResponse } from "next/server";
-import { getPublicEnv } from "@/lib/env";
 import { getPublicSupabase } from "@/lib/supabase/public";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
-  const env = getPublicEnv();
-  let featuredCount = null;
-  try {
-    const s = getPublicSupabase();
-    const { data } = await s.from("featured").select("product_id");
-    featuredCount = data?.length ?? 0;
-  } catch {
-    // Silenciar errores
-  }
+  const s = getPublicSupabase();
+  const envOk =
+    !!process.env.NEXT_PUBLIC_SUPABASE_URL &&
+    !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  const feat = await s
+    .from("featured")
+    .select("product_slug", { count: "exact", head: true });
+  const cat = await s
+    .from("api_catalog_with_images")
+    .select("id", { count: "exact", head: true });
+
   return NextResponse.json({
-    envOk: env.ok,
-    nodeEnv: env.nodeEnv,
-    featuredCount,
+    envOk,
+    featuredCount: feat.count ?? 0,
+    catalogCount: cat.count ?? 0,
   });
 }

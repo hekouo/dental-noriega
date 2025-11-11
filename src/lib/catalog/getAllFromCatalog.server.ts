@@ -1,39 +1,21 @@
 // src/lib/catalog/getAllFromCatalog.server.ts
 import "server-only";
 
-import { unstable_cache } from "next/cache";
-import { createServerSupabase } from "@/lib/supabase/server";
-import {
-  CATALOG_TAG,
-  revalidateCatalog as revalidateCatalogTag,
-} from "@/lib/catalog/cache";
+import { unstable_noStore as noStore } from "next/cache";
+import { getPublicSupabase } from "@/lib/supabase/public";
 import type { CatalogItem } from "./model";
 
-/**
- * Verifica si las variables de entorno de Supabase están presentes
- */
-function hasSupabaseEnvs(): boolean {
-  return !!(
-    process.env.NEXT_PUBLIC_SUPABASE_URL &&
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
-}
-
 async function fetchAllFromCatalog(): Promise<CatalogItem[]> {
-  if (!hasSupabaseEnvs()) {
-    if (process.env.NODE_ENV !== "production") {
-      console.warn("[catalog] missing supabase envs (using empty list)");
-    }
-    return [];
-  }
+  noStore();
+  const supabase = getPublicSupabase();
 
   try {
-    const supabase = createServerSupabase();
     const { data, error } = await supabase
       .from("api_catalog_with_images")
       .select(
-        "id, product_slug, section, title, description, price_cents, currency, stock_qty, image_url",
+        "id, product_slug, section, title, description, price, currency, stock_qty, image_url, active"
       )
+      .eq("active", true)
       .range(0, 1999); // suficiente para catálogo actual
 
     if (error) {
@@ -51,10 +33,11 @@ async function fetchAllFromCatalog(): Promise<CatalogItem[]> {
       section: String(d.section),
       title: String(d.title),
       description: d.description ?? null,
-      price_cents: d.price_cents ?? null,
+      price_cents: d.price ? Math.round(Number(d.price) * 100) : null,
       currency: d.currency ?? "mxn",
       stock_qty: d.stock_qty ?? null,
       image_url: d.image_url ?? null,
+      in_stock: d.active && (d.stock_qty ?? 0) > 0,
     })) as CatalogItem[];
   } catch (error) {
     console.warn("[getAllFromCatalog] Error:", error);
@@ -62,22 +45,13 @@ async function fetchAllFromCatalog(): Promise<CatalogItem[]> {
   }
 }
 
-const cachedGetAllFromCatalog = unstable_cache(
-  fetchAllFromCatalog,
-  ["catalog-all-v1"],
-  {
-    revalidate: 120,
-    tags: [CATALOG_TAG],
-  },
-);
-
 /**
  * Obtiene todos los productos del catálogo desde la vista canónica api_catalog_with_images
  */
 export async function getAllFromCatalog(): Promise<CatalogItem[]> {
-  return cachedGetAllFromCatalog();
+  return fetchAllFromCatalog();
 }
 
-export function revalidateCatalog() {
-  revalidateCatalogTag();
+export async function revalidateCatalog() {
+  // No-op: ya no usamos cache
 }

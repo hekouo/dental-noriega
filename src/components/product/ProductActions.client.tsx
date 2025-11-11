@@ -30,7 +30,8 @@ export default function ProductActions({ product }: Props) {
   const router = useRouter();
   const busyRef = useRef(false);
 
-  const canBuy = product.in_stock !== false;
+  const soldOut = product.in_stock === false || product.in_stock === null;
+  const canBuy = !soldOut;
   const price = mxnFromCents(product.price_cents);
   const formattedPrice = formatMXNFromCents(product.price_cents);
 
@@ -112,7 +113,7 @@ export default function ProductActions({ product }: Props) {
   return (
     <div className="space-y-4">
       {/* Badge de stock */}
-      {product.in_stock === false && (
+      {soldOut && (
         <div className="px-3 py-2 bg-red-100 text-red-800 rounded-lg text-sm font-medium">
           Agotado
         </div>

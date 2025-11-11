@@ -5,7 +5,7 @@ import QuantityInput from "@/components/cart/QuantityInput";
 import { useCartStore } from "@/lib/store/cartStore";
 import { mxnFromCents } from "@/lib/utils/currency";
 // ShoppingCart icon replaced with inline SVG to reduce bundle size
-import type { CatalogItem } from "@/lib/supabase/catalog";
+import type { CatalogItem } from "@/lib/catalog/model";
 
 type Props = {
   item: CatalogItem;
@@ -15,10 +15,11 @@ export default function CatalogCardControls({ item }: Props) {
   const addToCart = useCartStore((s) => s.addToCart);
   const [qty, setQty] = useState(1);
   const busyRef = useRef(false);
-  const canBuy = item.in_stock !== false;
+  const soldOut = item.in_stock === false || (item.in_stock === null && (item.stock_qty ?? 0) <= 0);
+  const canBuy = !soldOut;
 
   function onAdd() {
-    if (!canBuy || busyRef.current) return;
+    if (!canBuy || busyRef.current || !item.price_cents) return;
     busyRef.current = true;
     addToCart({
       id: item.id,

@@ -13,6 +13,7 @@ export type CatalogItem = {
   currency?: string | null;
   stock_qty?: number | null;
   image_url?: string | null;
+  in_stock?: boolean | null;
 };
 
 /**
@@ -33,14 +34,18 @@ export function normalizePrice(value?: number | string | null): number {
 }
 
 /**
- * Verifica si un item tiene un precio comprable (price_cents > 0 y stock_qty > 0)
+ * Verifica si un item tiene un precio comprable (price_cents > 0 y stock disponible)
  */
 export function hasPurchasablePrice(
   item:
     | CatalogItem
-    | { price_cents?: number | null; stock_qty?: number | null },
+    | { price_cents?: number | null; stock_qty?: number | null; in_stock?: boolean | null },
 ): boolean {
   const priceCents = normalizePrice(item.price_cents);
+  // Si tiene in_stock explícito, usarlo; sino usar stock_qty
+  if (item.in_stock !== undefined && item.in_stock !== null) {
+    return priceCents > 0 && item.in_stock === true;
+  }
   const stockQty = normalizePrice(item.stock_qty);
   return priceCents > 0 && stockQty > 0;
 }
