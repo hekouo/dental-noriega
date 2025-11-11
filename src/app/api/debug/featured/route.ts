@@ -75,9 +75,13 @@ export async function GET() {
         .limit(50);
 
       if (!fallbackError && fallbackData) {
-        // Filtrar stock_qty en memoria: null o > 0
+        // Filtrar stock_qty en memoria: null o >= 0 (incluir 0 si active=null o true)
         const filteredFallback = fallbackData.filter(
-          (item: any) => item.stock_qty === null || Number(item.stock_qty ?? 0) > 0
+          (item: any) => {
+            const isActive = item.active === null || item.active === true;
+            const hasStock = item.stock_qty === null || Number(item.stock_qty ?? 0) >= 0;
+            return isActive && hasStock;
+          }
         ).slice(0, 12);
         
         rawData = filteredFallback;

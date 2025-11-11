@@ -29,9 +29,9 @@ export async function getBySection(section: string): Promise<Product[]> {
     return [];
   }
 
-  // Filtrar stock_qty en memoria: null o > 0
+  // Filtrar solo por active en memoria (incluir null como activo)
   const filtered = (data ?? []).filter(
-    (item: any) => item.stock_qty === null || Number(item.stock_qty ?? 0) > 0
+    (item: any) => item.active === null || item.active === true
   );
 
   const products = filtered.map(mapRow).filter((p) => p.active && p.inStock);
