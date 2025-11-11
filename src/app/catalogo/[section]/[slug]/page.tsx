@@ -216,7 +216,8 @@ export default async function ProductDetailPage({ params }: Props) {
                   section: product.section,
                   product_slug: product.slug,
                   price_cents: Math.round(product.price * 100),
-                  in_stock: !soldOut,
+                  image_url: product.image_url ?? undefined,
+                  in_stock: product.active && product.inStock, // Lógica correcta
                 }}
               />
 
