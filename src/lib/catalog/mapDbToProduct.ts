@@ -28,7 +28,8 @@ export function mapRow(r: {
   // Si active=false, también tratarlo como activo para mostrar productos
   const active = r.active ?? true;
   // Si stock_qty es null o >= 0, considerar disponible (incluir 0)
-  const inStock = active && (r.stock_qty === null || Number(r.stock_qty ?? 0) >= 0);
+  // No depender de active para inStock, solo verificar stock_qty
+  const inStock = r.stock_qty === null || Number(r.stock_qty ?? 0) >= 0;
   
   return {
     id: r.id,
