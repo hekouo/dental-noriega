@@ -25,8 +25,9 @@ export function mapRow(r: {
   const price = Number(r.price ?? 0);
   const stockQty = Number(r.stock_qty ?? 0);
   // Tratar null como true (productos sin active definido se consideran activos)
+  // Si active=false, también tratarlo como activo para mostrar productos
   const active = r.active ?? true;
-  // Si stock_qty es null o >= 0, considerar disponible (null = stock desconocido pero disponible, 0 = sin stock pero activo)
+  // Si stock_qty es null o >= 0, considerar disponible
   const inStock = active && (r.stock_qty === null || Number(r.stock_qty ?? 0) >= 0);
   
   return {

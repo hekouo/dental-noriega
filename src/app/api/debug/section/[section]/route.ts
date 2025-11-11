@@ -33,14 +33,17 @@ export async function GET(
       .order("created_at", { ascending: false, nullsFirst: false })
       .limit(50);
 
-    // Filtrar stock_qty en memoria: null o >= 0 (incluir 0 si active=null o true)
-    const filteredData = (data ?? []).filter(
-      (item: any) => {
-        const isActive = item.active === null || item.active === true;
-        const hasStock = item.stock_qty === null || Number(item.stock_qty ?? 0) >= 0;
-        return isActive && hasStock;
-      }
-    ).slice(0, 12);
+    // Filtrar: primero intentar active=null o true, si no hay ninguno, incluir todos
+    let filteredData = (data ?? []).filter(
+      (item: any) => item.active === null || item.active === true
+    );
+    
+    // Si no hay productos activos, incluir todos (incluso active=false)
+    if (filteredData.length === 0) {
+      filteredData = data ?? [];
+    }
+    
+    filteredData = filteredData.slice(0, 12);
 
     const rawCount = filteredData.length;
     let mappedCount = 0;

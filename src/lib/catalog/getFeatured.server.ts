@@ -75,13 +75,17 @@ export async function getFeatured(): Promise<Product[]> {
       return [];
     }
 
-    // Filtrar stock_qty en memoria: incluir todos si active=null o true
-    const filtered = (fallbackData ?? []).filter(
-      (item: any) => {
-        const isActive = item.active === null || item.active === true;
-        return isActive; // Incluir todos los activos, sin filtrar por stock
-      }
-    ).slice(0, 12);
+    // Filtrar: primero intentar active=null o true, si no hay ninguno, incluir todos
+    let filtered = (fallbackData ?? []).filter(
+      (item: any) => item.active === null || item.active === true
+    );
+    
+    // Si no hay productos activos, incluir todos (incluso active=false)
+    if (filtered.length === 0) {
+      filtered = fallbackData ?? [];
+    }
+    
+    filtered = filtered.slice(0, 12);
 
     return filtered.map(mapRow).filter((p) => p.active && p.inStock);
   }
