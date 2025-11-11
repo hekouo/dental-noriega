@@ -5,7 +5,8 @@ import { getSectionsFromCatalogView } from "@/lib/catalog/getSectionsFromCatalog
 import { ROUTES } from "@/lib/routes";
 // Package icon replaced with inline SVG to reduce bundle size
 
-export const revalidate = 300; // Cache 5 minutos
+export const dynamic = "force-dynamic";
+// opcional: export const revalidate = 60;
 
 export default async function CatalogoIndexPage() {
   let sections = await listSectionsFromCatalog();

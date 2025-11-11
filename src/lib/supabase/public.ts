@@ -10,9 +10,8 @@ export function getPublicSupabase() {
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!url || !anon) {
-    // No truenes en build. Solo avisa en runtime.
-    if (process.env.NEXT_RUNTIME) {
-      console.warn("[supabase] missing NEXT_PUBLIC_SUPABASE_* envs");
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[supabase] missing envs");
     }
     // Devuelve un client fake que nunca se usa si no lo llamas.
     // En runtime, esto causará errores si se intenta usar, pero no rompe el build.
