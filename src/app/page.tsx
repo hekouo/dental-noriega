@@ -1,6 +1,7 @@
 import Link from "next/link";
 import dynamicImport from "next/dynamic";
 import { ROUTES } from "@/lib/routes";
+import { getFeatured } from "@/lib/catalog/getFeatured.server";
 import { getFeaturedItems } from "@/lib/catalog/getFeatured.server";
 import FeaturedCarousel from "@/components/FeaturedCarousel";
 import FeaturedGrid from "@/components/FeaturedGrid";

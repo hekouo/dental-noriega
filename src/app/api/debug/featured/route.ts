@@ -1,141 +1,60 @@
 import { NextResponse } from "next/server";
 import { unstable_noStore as noStore } from "next/cache";
 import { getPublicSupabase } from "@/lib/supabase/public";
-import { mapRow, Product } from "@/lib/catalog/mapDbToProduct";
-import type { CatalogItem } from "@/lib/catalog/model";
-
-// Helper para logs de debug solo en desarrollo
-const dbg = (...args: unknown[]) => {
-  if (process.env.NODE_ENV !== "production") {
-    console.log(...args);
-  }
-};
+import { mapDbToCatalogItem } from "@/lib/catalog/mapDbToProduct";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   noStore();
-  const supa = getPublicSupabase();
+  const sb = getPublicSupabase();
 
   try {
-    // Intentar destacados por slugs
-    const { data: featuredData } = await supa
+    // ¿Hay filas en featured?
+    const { data: featRows, error: featErr } = await sb
       .from("featured")
-      .select("product_slug")
-      .order("position", { ascending: true });
+      .select("position, product_id")
+      .order("position", { ascending: true, nullsFirst: true })
+      .limit(12);
 
-    let rawData: unknown[] = [];
-    let rawCount = 0;
-    let mappedCount = 0;
-    let sampleRaw: unknown = null;
-    let sampleMapped: CatalogItem | null = null;
+    const fromFeatured = !featErr && featRows && featRows.length > 0;
 
-    if (featuredData && featuredData.length > 0) {
-      const slugs = featuredData.map((x) => x.product_slug);
-      const { data, error } = await supa
+    let items: ReturnType<typeof mapDbToCatalogItem>[] = [];
+
+    if (fromFeatured) {
+      const ids = featRows!.map((f) => f.product_id);
+      const { data, error } = await sb
         .from("api_catalog_with_images")
         .select("*")
-        .in("product_slug", slugs);
+        .in("id", ids);
 
-      if (!error && data) {
-        rawData = data;
-        rawCount = data.length;
-      }
-    }
-
-    // Si 0, ejecutar fallback
-    if (rawCount === 0) {
-      dbg("[debug/featured] Usando fallback: 12 más recientes activos y en stock");
-      // Primero verificar si hay productos sin filtros
-      const { count: totalCount } = await supa
-        .from("api_catalog_with_images")
-        .select("*", { count: "exact", head: true });
-      
-      const { count: activeCount } = await supa
-        .from("api_catalog_with_images")
-        .select("*", { count: "exact", head: true })
-        .eq("active", true);
-      
-      const { count: stockCount } = await supa
-        .from("api_catalog_with_images")
-        .select("*", { count: "exact", head: true })
-        .eq("active", true)
-        .eq("in_stock", true);
-
-      // Fallback: obtener productos activos y en stock
-      const { data: fallbackData, error: fallbackError } = await supa
+      if (error) throw error;
+      const map = new Map(data!.map((r) => [r.id, r]));
+      const ordered = ids.map((id) => map.get(id)).filter(Boolean);
+      items = ordered.map(mapDbToCatalogItem);
+    } else {
+      // Fallback solo si *no hay* filas en featured
+      const { data, error } = await sb
         .from("api_catalog_with_images")
         .select("*")
+        .eq("is_active", true)
+        .eq("in_stock", true)
         .order("created_at", { ascending: false })
-        .limit(50);
+        .limit(12);
 
-      if (!fallbackError && fallbackData) {
-        // Filtrar en memoria: activos y en stock
-        const filteredFallback = fallbackData
-          .map((r: any) => mapRow(r))
-          .filter((p) => p.active && p.inStock)
-          .slice(0, 12);
-        
-        rawData = filteredFallback.map((p: Product) => ({
-          id: p.id,
-          product_slug: p.slug,
-          section: p.section,
-          title: p.title,
-          description: p.description,
-          price: p.price,
-          image_url: p.imageUrl,
-          in_stock: p.inStock,
-          active: p.active,
-        }));
-        rawCount = rawData.length;
-        dbg(`[debug/featured] Fallback devolvió ${rawCount} productos`);
-      } else {
-        dbg("[debug/featured] Fallback error:", fallbackError);
-      }
-    }
-
-    // Mapear con mapRow y convertir a CatalogItem
-    const products: Product[] = rawData.map((r: any) => mapRow(r));
-    const catalogItems: CatalogItem[] = products
-      .filter((p) => p.active && p.inStock)
-      .map((p) => ({
-        id: p.id,
-        product_slug: p.slug,
-        section: p.section,
-        title: p.title,
-        description: p.description ?? null,
-        price_cents: Math.round(p.price * 100),
-        currency: "mxn",
-        // eslint-disable-next-line no-restricted-syntax
-        image_url: p.imageUrl ?? null, // Product usa imageUrl, CatalogItem usa image_url
-        in_stock: p.inStock && p.active,
-        is_active: p.active ?? true,
-      }));
-
-    mappedCount = catalogItems.length;
-
-    if (rawData.length > 0) {
-      sampleRaw = rawData[0];
-      sampleMapped = catalogItems[0];
+      if (error) throw error;
+      items = (data ?? []).map(mapDbToCatalogItem);
     }
 
     return NextResponse.json({
-      rawCount,
-      mappedCount,
-      sampleRaw,
-      sampleMapped,
-      // Debug adicional: incluir conteos si están disponibles
-      debug: process.env.NODE_ENV !== "production" ? {
-        featuredCount: featuredData?.length ?? 0,
-        hasFallback: rawCount === 0 && featuredData?.length === 0,
-      } : undefined,
+      fromFeatured,
+      count: items.length,
+      sample: items[0] ?? null,
     });
   } catch (error) {
-    dbg("[debug/featured] Error:", error);
     return NextResponse.json(
-      { error: "Internal server error", rawCount: 0, mappedCount: 0 },
-      { status: 500 }
+      { error: String(error), fromFeatured: false, count: 0, sample: null },
+      { status: 500 },
     );
   }
 }
-

@@ -1,41 +1,62 @@
-export type Product = {
+// Tipos mínimos de la vista
+export type DbRow = {
+  id: string;
+  section: string;
+  product_slug: string;
+  title: string | null;
+  description?: string | null;
+  image_url?: string | null;
+
+  // columnas que pueden existir en diferentes vistas
+  price_cents?: number | null;
+  price?: number | null; // legacy, ignorar si price_cents existe
+  in_stock?: boolean | null;
+  stock_qty?: number | null;
+  is_active?: boolean | null;
+  active?: boolean | null;
+};
+
+export type CatalogItem = {
   id: string;
   section: string;
   slug: string;
   title: string;
   description?: string;
-  price: number;
-  // eslint-disable-next-line no-restricted-syntax
-  imageUrl?: string; // Tipo interno Product usa camelCase, UI usa snake_case
-  inStock: boolean;
-  active: boolean;
+  image_url?: string;
+  price: number; // pesos
+  in_stock: boolean;
+  is_active: boolean;
 };
 
-export function mapRow(r: {
-  id: string;
-  product_slug: string;
-  section: string;
-  title: string;
-  description?: string | null;
-  price: number | string | null;
-  image_url?: string | null;
-  in_stock?: boolean | null;
-  active?: boolean | null;
-}): Product {
-  const price = Number(r.price ?? 0);
-  const active = r.active ?? true;
-  const inStock = r.in_stock ?? false;
-  
+const toBool = (v: unknown, fallback = false) =>
+  typeof v === "boolean" ? v : fallback;
+
+export function mapDbToCatalogItem(r: DbRow): CatalogItem {
+  const cents =
+    r.price_cents ?? (typeof r.price === "number" ? Math.round(r.price * 100) : 0);
+  const price = Math.max(0, Number(cents || 0) / 100);
+
+  const is_active = toBool(r.is_active ?? r.active, true);
+  const in_stock = toBool(
+    r.in_stock ?? (typeof r.stock_qty === "number" ? r.stock_qty > 0 : undefined),
+    false,
+  );
+
   return {
     id: r.id,
     section: r.section,
     slug: r.product_slug,
     title: r.title ?? "",
-    description: r.description ?? "",
+    description: r.description ?? undefined,
+    image_url: r.image_url ?? undefined,
     price,
-    // eslint-disable-next-line no-restricted-syntax
-    imageUrl: r.image_url ?? "", // Product usa imageUrl, UI usa image_url
-    inStock,
-    active,
+    in_stock,
+    is_active,
   };
+}
+
+// Legacy exports para compatibilidad temporal
+export type Product = CatalogItem;
+export function mapRow(r: DbRow): Product {
+  return mapDbToCatalogItem(r);
 }

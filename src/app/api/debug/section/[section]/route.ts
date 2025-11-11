@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { unstable_noStore as noStore } from "next/cache";
 import { getPublicSupabase } from "@/lib/supabase/public";
-import { mapRow, Product } from "@/lib/catalog/mapDbToProduct";
+import { mapDbToCatalogItem } from "@/lib/catalog/mapDbToProduct";
 import type { CatalogItem } from "@/lib/catalog/model";
 
 // Helper para logs de debug solo en desarrollo
@@ -82,8 +82,10 @@ export async function GET(
     }
 
     // Filtrar en memoria: activos y en stock
-    const products: Product[] = (data ?? []).map((r: any) => mapRow(r));
-    const filteredProducts = products.filter((p) => p.active && p.inStock);
+    const products = (data ?? []).map((r: any) => mapDbToCatalogItem(r));
+    const filteredProducts = products.filter(
+      (p) => p.is_active && p.in_stock,
+    );
     // Ordenar por slug alfabéticamente después de mapear
     filteredProducts.sort((a, b) => a.slug.localeCompare(b.slug));
     const filteredData = filteredProducts.slice(0, 12);
@@ -94,7 +96,7 @@ export async function GET(
     let sampleMapped: CatalogItem | null = null;
 
     if (filteredData.length > 0) {
-      // Convertir a CatalogItem
+      // Convertir a CatalogItem (ya es CatalogItem, solo agregar campos faltantes)
       const catalogItems: CatalogItem[] = filteredData.map((p) => ({
         id: p.id,
         product_slug: p.slug,
@@ -103,10 +105,9 @@ export async function GET(
         description: p.description ?? null,
         price_cents: Math.round(p.price * 100),
         currency: "mxn",
-        // eslint-disable-next-line no-restricted-syntax
-        image_url: p.imageUrl ?? null, // Product usa imageUrl, CatalogItem usa image_url
-        in_stock: p.inStock && p.active,
-        is_active: p.active ?? true,
+        image_url: p.image_url ?? null,
+        in_stock: p.in_stock,
+        is_active: p.is_active,
       }));
 
       mappedCount = catalogItems.length;

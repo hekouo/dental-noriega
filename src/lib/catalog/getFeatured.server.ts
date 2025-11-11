@@ -1,17 +1,46 @@
-"use server";
-
+import "server-only";
 import { unstable_noStore as noStore } from "next/cache";
 import { getPublicSupabase } from "@/lib/supabase/public";
-import { mapRow, Product } from "./mapDbToProduct";
+import { mapDbToCatalogItem } from "./mapDbToProduct";
 
-// Helper para logs de debug solo en desarrollo
-const dbg = (...args: unknown[]) => {
-  if (process.env.NODE_ENV !== "production") {
-    console.log(...args);
+export async function getFeatured(limit = 12) {
+  noStore();
+  const sb = getPublicSupabase();
+
+  // ¿Hay filas en featured?
+  const { data: featRows, error: featErr } = await sb
+    .from("featured")
+    .select("position, product_id")
+    .order("position", { ascending: true, nullsFirst: true })
+    .limit(limit);
+
+  if (!featErr && featRows && featRows.length > 0) {
+    const ids = featRows.map((f) => f.product_id);
+    const { data, error } = await sb
+      .from("api_catalog_with_images")
+      .select("*")
+      .in("id", ids);
+
+    if (error) throw error;
+    const map = new Map(data!.map((r) => [r.id, r]));
+    const ordered = ids.map((id) => map.get(id)).filter(Boolean);
+    return ordered.map(mapDbToCatalogItem);
   }
-};
 
-// Tipo legacy para compatibilidad con componentes existentes
+  // Fallback solo si *no hay* filas en featured
+  const { data, error } = await sb
+    .from("api_catalog_with_images")
+    .select("*")
+    .eq("is_active", true) // si la vista tiene 'active', se mapea igual en el adaptador
+    .eq("in_stock", true)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+  return (data ?? []).map(mapDbToCatalogItem);
+}
+
+// Legacy export para compatibilidad
 export type FeaturedItem = {
   product_id: string;
   product_slug: string;
@@ -26,135 +55,19 @@ export type FeaturedItem = {
   position: number;
 };
 
-// Adaptador Product -> FeaturedItem
-function productToFeaturedItem(p: Product, position: number): FeaturedItem {
-  return {
-    product_id: p.id,
-    product_slug: p.slug,
-    section: p.section,
-    title: p.title,
-    description: p.description ?? null,
-    price_cents: Math.round(p.price * 100), // convertir a centavos
-    currency: "mxn",
-    // eslint-disable-next-line no-restricted-syntax
-    image_url: p.imageUrl ?? null, // Product usa imageUrl, FeaturedItem usa image_url
-    in_stock: p.inStock && p.active,
-    is_active: p.active ?? true,
-    position,
-  };
-}
-
-export async function getFeatured(): Promise<Product[]> {
-  noStore(); // nada de cache
-  const supa = getPublicSupabase();
-
-  // Obtener featured primero
-  const { data: featuredData, error: featError } = await supa
-    .from("featured")
-    .select("product_slug")
-    .order("position", { ascending: true });
-
-  if (featError) {
-    dbg("[featured] supabase error fetching featured", featError);
-  }
-
-  // Si no hay featured o hay error, usar fallback
-  if (!featuredData || featuredData.length === 0) {
-    dbg("[featured] No hay productos destacados, usando fallback");
-    // Fallback: obtener productos activos y en stock
-    const { data: fallbackData, error: fallbackError } = await supa
-      .from("api_catalog_with_images")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(50);
-
-    if (fallbackError) {
-      dbg("[featured] fallback error", fallbackError);
-      return [];
-    }
-
-    // Filtrar en memoria: activos y en stock
-    const filtered = (fallbackData ?? [])
-      .map(mapRow)
-      .filter((p) => p.active && p.inStock)
-      .slice(0, 12);
-
-    return filtered;
-  }
-
-  const slugs = featuredData.map((x) => x.product_slug);
-
-  // join vista + featured
-  const { data, error } = await supa
-    .from("api_catalog_with_images")
-      .select("*")
-    .in("product_slug", slugs);
-
-  if (error) {
-    dbg("[featured] supabase error", error);
-    // Si hay error, intentar fallback
-    const { data: fallbackData } = await supa
-      .from("api_catalog_with_images")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(50);
-    
-    const filtered = (fallbackData ?? [])
-      .map(mapRow)
-      .filter((p) => p.active && p.inStock)
-      .slice(0, 12);
-    
-    return filtered;
-  }
-
-  // Si la query devuelve 0 filas, usar fallback
-  if (!data || data.length === 0) {
-    dbg("[featured] Query devolvió 0 filas, usando fallback");
-    const { data: fallbackData } = await supa
-      .from("api_catalog_with_images")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(50);
-    
-    const filtered = (fallbackData ?? [])
-      .map(mapRow)
-      .filter((p) => p.active && p.inStock)
-      .slice(0, 12);
-    
-    return filtered;
-  }
-
-  // Debug: imprimir primer item desde DB y tras mapRow (solo en dev)
-  if (data && data.length > 0) {
-    const firstRaw = data[0];
-    const firstMapped = mapRow(firstRaw);
-    dbg("[featured] DEBUG - Primer item desde DB:", JSON.stringify({
-      id: firstRaw.id,
-      product_slug: firstRaw.product_slug,
-      active: firstRaw.active,
-      in_stock: firstRaw.in_stock,
-      price: firstRaw.price,
-    }));
-    dbg("[featured] DEBUG - Tras mapRow:", JSON.stringify({
-      id: firstMapped.id,
-      slug: firstMapped.slug,
-      active: firstMapped.active,
-      inStock: firstMapped.inStock,
-      price: firstMapped.price,
-    }));
-  }
-
-  // Mapear y mantener orden según featured
-  const bySlug = new Map((data ?? []).map((item) => [item.product_slug, item]));
-  return slugs
-    .map((slug) => bySlug.get(slug))
-    .filter((item): item is NonNullable<typeof item> => Boolean(item))
-    .map(mapRow)
-    .filter((p) => p.active && p.inStock);
-}
-
-// Función legacy para compatibilidad con componentes
 export async function getFeaturedItems(): Promise<FeaturedItem[]> {
-  const products = await getFeatured();
-  return products.map((p, idx) => productToFeaturedItem(p, idx));
+  const items = await getFeatured();
+  return items.map((item, idx) => ({
+    product_id: item.id,
+    product_slug: item.slug,
+    section: item.section,
+    title: item.title,
+    description: item.description ?? null,
+    price_cents: Math.round(item.price * 100),
+    currency: "mxn",
+    image_url: item.image_url ?? null,
+    in_stock: item.in_stock,
+    is_active: item.is_active,
+    position: idx,
+  }));
 }
