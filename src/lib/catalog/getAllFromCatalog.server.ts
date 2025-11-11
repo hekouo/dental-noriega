@@ -5,6 +5,13 @@ import { unstable_noStore as noStore } from "next/cache";
 import { getPublicSupabase } from "@/lib/supabase/public";
 import type { CatalogItem } from "./model";
 
+// Helper para logs de debug solo en desarrollo
+const dbg = (...args: unknown[]) => {
+  if (process.env.NODE_ENV !== "production") {
+    console.log(...args);
+  }
+};
+
 async function fetchAllFromCatalog(): Promise<CatalogItem[]> {
   noStore();
   const supabase = getPublicSupabase();
@@ -19,7 +26,7 @@ async function fetchAllFromCatalog(): Promise<CatalogItem[]> {
       .range(0, 1999); // suficiente para catálogo actual
 
     if (error) {
-      console.warn("[getAllFromCatalog] Error:", error.message);
+      dbg("[getAllFromCatalog] Error:", error.message);
       return [];
     }
 
@@ -40,7 +47,7 @@ async function fetchAllFromCatalog(): Promise<CatalogItem[]> {
       in_stock: d.active && (d.stock_qty ?? 0) > 0,
     })) as CatalogItem[];
   } catch (error) {
-    console.warn("[getAllFromCatalog] Error:", error);
+    dbg("[getAllFromCatalog] Error:", error);
     return [];
   }
 }
