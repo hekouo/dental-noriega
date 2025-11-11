@@ -11,3 +11,10 @@ export function getPublicSupabase() {
   // No leer cookies, no singleton global
   return createClient(url, anon, { auth: { persistSession: false } });
 }
+
+/**
+ * Alias para getPublicSupabase para mantener compatibilidad
+ */
+export function createClient() {
+  return getPublicSupabase();
+}
