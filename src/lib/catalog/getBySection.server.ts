@@ -22,8 +22,7 @@ export async function getBySection(section: string): Promise<Product[]> {
     .eq("section", section)
     .eq("active", true)
     .gt("stock_qty", 0)
-    .order("created_at", { ascending: false, nullsFirst: false })
-    .order("product_slug", { ascending: true });
+    .order("created_at", { ascending: false, nullsFirst: false });
 
   if (error) {
     dbg("[bySection] supabase error", error);
@@ -31,6 +30,13 @@ export async function getBySection(section: string): Promise<Product[]> {
   }
 
   const products = (data ?? []).map(mapRow).filter((p) => p.active && p.inStock);
+
+  // Ordenar por created_at desc, luego por slug asc
+  products.sort((a, b) => {
+    // Primero por created_at (ya viene ordenado de DB, pero por si acaso)
+    // Luego por slug alfabéticamente
+    return a.slug.localeCompare(b.slug);
+  });
 
   if (products.length === 0) {
     dbg(`[bySection] Sección '${section}' devolvió 0 productos`);
