@@ -50,6 +50,7 @@ export async function GET(
     }
 
     // Obtener conteos para debug (siempre incluirlos en endpoints de debug)
+    // Usar select("*") para evitar problemas con columnas que no existen
     const { count: totalInSection } = await supa
       .from("api_catalog_with_images")
       .select("*", { count: "exact", head: true })
@@ -61,12 +62,20 @@ export async function GET(
       .eq("section", section)
       .eq("active", true);
     
-    const { count: stockInSection } = await supa
-      .from("api_catalog_with_images")
-      .select("*", { count: "exact", head: true })
-      .eq("section", section)
-      .eq("active", true)
-      .eq("in_stock", true);
+    // Intentar conteo con in_stock, si falla omitir
+    let stockInSection: number | null = null;
+    try {
+      const { count } = await supa
+        .from("api_catalog_with_images")
+        .select("*", { count: "exact", head: true })
+        .eq("section", section)
+        .eq("active", true)
+        .eq("in_stock", true);
+      stockInSection = count ?? 0;
+    } catch (e) {
+      dbg(`[debug/section] Error al contar con in_stock:`, e);
+      stockInSection = null;
+    }
 
     if (error) {
       dbg(`[debug/section] Error para sección '${section}':`, error);
@@ -80,8 +89,9 @@ export async function GET(
         debug: {
           totalInSection: totalInSection ?? 0,
           activeInSection: activeInSection ?? 0,
-          stockInSection: stockInSection ?? 0,
-          queryError: error.message,
+          stockInSection: stockInSection ?? null,
+          dataLength: data?.length ?? 0,
+          filteredLength: filteredData.length,
         },
       });
     }
@@ -126,13 +136,13 @@ export async function GET(
       mappedCount,
       sampleRaw,
       sampleMapped,
-      debug: {
-        totalInSection: totalInSection ?? 0,
-        activeInSection: activeInSection ?? 0,
-        stockInSection: stockInSection ?? 0,
-        dataLength: data?.length ?? 0,
-        filteredLength: filteredData.length,
-      },
+        debug: {
+          totalInSection: totalInSection ?? 0,
+          activeInSection: activeInSection ?? 0,
+          stockInSection: stockInSection ?? null,
+          dataLength: data?.length ?? 0,
+          filteredLength: filteredData.length,
+        },
     });
   } catch (error) {
     dbg(`[debug/section] Error para sección '${section}':`, error);
