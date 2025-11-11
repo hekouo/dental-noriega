@@ -74,17 +74,8 @@ export async function GET() {
         .limit(50);
 
       if (!fallbackError && fallbackData) {
-        // Filtrar: primero intentar active=null o true, si no hay ninguno, incluir todos
-        let filteredFallback = fallbackData.filter(
-          (item: any) => item.active === null || item.active === true
-        );
-        
-        // Si no hay productos activos, incluir todos (incluso active=false)
-        if (filteredFallback.length === 0) {
-          filteredFallback = fallbackData;
-        }
-        
-        filteredFallback = filteredFallback.slice(0, 12);
+        // Incluir todos los productos sin filtrar por active
+        const filteredFallback = fallbackData.slice(0, 12);
         
         rawData = filteredFallback;
         rawCount = filteredFallback.length;

@@ -73,17 +73,8 @@ export async function getFeatured(): Promise<Product[]> {
       return [];
     }
 
-    // Filtrar: primero intentar active=null o true, si no hay ninguno, incluir todos
-    let filtered = (fallbackData ?? []).filter(
-      (item: any) => item.active === null || item.active === true
-    );
-    
-    // Si no hay productos activos, incluir todos (incluso active=false)
-    if (filtered.length === 0) {
-      filtered = fallbackData ?? [];
-    }
-    
-    filtered = filtered.slice(0, 12);
+    // Incluir todos los productos sin filtrar por active
+    const filtered = (fallbackData ?? []).slice(0, 12);
 
     return filtered.map(mapRow).filter((p) => p.inStock);
   }

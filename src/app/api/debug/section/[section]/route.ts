@@ -32,17 +32,8 @@ export async function GET(
       .order("created_at", { ascending: false, nullsFirst: false })
       .limit(50);
 
-    // Filtrar: primero intentar active=null o true, si no hay ninguno, incluir todos
-    let filteredData = (data ?? []).filter(
-      (item: any) => item.active === null || item.active === true
-    );
-    
-    // Si no hay productos activos, incluir todos (incluso active=false)
-    if (filteredData.length === 0) {
-      filteredData = data ?? [];
-    }
-    
-    filteredData = filteredData.slice(0, 12);
+    // Incluir todos los productos sin filtrar por active
+    const filteredData = (data ?? []).slice(0, 12);
 
     const rawCount = filteredData.length;
     let mappedCount = 0;
