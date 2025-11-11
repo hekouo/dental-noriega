@@ -64,12 +64,14 @@ export async function GET() {
         .eq("active", true)
         .gt("stock_qty", 0);
 
+      // Fallback: productos con active=true o null, y stock_qty>0
+      // Usar or() para incluir nulls
       const { data: fallbackData, error: fallbackError } = await supa
         .from("api_catalog_with_images")
         .select(
           "id, product_slug, section, title, description, price, image_url, stock_qty, active"
         )
-        .eq("active", true)
+        .or("active.is.null,active.eq.true")
         .gt("stock_qty", 0)
         .order("created_at", { ascending: false, nullsFirst: false })
         .limit(12);
