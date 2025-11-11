@@ -174,6 +174,7 @@ export default async function CatalogoSectionPage({ params }: Props) {
             );
 
             // Convertir Product a CatalogItem para compatibilidad
+            // Lógica correcta: in_stock debe ser true si active && inStock
             const catalogItem = {
               id: product.id,
               product_slug: product.slug,
@@ -184,7 +185,7 @@ export default async function CatalogoSectionPage({ params }: Props) {
               currency: "mxn",
               stock_qty: product.inStock ? 1 : 0,
               image_url: product.image_url ?? null,
-              in_stock: product.inStock,
+              in_stock: product.active && product.inStock, // Lógica correcta
             };
 
             return (

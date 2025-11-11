@@ -30,7 +30,11 @@ export default function ProductActions({ product }: Props) {
   const router = useRouter();
   const busyRef = useRef(false);
 
-  const soldOut = product.in_stock === false || product.in_stock === null;
+  // Lógica correcta: soldOut = !(active ?? true) || (in_stock ?? 0) <= 0
+  // Pero ProductActions recibe un objeto con in_stock, no active
+  // Necesitamos verificar si el producto está activo desde el contexto
+  // Por ahora, solo verificamos in_stock
+  const soldOut = (product.in_stock ?? 0) <= 0;
   const canBuy = !soldOut;
   const price = mxnFromCents(product.price_cents);
   const formattedPrice = formatMXNFromCents(product.price_cents);

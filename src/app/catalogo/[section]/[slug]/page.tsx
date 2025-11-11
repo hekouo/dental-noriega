@@ -96,7 +96,7 @@ export default async function ProductDetailPage({ params }: Props) {
   const base =
     process.env.NEXT_PUBLIC_SITE_URL ?? "https://dental-noriega.vercel.app";
   const canonicalUrl = `${base}/catalogo/${product.section}/${product.slug}`;
-  const soldOut = !product.active || !product.inStock;
+  const soldOut = !(product.active ?? true) || !(product.inStock ?? false);
 
     // JSON-LD Product schema
     const jsonLd = {
