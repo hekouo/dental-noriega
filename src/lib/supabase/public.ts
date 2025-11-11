@@ -1,23 +1,13 @@
 import "server-only";
 import { createClient } from "@supabase/supabase-js";
+import { getPublicEnv } from "@/lib/env";
 
 /**
- * Cliente público de Supabase sin cookies, para uso en server components
- * y dentro de unstable_cache sin problemas.
+ * Cliente público de Supabase sin cookies, creado por request.
+ * NO crea cliente en top-level para evitar lecturas de env en build.
  */
 export function getPublicSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!url || !anon) {
-    if (process.env.NODE_ENV !== "production") {
-      console.warn("[supabase] missing envs");
-    }
-    // Devuelve un client fake que nunca se usa si no lo llamas.
-    // En runtime, esto causará errores si se intenta usar, pero no rompe el build.
-    return null as any;
-  }
-
+  const { url, anon } = getPublicEnv();
   return createClient(url, anon, { auth: { persistSession: false } });
 }
 

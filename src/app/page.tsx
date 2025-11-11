@@ -80,15 +80,16 @@ const FinalThanks = dynamicImport(() => import("@/components/FinalThanks"), {
   ssr: false,
 });
 
-export const dynamic = "force-dynamic"; // temporal hasta estabilizar cache
-// opcionalmente: export const revalidate = 60;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
 
 export default async function HomePage() {
   const items = await getFeatured();
 
   // Sanity check: si el array llega vacío, registra un log una sola vez
   if (!items?.length) {
-    if (process.env.NEXT_RUNTIME) {
+    if (process.env.NODE_ENV !== "production") {
       console.warn("[featured] empty result in runtime");
     }
   }

@@ -1,14 +1,20 @@
-// src/app/api/debug/search-health/route.ts
 import { NextResponse } from "next/server";
-import { getAllFromCatalog } from "@/lib/catalog/getAllFromCatalog.server";
-
-export const dynamic = "force-dynamic";
+import { getPublicEnv } from "@/lib/env";
+import { getPublicSupabase } from "@/lib/supabase/public";
 
 export async function GET() {
-  const items = await getAllFromCatalog();
+  const env = getPublicEnv();
+  let featuredCount = null;
+  try {
+    const s = getPublicSupabase();
+    const { data } = await s.from("featured").select("product_id");
+    featuredCount = data?.length ?? 0;
+  } catch {
+    // Silenciar errores
+  }
   return NextResponse.json({
-    total: items.length,
-    sample: items.slice(0, 5),
+    envOk: env.ok,
+    nodeEnv: env.nodeEnv,
+    featuredCount,
   });
 }
-

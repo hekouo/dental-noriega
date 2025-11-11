@@ -6,7 +6,8 @@ import { ROUTES } from "@/lib/routes";
 // Package icon replaced with inline SVG to reduce bundle size
 
 export const dynamic = "force-dynamic";
-// opcional: export const revalidate = 60;
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
 
 export default async function CatalogoIndexPage() {
   let sections = await listSectionsFromCatalog();

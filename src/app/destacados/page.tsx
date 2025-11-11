@@ -23,7 +23,7 @@ export default async function DestacadosPage() {
 
   // Sanity check: si el array llega vacío, registra un log una sola vez
   if (!items?.length) {
-    if (process.env.NEXT_RUNTIME) {
+    if (process.env.NODE_ENV !== "production") {
       console.warn("[featured] empty result in runtime");
     }
   }

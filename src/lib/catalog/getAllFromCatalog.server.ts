@@ -21,7 +21,7 @@ function hasSupabaseEnvs(): boolean {
 
 async function fetchAllFromCatalog(): Promise<CatalogItem[]> {
   if (!hasSupabaseEnvs()) {
-    if (process.env.NEXT_RUNTIME) {
+    if (process.env.NODE_ENV !== "production") {
       console.warn("[catalog] missing supabase envs (using empty list)");
     }
     return [];

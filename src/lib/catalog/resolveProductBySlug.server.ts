@@ -35,7 +35,7 @@ export async function resolveProductBySlug(
   slug: string,
 ): Promise<ProductResolved | null> {
   if (!hasSupabaseEnvs()) {
-    if (process.env.NEXT_RUNTIME) {
+    if (process.env.NODE_ENV !== "production") {
       console.warn("[catalog] missing supabase envs (using null)");
     }
     return null;
