@@ -75,7 +75,8 @@ export async function GET() {
       price_cents: Math.round(p.price * 100),
       currency: "mxn",
       stock_qty: p.inStock ? 1 : 0,
-      image_url: p.imageUrl ?? null,
+      // eslint-disable-next-line no-restricted-syntax
+      image_url: p.imageUrl ?? null, // Product usa imageUrl, CatalogItem usa image_url
       in_stock: p.active && p.inStock,
     }));
 
