@@ -22,6 +22,27 @@ export async function GET(
   const section = decodeURIComponent(params.section ?? "");
 
   try {
+    // Debug: verificar conteos antes de filtrar
+    const { count: totalInSection } = await supa
+      .from("api_catalog_with_images")
+      .select("*", { count: "exact", head: true })
+      .eq("section", section);
+    
+    const { count: activeInSection } = await supa
+      .from("api_catalog_with_images")
+      .select("*", { count: "exact", head: true })
+      .eq("section", section)
+      .eq("active", true);
+    
+    const { count: stockInSection } = await supa
+      .from("api_catalog_with_images")
+      .select("*", { count: "exact", head: true })
+      .eq("section", section)
+      .eq("active", true)
+      .gt("stock_qty", 0);
+
+    dbg(`[debug/section] Sección '${section}': total=${totalInSection}, activos=${activeInSection}, con stock=${stockInSection}`);
+
     const { data, error } = await supa
       .from("api_catalog_with_images")
       .select(
@@ -72,6 +93,12 @@ export async function GET(
       mappedCount,
       sampleRaw,
       sampleMapped,
+      // Debug adicional: incluir conteos si están disponibles
+      debug: process.env.NODE_ENV !== "production" ? {
+        totalInSection,
+        activeInSection,
+        stockInSection,
+      } : undefined,
     });
   } catch (error) {
     dbg(`[debug/section] Error para sección '${section}':`, error);

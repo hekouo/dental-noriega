@@ -48,6 +48,24 @@ export async function GET() {
     // Si 0, ejecutar fallback
     if (rawCount === 0) {
       dbg("[debug/featured] Usando fallback: 12 más recientes activos y en stock");
+      // Primero verificar si hay productos sin filtros
+      const { count: totalCount } = await supa
+        .from("api_catalog_with_images")
+        .select("*", { count: "exact", head: true });
+      
+      const { count: activeCount } = await supa
+        .from("api_catalog_with_images")
+        .select("*", { count: "exact", head: true })
+        .eq("active", true);
+      
+      const { count: stockCount } = await supa
+        .from("api_catalog_with_images")
+        .select("*", { count: "exact", head: true })
+        .eq("active", true)
+        .gt("stock_qty", 0);
+
+      dbg(`[debug/featured] Total productos: ${totalCount}, activos: ${activeCount}, con stock: ${stockCount}`);
+
       const { data: fallbackData, error: fallbackError } = await supa
         .from("api_catalog_with_images")
         .select(
@@ -97,6 +115,11 @@ export async function GET() {
       mappedCount,
       sampleRaw,
       sampleMapped,
+      // Debug adicional: incluir conteos si están disponibles
+      debug: process.env.NODE_ENV !== "production" ? {
+        featuredCount: featuredData?.length ?? 0,
+        hasFallback: rawCount === 0 && featuredData?.length === 0,
+      } : undefined,
     });
   } catch (error) {
     dbg("[debug/featured] Error:", error);
