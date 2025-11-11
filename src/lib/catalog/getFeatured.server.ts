@@ -66,6 +66,26 @@ export async function getFeatured(): Promise<Product[]> {
     return [];
   }
 
+  // Debug: imprimir primer item desde DB y tras mapRow
+  if (data && data.length > 0) {
+    const firstRaw = data[0];
+    const firstMapped = mapRow(firstRaw);
+    console.log("[featured] DEBUG - Primer item desde DB:", JSON.stringify({
+      id: firstRaw.id,
+      product_slug: firstRaw.product_slug,
+      active: firstRaw.active,
+      stock_qty: firstRaw.stock_qty,
+      price: firstRaw.price,
+    }));
+    console.log("[featured] DEBUG - Tras mapRow:", JSON.stringify({
+      id: firstMapped.id,
+      slug: firstMapped.slug,
+      active: firstMapped.active,
+      inStock: firstMapped.inStock,
+      price: firstMapped.price,
+    }));
+  }
+
   // Mapear y mantener orden según featured
   const bySlug = new Map((data ?? []).map((item) => [item.product_slug, item]));
   return slugs
