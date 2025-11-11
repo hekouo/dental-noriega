@@ -21,9 +21,7 @@ export async function getProduct(
   // Primero intentar por section + slug
   let { data, error } = await supa
     .from("api_catalog_with_images")
-    .select(
-      "id, product_slug, section, title, description, price, image_url, in_stock, active"
-    )
+    .select("*")
     .eq("section", section)
     .eq("product_slug", slug)
     .limit(1)
@@ -34,9 +32,7 @@ export async function getProduct(
     dbg(`[getProduct] No encontrado por section+slug, intentando solo por slug`);
     const result = await supa
       .from("api_catalog_with_images")
-      .select(
-        "id, product_slug, section, title, description, price, image_url, in_stock, active"
-      )
+      .select("*")
       .eq("product_slug", slug)
       .limit(1)
       .maybeSingle();

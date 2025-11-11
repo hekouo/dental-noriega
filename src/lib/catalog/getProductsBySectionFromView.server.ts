@@ -35,9 +35,7 @@ export async function getProductsBySectionFromView(
   try {
     const { data, error } = await supabase
       .from("api_catalog_with_images")
-      .select(
-        "id, product_slug, section, title, description, price_cents, currency, stock_qty, image_url",
-      )
+      .select("*")
       .eq("section", section)
       .order("title", { ascending: true })
       .range(offset, offset + limit - 1);
@@ -51,7 +49,7 @@ export async function getProductsBySectionFromView(
       return [];
     }
 
-    return data.map((item) => ({
+    return data.map((item: any) => ({
       id: String(item.id),
       product_slug: String(item.product_slug ?? ""),
       section: String(item.section),
@@ -59,8 +57,9 @@ export async function getProductsBySectionFromView(
       description: item.description ?? null,
       price_cents: item.price_cents ?? null,
       currency: item.currency ?? "mxn",
-      stock_qty: item.stock_qty ?? null,
       image_url: item.image_url ?? null,
+      in_stock: item.in_stock ?? null,
+      is_active: item.active ?? true,
     })) as CatalogItem[];
   } catch (error) {
     console.warn("[getProductsBySectionFromView] Error:", error);

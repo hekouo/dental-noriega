@@ -76,13 +76,17 @@ export async function GET(
           activeInSection: activeInSection ?? 0,
           stockInSection: stockInSection ?? null,
           dataLength: data?.length ?? 0,
-          filteredLength: filteredData.length,
+          filteredLength: 0,
         },
       });
     }
 
-    // Incluir todos los productos sin filtrar por active
-    const filteredData = (data ?? []).slice(0, 12);
+    // Filtrar en memoria: activos y en stock
+    const products: Product[] = (data ?? []).map((r: any) => mapRow(r));
+    const filteredProducts = products.filter((p) => p.active && p.inStock);
+    // Ordenar por slug alfabéticamente después de mapear
+    filteredProducts.sort((a, b) => a.slug.localeCompare(b.slug));
+    const filteredData = filteredProducts.slice(0, 12);
 
     const rawCount = filteredData.length;
     let mappedCount = 0;
@@ -90,25 +94,20 @@ export async function GET(
     let sampleMapped: CatalogItem | null = null;
 
     if (filteredData.length > 0) {
-      // Mapear con mapRow y convertir a CatalogItem
-      const products: Product[] = filteredData.map((r: any) => mapRow(r));
-      // Ordenar por slug alfabéticamente después de mapear
-      products.sort((a, b) => a.slug.localeCompare(b.slug));
-      const catalogItems: CatalogItem[] = products
-        .filter((p) => p.inStock)
-        .map((p) => ({
-          id: p.id,
-          product_slug: p.slug,
-          section: p.section,
-          title: p.title,
-          description: p.description ?? null,
-          price_cents: Math.round(p.price * 100),
-          currency: "mxn",
-          stock_qty: p.inStock ? 1 : 0,
-          // eslint-disable-next-line no-restricted-syntax
-          image_url: p.imageUrl ?? null, // Product usa imageUrl, CatalogItem usa image_url
-          in_stock: p.active && p.inStock,
-        }));
+      // Convertir a CatalogItem
+      const catalogItems: CatalogItem[] = filteredData.map((p) => ({
+        id: p.id,
+        product_slug: p.slug,
+        section: p.section,
+        title: p.title,
+        description: p.description ?? null,
+        price_cents: Math.round(p.price * 100),
+        currency: "mxn",
+        // eslint-disable-next-line no-restricted-syntax
+        image_url: p.imageUrl ?? null, // Product usa imageUrl, CatalogItem usa image_url
+        in_stock: p.inStock && p.active,
+        is_active: p.active ?? true,
+      }));
 
       mappedCount = catalogItems.length;
       sampleRaw = filteredData[0];

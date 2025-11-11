@@ -15,6 +15,7 @@ type Product = {
   price_cents: number;
   image_url?: string | null;
   in_stock?: boolean | null;
+  is_active?: boolean | null;
 };
 
 type Props = {
@@ -30,9 +31,8 @@ export default function ProductActions({ product }: Props) {
   const router = useRouter();
   const busyRef = useRef(false);
 
-  // Lógica correcta: soldOut = !(active ?? true) || (in_stock ?? false) === false
-  // ProductActions recibe in_stock como boolean (ya calculado como active && inStock)
-  const soldOut = !(product.in_stock ?? false);
+  // Lógica correcta: soldOut = !(is_active ?? true) || !(in_stock ?? false)
+  const soldOut = !(product.is_active ?? true) || !(product.in_stock ?? false);
   const canBuy = !soldOut;
   const price = mxnFromCents(product.price_cents);
   const formattedPrice = formatMXNFromCents(product.price_cents);

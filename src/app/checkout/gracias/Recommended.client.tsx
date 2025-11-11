@@ -21,8 +21,9 @@ type ProductAPIResponse = {
   description?: string | null;
   price_cents?: number;
   currency?: string;
-  stock_qty?: number;
   image_url?: string | null;
+  in_stock?: boolean | null;
+  is_active?: boolean | null;
 };
 
 function mapToFeaturedItem(
@@ -37,8 +38,9 @@ function mapToFeaturedItem(
     description: p.description || null,
     price_cents: p.price_cents || 0,
     currency: p.currency || "mxn",
-    stock_qty: p.stock_qty || 0,
     image_url: p.image_url || null,
+    in_stock: p.in_stock ?? null,
+    is_active: p.is_active ?? true,
     position: 0,
   };
 }

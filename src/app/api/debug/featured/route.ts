@@ -34,9 +34,7 @@ export async function GET() {
       const slugs = featuredData.map((x) => x.product_slug);
       const { data, error } = await supa
         .from("api_catalog_with_images")
-        .select(
-          "id, product_slug, section, title, description, price, image_url, in_stock, active"
-        )
+        .select("*")
         .in("product_slug", slugs);
 
       if (!error && data) {
@@ -64,21 +62,32 @@ export async function GET() {
         .eq("active", true)
         .eq("in_stock", true);
 
-      // Fallback: obtener todos los productos sin filtrar por active, luego filtrar en memoria
+      // Fallback: obtener productos activos y en stock
       const { data: fallbackData, error: fallbackError } = await supa
         .from("api_catalog_with_images")
-        .select(
-          "id, product_slug, section, title, description, price, image_url, in_stock, active"
-        )
-        .order("created_at", { ascending: false, nullsFirst: false })
+        .select("*")
+        .order("created_at", { ascending: false })
         .limit(50);
 
       if (!fallbackError && fallbackData) {
-        // Incluir todos los productos sin filtrar por active
-        const filteredFallback = fallbackData.slice(0, 12);
+        // Filtrar en memoria: activos y en stock
+        const filteredFallback = fallbackData
+          .map((r: any) => mapRow(r))
+          .filter((p) => p.active && p.inStock)
+          .slice(0, 12);
         
-        rawData = filteredFallback;
-        rawCount = filteredFallback.length;
+        rawData = filteredFallback.map((p: Product) => ({
+          id: p.id,
+          product_slug: p.slug,
+          section: p.section,
+          title: p.title,
+          description: p.description,
+          price: p.price,
+          image_url: p.imageUrl,
+          in_stock: p.inStock,
+          active: p.active,
+        }));
+        rawCount = rawData.length;
         dbg(`[debug/featured] Fallback devolvió ${rawCount} productos`);
       } else {
         dbg("[debug/featured] Fallback error:", fallbackError);
@@ -88,7 +97,7 @@ export async function GET() {
     // Mapear con mapRow y convertir a CatalogItem
     const products: Product[] = rawData.map((r: any) => mapRow(r));
     const catalogItems: CatalogItem[] = products
-      .filter((p) => p.inStock)
+      .filter((p) => p.active && p.inStock)
       .map((p) => ({
         id: p.id,
         product_slug: p.slug,
@@ -97,10 +106,10 @@ export async function GET() {
         description: p.description ?? null,
         price_cents: Math.round(p.price * 100),
         currency: "mxn",
-        stock_qty: p.inStock ? 1 : 0,
         // eslint-disable-next-line no-restricted-syntax
         image_url: p.imageUrl ?? null, // Product usa imageUrl, CatalogItem usa image_url
-        in_stock: p.active && p.inStock,
+        in_stock: p.inStock && p.active,
+        is_active: p.active ?? true,
       }));
 
     mappedCount = catalogItems.length;

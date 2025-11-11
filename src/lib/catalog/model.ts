@@ -11,9 +11,9 @@ export type CatalogItem = {
   description?: string | null;
   price_cents?: number | null;
   currency?: string | null;
-  stock_qty?: number | null;
   image_url?: string | null;
   in_stock?: boolean | null;
+  is_active?: boolean | null;
 };
 
 /**
@@ -39,13 +39,11 @@ export function normalizePrice(value?: number | string | null): number {
 export function hasPurchasablePrice(
   item:
     | CatalogItem
-    | { price_cents?: number | null; stock_qty?: number | null; in_stock?: boolean | null },
+    | { price_cents?: number | null; in_stock?: boolean | null; is_active?: boolean | null },
 ): boolean {
   const priceCents = normalizePrice(item.price_cents);
-  // Si tiene in_stock explícito, usarlo; sino usar stock_qty
-  if (item.in_stock !== undefined && item.in_stock !== null) {
-    return priceCents > 0 && item.in_stock === true;
-  }
-  const stockQty = normalizePrice(item.stock_qty);
-  return priceCents > 0 && stockQty > 0;
+  // Usar in_stock e is_active
+  const inStock = item.in_stock ?? false;
+  const isActive = item.is_active ?? true;
+  return priceCents > 0 && inStock && isActive;
 }

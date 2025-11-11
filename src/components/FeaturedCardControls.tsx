@@ -43,9 +43,9 @@ export default function FeaturedCardControls({ item, compact = false }: Props) {
   const [isAdding, setIsAdding] = useState(false);
 
   const priceCents = normalizePrice(item.price_cents);
-  const stockQty = normalizePrice(item.stock_qty);
-  const canPurchase = hasPurchasablePrice(item);
-  const maxQty = Math.min(99, Math.max(0, stockQty));
+  const soldOut = !(item.is_active ?? true) || !(item.in_stock ?? false);
+  const canPurchase = hasPurchasablePrice(item) && !soldOut;
+  const maxQty = canPurchase ? 99 : 0;
 
   const waHref = getWhatsAppHref(
     `Hola, me interesa el producto: ${item.title} (${item.product_slug}). ¿Lo tienes disponible?`,

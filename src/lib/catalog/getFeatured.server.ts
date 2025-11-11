@@ -20,8 +20,9 @@ export type FeaturedItem = {
   description: string | null;
   price_cents: number | null;
   currency: string | null;
-  stock_qty: number | null;
   image_url: string | null;
+  in_stock: boolean | null;
+  is_active: boolean | null;
   position: number;
 };
 
@@ -35,9 +36,10 @@ function productToFeaturedItem(p: Product, position: number): FeaturedItem {
     description: p.description ?? null,
     price_cents: Math.round(p.price * 100), // convertir a centavos
     currency: "mxn",
-    stock_qty: p.inStock ? 1 : 0,
     // eslint-disable-next-line no-restricted-syntax
     image_url: p.imageUrl ?? null, // Product usa imageUrl, FeaturedItem usa image_url
+    in_stock: p.inStock && p.active,
+    is_active: p.active ?? true,
     position,
   };
 }
@@ -59,13 +61,11 @@ export async function getFeatured(): Promise<Product[]> {
   // Si no hay featured o hay error, usar fallback
   if (!featuredData || featuredData.length === 0) {
     dbg("[featured] No hay productos destacados, usando fallback");
-    // Fallback: obtener todos los productos sin filtrar por active, luego filtrar en memoria
+    // Fallback: obtener productos activos y en stock
     const { data: fallbackData, error: fallbackError } = await supa
       .from("api_catalog_with_images")
-      .select(
-        "id, product_slug, section, title, description, price, image_url, in_stock, active"
-      )
-      .order("created_at", { ascending: false, nullsFirst: false })
+      .select("*")
+      .order("created_at", { ascending: false })
       .limit(50);
 
     if (fallbackError) {
@@ -73,10 +73,13 @@ export async function getFeatured(): Promise<Product[]> {
       return [];
     }
 
-    // Incluir todos los productos sin filtrar por active
-    const filtered = (fallbackData ?? []).slice(0, 12);
+    // Filtrar en memoria: activos y en stock
+    const filtered = (fallbackData ?? [])
+      .map(mapRow)
+      .filter((p) => p.active && p.inStock)
+      .slice(0, 12);
 
-    return filtered.map(mapRow).filter((p) => p.inStock);
+    return filtered;
   }
 
   const slugs = featuredData.map((x) => x.product_slug);
@@ -84,9 +87,7 @@ export async function getFeatured(): Promise<Product[]> {
   // join vista + featured
   const { data, error } = await supa
     .from("api_catalog_with_images")
-    .select(
-      "id, product_slug, section, title, description, price, image_url, stock_qty, active"
-    )
+      .select("*")
     .in("product_slug", slugs);
 
   if (error) {
@@ -94,21 +95,16 @@ export async function getFeatured(): Promise<Product[]> {
     // Si hay error, intentar fallback
     const { data: fallbackData } = await supa
       .from("api_catalog_with_images")
-      .select(
-        "id, product_slug, section, title, description, price, image_url, in_stock, active"
-      )
-      .or("active.is.null,active.eq.true")
-      .order("created_at", { ascending: false, nullsFirst: false })
+      .select("*")
+      .order("created_at", { ascending: false })
       .limit(50);
     
-    const filtered = (fallbackData ?? []).filter(
-      (item: any) => {
-        const isActive = item.active === null || item.active === true;
-        return isActive;
-      }
-    ).slice(0, 12);
+    const filtered = (fallbackData ?? [])
+      .map(mapRow)
+      .filter((p) => p.active && p.inStock)
+      .slice(0, 12);
     
-    return filtered.map(mapRow).filter((p) => p.inStock);
+    return filtered;
   }
 
   // Si la query devuelve 0 filas, usar fallback
@@ -116,21 +112,16 @@ export async function getFeatured(): Promise<Product[]> {
     dbg("[featured] Query devolvió 0 filas, usando fallback");
     const { data: fallbackData } = await supa
       .from("api_catalog_with_images")
-      .select(
-        "id, product_slug, section, title, description, price, image_url, in_stock, active"
-      )
-      .or("active.is.null,active.eq.true")
-      .order("created_at", { ascending: false, nullsFirst: false })
+      .select("*")
+      .order("created_at", { ascending: false })
       .limit(50);
     
-    const filtered = (fallbackData ?? []).filter(
-      (item: any) => {
-        const isActive = item.active === null || item.active === true;
-        return isActive;
-      }
-    ).slice(0, 12);
+    const filtered = (fallbackData ?? [])
+      .map(mapRow)
+      .filter((p) => p.active && p.inStock)
+      .slice(0, 12);
     
-    return filtered.map(mapRow).filter((p) => p.inStock);
+    return filtered;
   }
 
   // Debug: imprimir primer item desde DB y tras mapRow (solo en dev)

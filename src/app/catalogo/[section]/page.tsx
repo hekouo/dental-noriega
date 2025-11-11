@@ -177,7 +177,6 @@ export default async function CatalogoSectionPage({ params }: Props) {
             );
 
             // Convertir Product a CatalogItem para compatibilidad
-            // Lógica correcta: in_stock debe ser true si active && inStock
             const catalogItem = {
               id: product.id,
               product_slug: product.slug,
@@ -186,10 +185,10 @@ export default async function CatalogoSectionPage({ params }: Props) {
               description: product.description ?? null,
               price_cents: Math.round(product.price * 100),
               currency: "mxn",
-              stock_qty: product.inStock ? 1 : 0,
               // eslint-disable-next-line no-restricted-syntax
               image_url: product.imageUrl ?? null, // Product usa imageUrl, CatalogItem usa image_url
-              in_stock: product.active && product.inStock, // Lógica correcta
+              in_stock: product.inStock && product.active,
+              is_active: product.active ?? true,
             };
 
             return (

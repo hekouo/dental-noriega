@@ -14,24 +14,22 @@ const dbg = (...args: unknown[]) => {
 export async function getBySection(section: string): Promise<Product[]> {
   noStore();
   const supa = getPublicSupabase();
-  // Obtener todos los productos de la sección sin filtrar por active, luego filtrar en memoria
+  // Obtener productos de la sección
   const { data, error } = await supa
     .from("api_catalog_with_images")
-    .select(
-      "id, product_slug, section, title, description, price, image_url, in_stock, active"
-    )
+    .select("*")
     .eq("section", section)
-    .order("created_at", { ascending: false, nullsFirst: false });
+    .order("created_at", { ascending: false });
 
   if (error) {
     dbg("[bySection] supabase error", error);
     return [];
   }
 
-  // Incluir todos los productos sin filtrar por active
-  const filtered = data ?? [];
-
-  const products = filtered.map(mapRow).filter((p) => p.inStock);
+  // Filtrar en memoria: activos y en stock
+  const products = (data ?? [])
+    .map(mapRow)
+    .filter((p) => p.active && p.inStock);
 
   // Ordenar por created_at desc, luego por slug asc
   products.sort((a, b) => {
