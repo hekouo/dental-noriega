@@ -31,7 +31,7 @@ export default function ProductActions({ product }: Props) {
   const router = useRouter();
   const busyRef = useRef(false);
 
-  // Lógica correcta: soldOut = !product.in_stock || !product.is_active
+  // Lógica correcta: soldOut = !in_stock || !is_active
   const soldOut = !product.in_stock || !product.is_active;
   const canBuy = !soldOut;
   const price = mxnFromCents(product.price_cents);

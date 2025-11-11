@@ -14,10 +14,7 @@ type SearchResponse = {
     section: string;
     title: string;
     price: number;
-    price_cents: number;
     image_url: string | null;
-    in_stock: boolean;
-    is_active: boolean;
   }>;
   total: number;
   page: number;
@@ -40,6 +37,7 @@ export async function GET(req: Request) {
     const sb = createClient();
     
     // Buscar en api_catalog_with_images con ilike sobre title, product_slug y section
+    // Usar un OR en una sola cadena .or() para Supabase
     const { data, error } = await sb
       .from("api_catalog_with_images")
       .select("*")
@@ -60,12 +58,15 @@ export async function GET(req: Request) {
       );
     }
 
-    // Mapear resultados usando mapDbToCatalogItem
+    // Mapear resultados usando el adaptador
     const mapped = (data ?? []).map(mapDbToCatalogItem);
 
-    const total = mapped.length;
+    // Filtrar por is_active e in_stock (si es necesario)
+    const filtered = mapped.filter((item) => item.is_active && item.in_stock);
+
+    const total = filtered.length;
     const start = (page - 1) * perPage;
-    const items = mapped.slice(start, start + perPage).map((it) => ({
+    const items = filtered.slice(start, start + perPage).map((it) => ({
       id: it.id,
       product_slug: it.slug,
       section: it.section,

@@ -60,10 +60,7 @@ export default async function BuscarPage({ searchParams }: Props) {
       product_slug: string;
       title: string;
       price: number;
-      price_cents: number;
       image_url: string | null;
-      in_stock: boolean;
-      is_active: boolean;
     }>;
     total: number;
     page: number;
@@ -107,16 +104,18 @@ export default async function BuscarPage({ searchParams }: Props) {
             {items.map((it) => (
               <SearchResultCard
                 key={it.id}
-                item={{
-                  id: it.id,
-                  section: it.section,
-                  product_slug: it.product_slug,
-                  title: it.title,
-                  price_cents: it.price_cents,
-                  image_url: it.image_url,
-                  in_stock: it.in_stock,
-                  is_active: it.is_active,
-                } as any}
+                item={
+                  {
+                    id: it.id,
+                    section: it.section,
+                    product_slug: it.product_slug,
+                    title: it.title,
+                    price_cents: Math.round(it.price * 100),
+                    image_url: it.image_url,
+                    in_stock: true, // Los resultados ya están filtrados por is_active e in_stock
+                    is_active: true,
+                  } as any
+                }
                 highlightQuery={q}
               />
             ))}

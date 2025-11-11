@@ -22,7 +22,6 @@ export async function getFeatured(limit = 12) {
       .in("id", ids);
 
     if (error) throw error;
-    // Ordenar en memoria según el orden de ids (que respeta position)
     const map = new Map(data!.map((r) => [r.id, r]));
     const ordered = ids.map((id) => map.get(id)).filter(Boolean);
     return ordered.map(mapDbToCatalogItem);
@@ -32,7 +31,7 @@ export async function getFeatured(limit = 12) {
   const { data, error } = await sb
     .from("api_catalog_with_images")
     .select("*")
-    .eq("is_active", true)
+    .eq("is_active", true) // si la vista tiene 'active', se mapea igual en el adaptador
     .eq("in_stock", true)
     .order("created_at", { ascending: false })
     .limit(limit);

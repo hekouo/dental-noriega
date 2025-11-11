@@ -10,7 +10,7 @@ export async function getProduct(
   noStore();
   const sb = createClient();
   
-  // Intentar primero por section + slug
+  // Primero intentar por section + slug
   const { data, error } = await sb
     .from("api_catalog_with_images")
     .select("*")
