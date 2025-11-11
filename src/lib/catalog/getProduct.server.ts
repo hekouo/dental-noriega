@@ -1,6 +1,6 @@
 import "server-only";
 import { unstable_noStore as noStore } from "next/cache";
-import { getPublicSupabase } from "@/lib/supabase/public";
+import { createClient } from "@/lib/supabase/public";
 import { mapDbToCatalogItem } from "./mapDbToProduct";
 
 export async function getProduct(
@@ -8,7 +8,9 @@ export async function getProduct(
   slug: string,
 ): Promise<ReturnType<typeof mapDbToCatalogItem> | null> {
   noStore();
-  const sb = getPublicSupabase();
+  const sb = createClient();
+  
+  // Intentar primero por section + slug
   const { data, error } = await sb
     .from("api_catalog_with_images")
     .select("*")
@@ -16,6 +18,17 @@ export async function getProduct(
     .eq("product_slug", slug)
     .maybeSingle();
 
-  if (error || !data) return null;
-  return mapDbToCatalogItem(data);
+  if (!error && data) {
+    return mapDbToCatalogItem(data);
+  }
+
+  // Si falla, intentar solo por slug
+  const { data: dataBySlug, error: errorBySlug } = await sb
+    .from("api_catalog_with_images")
+    .select("*")
+    .eq("product_slug", slug)
+    .maybeSingle();
+
+  if (errorBySlug || !dataBySlug) return null;
+  return mapDbToCatalogItem(dataBySlug);
 }

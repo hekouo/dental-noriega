@@ -7,6 +7,8 @@ import { ROUTES } from "@/lib/routes";
 import SearchTracker from "@/components/SearchTracker.client";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
 
 const SearchInput = dynamicImport(
   () => import("@/components/SearchInput.client"),
@@ -58,7 +60,10 @@ export default async function BuscarPage({ searchParams }: Props) {
       product_slug: string;
       title: string;
       price: number;
+      price_cents: number;
       image_url: string | null;
+      in_stock: boolean;
+      is_active: boolean;
     }>;
     total: number;
     page: number;
@@ -102,18 +107,16 @@ export default async function BuscarPage({ searchParams }: Props) {
             {items.map((it) => (
               <SearchResultCard
                 key={it.id}
-                item={
-                  {
-                    id: it.id,
-                    section: it.section,
-                    product_slug: it.product_slug,
-                    title: it.title,
-                    price_cents: it.price * 100,
-                    image_url: it.image_url,
-                    in_stock: null,
-                    stock_qty: null,
-                  } as any
-                }
+                item={{
+                  id: it.id,
+                  section: it.section,
+                  product_slug: it.product_slug,
+                  title: it.title,
+                  price_cents: it.price_cents,
+                  image_url: it.image_url,
+                  in_stock: it.in_stock,
+                  is_active: it.is_active,
+                } as any}
                 highlightQuery={q}
               />
             ))}

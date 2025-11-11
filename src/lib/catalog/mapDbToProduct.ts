@@ -32,15 +32,16 @@ const toBool = (v: unknown, fallback = false) =>
   typeof v === "boolean" ? v : fallback;
 
 export function mapDbToCatalogItem(r: DbRow): CatalogItem {
+  // Precio: priorizar price_cents, fallback a price numérico
   const cents =
     r.price_cents ?? (typeof r.price === "number" ? Math.round(r.price * 100) : 0);
   const price = Math.max(0, Number(cents || 0) / 100);
 
+  // is_active: respetar is_active o active
   const is_active = toBool(r.is_active ?? r.active, true);
-  const in_stock = toBool(
-    r.in_stock ?? (typeof r.stock_qty === "number" ? r.stock_qty > 0 : undefined),
-    false,
-  );
+  
+  // in_stock: solo desde boolean, no derivar de stock_qty
+  const in_stock = toBool(r.in_stock, false);
 
   return {
     id: r.id,

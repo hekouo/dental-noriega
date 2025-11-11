@@ -19,7 +19,7 @@ export default function FeaturedCarousel({ items }: { items: FeaturedItem[] }) {
               sizes="(max-width: 768px) 90vw, 50vw"
               controls={
                 (() => {
-                  const soldOut = !(item.is_active ?? true) || !(item.in_stock ?? false);
+                  const soldOut = !item.in_stock || !item.is_active;
                   return !soldOut && hasPurchasablePrice(item) ? (
                     <FeaturedCardControlsLazy item={item} compact />
                   ) : soldOut ? (

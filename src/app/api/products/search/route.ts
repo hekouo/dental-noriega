@@ -1,8 +1,8 @@
 // src/app/api/products/search/route.ts
 import { NextResponse } from "next/server";
-import { getAllFromCatalog } from "@/lib/catalog/getAllFromCatalog.server";
-import { tokenize, scoreMatch, type SearchableItem } from "@/lib/search/normalize";
-import { toNumberSafe } from "@/lib/utils/money";
+import { unstable_noStore as noStore } from "next/cache";
+import { createClient } from "@/lib/supabase/public";
+import { mapDbToCatalogItem } from "@/lib/catalog/mapDbToProduct";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -14,7 +14,10 @@ type SearchResponse = {
     section: string;
     title: string;
     price: number;
+    price_cents: number;
     image_url: string | null;
+    in_stock: boolean;
+    is_active: boolean;
   }>;
   total: number;
   page: number;
@@ -22,8 +25,10 @@ type SearchResponse = {
 };
 
 export async function GET(req: Request) {
+  noStore();
   const url = new URL(req.url);
-  const q = (url.searchParams.get("q") || "").trim();
+  const qRaw = url.searchParams.get("q") || "";
+  const q = qRaw.trim().toLowerCase();
   const page = Math.max(1, parseInt(url.searchParams.get("page") || "1", 10));
   const perPage = 20;
 
@@ -32,54 +37,40 @@ export async function GET(req: Request) {
   }
 
   try {
-    const tokens = tokenize(q);
-    const all = await getAllFromCatalog();
-    const { getMatchType } = await import("@/lib/search/normalize");
+    const sb = createClient();
+    
+    // Buscar en api_catalog_with_images con ilike sobre title, product_slug y section
+    const { data, error } = await sb
+      .from("api_catalog_with_images")
+      .select("*")
+      .or(`title.ilike.%${q}%,product_slug.ilike.%${q}%,section.ilike.%${q}%`)
+      .order("created_at", { ascending: false })
+      .limit(200);
 
-    // Convertir items a SearchableItem para las funciones de matching
-    const searchableItems: SearchableItem[] = all.map((it) => ({
-      title: it.title,
-      product_slug: it.product_slug ?? "",
-      section: it.section ?? "",
-    }));
+    if (error) {
+      console.error("[search] Supabase error:", error);
+      return NextResponse.json<SearchResponse>(
+        {
+          items: [],
+          total: 0,
+          page: 1,
+          perPage,
+        },
+        { status: 500 },
+      );
+    }
 
-    const filtered = all
-      .map((it, idx) => {
-        const searchable = searchableItems[idx];
-        const match = getMatchType(searchable, q);
-        const tokenScore = scoreMatch(searchable, tokens);
-        return {
-          it,
-          matchType: match.type,
-          score: match.score + tokenScore,
-        };
-      })
-      .sort((a, b) => {
-        // Ordenar por tipo de match primero (exact > beginsWith > contains)
-        const typeOrder: Record<string, number> = {
-          exact: 3,
-          beginsWith: 2,
-          contains: 1,
-        };
-        const typeDiff = typeOrder[b.matchType] - typeOrder[a.matchType];
-        if (typeDiff !== 0) return typeDiff;
-        // Luego por score
-        return b.score - a.score;
-      })
-      .map(({ it }) => it);
+    // Mapear resultados usando mapDbToCatalogItem
+    const mapped = (data ?? []).map(mapDbToCatalogItem);
 
-    const total = filtered.length;
+    const total = mapped.length;
     const start = (page - 1) * perPage;
-    const items = filtered.slice(start, start + perPage).map((it) => ({
+    const items = mapped.slice(start, start + perPage).map((it) => ({
       id: it.id,
-      product_slug: it.product_slug,
+      product_slug: it.slug,
       section: it.section,
       title: it.title,
-      price:
-        toNumberSafe(
-          (it as { price?: number }).price ??
-            (it.price_cents ? it.price_cents / 100 : 0),
-        ) ?? 0,
+      price: it.price,
       image_url: it.image_url ?? null,
     }));
 

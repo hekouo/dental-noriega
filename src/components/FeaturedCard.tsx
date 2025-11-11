@@ -29,7 +29,7 @@ export default function FeaturedCard({
       : `/catalogo`;
   const priceCents = item.price_cents ?? 0;
   const price = priceCents > 0 ? mxnFromCents(priceCents) : null;
-  const soldOut = !(item.is_active ?? true) || !(item.in_stock ?? false);
+  const soldOut = !item.in_stock || !item.is_active;
   const canPurchase = hasPurchasablePrice(item);
 
   return (

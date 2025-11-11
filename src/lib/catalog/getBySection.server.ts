@@ -1,11 +1,11 @@
 import "server-only";
 import { unstable_noStore as noStore } from "next/cache";
-import { getPublicSupabase } from "@/lib/supabase/public";
+import { createClient } from "@/lib/supabase/public";
 import { mapDbToCatalogItem } from "./mapDbToProduct";
 
 export async function getBySection(section: string) {
   noStore();
-  const sb = getPublicSupabase();
+  const sb = createClient();
 
   const { data, error } = await sb
     .from("api_catalog_with_images")

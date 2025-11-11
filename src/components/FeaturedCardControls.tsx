@@ -43,7 +43,7 @@ export default function FeaturedCardControls({ item, compact = false }: Props) {
   const [isAdding, setIsAdding] = useState(false);
 
   const priceCents = normalizePrice(item.price_cents);
-  const soldOut = !(item.is_active ?? true) || !(item.in_stock ?? false);
+  const soldOut = !item.in_stock || !item.is_active;
   const canPurchase = hasPurchasablePrice(item) && !soldOut;
   const maxQty = canPurchase ? 99 : 0;
 

@@ -15,8 +15,8 @@ export default function CatalogCardControls({ item }: Props) {
   const addToCart = useCartStore((s) => s.addToCart);
   const [qty, setQty] = useState(1);
   const busyRef = useRef(false);
-  // Lógica correcta: soldOut = !(item.is_active ?? true) || !(item.in_stock ?? false)
-  const soldOut = !(item.is_active ?? true) || !(item.in_stock ?? false);
+  // Lógica correcta: soldOut = !item.in_stock || !item.is_active
+  const soldOut = !item.in_stock || !item.is_active;
   const canBuy = !soldOut;
 
   function onAdd() {
