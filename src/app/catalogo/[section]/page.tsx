@@ -203,9 +203,9 @@ export default async function CatalogoSectionPage({ params }: Props) {
                 >
                   <span className="block">
                     <div className="relative w-full aspect-square bg-white">
-                      {/* eslint-disable-next-line no-restricted-syntax */}
                       <ImageWithFallback
-                        src={product.imageUrl}
+                        // eslint-disable-next-line no-restricted-syntax
+                        src={product.imageUrl} // Product usa imageUrl
                         alt={product.title}
                         width={400}
                         height={400}
