@@ -14,14 +14,13 @@ const dbg = (...args: unknown[]) => {
 export async function getBySection(section: string): Promise<Product[]> {
   noStore();
   const supa = getPublicSupabase();
-  // Incluir productos con active=true o null, luego filtrar stock_qty en memoria
+  // Obtener todos los productos de la sección sin filtrar por active, luego filtrar en memoria
   const { data, error } = await supa
     .from("api_catalog_with_images")
     .select(
       "id, product_slug, section, title, description, price, image_url, stock_qty, active"
     )
     .eq("section", section)
-    .or("active.is.null,active.eq.true")
     .order("created_at", { ascending: false, nullsFirst: false });
 
   if (error) {
