@@ -1,7 +1,7 @@
 import Link from "next/link";
 import dynamicImport from "next/dynamic";
 import { ROUTES } from "@/lib/routes";
-import { getFeatured } from "@/lib/catalog/getFeatured.server";
+import { getFeaturedItems } from "@/lib/catalog/getFeatured.server";
 import FeaturedCarousel from "@/components/FeaturedCarousel";
 import FeaturedGrid from "@/components/FeaturedGrid";
 import { buttonBase, buttonPrimary } from "@/lib/styles/button";
@@ -85,7 +85,7 @@ export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
 export default async function HomePage() {
-  const items = await getFeatured();
+  const items = await getFeaturedItems();
 
   // Sanity check: si el array llega vacío, registra un log una sola vez
   if (!items?.length) {

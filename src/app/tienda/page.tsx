@@ -1,6 +1,6 @@
 import Link from "next/link";
 import FeaturedGrid from "@/components/FeaturedGrid";
-import { getFeatured } from "@/lib/catalog/getFeatured.server";
+import { getFeaturedItems } from "@/lib/catalog/getFeatured.server";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -33,7 +33,7 @@ function hasSupabaseEnvs(): boolean {
 }
 
 export default async function TiendaPage() {
-  const featured = await getFeatured();
+  const featured = await getFeaturedItems();
   const hasEnvs = hasSupabaseEnvs();
 
   return (

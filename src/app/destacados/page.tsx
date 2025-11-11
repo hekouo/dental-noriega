@@ -1,6 +1,6 @@
 // src/app/destacados/page.tsx
 import Link from "next/link";
-import { getFeatured } from "@/lib/catalog/getFeatured.server";
+import { getFeaturedItems } from "@/lib/catalog/getFeatured.server";
 import FeaturedGrid from "@/components/FeaturedGrid";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +18,7 @@ function hasSupabaseEnvs(): boolean {
 }
 
 export default async function DestacadosPage() {
-  const items = await getFeatured();
+  const items = await getFeaturedItems();
   const hasEnvs = hasSupabaseEnvs();
 
   // Sanity check: si el array llega vacío, registra un log una sola vez

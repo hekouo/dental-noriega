@@ -1,8 +1,10 @@
 "use server";
 
-import { getPublicSupabase } from "@/lib/supabase/public";
 import { unstable_noStore as noStore } from "next/cache";
+import { getPublicSupabase } from "@/lib/supabase/public";
+import { mapRow, Product } from "./mapDbToProduct";
 
+// Tipo legacy para compatibilidad con componentes existentes
 export type FeaturedItem = {
   product_id: string;
   product_slug: string;
@@ -16,79 +18,65 @@ export type FeaturedItem = {
   position: number;
 };
 
-export async function getFeatured(): Promise<FeaturedItem[]> {
-  noStore(); // fuerza no-cache
+// Adaptador Product -> FeaturedItem
+function productToFeaturedItem(p: Product, position: number): FeaturedItem {
+  return {
+    product_id: p.id,
+    product_slug: p.slug,
+    section: p.section,
+    title: p.title,
+    description: p.description ?? null,
+    price_cents: Math.round(p.price * 100), // convertir a centavos
+    currency: "mxn",
+    stock_qty: p.inStock ? 1 : 0,
+    image_url: p.image_url ?? null,
+    position,
+  };
+}
 
-  // leer cookies aquí (fuera de cualquier cache) si necesitas región
-  // const region = cookies().get("region")?.value ?? null;
+export async function getFeatured(): Promise<Product[]> {
+  noStore(); // nada de cache
+  const supa = getPublicSupabase();
 
-  const s = getPublicSupabase();
-
-  // 1) leemos posiciones de featured
-  const { data: feats, error: e1 } = await s
+  // Obtener featured primero
+  const { data: featuredData, error: featError } = await supa
     .from("featured")
-    .select("product_id, position")
+    .select("product_slug")
     .order("position", { ascending: true });
 
-  if (e1) throw e1;
-  if (!feats?.length) return [];
+  if (featError || !featuredData?.length) {
+    if (featError) {
+      console.error("[featured] supabase error fetching featured", featError);
+    }
+    return [];
+  }
 
-  const ids = feats.map((f) => f.product_id);
-  // 2) leemos vista canónica con imagen primaria
-  const { data: items, error: e2 } = await s
+  const slugs = featuredData.map((x) => x.product_slug);
+
+  // join vista + featured
+  const { data, error } = await supa
     .from("api_catalog_with_images")
-    .select("*")
-    .in("id", ids);
+    .select(
+      "id, product_slug, section, title, description, price, image_url, stock_qty, active"
+    )
+    .in("product_slug", slugs);
 
-  if (e2) throw e2;
+  if (error) {
+    console.error("[featured] supabase error", error);
+    return [];
+  }
 
-  // ordenar según position
-  const order = new Map(ids.map((id, i) => [id, i]));
-  const sorted = (items ?? []).sort(
-    (a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0)
-  );
-
-  // Mapear a FeaturedItem
-  return sorted.map((item, idx) => ({
-    product_id: String(item.id),
-    product_slug: String(item.product_slug ?? ""),
-    section: String(item.section),
-    title: String(item.title),
-    description: item.description ?? null,
-    price_cents: item.price_cents ?? null,
-    currency: item.currency ?? "mxn",
-    stock_qty: item.stock_qty ?? null,
-    image_url: item.image_url ?? null,
-    position: feats[idx]?.position ?? idx,
-  }));
+  // Mapear y mantener orden según featured
+  const bySlug = new Map((data ?? []).map((item) => [item.product_slug, item]));
+  return slugs
+    .map((slug) => bySlug.get(slug))
+    .filter((item): item is NonNullable<typeof item> => Boolean(item))
+    .map(mapRow)
+    .filter((p) => p.active);
 }
 
-export async function revalidateFeatured() {
-  // No-op: ya no usamos cache
-}
-
-// Alias para compatibilidad con código existente
-export async function getFeaturedProducts(): Promise<
-  Array<{
-    id: string;
-    product_slug: string;
-    title: string;
-    section: string;
-    price_cents: number;
-    image_url?: string | null;
-    in_stock?: boolean | null;
-    sku?: string | null;
-  }>
-> {
-  const items = await getFeatured();
-  return items.map((item) => ({
-    id: item.product_id,
-    product_slug: item.product_slug,
-    title: item.title,
-    section: item.section,
-    price_cents: item.price_cents ?? 0,
-    image_url: item.image_url,
-    in_stock: item.stock_qty !== null ? item.stock_qty > 0 : null,
-    sku: null,
-  }));
+// Función legacy para compatibilidad con componentes
+export async function getFeaturedItems(): Promise<FeaturedItem[]> {
+  const products = await getFeatured();
+  return products.map((p, idx) => productToFeaturedItem(p, idx));
 }

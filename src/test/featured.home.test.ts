@@ -22,8 +22,8 @@ vi.mock("@/lib/supabase/server", () => ({
 // test dummy: solo valida shape básico del helper
 describe("getFeatured", () => {
   it("returns at most 8 ordered by position", async () => {
-    const { getFeatured } = await import("@/lib/catalog/getFeatured.server");
-    const items = await getFeatured();
+    const { getFeaturedItems } = await import("@/lib/catalog/getFeatured.server");
+    const items = await getFeaturedItems();
     expect(Array.isArray(items)).toBe(true);
     expect(items.length).toBeLessThanOrEqual(8);
     const positions = items.map((i) => i.position);

@@ -1,13 +1,13 @@
 import "server-only";
 import { createClient } from "@supabase/supabase-js";
-import { getPublicEnv } from "@/lib/env";
 
 /**
- * Cliente público de Supabase sin cookies, creado por request.
+ * Cliente público de Supabase por request, sin cookies ni singleton global.
  * NO crea cliente en top-level para evitar lecturas de env en build.
  */
 export function getPublicSupabase() {
-  const { url, anon } = getPublicEnv();
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  // No leer cookies, no singleton global
   return createClient(url, anon, { auth: { persistSession: false } });
 }
-
