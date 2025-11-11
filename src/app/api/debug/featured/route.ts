@@ -64,18 +64,22 @@ export async function GET() {
         .eq("active", true)
         .gt("stock_qty", 0);
 
-      // Fallback: productos con active=true o null, y (stock_qty>0 o stock_qty=null)
+      // Fallback: productos con active=true o null, filtrar stock_qty en memoria
       const { data: fallbackData, error: fallbackError } = await supa
         .from("api_catalog_with_images")
         .select(
           "id, product_slug, section, title, description, price, image_url, stock_qty, active"
         )
         .or("active.is.null,active.eq.true")
-        .or("stock_qty.is.null,stock_qty.gt.0")
         .order("created_at", { ascending: false, nullsFirst: false })
-        .limit(12);
+        .limit(50);
 
-      if (!fallbackError && filteredFallback.length > 0) {
+      if (!fallbackError && fallbackData) {
+        // Filtrar stock_qty en memoria: null o > 0
+        const filteredFallback = fallbackData.filter(
+          (item: any) => item.stock_qty === null || Number(item.stock_qty ?? 0) > 0
+        ).slice(0, 12);
+        
         rawData = filteredFallback;
         rawCount = filteredFallback.length;
         dbg(`[debug/featured] Fallback devolvió ${rawCount} productos`);

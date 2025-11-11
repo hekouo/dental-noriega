@@ -22,7 +22,7 @@ export async function GET(
   const section = decodeURIComponent(params.section ?? "");
 
   try {
-    // Incluir productos con active=true o null, y (stock_qty>0 o stock_qty=null)
+    // Incluir productos con active=true o null, filtrar stock_qty en memoria
     const { data, error } = await supa
       .from("api_catalog_with_images")
       .select(
@@ -30,9 +30,13 @@ export async function GET(
       )
       .eq("section", section)
       .or("active.is.null,active.eq.true")
-      .or("stock_qty.is.null,stock_qty.gt.0")
       .order("created_at", { ascending: false, nullsFirst: false })
-      .limit(12);
+      .limit(50);
+
+    // Filtrar stock_qty en memoria: null o > 0
+    const filteredData = (data ?? []).filter(
+      (item: any) => item.stock_qty === null || Number(item.stock_qty ?? 0) > 0
+    ).slice(0, 12);
 
     const rawCount = filteredData.length;
     let mappedCount = 0;
@@ -41,9 +45,9 @@ export async function GET(
 
     if (error) {
       dbg(`[debug/section] Error para sección '${section}':`, error);
-    } else if (data && data.length > 0) {
+    } else if (filteredData.length > 0) {
       // Mapear con mapRow y convertir a CatalogItem
-      const products: Product[] = data.map((r: any) => mapRow(r));
+      const products: Product[] = filteredData.map((r: any) => mapRow(r));
       // Ordenar por slug alfabéticamente después de mapear
       products.sort((a, b) => a.slug.localeCompare(b.slug));
       const catalogItems: CatalogItem[] = products
@@ -63,7 +67,7 @@ export async function GET(
         }));
 
       mappedCount = catalogItems.length;
-      sampleRaw = data[0];
+      sampleRaw = filteredData[0];
       sampleMapped = catalogItems[0] ?? null;
     }
 
