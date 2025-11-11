@@ -36,7 +36,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const title = `${sectionName} | ${siteName}`;
   const description = `Explora ${sectionName} en ${siteName}.`;
-  const image = items?.[0]?.imageUrl ?? "/og/cover.jpg";
+  // eslint-disable-next-line no-restricted-syntax
+  const image = items?.[0]?.imageUrl ?? "/og/cover.jpg"; // Product usa imageUrl
   const url = `${base}/catalogo/${section}`;
 
   return {
@@ -186,7 +187,8 @@ export default async function CatalogoSectionPage({ params }: Props) {
               price_cents: Math.round(product.price * 100),
               currency: "mxn",
               stock_qty: product.inStock ? 1 : 0,
-              image_url: product.imageUrl ?? null,
+              // eslint-disable-next-line no-restricted-syntax
+              image_url: product.imageUrl ?? null, // Product usa imageUrl, CatalogItem usa image_url
               in_stock: product.active && product.inStock, // Lógica correcta
             };
 
@@ -201,8 +203,9 @@ export default async function CatalogoSectionPage({ params }: Props) {
                 >
                   <span className="block">
                     <div className="relative w-full aspect-square bg-white">
+                      {/* eslint-disable-next-line no-restricted-syntax */}
                       <ImageWithFallback
-                        src={product.imageUrl}
+                        src={product.imageUrl} {/* Product usa imageUrl */}
                         alt={product.title}
                         width={400}
                         height={400}

@@ -45,7 +45,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const title = `${product.title} | ${siteName}`;
   const description =
     product.description?.slice(0, 150) ?? `${product.title} en ${siteName}`;
-      const image = product.imageUrl ?? "/og/cover.jpg";
+  // eslint-disable-next-line no-restricted-syntax
+  const image = product.imageUrl ?? "/og/cover.jpg"; // Product usa imageUrl
   const url = `${base}/catalogo/${product.section}/${product.slug}`;
 
   return {
