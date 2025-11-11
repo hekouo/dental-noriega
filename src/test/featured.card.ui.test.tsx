@@ -33,7 +33,7 @@ describe("FeaturedCardControls UI", () => {
       description: null,
       price_cents: 100, // 100 centavos = 1 MXN
       currency: "mxn",
-      image_url: undefined,
+      image_url: null,
       in_stock: true,
       is_active: true,
       position: 0,
