@@ -60,22 +60,27 @@ export async function getFeatured(): Promise<Product[]> {
   if (!featuredData || featuredData.length === 0) {
     dbg("[featured] No hay productos destacados, usando fallback");
     // Fallback: 12 más recientes activos (o null) y (stock_qty>0 o null)
+    // Filtrar active en query, stock_qty en memoria
     const { data: fallbackData, error: fallbackError } = await supa
       .from("api_catalog_with_images")
       .select(
         "id, product_slug, section, title, description, price, image_url, stock_qty, active"
       )
       .or("active.is.null,active.eq.true")
-      .or("stock_qty.is.null,stock_qty.gt.0")
       .order("created_at", { ascending: false, nullsFirst: false })
-      .limit(12);
+      .limit(50);
 
     if (fallbackError) {
       dbg("[featured] fallback error", fallbackError);
       return [];
     }
 
-    return (fallbackData ?? []).map(mapRow).filter((p) => p.active && p.inStock);
+    // Filtrar stock_qty en memoria
+    const filtered = (fallbackData ?? []).filter(
+      (item: any) => item.stock_qty === null || Number(item.stock_qty ?? 0) > 0
+    ).slice(0, 12);
+
+    return filtered.map(mapRow).filter((p) => p.active && p.inStock);
   }
 
   const slugs = featuredData.map((x) => x.product_slug);
@@ -97,10 +102,14 @@ export async function getFeatured(): Promise<Product[]> {
         "id, product_slug, section, title, description, price, image_url, stock_qty, active"
       )
       .or("active.is.null,active.eq.true")
-      .or("stock_qty.is.null,stock_qty.gt.0")
       .order("created_at", { ascending: false, nullsFirst: false })
-      .limit(12);
-    return (fallbackData ?? []).map(mapRow).filter((p) => p.active && p.inStock);
+      .limit(50);
+    
+    const filtered = (fallbackData ?? []).filter(
+      (item: any) => item.stock_qty === null || Number(item.stock_qty ?? 0) > 0
+    ).slice(0, 12);
+    
+    return filtered.map(mapRow).filter((p) => p.active && p.inStock);
   }
 
   // Si la query devuelve 0 filas, usar fallback
@@ -112,10 +121,14 @@ export async function getFeatured(): Promise<Product[]> {
         "id, product_slug, section, title, description, price, image_url, stock_qty, active"
       )
       .or("active.is.null,active.eq.true")
-      .or("stock_qty.is.null,stock_qty.gt.0")
       .order("created_at", { ascending: false, nullsFirst: false })
-      .limit(12);
-    return (fallbackData ?? []).map(mapRow).filter((p) => p.active && p.inStock);
+      .limit(50);
+    
+    const filtered = (fallbackData ?? []).filter(
+      (item: any) => item.stock_qty === null || Number(item.stock_qty ?? 0) > 0
+    ).slice(0, 12);
+    
+    return filtered.map(mapRow).filter((p) => p.active && p.inStock);
   }
 
   // Debug: imprimir primer item desde DB y tras mapRow (solo en dev)

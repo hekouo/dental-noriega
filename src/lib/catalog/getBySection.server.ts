@@ -14,7 +14,7 @@ const dbg = (...args: unknown[]) => {
 export async function getBySection(section: string): Promise<Product[]> {
   noStore();
   const supa = getPublicSupabase();
-  // Incluir productos con active=true o null, y (stock_qty>0 o null)
+  // Incluir productos con active=true o null, luego filtrar stock_qty en memoria
   const { data, error } = await supa
     .from("api_catalog_with_images")
     .select(
@@ -22,7 +22,6 @@ export async function getBySection(section: string): Promise<Product[]> {
     )
     .eq("section", section)
     .or("active.is.null,active.eq.true")
-    .or("stock_qty.is.null,stock_qty.gt.0")
     .order("created_at", { ascending: false, nullsFirst: false });
 
   if (error) {
@@ -30,7 +29,12 @@ export async function getBySection(section: string): Promise<Product[]> {
     return [];
   }
 
-  const products = (data ?? []).map(mapRow).filter((p) => p.active && p.inStock);
+  // Filtrar stock_qty en memoria: null o > 0
+  const filtered = (data ?? []).filter(
+    (item: any) => item.stock_qty === null || Number(item.stock_qty ?? 0) > 0
+  );
+
+  const products = filtered.map(mapRow).filter((p) => p.active && p.inStock);
 
   // Ordenar por created_at desc, luego por slug asc
   products.sort((a, b) => {

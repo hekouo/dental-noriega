@@ -75,9 +75,9 @@ export async function GET() {
         .order("created_at", { ascending: false, nullsFirst: false })
         .limit(12);
 
-      if (!fallbackError && fallbackData) {
-        rawData = fallbackData;
-        rawCount = fallbackData.length;
+      if (!fallbackError && filteredFallback.length > 0) {
+        rawData = filteredFallback;
+        rawCount = filteredFallback.length;
         dbg(`[debug/featured] Fallback devolvió ${rawCount} productos`);
       } else {
         dbg("[debug/featured] Fallback error:", fallbackError);

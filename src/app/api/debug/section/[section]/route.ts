@@ -34,7 +34,7 @@ export async function GET(
       .order("created_at", { ascending: false, nullsFirst: false })
       .limit(12);
 
-    const rawCount = data?.length ?? 0;
+    const rawCount = filteredData.length;
     let mappedCount = 0;
     let sampleRaw: unknown = null;
     let sampleMapped: CatalogItem | null = null;
