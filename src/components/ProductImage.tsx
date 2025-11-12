@@ -31,6 +31,7 @@ export default function ProductImage({
       height={height}
       sizes={sizes}
       priority={priority}
+      loading={priority ? undefined : "lazy"}
       data-testid={dataTestId || "product-image"}
       onError={(e) => {
         const img = e.currentTarget as HTMLImageElement;
