@@ -32,6 +32,12 @@ export default function GraciasContent() {
   const orderRefFromUrl =
     searchParams?.get("orden") || searchParams?.get("order") || "";
 
+  // Leer indicadores de Stripe redirect
+  const redirectStatus = searchParams?.get("redirect_status");
+  const paymentIntent = searchParams?.get("payment_intent");
+  const setupIntent = searchParams?.get("setup_intent");
+  const setupIntentClientSecret = searchParams?.get("setup_intent_client_secret");
+
   useEffect(() => {
     // Intentar leer de persist.ts
     if (typeof window !== "undefined") {
@@ -42,8 +48,24 @@ export default function GraciasContent() {
     }
   }, []);
 
-  // Verificar estado de la orden y limpiar carrito solo si es 'paid'
+  // Limpiar carrito cuando Stripe confirma éxito (fallback cliente)
   useEffect(() => {
+    // Si redirect_status === "succeeded" o payment_intent existe, limpiar carrito inmediatamente
+    if (redirectStatus === "succeeded" || paymentIntent) {
+      clearCart();
+      setOrderStatus("paid");
+      setIsCheckingPayment(false);
+      return;
+    }
+  }, [redirectStatus, paymentIntent, clearCart]);
+
+  // Verificar estado de la orden y limpiar carrito solo si es 'paid' (fallback Supabase)
+  useEffect(() => {
+    // Si ya limpiamos por Stripe redirect, no hacer poll
+    if (redirectStatus === "succeeded" || paymentIntent) {
+      return;
+    }
+
     if (!orderRefFromUrl) {
       setIsCheckingPayment(false);
       return;
@@ -127,7 +149,7 @@ export default function GraciasContent() {
         clearTimeout(timeoutId);
       }
     };
-  }, [orderRefFromUrl, clearCart]);
+  }, [orderRefFromUrl, clearCart, redirectStatus, paymentIntent]);
 
   const orderRef = lastOrder?.orderRef || orderRefFromUrl;
   const shippingMethod = lastOrder?.shippingMethod;
