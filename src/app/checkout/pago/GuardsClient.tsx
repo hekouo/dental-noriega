@@ -13,11 +13,12 @@ export default function GuardsClient({
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
+  const datos = useCheckoutStore((s) => s.datos);
+  const isCheckoutDataComplete = useCheckoutStore(selectIsCheckoutDataComplete);
   const hydrated = useCartStore(selectHydrated);
   const count = useCartStore(selectCount);
-  const isCheckoutDataComplete = useCheckoutStore(selectIsCheckoutDataComplete);
   
-  // hasStripeFlow: query contiene order, payment_intent, client_secret o redirect_status
+  // Verificar flujo Stripe activo: order, payment_intent, client_secret, redirect_status
   const hasStripeFlow = !!(
     searchParams?.get("order") ||
     searchParams?.get("payment_intent") ||
@@ -53,7 +54,9 @@ export default function GuardsClient({
     }
 
     // f) Si count === 0 → redirigir a /checkout/datos (carrito vacío)
-    router.replace("/checkout/datos");
+    if (count === 0) {
+      router.replace("/checkout/datos");
+    }
   }, [hydrated, count, isCheckoutDataComplete, hasStripeFlow, pathname, router, searchParams]);
 
   // Reglas de renderizado:
