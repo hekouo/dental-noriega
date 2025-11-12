@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { useCheckoutStore } from "@/lib/store/checkoutStore";
+import { useCheckoutStore, selectIsCheckoutDataComplete } from "@/lib/store/checkoutStore";
 import { useCartStore, selectHydrated, selectCount } from "@/lib/store/cartStore";
 
 export default function GuardsClient({
@@ -13,13 +13,16 @@ export default function GuardsClient({
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
-  const datos = useCheckoutStore((s) => s.datos);
   const hydrated = useCartStore(selectHydrated);
   const count = useCartStore(selectCount);
+  const isCheckoutDataComplete = useCheckoutStore(selectIsCheckoutDataComplete);
+  
+  // hasStripeFlow: query contiene order, payment_intent, client_secret o redirect_status
   const hasStripeFlow = !!(
     searchParams?.get("order") ||
     searchParams?.get("payment_intent") ||
-    searchParams?.get("client_secret")
+    searchParams?.get("client_secret") ||
+    searchParams?.get("redirect_status")
   );
 
   useEffect(() => {
@@ -38,16 +41,20 @@ export default function GuardsClient({
       return;
     }
 
-    // d) Si count > 0 → permitir acceso (no hacer nada)
-    if (count > 0) {
+    // d) Si count > 0 y isCheckoutDataComplete === true → permitir acceso (no hacer nada)
+    if (count > 0 && isCheckoutDataComplete) {
       return;
     }
 
-    // e) En caso contrario → redirigir a /checkout/datos
-    if (!datos) {
+    // e) Si count > 0 y isCheckoutDataComplete === false → redirigir a /checkout/datos
+    if (count > 0 && !isCheckoutDataComplete) {
       router.replace("/checkout/datos");
+      return;
     }
-  }, [hydrated, count, datos, hasStripeFlow, pathname, router, searchParams]);
+
+    // f) Si count === 0 → redirigir a /checkout/datos (carrito vacío)
+    router.replace("/checkout/datos");
+  }, [hydrated, count, isCheckoutDataComplete, hasStripeFlow, pathname, router, searchParams]);
 
   // Reglas de renderizado:
   // a) Si pathname.startsWith("/checkout/gracias") → render children (bypass)
@@ -65,8 +72,8 @@ export default function GuardsClient({
     return <>{children}</>;
   }
 
-  // d) Si count > 0 → render children
-  if (count > 0) {
+  // d) Si count > 0 y isCheckoutDataComplete === true → render children
+  if (count > 0 && isCheckoutDataComplete) {
     return <>{children}</>;
   }
 

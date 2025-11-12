@@ -351,4 +351,31 @@ export const selectSelectedTotal = (state: State) =>
   state.checkoutItems.reduce(
     (a, i) => a + (i.selected ? (i.price ?? 0) * (i.qty ?? 1) : 0),
     0,
-);
+  );
+
+// Selector para validar si los datos de checkout están completos
+export const selectIsCheckoutDataComplete = (state: State): boolean => {
+  const { datos, shippingMethod } = state;
+  
+  // Validar datos básicos requeridos
+  if (!datos) return false;
+  
+  // Validar campos mínimos: nombre, email
+  if (!datos.name || datos.name.trim().length < 2) return false;
+  if (!datos.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(datos.email.trim())) return false;
+  
+  // Si hay envío (no es pickup), validar método de envío y dirección requerida
+  if (shippingMethod && shippingMethod !== "pickup") {
+    // Validar que el método de envío esté definido
+    if (!shippingMethod) return false;
+    
+    // Validar dirección requerida para envío
+    if (!datos.address || datos.address.trim().length < 5) return false;
+    if (!datos.neighborhood || datos.neighborhood.trim().length === 0) return false;
+    if (!datos.city || datos.city.trim().length === 0) return false;
+    if (!datos.state || datos.state.trim().length === 0) return false;
+    if (!datos.cp || !/^\d{5}$/.test(datos.cp)) return false;
+  }
+  
+  return true;
+};

@@ -4,7 +4,7 @@ import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import QuantityInput from "@/components/cart/QuantityInput";
 import { useCartStore } from "@/lib/store/cartStore";
-import { useCheckoutStore } from "@/lib/store/checkoutStore";
+import { useCheckoutStore, selectIsCheckoutDataComplete } from "@/lib/store/checkoutStore";
 import { mxnFromCents, formatMXNFromCents } from "@/lib/utils/currency";
 
 type Product = {
@@ -117,8 +117,15 @@ export default function ProductActions({ product }: Props) {
       });
     }
 
-    // Redirigir a checkout/pago directamente
-    router.push("/checkout/pago");
+    // Decidir destino según datos completos
+    const checkoutState = useCheckoutStore.getState();
+    const isCheckoutDataComplete = selectIsCheckoutDataComplete(checkoutState);
+
+    if (isCheckoutDataComplete) {
+      router.push("/checkout/pago");
+    } else {
+      router.push("/checkout/datos");
+    }
   }
 
   const whatsappMessage = `Hola, me interesa: ${product.title} (${product.section}). Cantidad: ${qty}. Precio: ${formattedPrice}`;
