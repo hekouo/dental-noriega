@@ -24,7 +24,6 @@ type StripePaymentFormProps = {
 };
 
 function PaymentForm({
-  clientSecret,
   orderId,
   totalCents,
   onSuccess,

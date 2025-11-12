@@ -10,7 +10,6 @@ import {
   type ShippingMethod,
   type CheckoutItem,
 } from "@/lib/store/checkoutStore";
-import { useCartStore } from "@/lib/store/cartStore";
 import {
   useSelectedTotal,
   useSelectedItems,
