@@ -1,16 +1,27 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { loginSchema, registerSchema } from "@/lib/validations/auth";
-import { loginAction, registerAction } from "@/lib/actions/auth";
+import { loginAction, registerAction, signInWithGoogleAction } from "@/lib/actions/auth";
 
 export default function CuentaPage() {
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const searchParams = useSearchParams();
+  const [mode, setMode] = useState<"login" | "register">(
+    (searchParams?.get("mode") as "login" | "register") || "login"
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const router = useRouter();
+
+  useEffect(() => {
+    if (!searchParams) return;
+    const modeParam = searchParams.get("mode");
+    if (modeParam === "register" || modeParam === "login") {
+      setMode(modeParam);
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

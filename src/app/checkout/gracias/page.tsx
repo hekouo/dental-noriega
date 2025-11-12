@@ -9,6 +9,7 @@ import { getWithTTL, KEYS } from "@/lib/utils/persist";
 import type { ShippingMethod } from "@/lib/store/checkoutStore";
 import RecommendedClient from "./Recommended.client";
 import DebugLastOrder from "@/components/DebugLastOrder";
+import { useCartStore } from "@/lib/store/cartStore";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,7 @@ type LastOrder = {
 function GraciasContent() {
   const searchParams = useSearchParams();
   const [lastOrder, setLastOrder] = useState<LastOrder | null>(null);
+  const clearCart = useCartStore((s) => s.clearCart);
 
   // Leer orderRef de URL
   const orderRefFromUrl =
@@ -39,6 +41,63 @@ function GraciasContent() {
       }
     }
   }, []);
+
+  // Verificar estado de la orden y limpiar carrito solo si es 'paid'
+  useEffect(() => {
+    if (!orderRefFromUrl) return;
+
+    let ignore = false;
+    let timeoutId: NodeJS.Timeout | null = null;
+
+    async function checkOrderStatus() {
+      try {
+        // Intentar obtener el estado de la orden desde la API
+        const response = await fetch(`/api/checkout/order-status?order_id=${encodeURIComponent(orderRefFromUrl)}`, {
+          cache: "no-store",
+        });
+
+        if (!ignore && response.ok) {
+          const data = await response.json();
+          const status = (data as { status?: string }).status;
+
+          // Limpiar carrito solo si la orden está 'paid'
+          if (status === "paid") {
+            clearCart();
+          }
+        } else if (!ignore) {
+          // Si la respuesta no es OK, esperar un poco y reintentar (el webhook puede estar procesando)
+          timeoutId = setTimeout(() => {
+            if (!ignore) {
+              checkOrderStatus();
+            }
+          }, 2000);
+        }
+      } catch {
+        // Si hay error, esperar y reintentar una vez más
+        if (!ignore && !timeoutId) {
+          timeoutId = setTimeout(() => {
+            if (!ignore) {
+              checkOrderStatus();
+            }
+          }, 2000);
+        }
+      }
+    }
+
+    // Esperar un poco antes de verificar para dar tiempo al webhook de Stripe
+    timeoutId = setTimeout(() => {
+      if (!ignore) {
+        checkOrderStatus();
+      }
+    }, 1000);
+
+    return () => {
+      ignore = true;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [orderRefFromUrl, clearCart]);
 
   const orderRef = lastOrder?.orderRef || orderRefFromUrl;
   const shippingMethod = lastOrder?.shippingMethod;

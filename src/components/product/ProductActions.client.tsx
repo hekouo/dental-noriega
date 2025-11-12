@@ -77,6 +77,18 @@ export default function ProductActions({ product }: Props) {
     if (!canBuy || busyRef.current) return;
 
     busyRef.current = true;
+    
+    // Agregar al carrito usando getState() para asegurar ejecución antes del push
+    const { addToCart: addToCartFn } = useCartStore.getState();
+    addToCartFn({
+      id: product.id,
+      title: product.title,
+      price,
+      qty,
+      image_url: product.image_url ?? undefined,
+      selected: true,
+    });
+
     // Guardar en checkoutStore directamente
     upsertSingleToCheckout({
       id: product.id,
@@ -105,8 +117,8 @@ export default function ProductActions({ product }: Props) {
       });
     }
 
-    // Redirigir a checkout
-    router.push("/checkout");
+    // Redirigir a checkout/pago directamente
+    router.push("/checkout/pago");
   }
 
   const whatsappMessage = `Hola, me interesa: ${product.title} (${product.section}). Cantidad: ${qty}. Precio: ${formattedPrice}`;
