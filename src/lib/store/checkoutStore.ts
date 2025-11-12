@@ -353,23 +353,18 @@ export const selectSelectedTotal = (state: State) =>
     0,
   );
 
-// Selector para validar si los datos de checkout están completos
+// Selector para validar que los datos de checkout están completos
 export const selectIsCheckoutDataComplete = (state: State): boolean => {
   const { datos, shippingMethod } = state;
   
-  // Validar datos básicos requeridos
   if (!datos) return false;
   
-  // Validar campos mínimos: nombre, email
+  // Validar campos básicos requeridos siempre
   if (!datos.name || datos.name.trim().length < 2) return false;
-  if (!datos.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(datos.email.trim())) return false;
+  if (!datos.email || !datos.email.includes("@")) return false;
   
-  // Si hay envío (no es pickup), validar método de envío y dirección requerida
+  // Si el método de envío requiere dirección (no es pickup), validar dirección completa
   if (shippingMethod && shippingMethod !== "pickup") {
-    // Validar que el método de envío esté definido
-    if (!shippingMethod) return false;
-    
-    // Validar dirección requerida para envío
     if (!datos.address || datos.address.trim().length < 5) return false;
     if (!datos.neighborhood || datos.neighborhood.trim().length === 0) return false;
     if (!datos.city || datos.city.trim().length === 0) return false;

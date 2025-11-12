@@ -10,6 +10,7 @@ import type { ShippingMethod } from "@/lib/store/checkoutStore";
 import RecommendedClient from "./Recommended.client";
 import DebugLastOrder from "@/components/DebugLastOrder";
 import { useCartStore } from "@/lib/store/cartStore";
+import { loadStripe } from "@stripe/stripe-js";
 
 type LastOrder = {
   orderRef: string;
@@ -21,18 +22,23 @@ type LastOrder = {
   items?: Array<{ section?: string; slug?: string }>;
 };
 
+const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+  ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
+  : null;
+
 export default function GraciasContent() {
   const searchParams = useSearchParams();
   const [lastOrder, setLastOrder] = useState<LastOrder | null>(null);
   const [orderStatus, setOrderStatus] = useState<string | null>(null);
   const [isCheckingPayment, setIsCheckingPayment] = useState(true);
+  const [stripeSuccessDetected, setStripeSuccessDetected] = useState(false);
   const clearCart = useCartStore((s) => s.clearCart);
 
   // Leer orderRef de URL
   const orderRefFromUrl =
     searchParams?.get("orden") || searchParams?.get("order") || "";
 
-  // Leer indicadores de Stripe redirect
+  // Leer indicadores de Stripe de la URL
   const redirectStatus = searchParams?.get("redirect_status");
   const paymentIntent = searchParams?.get("payment_intent");
   const setupIntent = searchParams?.get("setup_intent");
@@ -48,21 +54,42 @@ export default function GraciasContent() {
     }
   }, []);
 
-  // Limpiar carrito cuando Stripe confirma éxito (fallback cliente)
+  // Detectar éxito de Stripe desde la URL (fallback cuando Supabase no responde)
   useEffect(() => {
-    // Si redirect_status === "succeeded" o payment_intent existe, limpiar carrito inmediatamente
-    if (redirectStatus === "succeeded" || paymentIntent) {
-      clearCart();
+    // Si redirect_status === "succeeded", limpiar carrito inmediatamente
+    if (redirectStatus === "succeeded") {
+      setStripeSuccessDetected(true);
       setOrderStatus("paid");
+      clearCart();
       setIsCheckingPayment(false);
       return;
     }
+
+    // Si hay payment_intent, intentar verificar con Stripe (solo si Stripe está disponible)
+    if (paymentIntent && stripePromise && typeof window !== "undefined") {
+      stripePromise.then((stripe) => {
+        if (!stripe) return;
+        
+        stripe.retrievePaymentIntent(paymentIntent).then(({ paymentIntent: pi }) => {
+          if (pi?.status === "succeeded" || pi?.status === "processing" || pi?.status === "requires_capture") {
+            setStripeSuccessDetected(true);
+            setOrderStatus("paid");
+            clearCart();
+            setIsCheckingPayment(false);
+          }
+        }).catch(() => {
+          // Si falla la verificación, continuar con el poll normal
+        });
+      }).catch(() => {
+        // Si falla cargar Stripe, continuar con el poll normal
+      });
+    }
   }, [redirectStatus, paymentIntent, clearCart]);
 
-  // Verificar estado de la orden y limpiar carrito solo si es 'paid' (fallback Supabase)
+  // Verificar estado de la orden y limpiar carrito solo si es 'paid' (fallback a Supabase)
   useEffect(() => {
-    // Si ya limpiamos por Stripe redirect, no hacer poll
-    if (redirectStatus === "succeeded" || paymentIntent) {
+    // Si ya detectamos éxito de Stripe, no hacer poll
+    if (stripeSuccessDetected) {
       return;
     }
 
@@ -149,7 +176,7 @@ export default function GraciasContent() {
         clearTimeout(timeoutId);
       }
     };
-  }, [orderRefFromUrl, clearCart, redirectStatus, paymentIntent]);
+  }, [orderRefFromUrl, clearCart, stripeSuccessDetected]);
 
   const orderRef = lastOrder?.orderRef || orderRefFromUrl;
   const shippingMethod = lastOrder?.shippingMethod;
