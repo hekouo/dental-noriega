@@ -1,5 +1,6 @@
 "use client";
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import {
   getWithTTL,
   setWithTTL,
@@ -20,6 +21,7 @@ export type CartItem = {
 
 type CartState = {
   cartItems: CartItem[];
+  hydrated: boolean;
 };
 
 type CartActions = {
@@ -30,12 +32,14 @@ type CartActions = {
   toggleSelect: (id: string) => void;
   selectAll: () => void;
   deselectAll: () => void;
+  setHydrated: (hydrated: boolean) => void;
 };
 
 export type CartStore = CartState & CartActions;
 
 const initial: CartState = {
   cartItems: [],
+  hydrated: false,
 };
 
 // Helper para generar key única
@@ -61,7 +65,9 @@ function rehydrateCart(): CartState {
   return stored ? { cartItems: stored } : initial;
 }
 
-export const useCartStore = create<CartStore>()((set, get) => {
+export const useCartStore = create<CartStore>()(
+  persist(
+    (set, get) => {
   // Tripwire de desarrollo (solo en dev)
   let _lastTick = 0;
   let _opsThisTick = 0;
@@ -120,8 +126,8 @@ export const useCartStore = create<CartStore>()((set, get) => {
       }
 
       if (next === cartItems) return;
-      _safeSet({ cartItems: next });
-      persistCart({ cartItems: next });
+      _safeSet({ cartItems: next, hydrated: true });
+      persistCart({ cartItems: next, hydrated: true });
     },
 
     removeFromCart: (id, variantId) => {
@@ -130,8 +136,8 @@ export const useCartStore = create<CartStore>()((set, get) => {
       const key = getKey(id, variantId);
       const next = cartItems.filter((x) => getKey(x.id, x.variantId) !== key);
       if (next === cartItems) return;
-      _safeSet({ cartItems: next });
-      persistCart({ cartItems: next });
+      _safeSet({ cartItems: next, hydrated: true });
+      persistCart({ cartItems: next, hydrated: true });
     },
 
     setCartQty: (id, variantId, qty) => {
@@ -142,14 +148,14 @@ export const useCartStore = create<CartStore>()((set, get) => {
         getKey(x.id, x.variantId) === key ? { ...x, qty } : x,
       );
       if (next === cartItems) return;
-      _safeSet({ cartItems: next });
-      persistCart({ cartItems: next });
+      _safeSet({ cartItems: next, hydrated: true });
+      persistCart({ cartItems: next, hydrated: true });
     },
 
     clearCart: () => {
       _tripwire("clearCart");
       if (get().cartItems.length === 0) return;
-      _safeSet({ cartItems: [] });
+      _safeSet({ cartItems: [], hydrated: true });
       removeWithTTL(KEYS.CART);
     },
 
@@ -163,8 +169,8 @@ export const useCartStore = create<CartStore>()((set, get) => {
         if (nextSelected === it.selected) return s; // idempotencia
         const copy = s.cartItems.slice();
         copy[idx] = { ...it, selected: nextSelected };
-        persistCart({ cartItems: copy });
-        return { ...s, cartItems: copy };
+        persistCart({ cartItems: copy, hydrated: true });
+        return { ...s, cartItems: copy, hydrated: true };
       });
     },
 
@@ -177,8 +183,8 @@ export const useCartStore = create<CartStore>()((set, get) => {
           changed = true;
           return { ...i, selected: true };
         });
-        if (changed) persistCart({ cartItems: copy });
-        return changed ? { ...s, cartItems: copy } : s;
+        if (changed) persistCart({ cartItems: copy, hydrated: true });
+        return changed ? { ...s, cartItems: copy, hydrated: true } : s;
       });
     },
 
@@ -191,21 +197,26 @@ export const useCartStore = create<CartStore>()((set, get) => {
           changed = true;
           return { ...i, selected: false };
         });
-        const next = changed ? { ...s, cartItems: copy } : s;
-        if (changed) persistCart({ cartItems: copy });
+        const next = changed ? { ...s, cartItems: copy, hydrated: true } : s;
+        if (changed) persistCart({ cartItems: copy, hydrated: true });
         return next;
       });
     },
-  };
-});
 
-// Rehidratar al montar en cliente
-if (typeof window !== "undefined") {
-  const rehydrated = rehydrateCart();
-  if (rehydrated.cartItems.length > 0) {
-    useCartStore.setState({ cartItems: rehydrated.cartItems });
-  }
-}
+    setHydrated: (hydrated) => {
+      set({ hydrated });
+    },
+  },
+  {
+    name: "ddn_cart",
+    partialize: (state) => ({ cartItems: state.cartItems }),
+    onRehydrateStorage: () => (state) => {
+      if (state) {
+        state.hydrated = true;
+      }
+    },
+  }),
+);
 
 // Selectores primitivos exportables
 export const selectCartItems = (s: CartStore) => s.cartItems;
@@ -220,3 +231,5 @@ export const selectSelectedTotal = (s: CartStore) =>
     (sum, item) => sum + (item.selected ? item.price * item.qty : 0),
     0,
   );
+export const selectHydrated = (s: CartStore) => s.hydrated;
+export const selectCount = (s: CartStore) => s.cartItems.length;
