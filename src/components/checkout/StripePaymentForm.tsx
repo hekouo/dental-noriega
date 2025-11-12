@@ -24,7 +24,7 @@ type StripePaymentFormProps = {
 };
 
 function PaymentForm({
-  orderId,
+  orderId: propsOrderId,
   totalCents,
   onSuccess,
   onError,
@@ -35,7 +35,20 @@ function PaymentForm({
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://dental-noriega.vercel.app";
+  // Obtener orderId de múltiples fuentes: prop > query > localStorage
+  const sp = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+  const runtimeOrigin = typeof window !== "undefined" ? window.location.origin : (process.env.NEXT_PUBLIC_SITE_URL ?? "https://dental-noriega.vercel.app");
+  const norm = (s: string) => encodeURIComponent(s);
+
+  // Asegurar orderId: prop > query > localStorage
+  let effectiveOrderId: string | null = propsOrderId ?? sp?.get("order") ?? null;
+  if (!effectiveOrderId && typeof window !== "undefined") {
+    const stored = localStorage.getItem("ddn_last_order");
+    effectiveOrderId = stored || null;
+  }
+  if (effectiveOrderId && typeof window !== "undefined") {
+    localStorage.setItem("ddn_last_order", String(effectiveOrderId));
+  }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -56,12 +69,12 @@ function PaymentForm({
       const result = await stripe.confirmPayment({
         elements,
         confirmParams: {
-          return_url: `${SITE_URL}/checkout/gracias?order=${encodeURIComponent(orderId)}`,
+          return_url: `${runtimeOrigin}/checkout/gracias?order=${norm(String(effectiveOrderId ?? ""))}`,
         },
         redirect: "if_required",
       });
 
-      if (result.error) {
+      if (result?.error) {
         setError(result.error.message ?? "Error al procesar el pago");
         onError?.(result.error.message ?? "Error al procesar el pago");
         setIsProcessing(false);
@@ -73,8 +86,9 @@ function PaymentForm({
       // Manejar estados exitosos: succeeded, processing, requires_capture
       // Algunos métodos (Link/guardada) no redirigen automáticamente, hacemos push manual
       if (pi?.status === "succeeded" || pi?.status === "processing" || pi?.status === "requires_capture") {
-        onSuccess?.(orderId);
-        router.push(`/checkout/gracias?order=${encodeURIComponent(orderId)}`);
+        const finalOrderId = String(effectiveOrderId ?? "");
+        onSuccess?.(finalOrderId);
+        router.push(`/checkout/gracias?order=${norm(finalOrderId)}`);
         return;
       }
 
