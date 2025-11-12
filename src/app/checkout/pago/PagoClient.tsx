@@ -22,7 +22,6 @@ import { cpToZone, quote } from "@/lib/shipping/config";
 import { cartKg } from "@/lib/shipping/weights";
 import { track } from "@/lib/analytics";
 import { validateCoupon } from "@/lib/discounts/coupons";
-import { setWithTTL, KEYS, TTL_48H } from "@/lib/utils/persist";
 import Toast from "@/components/ui/Toast";
 import type { DatosForm } from "@/lib/checkout/schemas";
 import StripePaymentForm from "@/components/checkout/StripePaymentForm";
