@@ -118,8 +118,8 @@ export default function ProductActions({ product }: Props) {
     }
 
     // Decidir destino según datos completos
-    const isCheckoutDataComplete = useCheckoutStore.getState();
-    const isComplete = selectIsCheckoutDataComplete(isCheckoutDataComplete);
+    const checkoutState = useCheckoutStore.getState();
+    const isComplete = selectIsCheckoutDataComplete(checkoutState);
     
     if (isComplete) {
       router.push("/checkout/pago");

@@ -65,11 +65,13 @@ function PaymentForm({
       // Submit del formulario primero
       await elements.submit();
 
+      const finalOrderId = String(effectiveOrderId ?? "");
+      
       // Confirmar pago con return_url que incluye orderId
       const result = await stripe.confirmPayment({
         elements,
         confirmParams: {
-          return_url: `${runtimeOrigin}/checkout/gracias?order=${norm(String(effectiveOrderId ?? ""))}`,
+          return_url: `${runtimeOrigin}/checkout/gracias?order=${norm(finalOrderId)}`,
         },
         redirect: "if_required",
       });
@@ -86,9 +88,9 @@ function PaymentForm({
       // Manejar estados exitosos: succeeded, processing, requires_capture
       // Algunos métodos (Link/guardada) no redirigen automáticamente, hacemos push manual
       if (pi?.status === "succeeded" || pi?.status === "processing" || pi?.status === "requires_capture") {
-        const finalOrderId = String(effectiveOrderId ?? "");
+        const status = pi.status === "succeeded" ? "succeeded" : pi.status === "processing" ? "processing" : "requires_capture";
         onSuccess?.(finalOrderId);
-        router.push(`/checkout/gracias?order=${norm(finalOrderId)}`);
+        router.push(`/checkout/gracias?order=${norm(finalOrderId)}&redirect_status=${status}`);
         return;
       }
 
