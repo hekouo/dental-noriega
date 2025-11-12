@@ -1,29 +1,28 @@
 import { ImageResponse } from "next/og";
 
-export const size = { width: 48, height: 48 };
-export const contentType = "image/x-icon";
+export const runtime = "edge";
+export const size = { width: 32, height: 32 };
+export const contentType = "image/png";
 
 export default function Icon() {
+  // Dibujo simple para pasar build. No usar node APIs.
   return new ImageResponse(
     (
       <div
         style={{
-          fontSize: 32,
-          background: "linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)",
-          width: "100%",
-          height: "100%",
+          width: size.width,
+          height: size.height,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          color: "white",
+          background: "white",
+          borderRadius: 6,
+          fontSize: 20,
         }}
       >
         🦷
       </div>
     ),
-    {
-      ...size,
-    },
+    { ...size }
   );
 }
-
