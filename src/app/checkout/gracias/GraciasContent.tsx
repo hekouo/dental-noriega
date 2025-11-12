@@ -24,6 +24,8 @@ type LastOrder = {
 export default function GraciasContent() {
   const searchParams = useSearchParams();
   const [lastOrder, setLastOrder] = useState<LastOrder | null>(null);
+  const [orderStatus, setOrderStatus] = useState<string | null>(null);
+  const [isCheckingPayment, setIsCheckingPayment] = useState(true);
   const clearCart = useCartStore((s) => s.clearCart);
 
   // Leer orderRef de URL
@@ -42,12 +44,19 @@ export default function GraciasContent() {
 
   // Verificar estado de la orden y limpiar carrito solo si es 'paid'
   useEffect(() => {
-    if (!orderRefFromUrl) return;
+    if (!orderRefFromUrl) {
+      setIsCheckingPayment(false);
+      return;
+    }
 
     let ignore = false;
     let timeoutId: NodeJS.Timeout | null = null;
+    let pollCount = 0;
+    const maxPolls = 30; // Máximo 60 segundos (30 * 2s)
 
     async function checkOrderStatus() {
+      if (ignore) return;
+
       try {
         // Intentar obtener el estado de la orden desde la API
         const response = await fetch(`/api/checkout/order-status?order_id=${encodeURIComponent(orderRefFromUrl)}`, {
@@ -57,37 +66,60 @@ export default function GraciasContent() {
         if (!ignore && response.ok) {
           const data = await response.json();
           const status = (data as { status?: string }).status;
+          setOrderStatus(status || null);
 
           // Limpiar carrito solo si la orden está 'paid'
           if (status === "paid") {
             clearCart();
+            setIsCheckingPayment(false);
+            return;
           }
-        } else if (!ignore) {
-          // Si la respuesta no es OK, esperar un poco y reintentar (el webhook puede estar procesando)
+
+          // Si está failed, dejar de hacer poll
+          if (status === "failed") {
+            setIsCheckingPayment(false);
+            return;
+          }
+
+          // Si aún está pending y no hemos alcanzado el máximo, seguir haciendo poll
+          if ((status === "pending" || !status) && pollCount < maxPolls) {
+            pollCount++;
+            timeoutId = setTimeout(() => {
+              if (!ignore) {
+                checkOrderStatus();
+              }
+            }, 2000);
+          } else {
+            setIsCheckingPayment(false);
+          }
+        } else if (!ignore && pollCount < maxPolls) {
+          // Si la respuesta no es OK, esperar un poco y reintentar
+          pollCount++;
           timeoutId = setTimeout(() => {
             if (!ignore) {
               checkOrderStatus();
             }
           }, 2000);
+        } else {
+          setIsCheckingPayment(false);
         }
       } catch {
         // Si hay error, esperar y reintentar una vez más
-        if (!ignore && !timeoutId) {
+        if (!ignore && pollCount < maxPolls) {
+          pollCount++;
           timeoutId = setTimeout(() => {
             if (!ignore) {
               checkOrderStatus();
             }
           }, 2000);
+        } else {
+          setIsCheckingPayment(false);
         }
       }
     }
 
-    // Esperar un poco antes de verificar para dar tiempo al webhook de Stripe
-    timeoutId = setTimeout(() => {
-      if (!ignore) {
-        checkOrderStatus();
-      }
-    }, 1000);
+    // Iniciar poll inmediatamente
+    checkOrderStatus();
 
     return () => {
       ignore = true;
@@ -121,12 +153,29 @@ export default function GraciasContent() {
 
       <h1 className="text-2xl font-semibold mb-4">¡Gracias por tu compra!</h1>
 
+      {isCheckingPayment && orderRefFromUrl && (
+        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-blue-800 mb-2 flex items-center gap-2">
+            <span className="animate-spin">⏳</span>
+            Confirmando pago...
+          </p>
+          <p className="text-blue-600 text-sm">
+            Por favor espera mientras verificamos el estado de tu pago.
+          </p>
+        </div>
+      )}
+
       {orderRef && (
         <div className="mb-6 p-4 bg-gray-50 rounded-lg">
           <p className="text-gray-700 mb-2">
             Tu número de orden es{" "}
             <span className="font-mono font-semibold text-lg">{orderRef}</span>
           </p>
+          {orderStatus && (
+            <p className="text-sm text-gray-600 mt-2">
+              Estado: <span className="font-medium">{orderStatus}</span>
+            </p>
+          )}
         </div>
       )}
 
