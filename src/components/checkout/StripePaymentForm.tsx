@@ -35,6 +35,8 @@ function PaymentForm({
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://dental-noriega.vercel.app";
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
@@ -47,37 +49,38 @@ function PaymentForm({
     setError(null);
 
     try {
-      const { error: confirmError, paymentIntent } =
-        await stripe.confirmPayment({
-          elements,
-          confirmParams: {
-            return_url: `${window.location.origin}/checkout/gracias`,
-          },
-          redirect: "if_required",
-        });
+      // Submit del formulario primero
+      await elements.submit();
 
-      if (confirmError) {
-        setError(confirmError.message ?? "Error al procesar el pago");
-        onError?.(confirmError.message ?? "Error al procesar el pago");
+      // Confirmar pago con return_url que incluye orderId
+      const result = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          return_url: `${SITE_URL}/checkout/gracias?order=${encodeURIComponent(orderId)}`,
+        },
+        redirect: "if_required",
+      });
+
+      if (result.error) {
+        setError(result.error.message ?? "Error al procesar el pago");
+        onError?.(result.error.message ?? "Error al procesar el pago");
         setIsProcessing(false);
         return;
       }
 
-      if (paymentIntent?.status === "succeeded") {
-        // Usar orderId del prop, o intentar obtenerlo del metadata como fallback
-        const metadataOrderId = (paymentIntent as { metadata?: { order_id?: string } }).metadata?.order_id;
-        const finalOrderId = orderId || metadataOrderId;
-        if (finalOrderId) {
-          onSuccess?.(finalOrderId);
-          router.push(`/checkout/gracias?order=${encodeURIComponent(finalOrderId)}`);
-        } else {
-          router.push("/checkout/gracias");
-        }
-      } else {
-        setError("El pago no se completó correctamente");
-        onError?.("El pago no se completó correctamente");
-        setIsProcessing(false);
+      const pi = result.paymentIntent;
+      
+      // Manejar estados exitosos: succeeded, processing, requires_capture
+      // Algunos métodos (Link/guardada) no redirigen automáticamente, hacemos push manual
+      if (pi?.status === "succeeded" || pi?.status === "processing" || pi?.status === "requires_capture") {
+        onSuccess?.(orderId);
+        router.push(`/checkout/gracias?order=${encodeURIComponent(orderId)}`);
+        return;
       }
+
+      // Si Stripe ya redirigió, no hacemos nada
+      // Si quedó en requires_action, Stripe hará modal/redirect automáticamente
+      setIsProcessing(false);
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Error inesperado";
