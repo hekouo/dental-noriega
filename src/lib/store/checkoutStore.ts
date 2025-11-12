@@ -334,8 +334,22 @@ export const useCheckoutStore = create<State>()(
       });
       removeWithTTL(KEYS.CHECKOUT);
     },
-  };
-});
+  }),
+  {
+    name: "ddn_checkout",
+    partialize: (state) => ({
+      step: state.step,
+      datos: state.datos,
+      shippingMethod: state.shippingMethod,
+      shippingCost: state.shippingCost,
+      couponCode: state.couponCode,
+      discount: state.discount,
+      discountScope: state.discountScope,
+      lastAppliedCoupon: state.lastAppliedCoupon,
+    }),
+  },
+  ),
+);
 
 // Rehidratar al montar en cliente
 if (typeof window !== "undefined") {
