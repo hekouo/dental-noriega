@@ -58,11 +58,11 @@ function persistCart(state: CartState) {
   }, DEBOUNCE_MS);
 }
 
-// Rehidratar desde localStorage al inicializar
+// Rehidratar desde localStorage al inicializar (ya no se usa, pero se mantiene por compatibilidad)
 function rehydrateCart(): CartState {
   if (typeof window === "undefined") return initial;
   const stored = getWithTTL<CartItem[]>(KEYS.CART);
-  return stored ? { cartItems: stored } : initial;
+  return stored ? { cartItems: stored, hydrated: false } : initial;
 }
 
 export const useCartStore = create<CartStore>()(
