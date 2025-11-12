@@ -76,3 +76,6 @@ public/data/*.csv
 # Audit reports
 /reports/**
 !reports/.keep
+
+.vercel
+.env*.local
