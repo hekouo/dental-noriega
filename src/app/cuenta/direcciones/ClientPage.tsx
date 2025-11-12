@@ -85,10 +85,10 @@ export default function DireccionesPageClient() {
       if (editingId) {
         await s
           .from("addresses")
-          .update(addressData)
+          .update(addressData as never)
           .eq("id", editingId);
       } else {
-        await s.from("addresses").insert(addressData);
+        await s.from("addresses").insert(addressData as never);
       }
 
       setShowForm(false);

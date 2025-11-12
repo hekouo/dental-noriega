@@ -74,3 +74,26 @@ export async function registerAction(input: unknown) {
     message: "Registro exitoso. Revisa tu correo para confirmar.",
   };
 }
+
+// LOGOUT
+export async function logoutAction() {
+  const supabase = createActionSupabase();
+  await supabase.auth.signOut();
+  return { success: true };
+}
+
+// GOOGLE OAUTH
+export async function signInWithGoogleAction() {
+  const supabase = createActionSupabase();
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3002"}/cuenta/perfil`,
+    },
+  });
+
+  if (error) return { error: error.message };
+  if (!data.url) return { error: "No se pudo iniciar sesión con Google" };
+
+  return { success: true, url: data.url };
+}

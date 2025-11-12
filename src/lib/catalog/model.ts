@@ -43,7 +43,7 @@ export function hasPurchasablePrice(
 ): boolean {
   const priceCents = normalizePrice(item.price_cents);
   // Usar in_stock e is_active
-  const inStock = item.in_stock ?? false;
-  const isActive = item.is_active ?? true;
-  return priceCents > 0 && inStock && isActive;
+  const in_stock = item.in_stock ?? false;
+  const is_active = item.is_active ?? true;
+  return priceCents > 0 && in_stock && is_active;
 }
