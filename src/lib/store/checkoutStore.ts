@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import {
   getWithTTL,
   setWithTTL,
@@ -99,8 +100,9 @@ function rehydrateCheckout(): Partial<State> {
   };
 }
 
-export const useCheckoutStore = create<State>()((set, _get) => {
-  return {
+export const useCheckoutStore = create<State>()(
+  persist(
+    (set, _get) => ({
     checkoutItems: [],
     step: "datos",
     datos: null,
@@ -360,17 +362,22 @@ export const selectIsCheckoutDataComplete = (state: State): boolean => {
   if (!datos) return false;
   
   // Validar campos básicos requeridos siempre
-  if (!datos.name || datos.name.trim().length < 2) return false;
-  if (!datos.email || !datos.email.includes("@")) return false;
+  const name = datos.name;
+  const email = datos.email;
+  const baseOk = !!name && name.trim().length >= 2 && !!email && email.includes("@");
   
-  // Si el método de envío requiere dirección (no es pickup), validar dirección completa
-  if (shippingMethod && shippingMethod !== "pickup") {
-    if (!datos.address || datos.address.trim().length < 5) return false;
-    if (!datos.neighborhood || datos.neighborhood.trim().length === 0) return false;
-    if (!datos.city || datos.city.trim().length === 0) return false;
-    if (!datos.state || datos.state.trim().length === 0) return false;
-    if (!datos.cp || !/^\d{5}$/.test(datos.cp)) return false;
+  if (!baseOk) return false;
+  
+  // Si el método de envío es pickup, solo necesitamos nombre y email
+  if (shippingMethod === "pickup") {
+    return baseOk;
   }
   
-  return true;
+  // Si el método de envío requiere dirección (no es pickup), validar dirección completa
+  const address = datos.address;
+  const city = datos.city;
+  const state = datos.state;
+  const zip = datos.cp; // cp es el código postal
+  
+  return baseOk && !!address && address.trim().length >= 5 && !!city && city.trim().length > 0 && !!state && state.trim().length > 0 && !!zip && /^\d{5}$/.test(zip);
 };
