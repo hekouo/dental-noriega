@@ -3,7 +3,6 @@
 import Link from "next/link";
 import ImageWithFallback from "@/components/ui/ImageWithFallback";
 import { mxnFromCents, formatMXN } from "@/lib/utils/currency";
-import { hasPurchasablePrice } from "@/lib/catalog/model";
 import type { FeaturedItem } from "@/lib/catalog/getFeatured.server";
 import type { ReactNode } from "react";
 
@@ -30,7 +29,6 @@ export default function FeaturedCard({
   const priceCents = item.price_cents ?? 0;
   const price = priceCents > 0 ? mxnFromCents(priceCents) : null;
   const soldOut = !item.in_stock || !item.is_active;
-  const canPurchase = hasPurchasablePrice(item);
 
   return (
     <div className="border rounded-xl overflow-hidden flex flex-col">

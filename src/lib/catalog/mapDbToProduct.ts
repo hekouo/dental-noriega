@@ -57,8 +57,6 @@ export function mapDbToCatalogItem(r: DbRow): CatalogItem {
   };
 }
 
-// Legacy exports para compatibilidad temporal
-export type Product = CatalogItem;
-export function mapRow(r: DbRow): Product {
-  return mapDbToCatalogItem(r);
+export function mapDbArrayToCatalogItems(rows: DbRow[]): CatalogItem[] {
+  return rows.map(mapDbToCatalogItem);
 }
