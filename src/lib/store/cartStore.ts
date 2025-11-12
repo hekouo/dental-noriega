@@ -68,44 +68,44 @@ function rehydrateCart(): CartState {
 export const useCartStore = create<CartStore>()(
   persist(
     (set, get) => {
-  // Tripwire de desarrollo (solo en dev)
-  let _lastTick = 0;
-  let _opsThisTick = 0;
-  function _tripwire(op: string, payload?: unknown) {
-    if (process.env.NODE_ENV === "development") {
-      const now = Date.now();
-      if (now - _lastTick > 250) {
-        _lastTick = now;
-        _opsThisTick = 0;
+      // Tripwire de desarrollo (solo en dev)
+      let _lastTick = 0;
+      let _opsThisTick = 0;
+      function _tripwire(op: string, payload?: unknown) {
+        if (process.env.NODE_ENV === "development") {
+          const now = Date.now();
+          if (now - _lastTick > 250) {
+            _lastTick = now;
+            _opsThisTick = 0;
+          }
+          _opsThisTick++;
+          if (_opsThisTick > 8) {
+            // eslint-disable-next-line no-console
+            console.groupCollapsed(
+              `[TRIPWIRE] Mutaciones excesivas: ${_opsThisTick} en <250ms`,
+            );
+            // eslint-disable-next-line no-console
+            console.trace(`Acción: ${op}`, payload);
+            // eslint-disable-next-line no-console
+            console.groupEnd();
+          }
+        }
       }
-      _opsThisTick++;
-      if (_opsThisTick > 8) {
-        // eslint-disable-next-line no-console
-        console.groupCollapsed(
-          `[TRIPWIRE] Mutaciones excesivas: ${_opsThisTick} en <250ms`,
-        );
-        // eslint-disable-next-line no-console
-        console.trace(`Acción: ${op}`, payload);
-        // eslint-disable-next-line no-console
-        console.groupEnd();
+
+      // Hotfix anti-reentrada (solo en dev)
+      let _setting = false;
+      function _safeSet(partial: Partial<CartState>) {
+        if (process.env.NODE_ENV === "development" && _setting) return;
+        if (process.env.NODE_ENV === "development") _setting = true;
+        try {
+          set(partial);
+        } finally {
+          if (process.env.NODE_ENV === "development") _setting = false;
+        }
       }
-    }
-  }
 
-  // Hotfix anti-reentrada (solo en dev)
-  let _setting = false;
-  function _safeSet(partial: Partial<CartState>) {
-    if (process.env.NODE_ENV === "development" && _setting) return;
-    if (process.env.NODE_ENV === "development") _setting = true;
-    try {
-      set(partial);
-    } finally {
-      if (process.env.NODE_ENV === "development") _setting = false;
-    }
-  }
-
-  return {
-    ...initial,
+      return {
+        ...initial,
 
     // Acciones de carrito
     addToCart: (item) => {
@@ -203,19 +203,21 @@ export const useCartStore = create<CartStore>()(
       });
     },
 
-    setHydrated: (hydrated) => {
-      set({ hydrated });
+        setHydrated: (hydrated) => {
+          set({ hydrated });
+        },
+      };
     },
-  },
-  {
-    name: "ddn_cart",
-    partialize: (state) => ({ cartItems: state.cartItems }),
-    onRehydrateStorage: () => (state) => {
-      if (state) {
-        state.hydrated = true;
-      }
+    {
+      name: "ddn_cart",
+      partialize: (state) => ({ cartItems: state.cartItems }),
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          state.hydrated = true;
+        }
+      },
     },
-  }),
+  ),
 );
 
 // Selectores primitivos exportables
