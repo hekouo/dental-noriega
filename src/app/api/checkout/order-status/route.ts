@@ -38,13 +38,11 @@ export async function GET(request: NextRequest) {
       .single();
 
     if (error) {
-      console.error("[order-status] Error:", error);
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
     return NextResponse.json({ status: data?.status || "pending" });
   } catch (err) {
-    console.error("[order-status] Unexpected error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
