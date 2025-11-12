@@ -390,8 +390,8 @@ export const selectIsCheckoutDataComplete = (state: State): boolean => {
   // Si el método de envío requiere dirección (no es pickup), validar dirección completa
   const address = datos.address;
   const city = datos.city;
-  const state = datos.state;
+  const estado = datos.state;
   const zip = datos.cp; // cp es el código postal
   
-  return baseOk && !!address && address.trim().length >= 5 && !!city && city.trim().length > 0 && !!state && state.trim().length > 0 && !!zip && /^\d{5}$/.test(zip);
+  return baseOk && !!address && address.trim().length >= 5 && !!city && city.trim().length > 0 && !!estado && estado.trim().length > 0 && !!zip && /^\d{5}$/.test(zip);
 };
