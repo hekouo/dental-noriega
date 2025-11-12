@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useCheckoutStore } from "@/lib/store/checkoutStore";
 import { useCartStore } from "@/lib/store/cartStore";
 
@@ -12,6 +12,7 @@ export default function GuardsClient({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const datos = useCheckoutStore((s) => s.datos);
   const items = useCartStore((s) => s.cartItems);
   const [hydrated, setHydrated] = useState(false);
@@ -30,6 +31,11 @@ export default function GuardsClient({
       searchParams?.get("client_secret")
     );
 
+    // No redirigir si estamos en /checkout/gracias
+    if (pathname?.startsWith("/checkout/gracias")) {
+      return;
+    }
+
     // Si hay flujo Stripe activo, no redirigir a /checkout/datos
     if (hasStripeFlow) {
       return;
@@ -44,7 +50,7 @@ export default function GuardsClient({
     if (!items || items.length === 0) {
       router.replace("/carrito");
     }
-  }, [hydrated, datos, items, router, searchParams]);
+  }, [hydrated, datos, items, router, searchParams, pathname]);
 
   if (!hydrated) return null; // o un skeleton
   
@@ -54,6 +60,11 @@ export default function GuardsClient({
     searchParams?.get("payment_intent") ||
     searchParams?.get("client_secret")
   );
+
+  // No bloquear si estamos en /checkout/gracias
+  if (pathname?.startsWith("/checkout/gracias")) {
+    return <>{children}</>;
+  }
 
   if (hasStripeFlow) {
     return <>{children}</>;
