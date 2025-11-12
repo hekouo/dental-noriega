@@ -21,6 +21,7 @@ export default function ImageWithFallback({
   height = 512,
   sizes,
   loading,
+  priority = false,
   ...rest
 }: Props) {
   const norm = useMemo(() => normalizeImageUrl(src), [src]);
@@ -30,8 +31,8 @@ export default function ImageWithFallback({
   const wrapperStyle = square ? { aspectRatio: "1 / 1" } : undefined;
   const resolvedSizes =
     sizes ?? "(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw";
-  // Lazy loading por defecto si no se especifica
-  const resolvedLoading = loading ?? "lazy";
+  // Si priority es true, no usar loading (undefined). Si no, usar loading explícito o "lazy" por defecto
+  const resolvedLoading = priority ? undefined : (loading ?? "lazy");
 
   return (
     <div
@@ -45,6 +46,7 @@ export default function ImageWithFallback({
         height={Number(height)}
         sizes={resolvedSizes}
         loading={resolvedLoading}
+        priority={priority}
         // object-contain evita corte. Cambia a object-cover si prefieres recorte.
         className={`w-full h-auto object-contain ${className ?? ""}`}
         onError={() => {
