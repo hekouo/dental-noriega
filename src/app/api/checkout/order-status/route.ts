@@ -19,11 +19,9 @@ export async function GET(request: NextRequest) {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+    // Si Supabase no está configurado, retornar status "pending" para que el cliente pueda continuar
     if (!supabaseUrl || !serviceRoleKey) {
-      return NextResponse.json(
-        { error: "Configuración de Supabase faltante" },
-        { status: 500 },
-      );
+      return NextResponse.json({ status: "pending" });
     }
 
     const supabase = createClient(supabaseUrl, serviceRoleKey, {
