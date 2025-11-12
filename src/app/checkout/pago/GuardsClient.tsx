@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useCheckoutStore } from "@/lib/store/checkoutStore";
-import { useCartStore } from "@/lib/store/cartStore";
+import { useCartStore, selectHydrated, selectCount } from "@/lib/store/cartStore";
 
 export default function GuardsClient({
   children,
@@ -14,62 +14,62 @@ export default function GuardsClient({
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const datos = useCheckoutStore((s) => s.datos);
-  const items = useCartStore((s) => s.cartItems);
-  const [hydrated, setHydrated] = useState(false);
-
-  useEffect(() => {
-    setHydrated(true);
-  }, []);
-
-  useEffect(() => {
-    if (!hydrated) return;
-
-    // Bypass guard si hay flujo de Stripe activo (order, payment_intent, client_secret)
-    const hasStripeFlow = !!(
-      searchParams?.get("order") ||
-      searchParams?.get("payment_intent") ||
-      searchParams?.get("client_secret")
-    );
-
-    // No redirigir si estamos en /checkout/gracias
-    if (pathname?.startsWith("/checkout/gracias")) {
-      return;
-    }
-
-    // Si hay flujo Stripe activo, no redirigir a /checkout/datos
-    if (hasStripeFlow) {
-      return;
-    }
-
-    if (!datos) {
-      router.replace("/checkout/datos");
-      return;
-    }
-    
-    // Solo verificar carrito vacío si no hay flujo Stripe
-    if (!items || items.length === 0) {
-      router.replace("/carrito");
-    }
-  }, [hydrated, datos, items, router, searchParams, pathname]);
-
-  if (!hydrated) return null; // o un skeleton
-  
-  // Bypass guard si hay flujo Stripe activo
+  const hydrated = useCartStore(selectHydrated);
+  const count = useCartStore(selectCount);
   const hasStripeFlow = !!(
     searchParams?.get("order") ||
     searchParams?.get("payment_intent") ||
     searchParams?.get("client_secret")
   );
 
-  // No bloquear si estamos en /checkout/gracias
+  useEffect(() => {
+    // a) Si pathname.startsWith("/checkout/gracias") → bypass (no hacer nada)
+    if (pathname?.startsWith("/checkout/gracias")) {
+      return;
+    }
+
+    // b) Si !hydrated → no redirigir aún (esperar hidratación)
+    if (!hydrated) {
+      return;
+    }
+
+    // c) Si hasStripeFlow → bypass (no hacer nada)
+    if (hasStripeFlow) {
+      return;
+    }
+
+    // d) Si count > 0 → permitir acceso (no hacer nada)
+    if (count > 0) {
+      return;
+    }
+
+    // e) En caso contrario → redirigir a /checkout/datos
+    if (!datos) {
+      router.replace("/checkout/datos");
+    }
+  }, [hydrated, count, datos, hasStripeFlow, pathname, router, searchParams]);
+
+  // Reglas de renderizado:
+  // a) Si pathname.startsWith("/checkout/gracias") → render children (bypass)
   if (pathname?.startsWith("/checkout/gracias")) {
     return <>{children}</>;
   }
 
+  // b) Si !hydrated → render null (esperar hidratación)
+  if (!hydrated) {
+    return null;
+  }
+
+  // c) Si hasStripeFlow → render children (bypass)
   if (hasStripeFlow) {
     return <>{children}</>;
   }
 
-  if (!datos || !items?.length) return null; // evitamos parpadeos
-  return <>{children}</>;
+  // d) Si count > 0 → render children
+  if (count > 0) {
+    return <>{children}</>;
+  }
+
+  // e) En caso contrario → render null (se redirigirá en useEffect)
+  return null;
 }
