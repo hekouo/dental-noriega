@@ -107,10 +107,55 @@ async function testCreatePaymentIntent(orderId) {
   }
 }
 
+async function testMultipleItems() {
+  console.log('\n📦 Testing /api/checkout/create-order with multiple items...');
+  
+  const payload = {
+    items: [
+      { id: 'product-1', qty: 2, price_cents: 5000 },
+      { id: 'product-2', qty: 1, price_cents: 7500 }
+    ],
+    email: 'test@example.com',
+    name: 'Test User',
+    shippingMethod: 'pickup'
+  };
+
+  try {
+    const response = await fetch(`${baseUrl}/api/checkout/create-order`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error('❌ Error:', data.error || `Status ${response.status}`);
+      return null;
+    }
+
+    const expectedTotal = 2 * 5000 + 1 * 7500; // 17500
+    if (data.total_cents !== expectedTotal) {
+      console.error(`❌ Expected total_cents=${expectedTotal}, got ${data.total_cents}`);
+      return null;
+    }
+
+    console.log('✅ Multiple items test passed:');
+    console.log(`   order_id: ${data.order_id}`);
+    console.log(`   total_cents: ${data.total_cents} (expected: ${expectedTotal})`);
+
+    return data.order_id;
+  } catch (error) {
+    console.error('❌ Request failed:', error.message);
+    return null;
+  }
+}
+
 async function main() {
   console.log('🧪 Testing Checkout Endpoints');
   console.log(`   Base URL: ${baseUrl}\n`);
 
+  // Test 1: Single item
   const orderId = await testCreateOrder();
   
   if (!orderId) {
@@ -123,6 +168,16 @@ async function main() {
   if (!paymentIntentOk) {
     console.error('\n❌ create-payment-intent test failed');
     process.exit(1);
+  }
+
+  // Test 2: Multiple items
+  const orderId2 = await testMultipleItems();
+  if (orderId2) {
+    const paymentIntentOk2 = await testCreatePaymentIntent(orderId2);
+    if (!paymentIntentOk2) {
+      console.error('\n❌ create-payment-intent test failed for multiple items');
+      process.exit(1);
+    }
   }
 
   console.log('\n✅ All tests passed!');

@@ -407,18 +407,46 @@ export default function PagoClient() {
         items: itemsForOrder.map((item) => {
           const qty = item.qty ?? 1;
           const priceCents =
-            typeof item.price_cents === "number"
+            typeof item.price_cents === "number" && item.price_cents > 0
               ? item.price_cents
-              : typeof item.price === "number"
+              : typeof item.price === "number" && item.price > 0
                 ? Math.round(item.price * 100)
                 : 0;
+          
+          // Validar que priceCents sea válido
+          if (priceCents <= 0) {
+            console.warn("[PagoClient] Item sin precio válido:", {
+              id: item.id,
+              price_cents: item.price_cents,
+              price: item.price,
+              calculated_priceCents: priceCents,
+            });
+          }
+          
           return {
             id: item.id,
             qty,
             price_cents: priceCents,
           };
-        }),
+        }).filter((item) => item.price_cents > 0), // Filtrar items sin precio válido
       };
+      
+      // Validar que haya al menos un item válido
+      if (orderPayload.items.length === 0) {
+        setError("No hay productos con precio válido para procesar el pago");
+        setToast({ message: "Verifica que todos los productos tengan precio", type: "error" });
+        setIsCreatingOrder(false);
+        return;
+      }
+      
+      // Log controlado para debugging
+      if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
+        console.info("[PagoClient] Payload para create-order:", {
+          items_count: orderPayload.items.length,
+          items: orderPayload.items,
+          total_cents: orderPayload.items.reduce((sum, item) => sum + item.qty * item.price_cents, 0),
+        });
+      }
 
       const orderResponse = await fetch("/api/checkout/create-order", {
         method: "POST",

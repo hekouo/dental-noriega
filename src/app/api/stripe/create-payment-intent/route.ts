@@ -86,6 +86,10 @@ export async function POST(req: NextRequest) {
         .single();
 
       if (orderError || !order) {
+        console.warn("[create-payment-intent] Orden no encontrada:", {
+          order_id: data.order_id,
+          error: orderError?.message,
+        });
         return NextResponse.json(
           { error: `Orden no encontrada: ${data.order_id}` },
           { status: 404 },
@@ -93,7 +97,16 @@ export async function POST(req: NextRequest) {
       }
 
       // Determinar amount desde orders.total (convertir a centavos)
-      amount = Math.round(order.total * 100);
+      amount = order.total ? Math.round(order.total * 100) : 0;
+      
+      // Log controlado para debugging
+      if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
+        console.info("[create-payment-intent] Orden encontrada:", {
+          order_id: data.order_id,
+          total: order.total,
+          amount_from_total: amount,
+        });
+      }
 
       // Si amount es 0 o negativo, recomputar desde order_items
       if (!amount || amount <= 0) {
@@ -125,12 +138,32 @@ export async function POST(req: NextRequest) {
         );
         amount = Math.round(recomputedTotal * 100);
 
-        if (amount <= 0) {
-          console.warn("[create-payment-intent] invalid amount", {
+        // Log controlado para debugging
+        if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
+          console.info("[create-payment-intent] Recomputando desde items:", {
             order_id: data.order_id,
-            total: order.total,
+            items_count: items.length,
+            items: items.map((i) => ({
+              qty: i.qty,
+              price: i.price,
+              subtotal: (i.qty || 0) * (i.price || 0),
+            })),
             recomputed_total_decimal: recomputedTotal,
             recomputed_total_cents: amount,
+          });
+        }
+
+        if (amount <= 0) {
+          console.warn("[create-payment-intent] invalid amount después de recomputar", {
+            order_id: data.order_id,
+            total_from_order: order.total,
+            recomputed_total_decimal: recomputedTotal,
+            recomputed_total_cents: amount,
+            items_count: items.length,
+            items: items.map((i) => ({
+              qty: i.qty,
+              price: i.price,
+            })),
           });
           return NextResponse.json(
             { error: "No se pudo determinar el monto de la orden" },
@@ -152,14 +185,24 @@ export async function POST(req: NextRequest) {
     }
 
     if (amount <= 0) {
-      console.warn("[create-payment-intent] invalid amount", {
+      console.warn("[create-payment-intent] invalid amount final", {
         order_id: data.order_id,
         amount,
+        has_supabase: !!(supabaseUrl && serviceRoleKey),
       });
       return NextResponse.json(
         { error: "No se pudo determinar el monto de la orden" },
         { status: 422 },
       );
+    }
+
+    // Log controlado antes de crear PaymentIntent
+    if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
+      console.info("[create-payment-intent] Creando PaymentIntent:", {
+        order_id: data.order_id,
+        amount,
+        currency: "mxn",
+      });
     }
 
     // Idempotencia: usar order_id como idempotencyKey

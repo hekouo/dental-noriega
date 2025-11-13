@@ -74,7 +74,28 @@ export async function POST(req: NextRequest) {
       0,
     );
 
+    // Log controlado para debugging
+    if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
+      console.info("[create-order] payload recibido:", {
+        items_count: orderData.items.length,
+        items: orderData.items.map((i) => ({
+          id: i.id,
+          qty: i.qty,
+          price_cents: i.price_cents,
+        })),
+        total_cents,
+      });
+    }
+
     if (!total_cents || total_cents <= 0) {
+      console.warn("[create-order] Total inválido:", {
+        total_cents,
+        items: orderData.items.map((i) => ({
+          id: i.id,
+          qty: i.qty,
+          price_cents: i.price_cents,
+        })),
+      });
       return NextResponse.json(
         { error: "Total de la orden inválido" },
         { status: 422 },
@@ -120,18 +141,32 @@ export async function POST(req: NextRequest) {
     // Crear orden con total_cents persistido
     // Nota: El schema tiene 'total' como numeric(12,2), así que guardamos total = total_cents / 100
     // Si el schema tuviera total_cents INT, lo guardaríamos directamente
+    const totalDecimal = total_cents / 100;
+    
+    // Validar que totalDecimal sea válido antes de insertar
+    if (!totalDecimal || totalDecimal <= 0 || !isFinite(totalDecimal)) {
+      console.warn("[create-order] Total decimal inválido antes de insertar:", {
+        total_cents,
+        totalDecimal,
+      });
+      return NextResponse.json(
+        { error: "Total de la orden inválido" },
+        { status: 422 },
+      );
+    }
+
     const { data: order, error: orderError } = await supabase
       .from("orders")
       .insert({
         user_id: user_id,
-        subtotal: total_cents / 100,
-        total: total_cents / 100,
+        subtotal: totalDecimal,
+        total: totalDecimal,
         shipping_cost: 0,
         discount_amount: 0,
         fulfillment_method: orderData.shippingMethod || "pickup",
         status: "pending",
       })
-      .select("id")
+      .select("id, total")
       .single();
 
     if (orderError || !order) {
@@ -142,16 +177,41 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Verificar que la orden se creó con total válido
+    if (!order.total || order.total <= 0) {
+      console.warn("[create-order] Orden creada con total inválido:", {
+        order_id: order.id,
+        total: order.total,
+        total_cents,
+        totalDecimal,
+      });
+      // Intentar actualizar el total
+      await supabase
+        .from("orders")
+        .update({ total: totalDecimal, subtotal: totalDecimal })
+        .eq("id", order.id);
+    }
+
     // Crear items de la orden con price_cents persistido como price (decimal)
     // Nota: El schema tiene 'price' como numeric(12,2), así que guardamos price = price_cents / 100
     // Si el schema tuviera price_cents INT, lo guardaríamos directamente
-    const orderItems = orderData.items.map((item) => ({
-      order_id: order.id,
-      sku: item.id,
-      name: `Item ${item.id}`, // Fallback si no hay title
-      price: item.price_cents / 100, // Guardar como decimal para compatibilidad con schema
-      qty: item.qty,
-    }));
+    const orderItems = orderData.items.map((item) => {
+      const priceDecimal = item.price_cents / 100;
+      if (!priceDecimal || priceDecimal <= 0 || !isFinite(priceDecimal)) {
+        console.warn("[create-order] Item con precio inválido:", {
+          id: item.id,
+          price_cents: item.price_cents,
+          priceDecimal,
+        });
+      }
+      return {
+        order_id: order.id,
+        sku: item.id,
+        name: `Item ${item.id}`, // Fallback si no hay title
+        price: priceDecimal,
+        qty: item.qty,
+      };
+    });
 
     const { error: itemsError } = await supabase
       .from("order_items")
