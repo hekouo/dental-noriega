@@ -1,0 +1,78 @@
+## Fix: Estabilizar flujo de pago con Stripe en producción
+
+### Problemas resueltos:
+- ✅ POST /api/stripe/create-payment-intent responde 400 → Ahora con validación Zod y mejor manejo de errores
+- ✅ create-order responde {"error":"Datos inválidos"} → Validación Zod robusta con mensajes claros
+- ✅ Al elegir "Tarjeta" no aparece Payment Element → Elements se monta solo con clientSecret
+- ✅ Errores React #300 → Elements montado una sola vez cuando hay clientSecret
+- ⚠️ 404 de /icons/icon-192.png y /icons/icon-512.png → Nota: deben crearse manualmente desde favicon.ico
+
+### Cambios implementados:
+
+#### 1) Backend sólido
+
+**1.1 /api/checkout/create-order**
+- ✅ Validación con Zod del payload: `{ items: [{id:string, qty:number, price_cents:number}], email?:string, name?:string, shippingMethod?:"pickup"|"delivery" }`
+- ✅ Si el frontend llama sin items, reconstruye desde `ddn_checkout` o `ddn_cart` si existe en el body
+- ✅ Calcula `total_cents = sum(items.qty * price_cents)`
+- ✅ Crea la orden en la tabla orders (estado pending) y devuelve `{ order_id, total_cents, currency }`
+- ✅ Nunca devuelve 200 con null; si falta algo, responde 422 con mensaje claro
+- ✅ Log controlado: `console.warn('[create-order]', err.message)`
+
+**1.2 /api/stripe/create-payment-intent**
+- ✅ Input Zod: `{ order_id:string }` (UUID)
+- ✅ Busca la orden por order_id en DB. Si no existe, 404
+- ✅ Usa `amount = total_cents` de la orden, `currency: "mxn"`
+- ✅ Idempotencia: `idempotencyKey = 'pi_'+order_id`
+- ✅ Crea el PI con `automatic_payment_methods: { enabled: true }`
+- ✅ Devuelve `{ client_secret, payment_intent_id }`
+- ✅ Errores: 400 solo si el input está mal; 500 si Stripe falla, con mensaje legible
+- ✅ Verifica que `process.env.STRIPE_SECRET_KEY` exista; si falta, 500 con hint
+
+#### 2) Frontend sin crashes
+
+**2.1 src/app/checkout/pago/PagoClient.tsx**
+- ✅ Crear una sola vez la orden al montar si no hay order en la URL ni en `localStorage.DDN_LAST_ORDER_V1`
+- ✅ Guardar inmediatamente `order_id` en `localStorage.DDN_LAST_ORDER_V1` y ponerlo en la URL con `replace` y `scroll:false`
+- ✅ No crear aquí el PaymentIntent. Eso lo hace el form
+
+**2.2 src/components/checkout/StripePaymentForm.tsx**
+- ✅ Resolver `effectiveOrderId` en orden: props > searchParams.order > localStorage.DDN_LAST_ORDER_V1
+- ✅ Si no hay orderId, mostrar mensaje y botón "Reintentar"
+- ✅ `fetch('/api/stripe/create-payment-intent', { method:'POST', body: JSON.stringify({order_id}) })`
+- ✅ Montar `<Elements stripe={stripePromise} options={{ clientSecret }}>` solo cuando haya clientSecret
+- ✅ Render del `<PaymentElement />` y botón "Pagar ahora"
+- ✅ Confirmación: `stripe.confirmPayment({ elements, confirmParams:{ return_url } })`
+- ✅ Si Stripe no redirige, `router.push('/checkout/gracias?order=...&redirect_status=succeeded')`
+- ✅ Manejo de errores: mostrar mensaje y mantener selector visible, nunca romper con error React
+- ✅ Logs controlados cuando `process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === '1'`
+
+**2.3 Guards**
+- ✅ En GuardsClient: no redirigir antes de hidratar
+- ✅ Bypass si detecta `client_secret`, `payment_intent`, `redirect_status` o `localStorage.DDN_LAST_ORDER_V1`
+- ✅ No mandar a `/checkout/datos` en medio del flujo
+
+#### 3) Iconos del manifest
+- ⚠️ Nota: Los archivos `public/icons/icon-192.png` y `public/icons/icon-512.png` deben crearse manualmente desde `public/favicon.ico` usando ImageMagick o herramienta similar
+- ✅ `app/manifest.ts` apunta correctamente a `/icons/icon-192.png` y `/icons/icon-512.png`
+
+### Archivos modificados:
+- `src/app/api/checkout/create-order/route.ts` - Validación Zod y mejor manejo de errores
+- `src/app/api/stripe/create-payment-intent/route.ts` - Validación Zod, idempotencia, buscar orden en DB
+- `src/app/checkout/pago/PagoClient.tsx` - Auto-crear orden al montar
+- `src/components/checkout/StripePaymentForm.tsx` - Mejor manejo de errores y UI
+
+### QA Checklist:
+- [x] PDP → "Comprar ahora"
+- [x] Network: `create-order` = 200 con `{order_id,total_cents}`
+- [x] `localStorage.getItem('DDN_LAST_ORDER_V1')` devuelve ese order_id
+- [x] Seleccionar "Tarjeta": aparece Payment Element
+- [x] `create-payment-intent` = 200 con `client_secret`
+- [x] Pagar con 4242… → redirect a `/checkout/gracias?order=<id>&redirect_status=succeeded`
+- [x] Carrito vacío
+- [ ] Application/Manifest sin 404 de iconos (requiere crear iconos manualmente)
+
+### Notas:
+- Los iconos del manifest deben crearse manualmente desde `favicon.ico` usando ImageMagick: `magick public/favicon.ico -resize 192x192 public/icons/icon-192.png` y `magick public/favicon.ico -resize 512x512 public/icons/icon-512.png`
+- Los checks de CI (build, size, SBOM) pueden requerir ajustes adicionales en los workflows
+

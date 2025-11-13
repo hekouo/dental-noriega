@@ -380,12 +380,9 @@ export default function PagoClient() {
       const orderPayload = {
         items: selectedItems.map((item) => ({
           id: item.id,
-          title: item.title,
-          price: item.price,
           qty: item.qty,
+          price_cents: Math.round(item.price * 100),
         })),
-        total_cents: Math.round(total * 100),
-        ...(userId && { user_id: userId }),
       };
 
       const orderResponse = await fetch("/api/checkout/create-order", {
