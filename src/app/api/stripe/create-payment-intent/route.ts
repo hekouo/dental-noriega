@@ -126,9 +126,14 @@ export async function POST(req: NextRequest) {
         amount = Math.round(recomputedTotal * 100);
 
         if (amount <= 0) {
-          console.warn("[create-payment-intent] Orden sin monto válido tras recomputar:", data.order_id);
+          console.warn("[create-payment-intent] invalid amount", {
+            order_id: data.order_id,
+            total: order.total,
+            recomputed_total_decimal: recomputedTotal,
+            recomputed_total_cents: amount,
+          });
           return NextResponse.json(
-            { error: "Orden sin monto válido" },
+            { error: "No se pudo determinar el monto de la orden" },
             { status: 422 },
           );
         }
@@ -147,9 +152,12 @@ export async function POST(req: NextRequest) {
     }
 
     if (amount <= 0) {
-      console.warn("[create-payment-intent] Amount inválido:", amount);
+      console.warn("[create-payment-intent] invalid amount", {
+        order_id: data.order_id,
+        amount,
+      });
       return NextResponse.json(
-        { error: "Orden sin monto válido" },
+        { error: "No se pudo determinar el monto de la orden" },
         { status: 422 },
       );
     }

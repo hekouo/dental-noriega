@@ -16,6 +16,7 @@ export type CartItem = {
   id: string;
   title: string;
   price: number;
+  price_cents?: number; // Precio en centavos (opcional para compatibilidad)
   image_url?: string;
   variantId?: string;
   qty: number;
@@ -30,6 +31,7 @@ type Item = {
   qty: number;
   selected?: boolean;
   price?: number;
+  price_cents?: number; // Precio en centavos (opcional para compatibilidad)
   title?: string;
   image_url?: string;
   variantId?: string;
@@ -122,14 +124,30 @@ export const useCheckoutStore = create<State>()(
         const byId = new Map(s.checkoutItems.map((i) => [i.id, i]));
         let changed = false;
         for (const it of cartItems) {
+          // Calcular price_cents si no existe
+          const priceCents =
+            typeof it.price_cents === "number"
+              ? it.price_cents
+              : typeof it.price === "number"
+                ? Math.round(it.price * 100)
+                : 0;
+          
+          const enrichedItem = {
+            ...it,
+            price_cents: priceCents,
+            selected: true,
+          } as CheckoutItem;
+          
           const prev = byId.get(it.id);
           if (!prev) {
-            byId.set(it.id, { ...it, selected: true } as CheckoutItem);
+            byId.set(it.id, enrichedItem);
             changed = true;
           } else {
             const mergedQty = (prev.qty ?? 1) + (it.qty ?? 1);
-            if (mergedQty !== prev.qty || !prev.selected) {
-              byId.set(it.id, { ...prev, qty: mergedQty, selected: true });
+            // Preservar price_cents del item previo si existe, sino usar el nuevo
+            const mergedPriceCents = prev.price_cents ?? priceCents;
+            if (mergedQty !== prev.qty || !prev.selected || mergedPriceCents !== prev.price_cents) {
+              byId.set(it.id, { ...prev, qty: mergedQty, selected: true, price_cents: mergedPriceCents });
               changed = true;
             }
           }
@@ -154,23 +172,40 @@ export const useCheckoutStore = create<State>()(
 
     upsertSingleToCheckout: (item) => {
       set((state) => {
+        // Calcular price_cents si no existe
+        const priceCents =
+          typeof item.price_cents === "number"
+            ? item.price_cents
+            : typeof item.price === "number"
+              ? Math.round(item.price * 100)
+              : 0;
+        
+        const enrichedItem = {
+          ...item,
+          price_cents: priceCents,
+        };
+        
         const idx = state.checkoutItems.findIndex((i) => i.id === item.id);
         let nextItems: CheckoutItem[];
         if (idx === -1) {
           nextItems = [
             ...state.checkoutItems,
-            { ...item, qty: item.qty ?? 1, selected: true } as CheckoutItem,
+            { ...enrichedItem, qty: item.qty ?? 1, selected: true } as CheckoutItem,
           ];
         } else {
           const curr = state.checkoutItems[idx];
+          // Preservar price_cents del item existente si existe, sino usar el nuevo
+          const finalPriceCents = curr.price_cents ?? priceCents;
           const nextItem = {
             ...curr,
             qty: (curr.qty ?? 0) + (item.qty ?? 1),
             selected: true,
+            price_cents: finalPriceCents,
           };
           if (
             nextItem.qty === curr.qty &&
-            !!nextItem.selected === !!curr.selected
+            !!nextItem.selected === !!curr.selected &&
+            nextItem.price_cents === curr.price_cents
           )
             return state;
           nextItems = state.checkoutItems.slice();
@@ -268,7 +303,7 @@ export const useCheckoutStore = create<State>()(
         // Si viene del flujo normal (checkout → datos), los items ya deberían estar
         // Si viene de "Comprar ahora", también deberían estar
         // Pero por seguridad, si no hay items, intentar obtenerlos de los seleccionados
-        let finalItems = s.checkoutItems;
+        const finalItems = s.checkoutItems;
         if (finalItems.length === 0) {
           // Si no hay items, mantener vacío (el guard en pago lo manejará)
           // No intentar leer de cartStore aquí para evitar dependencias circulares

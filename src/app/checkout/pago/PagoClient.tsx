@@ -57,12 +57,18 @@ export default function PagoClient() {
   // En /checkout/pago ya pasaron por la selección en /checkout
   const checkoutItems = useCheckoutStore(selectCheckoutItems);
   const itemsForOrder = checkoutItems.length > 0 ? checkoutItems : [];
-  // Calcular subtotal desde todos los items
+  // Calcular subtotal desde todos los items usando price_cents si existe
   const subtotal = useMemo(() => {
-    return itemsForOrder.reduce(
-      (sum, item) => sum + (item.price ?? 0) * (item.qty ?? 1),
-      0,
-    );
+    return itemsForOrder.reduce((sum, item) => {
+      const qty = item.qty ?? 1;
+      const priceCents =
+        typeof item.price_cents === "number"
+          ? item.price_cents
+          : typeof item.price === "number"
+            ? Math.round(item.price * 100)
+            : 0;
+      return sum + (priceCents * qty) / 100;
+    }, 0);
   }, [itemsForOrder]);
   // Mantener selectedItems para compatibilidad con código existente
   const selectedItems = itemsForOrder;
@@ -364,7 +370,15 @@ export default function PagoClient() {
 
     // Validar que no haya items con precio 0 si es tarjeta
     if (paymentMethod === "tarjeta") {
-      const hasZeroPrice = itemsForOrder.some((item) => item.price <= 0);
+      const hasZeroPrice = itemsForOrder.some((item) => {
+        const priceCents =
+          typeof item.price_cents === "number"
+            ? item.price_cents
+            : typeof item.price === "number"
+              ? Math.round(item.price * 100)
+              : 0;
+        return priceCents <= 0;
+      });
       if (hasZeroPrice) {
         setError("No se puede procesar pago con tarjeta para productos sin precio. Usa otro método de pago o contacta para consultar precio.");
         setToast({ message: "Algunos productos requieren consultar precio", type: "error" });
@@ -388,13 +402,22 @@ export default function PagoClient() {
         // Continuar como guest si no hay sesión
       }
 
-      // Crear orden primero
+      // Crear orden primero - usar price_cents directamente si existe
       const orderPayload = {
-        items: itemsForOrder.map((item) => ({
-          id: item.id,
-          qty: item.qty,
-          price_cents: Math.round(item.price * 100),
-        })),
+        items: itemsForOrder.map((item) => {
+          const qty = item.qty ?? 1;
+          const priceCents =
+            typeof item.price_cents === "number"
+              ? item.price_cents
+              : typeof item.price === "number"
+                ? Math.round(item.price * 100)
+                : 0;
+          return {
+            id: item.id,
+            qty,
+            price_cents: priceCents,
+          };
+        }),
       };
 
       const orderResponse = await fetch("/api/checkout/create-order", {
@@ -462,13 +485,22 @@ export default function PagoClient() {
 
       // Preparar datos para la API legacy
       const orderPayload = {
-        items: itemsForOrder.map((item) => ({
-          product_id: item.id,
-          slug: getItemSlug(item),
-          title: item.title,
-          price_cents: Math.round(item.price * 100),
-          qty: item.qty,
-        })),
+        items: itemsForOrder.map((item) => {
+          const qty = item.qty ?? 1;
+          const priceCents =
+            typeof item.price_cents === "number"
+              ? item.price_cents
+              : typeof item.price === "number"
+                ? Math.round(item.price * 100)
+                : 0;
+          return {
+            product_id: item.id,
+            slug: getItemSlug(item),
+            title: item.title,
+            price_cents: priceCents,
+            qty,
+          };
+        }),
         shipping: {
           method: selectedShippingMethod,
           cost_cents: Math.round(shippingCost * 100),

@@ -74,9 +74,9 @@ export async function POST(req: NextRequest) {
       0,
     );
 
-    if (total_cents <= 0) {
+    if (!total_cents || total_cents <= 0) {
       return NextResponse.json(
-        { error: "El total debe ser mayor a 0" },
+        { error: "Total de la orden inválido" },
         { status: 422 },
       );
     }
