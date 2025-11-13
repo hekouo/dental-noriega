@@ -304,9 +304,9 @@ export default function PagoClient() {
       }
 
       setOrderId(newOrderId);
-      // Guardar orderId en localStorage para persistencia
+      // Guardar orderId en localStorage para persistencia robusta
       if (typeof window !== "undefined") {
-        localStorage.setItem("ddn_last_order", newOrderId);
+        localStorage.setItem("DDN_LAST_ORDER_V1", newOrderId);
       }
 
       // Si el método de pago es tarjeta, generar PaymentIntent
