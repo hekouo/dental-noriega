@@ -25,15 +25,21 @@ export default function GuardsClient({
   // b) Verificar flujo Stripe activo - bypass si existe cualquiera de estos params
   const sp = searchParams;
   const hasStripeFlow = !!(
-    sp?.get("order") ||
-    sp?.get("payment_intent") ||
-    sp?.get("client_secret") ||
+    sp?.has("order") ||
+    sp?.has("payment_intent") ||
+    sp?.has("client_secret") ||
     sp?.get("redirect_status")
   );
   
-  if (hasStripeFlow) {
+  // Nuevo: verificar localStorage.DDN_LAST_ORDER_V1 para bypass
+  const hasLastOrder = typeof window !== "undefined" && !!localStorage.getItem("DDN_LAST_ORDER_V1");
+  
+  if (hasStripeFlow || hasLastOrder) {
     if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
-      console.debug("[GuardsClient] Bypass por flujo Stripe activo");
+      console.debug("[GuardsClient] Bypass por flujo Stripe activo o localStorage.DDN_LAST_ORDER_V1", {
+        hasStripeFlow,
+        hasLastOrder,
+      });
     }
     return <>{children}</>;
   }

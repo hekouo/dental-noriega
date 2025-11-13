@@ -303,11 +303,17 @@ export default function PagoClient() {
         throw new Error("No se recibió order_id de la API");
       }
 
-      setOrderId(newOrderId);
-      // Guardar orderId en localStorage para persistencia robusta
+      // Persistir orderId inmediatamente tras crear la orden (antes de cualquier render/await posterior)
       if (typeof window !== "undefined") {
         localStorage.setItem("DDN_LAST_ORDER_V1", newOrderId);
+        // Opcional: agregar order a la URL si no existe ya
+        const currentUrl = new URL(window.location.href);
+        if (!currentUrl.searchParams.has("order")) {
+          currentUrl.searchParams.set("order", newOrderId);
+          router.replace(currentUrl.pathname + currentUrl.search, { scroll: false });
+        }
       }
+      setOrderId(newOrderId);
 
       // Si el método de pago es tarjeta, generar PaymentIntent
       if (paymentMethod === "tarjeta") {

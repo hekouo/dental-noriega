@@ -92,8 +92,7 @@ function PaymentForm({
 
       const pi = result.paymentIntent;
       
-      // Si redirect no ocurre (Link/one-click), hacer push manual cuando
-      // result.paymentIntent?.status ∈ { "succeeded","processing","requires_capture" }
+      // Si Stripe no hace redirect automático, hacer push manual con redirect_status=succeeded
       if (pi?.status === "succeeded" || pi?.status === "processing" || pi?.status === "requires_capture") {
         const status = pi.status === "succeeded" ? "succeeded" : pi.status === "processing" ? "processing" : "requires_capture";
         onSuccess?.(finalOrderId);
