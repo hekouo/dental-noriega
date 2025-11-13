@@ -16,6 +16,7 @@ export type CartItem = {
   id: string;
   title: string;
   price: number;
+  price_cents?: number; // Precio en centavos (opcional para compatibilidad)
   image_url?: string;
   variantId?: string;
   qty: number;
@@ -30,6 +31,7 @@ type Item = {
   qty: number;
   selected?: boolean;
   price?: number;
+  price_cents?: number; // Precio en centavos (opcional para compatibilidad)
   title?: string;
   image_url?: string;
   variantId?: string;
@@ -42,6 +44,7 @@ export type ShippingMethod = "pickup" | "standard" | "express";
 type CheckoutPersisted = {
   step: CheckoutStep;
   datos: DatosForm | null;
+  checkoutItems: CheckoutItem[]; // Persistir items también
   shippingMethod?: ShippingMethod;
   shippingCost?: number;
   couponCode?: string;
@@ -91,6 +94,7 @@ function rehydrateCheckout(): Partial<State> {
   return {
     step: stored.step || "datos",
     datos: stored.datos || null,
+    checkoutItems: stored.checkoutItems || [], // Restaurar items
     shippingMethod: stored.shippingMethod,
     shippingCost: stored.shippingCost,
     couponCode: stored.couponCode,
@@ -120,48 +124,106 @@ export const useCheckoutStore = create<State>()(
         const byId = new Map(s.checkoutItems.map((i) => [i.id, i]));
         let changed = false;
         for (const it of cartItems) {
+          // Calcular price_cents si no existe
+          const priceCents =
+            typeof it.price_cents === "number"
+              ? it.price_cents
+              : typeof it.price === "number"
+                ? Math.round(it.price * 100)
+                : 0;
+          
+          const enrichedItem = {
+            ...it,
+            price_cents: priceCents,
+            selected: true,
+          } as CheckoutItem;
+          
           const prev = byId.get(it.id);
           if (!prev) {
-            byId.set(it.id, { ...it, selected: true } as CheckoutItem);
+            byId.set(it.id, enrichedItem);
             changed = true;
           } else {
             const mergedQty = (prev.qty ?? 1) + (it.qty ?? 1);
-            if (mergedQty !== prev.qty || !prev.selected) {
-              byId.set(it.id, { ...prev, qty: mergedQty, selected: true });
+            // Preservar price_cents del item previo si existe, sino usar el nuevo
+            const mergedPriceCents = prev.price_cents ?? priceCents;
+            if (mergedQty !== prev.qty || !prev.selected || mergedPriceCents !== prev.price_cents) {
+              byId.set(it.id, { ...prev, qty: mergedQty, selected: true, price_cents: mergedPriceCents });
               changed = true;
             }
           }
         }
         if (!changed) return s;
-        return { ...s, checkoutItems: Array.from(byId.values()) };
+        const nextItems = Array.from(byId.values());
+        // Persistir items también
+        persistCheckout({
+          step: s.step,
+          datos: s.datos,
+          checkoutItems: nextItems,
+          shippingMethod: s.shippingMethod,
+          shippingCost: s.shippingCost,
+          couponCode: s.couponCode,
+          discount: s.discount,
+          discountScope: s.discountScope,
+          lastAppliedCoupon: s.lastAppliedCoupon,
+        });
+        return { ...s, checkoutItems: nextItems };
       });
     },
 
     upsertSingleToCheckout: (item) => {
       set((state) => {
-        const idx = state.checkoutItems.findIndex((i) => i.id === item.id);
-        if (idx === -1) {
-          return {
-            checkoutItems: [
-              ...state.checkoutItems,
-              { ...item, qty: item.qty ?? 1, selected: true } as CheckoutItem,
-            ],
-          };
-        }
-        const curr = state.checkoutItems[idx];
-        const nextItem = {
-          ...curr,
-          qty: (curr.qty ?? 0) + (item.qty ?? 1),
-          selected: true,
+        // Calcular price_cents si no existe
+        const priceCents =
+          typeof item.price_cents === "number"
+            ? item.price_cents
+            : typeof item.price === "number"
+              ? Math.round(item.price * 100)
+              : 0;
+        
+        const enrichedItem = {
+          ...item,
+          price_cents: priceCents,
         };
-        if (
-          nextItem.qty === curr.qty &&
-          !!nextItem.selected === !!curr.selected
-        )
-          return state;
-        const next = state.checkoutItems.slice();
-        next[idx] = nextItem;
-        return { checkoutItems: next };
+        
+        const idx = state.checkoutItems.findIndex((i) => i.id === item.id);
+        let nextItems: CheckoutItem[];
+        if (idx === -1) {
+          nextItems = [
+            ...state.checkoutItems,
+            { ...enrichedItem, qty: item.qty ?? 1, selected: true } as CheckoutItem,
+          ];
+        } else {
+          const curr = state.checkoutItems[idx];
+          // Preservar price_cents del item existente si existe, sino usar el nuevo
+          const finalPriceCents = curr.price_cents ?? priceCents;
+          const nextItem = {
+            ...curr,
+            qty: (curr.qty ?? 0) + (item.qty ?? 1),
+            selected: true,
+            price_cents: finalPriceCents,
+          };
+          if (
+            nextItem.qty === curr.qty &&
+            !!nextItem.selected === !!curr.selected &&
+            nextItem.price_cents === curr.price_cents
+          )
+            return state;
+          nextItems = state.checkoutItems.slice();
+          nextItems[idx] = nextItem;
+        }
+        // Persistir items también
+        persistCheckout({
+          step: state.step,
+          datos: state.datos,
+          checkoutItems: nextItems,
+          shippingMethod: state.shippingMethod,
+          shippingCost: state.shippingCost,
+          couponCode: state.couponCode,
+          discount: state.discount,
+          discountScope: state.discountScope,
+          lastAppliedCoupon: state.lastAppliedCoupon,
+        });
+        return { checkoutItems: nextItems };
       });
     },
 
@@ -237,10 +299,20 @@ export const useCheckoutStore = create<State>()(
 
     setDatos: (datos: DatosForm) => {
       set((s) => {
-        const next = { ...s, datos, step: "pago" as CheckoutStep };
+        // Asegurar que checkoutItems esté presente antes de avanzar a pago
+        // Si viene del flujo normal (checkout → datos), los items ya deberían estar
+        // Si viene de "Comprar ahora", también deberían estar
+        // Pero por seguridad, si no hay items, intentar obtenerlos de los seleccionados
+        const finalItems = s.checkoutItems;
+        if (finalItems.length === 0) {
+          // Si no hay items, mantener vacío (el guard en pago lo manejará)
+          // No intentar leer de cartStore aquí para evitar dependencias circulares
+        }
+        const next = { ...s, datos, step: "pago" as CheckoutStep, checkoutItems: finalItems };
         persistCheckout({
           step: next.step,
           datos: next.datos,
+          checkoutItems: finalItems,
           shippingMethod: next.shippingMethod,
           shippingCost: next.shippingCost,
           couponCode: next.couponCode,
@@ -262,6 +334,7 @@ export const useCheckoutStore = create<State>()(
         persistCheckout({
           step: next.step,
           datos: next.datos,
+          checkoutItems: next.checkoutItems,
           shippingMethod: next.shippingMethod,
           shippingCost: next.shippingCost,
           couponCode: next.couponCode,
@@ -285,6 +358,7 @@ export const useCheckoutStore = create<State>()(
         persistCheckout({
           step: next.step,
           datos: next.datos,
+          checkoutItems: next.checkoutItems,
           shippingMethod: next.shippingMethod,
           shippingCost: next.shippingCost,
           couponCode: next.couponCode,
@@ -308,6 +382,7 @@ export const useCheckoutStore = create<State>()(
         persistCheckout({
           step: next.step,
           datos: next.datos,
+          checkoutItems: next.checkoutItems,
           shippingMethod: next.shippingMethod,
           shippingCost: next.shippingCost,
           couponCode: next.couponCode,
@@ -340,6 +415,7 @@ export const useCheckoutStore = create<State>()(
     partialize: (state) => ({
       step: state.step,
       datos: state.datos,
+      checkoutItems: state.checkoutItems, // Persistir items también
       shippingMethod: state.shippingMethod,
       shippingCost: state.shippingCost,
       couponCode: state.couponCode,

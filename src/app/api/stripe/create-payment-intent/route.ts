@@ -1,51 +1,59 @@
 import { NextRequest, NextResponse } from "next/server";
 import { unstable_noStore as noStore } from "next/cache";
-import { z } from "zod";
 import Stripe from "stripe";
+import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-// Verificar que STRIPE_SECRET_KEY existe
-if (!process.env.STRIPE_SECRET_KEY) {
-  console.error("[create-payment-intent] STRIPE_SECRET_KEY no configurado");
-}
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? "", {
-  apiVersion: "2025-02-24.acacia",
-});
-
 // Schema Zod para validación
 const CreatePaymentIntentRequestSchema = z.object({
-  order_id: z.string().min(1, "order_id requerido"),
+  order_id: z.string().uuid(),
 });
 
 type CreatePaymentIntentRequest = z.infer<typeof CreatePaymentIntentRequestSchema>;
 
+// Verificar que STRIPE_SECRET_KEY existe
+if (!process.env.STRIPE_SECRET_KEY) {
+  console.error("[create-payment-intent] STRIPE_SECRET_KEY no está configurado");
+}
+
+const stripe = process.env.STRIPE_SECRET_KEY
+  ? new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: "2025-02-24.acacia",
+    })
+  : null;
+
 export async function POST(req: NextRequest) {
   noStore();
   try {
-    // Verificar que STRIPE_SECRET_KEY existe
     if (!process.env.STRIPE_SECRET_KEY) {
       return NextResponse.json(
-        { error: "Stripe no configurado. Verifica STRIPE_SECRET_KEY en variables de entorno." },
+        { error: "Stripe no está configurado. Verifica que STRIPE_SECRET_KEY esté definido en las variables de entorno." },
+        { status: 500 },
+      );
+    }
+
+    if (!stripe) {
+      return NextResponse.json(
+        { error: "Error al inicializar Stripe" },
         { status: 500 },
       );
     }
 
     const body = await req.json().catch(() => null);
-
-    if (!body) {
+    
+    if (!body || typeof body !== "object") {
       return NextResponse.json(
-        { error: "Cuerpo de la petición inválido" },
+        { error: "Datos inválidos: se espera un objeto JSON" },
         { status: 400 },
       );
     }
 
     // Validar con Zod
     const validationResult = CreatePaymentIntentRequestSchema.safeParse(body);
-
+    
     if (!validationResult.success) {
       const errors = validationResult.error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ");
       return NextResponse.json(
@@ -54,15 +62,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { order_id } = validationResult.data;
+    const data = validationResult.data;
 
-    // Buscar la orden en DB para obtener total_cents
+    // Buscar la orden en DB para obtener amount
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
+    
     let amount: number;
-    let currency = "mxn";
-
+    
     if (supabaseUrl && serviceRoleKey) {
       const supabase = createClient(supabaseUrl, serviceRoleKey, {
         auth: {
@@ -71,47 +78,100 @@ export async function POST(req: NextRequest) {
         },
       });
 
+      // Buscar la orden
       const { data: order, error: orderError } = await supabase
         .from("orders")
-        .select("total, currency")
-        .eq("id", order_id)
+        .select("total")
+        .eq("id", data.order_id)
         .single();
 
       if (orderError || !order) {
         return NextResponse.json(
-          { error: `Orden no encontrada: ${order_id}` },
+          { error: `Orden no encontrada: ${data.order_id}` },
           { status: 404 },
         );
       }
 
-      amount = Math.round(order.total * 100); // Convertir a centavos
-      currency = order.currency || "mxn";
+      // Determinar amount desde orders.total (convertir a centavos)
+      amount = Math.round(order.total * 100);
+
+      // Si amount es 0 o negativo, recomputar desde order_items
+      if (!amount || amount <= 0) {
+        const { data: items, error: itemsError } = await supabase
+          .from("order_items")
+          .select("qty, price")
+          .eq("order_id", data.order_id);
+
+        if (itemsError) {
+          console.warn("[create-payment-intent] Error al obtener items:", itemsError.message);
+          return NextResponse.json(
+            { error: "Error al calcular el monto de la orden" },
+            { status: 500 },
+          );
+        }
+
+        if (!items || items.length === 0) {
+          console.warn("[create-payment-intent] Orden sin items:", data.order_id);
+          return NextResponse.json(
+            { error: "Orden sin monto válido" },
+            { status: 422 },
+          );
+        }
+
+        // Recomputar: SUM(qty * price) y convertir a centavos
+        const recomputedTotal = items.reduce(
+          (sum, item) => sum + (item.qty || 0) * (item.price || 0),
+          0,
+        );
+        amount = Math.round(recomputedTotal * 100);
+
+        if (amount <= 0) {
+          console.warn("[create-payment-intent] invalid amount", {
+            order_id: data.order_id,
+            total: order.total,
+            recomputed_total_decimal: recomputedTotal,
+            recomputed_total_cents: amount,
+          });
+          return NextResponse.json(
+            { error: "No se pudo determinar el monto de la orden" },
+            { status: 422 },
+          );
+        }
+      }
     } else {
-      // Si no hay Supabase, usar un valor por defecto (el frontend debería pasar total_cents)
-      // Por ahora, retornamos error si no hay DB
-      return NextResponse.json(
-        { error: "Base de datos no configurada. No se puede obtener el total de la orden." },
-        { status: 500 },
-      );
+      // Si no hay Supabase, usar total_cents del body si está disponible
+      const totalCents = (body as any).total_cents;
+      if (typeof totalCents === "number" && totalCents > 0) {
+        amount = totalCents;
+      } else {
+        return NextResponse.json(
+          { error: "No se pudo determinar el monto de la orden" },
+          { status: 422 },
+        );
+      }
     }
 
     if (amount <= 0) {
+      console.warn("[create-payment-intent] invalid amount", {
+        order_id: data.order_id,
+        amount,
+      });
       return NextResponse.json(
-        { error: "El total de la orden debe ser mayor a 0" },
+        { error: "No se pudo determinar el monto de la orden" },
         { status: 422 },
       );
     }
 
-    // Idempotencia: usar order_id como idempotency key
-    const idempotencyKey = `pi_${order_id}`;
+    // Idempotencia: usar order_id como idempotencyKey
+    const idempotencyKey = `pi_${data.order_id}`;
 
-    // Crear PaymentIntent con automatic_payment_methods
+    // Crear PaymentIntent con idempotencia
     const paymentIntent = await stripe.paymentIntents.create(
       {
         amount,
-        currency,
+        currency: "mxn",
         metadata: {
-          order_id,
+          order_id: data.order_id,
         },
         automatic_payment_methods: {
           enabled: true,
@@ -122,29 +182,29 @@ export async function POST(req: NextRequest) {
       },
     );
 
+    if (!paymentIntent.client_secret) {
+      return NextResponse.json(
+        { error: "No se recibió client_secret de Stripe" },
+        { status: 500 },
+      );
+    }
+
     return NextResponse.json({
       client_secret: paymentIntent.client_secret,
       payment_intent_id: paymentIntent.id,
+      amount,
     });
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : "Error al crear payment intent";
     
-    // Log controlado
-    if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
-      console.error("[create-payment-intent] Error:", errorMessage);
-    }
-
-    // Si es un error de Stripe, devolver mensaje más legible
-    if (error instanceof Stripe.errors.StripeError) {
-      return NextResponse.json(
-        { error: `Error de Stripe: ${error.message}` },
-        { status: 500 },
-      );
-    }
-
+    // Log controlado sin stack ruidoso
+    console.warn("[create-payment-intent]", errorMessage);
+    
     return NextResponse.json(
-      { error: errorMessage },
+      {
+        error: errorMessage,
+      },
       { status: 500 },
     );
   }

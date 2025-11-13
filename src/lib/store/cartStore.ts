@@ -13,6 +13,7 @@ export type CartItem = {
   id: string;
   title: string;
   price: number;
+  price_cents?: number; // Precio en centavos (opcional para compatibilidad)
   image_url?: string;
   variantId?: string;
   qty: number;

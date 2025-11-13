@@ -14,6 +14,7 @@ import {
   useSelectedTotal,
   useSelectedItems,
 } from "@/lib/store/checkoutSelectors";
+import { selectCheckoutItems } from "@/lib/store/checkoutStore";
 import { formatMXN as formatMXNMoney } from "@/lib/utils/money";
 import CheckoutStepIndicator from "@/components/CheckoutStepIndicator";
 import CheckoutDebugPanel from "@/components/CheckoutDebugPanel";
@@ -52,8 +53,25 @@ export default function PagoClient() {
   const router = useRouter();
   const datos = useCheckoutStore((s) => s.datos);
   const resetCheckout = useCheckoutStore((s) => s.reset);
-  const subtotal = useSelectedTotal();
-  const selectedItems = useSelectedItems();
+  // Usar TODOS los items del checkoutStore, no solo los seleccionados
+  // En /checkout/pago ya pasaron por la selección en /checkout
+  const checkoutItems = useCheckoutStore(selectCheckoutItems);
+  const itemsForOrder = checkoutItems.length > 0 ? checkoutItems : [];
+  // Calcular subtotal desde todos los items usando price_cents si existe
+  const subtotal = useMemo(() => {
+    return itemsForOrder.reduce((sum, item) => {
+      const qty = item.qty ?? 1;
+      const priceCents =
+        typeof item.price_cents === "number"
+          ? item.price_cents
+          : typeof item.price === "number"
+            ? Math.round(item.price * 100)
+            : 0;
+      return sum + (priceCents * qty) / 100;
+    }, 0);
+  }, [itemsForOrder]);
+  // Mantener selectedItems para compatibilidad con código existente
+  const selectedItems = itemsForOrder;
   const setShipping = useCheckoutStore((s) => s.setShipping);
   const currentShippingMethod = useCheckoutStore((s) => s.shippingMethod);
   const couponCode = useCheckoutStore((s) => s.couponCode);
@@ -93,7 +111,7 @@ export default function PagoClient() {
       }
 
       // Si no hay items, no crear orden
-      if (selectedItems.length === 0) {
+      if (itemsForOrder.length === 0) {
         if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
           console.debug("[PagoClient] No hay items, no se crea orden");
         }
@@ -124,7 +142,7 @@ export default function PagoClient() {
 
         // Crear orden
         const orderPayload = {
-          items: selectedItems.map((item) => ({
+          items: itemsForOrder.map((item) => ({
             id: item.id,
             qty: item.qty,
             price_cents: Math.round(item.price * 100),
@@ -178,7 +196,7 @@ export default function PagoClient() {
     }
 
     createOrderIfNeeded();
-  }, [selectedItems.length, orderCreated, isCreatingOrder, router]);
+  }, [itemsForOrder.length, orderCreated, isCreatingOrder, router]);
 
   // Restaurar último cupón aplicado si existe
   useEffect(() => {
@@ -189,7 +207,7 @@ export default function PagoClient() {
 
   // Calcular envío basado en CP y peso
   const shippingData = useMemo(() => {
-    if (!datos?.cp || !selectedItems.length) {
+    if (!datos?.cp || !itemsForOrder.length) {
       // Fallback a tarifas fijas
       return {
         zone: null as "metro" | "nacional" | null,
@@ -203,19 +221,19 @@ export default function PagoClient() {
     }
 
     const zone = cpToZone(datos.cp);
-    const kg = cartKg(selectedItems);
+    const kg = cartKg(itemsForOrder);
     const prices = quote(zone, kg);
 
-    return {
-      zone,
-      kg,
-      prices: {
-        pickup: 0,
-        standard: prices.standard,
-        express: prices.express,
-      },
-    };
-  }, [datos?.cp, selectedItems]);
+      return {
+        zone,
+        kg,
+        prices: {
+          pickup: 0,
+          standard: prices.standard,
+          express: prices.express,
+        },
+      };
+    }, [datos?.cp, itemsForOrder]);
 
   // Inicializar método de envío si no está seleccionado
   useEffect(() => {
@@ -294,7 +312,7 @@ export default function PagoClient() {
     const validation = validateCoupon(code, {
       subtotal,
       shipping: shippingCost,
-      items: selectedItems.map((item) => ({
+      items: itemsForOrder.map((item) => ({
         section: getItemSection(item),
         price: item.price,
         qty: item.qty,
@@ -341,7 +359,7 @@ export default function PagoClient() {
     }
 
     // Validar carrito no vacío
-    if (selectedItems.length === 0) {
+    if (itemsForOrder.length === 0) {
       setError("El carrito está vacío");
       router.push("/catalogo");
       return;
@@ -352,7 +370,15 @@ export default function PagoClient() {
 
     // Validar que no haya items con precio 0 si es tarjeta
     if (paymentMethod === "tarjeta") {
-      const hasZeroPrice = selectedItems.some((item) => item.price <= 0);
+      const hasZeroPrice = itemsForOrder.some((item) => {
+        const priceCents =
+          typeof item.price_cents === "number"
+            ? item.price_cents
+            : typeof item.price === "number"
+              ? Math.round(item.price * 100)
+              : 0;
+        return priceCents <= 0;
+      });
       if (hasZeroPrice) {
         setError("No se puede procesar pago con tarjeta para productos sin precio. Usa otro método de pago o contacta para consultar precio.");
         setToast({ message: "Algunos productos requieren consultar precio", type: "error" });
@@ -376,16 +402,22 @@ export default function PagoClient() {
         // Continuar como guest si no hay sesión
       }
 
-      // Crear orden primero
+      // Crear orden primero - usar price_cents directamente si existe
       const orderPayload = {
-        items: selectedItems.map((item) => ({
-          id: item.id,
-          title: item.title,
-          price: item.price,
-          qty: item.qty,
-        })),
-        total_cents: Math.round(total * 100),
-        ...(userId && { user_id: userId }),
+        items: itemsForOrder.map((item) => {
+          const qty = item.qty ?? 1;
+          const priceCents =
+            typeof item.price_cents === "number"
+              ? item.price_cents
+              : typeof item.price === "number"
+                ? Math.round(item.price * 100)
+                : 0;
+          return {
+            id: item.id,
+            qty,
+            price_cents: priceCents,
+          };
+        }),
       };
 
       const orderResponse = await fetch("/api/checkout/create-order", {
@@ -453,13 +485,22 @@ export default function PagoClient() {
 
       // Preparar datos para la API legacy
       const orderPayload = {
-        items: selectedItems.map((item) => ({
-          product_id: item.id,
-          slug: getItemSlug(item),
-          title: item.title,
-          price_cents: Math.round(item.price * 100),
-          qty: item.qty,
-        })),
+        items: itemsForOrder.map((item) => {
+          const qty = item.qty ?? 1;
+          const priceCents =
+            typeof item.price_cents === "number"
+              ? item.price_cents
+              : typeof item.price === "number"
+                ? Math.round(item.price * 100)
+                : 0;
+          return {
+            product_id: item.id,
+            slug: getItemSlug(item),
+            title: item.title,
+            price_cents: priceCents,
+            qty,
+          };
+        }),
         shipping: {
           method: selectedShippingMethod,
           cost_cents: Math.round(shippingCost * 100),
@@ -515,7 +556,7 @@ export default function PagoClient() {
         currency: "MXN",
         shipping: shippingCost,
         coupon: couponCode || undefined,
-        items: selectedItems.map((item) => ({
+        items: itemsForOrder.map((item) => ({
           id: item.id,
           name: item.title,
           price: item.price,
@@ -674,7 +715,7 @@ export default function PagoClient() {
           Productos seleccionados:
         </h2>
         <ul className="space-y-1">
-          {selectedItems.map((item) => (
+          {itemsForOrder.map((item) => (
             <li key={item.id} className="flex justify-between text-sm">
               <span>{item.title}</span>
               <span>
@@ -774,16 +815,27 @@ export default function PagoClient() {
         )}
       </div>
 
-      {/* Validación de carrito vacío */}
-      {selectedItems.length === 0 && (
+      {/* Validación de carrito vacío - NO es un error de API */}
+      {itemsForOrder.length === 0 && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
-          <p className="text-yellow-800 mb-4">Tu carrito está vacío</p>
-          <Link
-            href="/catalogo"
-            className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
-          >
-            Ir al Catálogo
-          </Link>
+          <p className="text-yellow-800 mb-4">No se encontraron productos para esta orden</p>
+          <p className="text-yellow-700 text-sm mb-4">
+            Por favor, vuelve al catálogo y agrega productos antes de continuar.
+          </p>
+          <div className="flex gap-3 justify-center">
+            <Link
+              href="/catalogo"
+              className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
+            >
+              Ir al Catálogo
+            </Link>
+            <Link
+              href="/checkout/datos"
+              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+            >
+              Volver a Datos
+            </Link>
+          </div>
         </div>
       )}
 
@@ -876,7 +928,8 @@ export default function PagoClient() {
           )}
         </div>
 
-        {error && (
+        {/* Mostrar error solo si hay items (error de API), no si es "carrito vacío" */}
+        {error && itemsForOrder.length > 0 && (
           <div className="bg-red-50 border border-red-200 rounded-md p-3">
             <p className="text-red-600 text-sm">{error}</p>
           </div>
@@ -893,8 +946,8 @@ export default function PagoClient() {
             type="submit"
               disabled={
                 isCreatingOrder ||
-                selectedItems.length === 0 ||
-                (selectedPaymentMethod === "tarjeta" && selectedItems.some((item) => item.price <= 0))
+                itemsForOrder.length === 0 ||
+                (selectedPaymentMethod === "tarjeta" && itemsForOrder.some((item) => item.price <= 0))
               }
             data-testid="btn-pagar-ahora"
             className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 flex-1 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
@@ -902,7 +955,7 @@ export default function PagoClient() {
               {isCreatingOrder
                 ? "Creando orden..."
                 : selectedPaymentMethod === "tarjeta"
-                  ? selectedItems.some((item) => item.price <= 0)
+                  ? itemsForOrder.some((item) => item.price <= 0)
                     ? "Consultar precio (no disponible con tarjeta)"
                     : "Continuar con pago"
                   : `Pagar ahora - ${formatMXNMoney(total)}`}

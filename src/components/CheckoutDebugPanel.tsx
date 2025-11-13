@@ -13,7 +13,8 @@ function CheckoutDebugPanelContent() {
   const formState = formContext?.formState ?? {};
   const getValues = formContext?.getValues ?? (() => ({}));
   const datos = useCheckoutStore((s) => s.datos);
-  const items = useCartStore((s) => s.cartItems);
+  // Usar checkoutStore como fuente de verdad, no cartStore
+  const items = useCheckoutStore((s) => s.checkoutItems);
   const searchParams = useSearchParams();
   const debugParam = searchParams?.get("debug") === "1";
 

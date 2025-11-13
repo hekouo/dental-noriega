@@ -105,7 +105,18 @@ function DatosPageContent() {
 
   const onSubmit: SubmitHandler<DatosForm> = async (values) => {
     try {
-      useCheckoutStore.getState().setDatos(values); // avanza step -> "pago"
+      const store = useCheckoutStore.getState();
+      // Asegurar que checkoutItems esté presente antes de avanzar
+      // Si viene del flujo normal (checkout → datos), los items ya deberían estar
+      // Si viene de "Comprar ahora", también deberían estar
+      // Por seguridad, verificar que hay items seleccionados
+      const checkoutItems = store.checkoutItems;
+      if (checkoutItems.length === 0) {
+        // Si no hay items, no avanzar y mostrar mensaje
+        console.warn("[datos] No hay items en checkoutStore, no se puede avanzar a pago");
+        return;
+      }
+      store.setDatos(values); // avanza step -> "pago" y persiste checkoutItems
       router.push("/checkout/pago");
     } catch (err) {
       console.error("submit(datos) failed", err);
