@@ -116,9 +116,6 @@ export default function StripePaymentForm({
 }: StripePaymentFormProps) {
   const sp = useSearchParams();
   const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
-  const maxRetries = 3;
 
   // Resolver orderId: props > query > localStorage
   const effectiveOrderId =
@@ -137,12 +134,7 @@ export default function StripePaymentForm({
   // Llamar a /api/stripe/create-payment-intent una sola vez
   useEffect(() => {
     async function run() {
-      if (!effectiveOrderId) {
-        setIsLoading(false);
-        return;
-      }
-
-      setIsLoading(true);
+      if (!effectiveOrderId) return;
 
       try {
         const res = await fetch("/api/stripe/create-payment-intent", {
@@ -152,70 +144,21 @@ export default function StripePaymentForm({
         });
 
         if (!res.ok) {
-          const errorData = await res.json().catch(() => ({}));
-          const errorMessage = (errorData as { error?: string }).error || `Error ${res.status}`;
-          throw new Error(errorMessage);
+          throw new Error(`Error al crear PaymentIntent: ${res.status}`);
         }
 
         const data = await res.json();
         setClientSecret(data.client_secret ?? null);
-        
-        if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
-          console.debug("[StripePaymentForm] PaymentIntent creado exitosamente");
-        }
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : "Error al crear PaymentIntent";
-        
         if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
-          console.error("[StripePaymentForm] Error al crear PaymentIntent:", errorMessage);
+          console.error("[StripePaymentForm] Error al crear PaymentIntent:", err);
         }
-        
-        onError?.(errorMessage);
-      } finally {
-        setIsLoading(false);
+        onError?.(err instanceof Error ? err.message : "Error al crear PaymentIntent");
       }
     }
 
     run();
   }, [effectiveOrderId, onError]);
-
-  const handleRetry = async () => {
-    if (retryCount >= maxRetries) {
-      onError?.("Se alcanzó el número máximo de reintentos. Por favor, recarga la página.");
-      return;
-    }
-
-    setRetryCount((prev) => prev + 1);
-    setIsLoading(true);
-
-    try {
-      const res = await fetch("/api/stripe/create-payment-intent", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ order_id: effectiveOrderId }),
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        const errorMessage = (errorData as { error?: string }).error || `Error ${res.status}`;
-        throw new Error(errorMessage);
-      }
-
-      const data = await res.json();
-      setClientSecret(data.client_secret ?? null);
-      setRetryCount(0); // Reset retry count on success
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Error al crear PaymentIntent";
-      
-      if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
-        console.error("[StripePaymentForm] Error al reintentar:", errorMessage);
-      }
-      
-      onError?.(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const options = useMemo(
     () =>
@@ -255,17 +198,8 @@ export default function StripePaymentForm({
 
   if (!clientSecret) {
     return (
-      <div className="bg-gray-50 text-gray-600 p-4 rounded-lg space-y-2">
-        <p>{isLoading ? "Cargando formulario de pago..." : "Error al cargar el formulario de pago"}</p>
-        {!isLoading && (
-          <button
-            onClick={handleRetry}
-            disabled={retryCount >= maxRetries}
-            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {retryCount >= maxRetries ? "Máximo de reintentos alcanzado" : "Reintentar"}
-          </button>
-        )}
+      <div className="bg-gray-50 text-gray-600 p-4 rounded-lg">
+        Cargando formulario de pago...
       </div>
     );
   }

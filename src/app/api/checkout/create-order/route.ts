@@ -1,23 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { unstable_noStore as noStore } from "next/cache";
-import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
 import { createActionSupabase } from "@/lib/supabase/server-actions";
+import { z } from "zod";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 // Schema Zod para validación
 const OrderItemSchema = z.object({
-  id: z.string().min(1, "ID de item requerido"),
-  qty: z.number().int().positive("Cantidad debe ser mayor a 0"),
-  price_cents: z.number().int().nonnegative("Precio debe ser mayor o igual a 0"),
+  id: z.string().min(1),
+  qty: z.number().int().positive(),
+  price_cents: z.number().int().nonnegative(),
 });
 
 const CreateOrderRequestSchema = z.object({
-  items: z.array(OrderItemSchema).min(1, "Debe haber al menos un item"),
-  email: z.string().email("Email inválido").optional(),
-  name: z.string().min(2, "Nombre debe tener al menos 2 caracteres").optional(),
+  items: z.array(OrderItemSchema).min(1),
+  email: z.string().email().optional(),
+  name: z.string().min(2).optional(),
   shippingMethod: z.enum(["pickup", "delivery"]).optional(),
 });
 
@@ -27,17 +27,17 @@ export async function POST(req: NextRequest) {
   noStore();
   try {
     const body = await req.json().catch(() => null);
-
-    if (!body) {
+    
+    if (!body || typeof body !== "object") {
       return NextResponse.json(
-        { error: "Cuerpo de la petición inválido" },
+        { error: "Datos inválidos: se espera un objeto JSON" },
         { status: 422 },
       );
     }
 
     // Validar con Zod
     const validationResult = CreateOrderRequestSchema.safeParse(body);
-
+    
     if (!validationResult.success) {
       const errors = validationResult.error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ");
       console.warn("[create-order] Validación fallida:", errors);
@@ -49,7 +49,35 @@ export async function POST(req: NextRequest) {
 
     const orderData = validationResult.data;
 
-    // Calcular total_cents desde items
+    // Si el frontend llama sin items, intentar reconstruir desde el estado del cliente
+    if (!orderData.items || orderData.items.length === 0) {
+      // Intentar leer desde body si viene ddn_checkout o ddn_cart
+      const checkoutState = (body as any).ddn_checkout;
+      const cartState = (body as any).ddn_cart;
+      
+      if (checkoutState?.items && Array.isArray(checkoutState.items)) {
+        orderData.items = checkoutState.items.map((item: any) => ({
+          id: item.id || item.sku,
+          qty: item.qty || item.quantity || 1,
+          price_cents: Math.round((item.price || 0) * 100),
+        }));
+      } else if (cartState?.cartItems && Array.isArray(cartState.cartItems)) {
+        orderData.items = cartState.cartItems.map((item: any) => ({
+          id: item.id || item.sku,
+          qty: item.qty || item.quantity || 1,
+          price_cents: Math.round((item.price || 0) * 100),
+        }));
+      }
+      
+      if (!orderData.items || orderData.items.length === 0) {
+        return NextResponse.json(
+          { error: "No se encontraron items para procesar" },
+          { status: 422 },
+        );
+      }
+    }
+
+    // Calcular total_cents
     const total_cents = orderData.items.reduce(
       (sum, item) => sum + item.qty * item.price_cents,
       0,
@@ -69,7 +97,7 @@ export async function POST(req: NextRequest) {
     if (!supabaseUrl || !serviceRoleKey) {
       const crypto = await import("crypto");
       const tempOrderId = crypto.randomUUID();
-
+      
       return NextResponse.json({
         order_id: tempOrderId,
         total_cents,
@@ -146,7 +174,7 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Error interno del servidor";
-    console.warn("[create-order] Error:", errorMessage);
+    console.warn("[create-order]", errorMessage);
     return NextResponse.json(
       { error: errorMessage },
       { status: 500 },
