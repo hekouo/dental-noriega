@@ -72,6 +72,113 @@ export default function PagoClient() {
   } | null>(null);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
+  const [orderCreated, setOrderCreated] = useState(false);
+
+  // Crear orden una sola vez al montar si no hay order en URL ni localStorage
+  useEffect(() => {
+    async function createOrderIfNeeded() {
+      // Verificar si ya hay orderId en URL o localStorage
+      if (typeof window === "undefined") return;
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const orderFromUrl = urlParams.get("order");
+      const orderFromStorage = localStorage.getItem("DDN_LAST_ORDER_V1");
+
+      if (orderFromUrl || orderFromStorage) {
+        setOrderId(orderFromUrl || orderFromStorage);
+        if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
+          console.debug("[PagoClient] OrderId encontrado:", orderFromUrl || orderFromStorage);
+        }
+        return;
+      }
+
+      // Si no hay items, no crear orden
+      if (selectedItems.length === 0) {
+        if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
+          console.debug("[PagoClient] No hay items, no se crea orden");
+        }
+        return;
+      }
+
+      // Si ya se creó una orden, no crear otra
+      if (orderCreated || isCreatingOrder) {
+        return;
+      }
+
+      // Crear orden automáticamente
+      setIsCreatingOrder(true);
+      setOrderCreated(true);
+
+      try {
+        // Obtener user_id si hay sesión
+        let userId: string | undefined;
+        try {
+          const supabase = getBrowserSupabase();
+          if (supabase) {
+            const { data: { user } } = await supabase.auth.getUser();
+            userId = user?.id;
+          }
+        } catch {
+          // Continuar como guest si no hay sesión
+        }
+
+        // Crear orden
+        const orderPayload = {
+          items: selectedItems.map((item) => ({
+            id: item.id,
+            qty: item.qty,
+            price_cents: Math.round(item.price * 100),
+          })),
+        };
+
+        const orderResponse = await fetch("/api/checkout/create-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(orderPayload),
+        });
+
+        if (!orderResponse.ok) {
+          const errorData = await orderResponse.json().catch(() => ({}));
+          throw new Error(
+            (errorData as { error?: string }).error || `Error al crear la orden: ${orderResponse.status}`,
+          );
+        }
+
+        const orderResult = await orderResponse.json();
+        const newOrderId = (orderResult as { order_id?: string }).order_id;
+
+        if (!newOrderId) {
+          throw new Error("No se recibió order_id de la API");
+        }
+
+        // Persistir orderId inmediatamente
+        localStorage.setItem("DDN_LAST_ORDER_V1", newOrderId);
+        
+        // Agregar order a la URL si no existe ya
+        const currentUrl = new URL(window.location.href);
+        if (!currentUrl.searchParams.has("order")) {
+          currentUrl.searchParams.set("order", newOrderId);
+          router.replace(currentUrl.pathname + currentUrl.search, { scroll: false });
+        }
+
+        setOrderId(newOrderId);
+        
+        if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
+          console.debug("[PagoClient] Orden creada automáticamente:", newOrderId);
+        }
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : "Error inesperado";
+        console.error("[PagoClient] Error al crear orden automáticamente:", errorMessage);
+        setError(errorMessage);
+        setToast({ message: errorMessage, type: "error" });
+        setOrderCreated(false); // Permitir reintentar
+      } finally {
+        setIsCreatingOrder(false);
+      }
+    }
+
+    createOrderIfNeeded();
+  }, [selectedItems.length, orderCreated, isCreatingOrder, router]);
 
   // Restaurar último cupón aplicado si existe
   useEffect(() => {

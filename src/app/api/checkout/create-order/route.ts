@@ -1,56 +1,64 @@
 import { NextRequest, NextResponse } from "next/server";
 import { unstable_noStore as noStore } from "next/cache";
+import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
 import { createActionSupabase } from "@/lib/supabase/server-actions";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-type OrderItem = {
-  id: string;
-  title: string;
-  price: number; // pesos
-  qty: number;
-};
+// Schema Zod para validación
+const OrderItemSchema = z.object({
+  id: z.string().min(1, "ID de item requerido"),
+  qty: z.number().int().positive("Cantidad debe ser mayor a 0"),
+  price_cents: z.number().int().nonnegative("Precio debe ser mayor o igual a 0"),
+});
 
-type CreateOrderRequest = {
-  items: OrderItem[];
-  total_cents: number;
-  user_id?: string; // opcional, si hay sesión
-};
+const CreateOrderRequestSchema = z.object({
+  items: z.array(OrderItemSchema).min(1, "Debe haber al menos un item"),
+  email: z.string().email("Email inválido").optional(),
+  name: z.string().min(2, "Nombre debe tener al menos 2 caracteres").optional(),
+  shippingMethod: z.enum(["pickup", "delivery"]).optional(),
+});
 
-function validateOrderRequest(body: unknown): CreateOrderRequest | null {
-  if (!body || typeof body !== "object") return null;
-  const req = body as Partial<CreateOrderRequest>;
-
-  if (!Array.isArray(req.items) || req.items.length === 0) return null;
-  for (const item of req.items) {
-    if (
-      typeof item.id !== "string" ||
-      typeof item.title !== "string" ||
-      typeof item.price !== "number" ||
-      typeof item.qty !== "number" ||
-      item.qty < 1
-    ) {
-      return null;
-    }
-  }
-
-  if (typeof req.total_cents !== "number" || req.total_cents < 0) return null;
-
-  return req as CreateOrderRequest;
-}
+type CreateOrderRequest = z.infer<typeof CreateOrderRequestSchema>;
 
 export async function POST(req: NextRequest) {
   noStore();
   try {
     const body = await req.json().catch(() => null);
-    const orderData = validateOrderRequest(body);
 
-    if (!orderData) {
+    if (!body) {
       return NextResponse.json(
-        { error: "Datos de orden inválidos" },
-        { status: 400 },
+        { error: "Cuerpo de la petición inválido" },
+        { status: 422 },
+      );
+    }
+
+    // Validar con Zod
+    const validationResult = CreateOrderRequestSchema.safeParse(body);
+
+    if (!validationResult.success) {
+      const errors = validationResult.error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ");
+      console.warn("[create-order] Validación fallida:", errors);
+      return NextResponse.json(
+        { error: `Datos inválidos: ${errors}` },
+        { status: 422 },
+      );
+    }
+
+    const orderData = validationResult.data;
+
+    // Calcular total_cents desde items
+    const total_cents = orderData.items.reduce(
+      (sum, item) => sum + item.qty * item.price_cents,
+      0,
+    );
+
+    if (total_cents <= 0) {
+      return NextResponse.json(
+        { error: "El total debe ser mayor a 0" },
+        { status: 422 },
       );
     }
 
@@ -59,15 +67,13 @@ export async function POST(req: NextRequest) {
 
     // Si Supabase no está configurado, generar un order_id temporal para que Stripe funcione
     if (!supabaseUrl || !serviceRoleKey) {
-      // Generar un order_id temporal (UUID v4)
       const crypto = await import("crypto");
       const tempOrderId = crypto.randomUUID();
-      
-      // Retornar order_id temporal para que Stripe pueda funcionar
-      // El webhook de Stripe manejará el caso donde la orden no existe en Supabase
+
       return NextResponse.json({
         order_id: tempOrderId,
-        total_cents: orderData.total_cents,
+        total_cents,
+        currency: "mxn",
       });
     }
 
@@ -95,16 +101,17 @@ export async function POST(req: NextRequest) {
       .from("orders")
       .insert({
         user_id: user_id,
-        subtotal: orderData.total_cents / 100,
-        total: orderData.total_cents / 100,
+        subtotal: total_cents / 100,
+        total: total_cents / 100,
         status: "pending",
       })
       .select("id")
       .single();
 
     if (orderError || !order) {
+      console.warn("[create-order] Error al crear orden:", orderError?.message);
       return NextResponse.json(
-        { error: `Error al crear orden: ${orderError?.message}` },
+        { error: `Error al crear orden: ${orderError?.message || "Error desconocido"}` },
         { status: 500 },
       );
     }
@@ -113,8 +120,8 @@ export async function POST(req: NextRequest) {
     const orderItems = orderData.items.map((item) => ({
       order_id: order.id,
       sku: item.id,
-      name: item.title,
-      price: item.price,
+      name: `Item ${item.id}`, // Fallback si no hay title
+      price: item.price_cents / 100,
       qty: item.qty,
     }));
 
@@ -125,6 +132,7 @@ export async function POST(req: NextRequest) {
     if (itemsError) {
       // Limpiar orden si fallan los items
       await supabase.from("orders").delete().eq("id", order.id);
+      console.warn("[create-order] Error al crear items:", itemsError.message);
       return NextResponse.json(
         { error: `Error al crear items: ${itemsError.message}` },
         { status: 500 },
@@ -133,13 +141,15 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       order_id: order.id,
-      total_cents: orderData.total_cents,
+      total_cents,
+      currency: "mxn",
     });
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Error interno del servidor";
+    console.warn("[create-order] Error:", errorMessage);
     return NextResponse.json(
-      { error: "Error interno del servidor" },
+      { error: errorMessage },
       { status: 500 },
     );
   }
 }
-
