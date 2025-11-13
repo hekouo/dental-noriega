@@ -49,32 +49,23 @@ export async function POST(req: NextRequest) {
 
     const orderData = validationResult.data;
 
-    // Si el frontend llama sin items, intentar reconstruir desde el estado del cliente
-    if (!orderData.items || orderData.items.length === 0) {
-      // Intentar leer desde body si viene ddn_checkout o ddn_cart
-      const checkoutState = (body as any).ddn_checkout;
-      const cartState = (body as any).ddn_cart;
-      
-      if (checkoutState?.items && Array.isArray(checkoutState.items)) {
-        orderData.items = checkoutState.items.map((item: any) => ({
-          id: item.id || item.sku,
-          qty: item.qty || item.quantity || 1,
-          price_cents: Math.round((item.price || 0) * 100),
-        }));
-      } else if (cartState?.cartItems && Array.isArray(cartState.cartItems)) {
-        orderData.items = cartState.cartItems.map((item: any) => ({
-          id: item.id || item.sku,
-          qty: item.qty || item.quantity || 1,
-          price_cents: Math.round((item.price || 0) * 100),
-        }));
-      }
-      
-      if (!orderData.items || orderData.items.length === 0) {
-        return NextResponse.json(
-          { error: "No se encontraron items para procesar" },
-          { status: 422 },
-        );
-      }
+    // Validar que items.length > 0 y todos los price_cents > 0 y qty > 0
+    if (orderData.items.length === 0) {
+      return NextResponse.json(
+        { error: "El carrito está vacío" },
+        { status: 422 },
+      );
+    }
+
+    const hasInvalidItem = orderData.items.some(
+      (item) => item.price_cents <= 0 || item.qty <= 0,
+    );
+
+    if (hasInvalidItem) {
+      return NextResponse.json(
+        { error: "Todos los items deben tener precio y cantidad mayor a 0" },
+        { status: 422 },
+      );
     }
 
     // Calcular total_cents
@@ -97,6 +88,8 @@ export async function POST(req: NextRequest) {
     if (!supabaseUrl || !serviceRoleKey) {
       const crypto = await import("crypto");
       const tempOrderId = crypto.randomUUID();
+      
+      console.info("[create-order] order", tempOrderId, total_cents);
       
       return NextResponse.json({
         order_id: tempOrderId,
@@ -124,13 +117,18 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Crear orden
+    // Crear orden con total_cents persistido
+    // Nota: El schema tiene 'total' como numeric(12,2), así que guardamos total = total_cents / 100
+    // Si el schema tuviera total_cents INT, lo guardaríamos directamente
     const { data: order, error: orderError } = await supabase
       .from("orders")
       .insert({
         user_id: user_id,
         subtotal: total_cents / 100,
         total: total_cents / 100,
+        shipping_cost: 0,
+        discount_amount: 0,
+        fulfillment_method: orderData.shippingMethod || "pickup",
         status: "pending",
       })
       .select("id")
@@ -144,12 +142,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Crear items de la orden
+    // Crear items de la orden con price_cents persistido como price (decimal)
+    // Nota: El schema tiene 'price' como numeric(12,2), así que guardamos price = price_cents / 100
+    // Si el schema tuviera price_cents INT, lo guardaríamos directamente
     const orderItems = orderData.items.map((item) => ({
       order_id: order.id,
       sku: item.id,
       name: `Item ${item.id}`, // Fallback si no hay title
-      price: item.price_cents / 100,
+      price: item.price_cents / 100, // Guardar como decimal para compatibilidad con schema
       qty: item.qty,
     }));
 
@@ -166,6 +166,8 @@ export async function POST(req: NextRequest) {
         { status: 500 },
       );
     }
+
+    console.info("[create-order] order", order.id, total_cents);
 
     return NextResponse.json({
       order_id: order.id,

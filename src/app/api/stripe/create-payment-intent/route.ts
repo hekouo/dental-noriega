@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
 
     const data = validationResult.data;
 
-    // Buscar la orden en DB para obtener total_cents
+    // Buscar la orden en DB para obtener amount
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     
@@ -78,6 +78,7 @@ export async function POST(req: NextRequest) {
         },
       });
 
+      // Buscar la orden
       const { data: order, error: orderError } = await supabase
         .from("orders")
         .select("total")
@@ -91,7 +92,47 @@ export async function POST(req: NextRequest) {
         );
       }
 
+      // Determinar amount desde orders.total (convertir a centavos)
       amount = Math.round(order.total * 100);
+
+      // Si amount es 0 o negativo, recomputar desde order_items
+      if (!amount || amount <= 0) {
+        const { data: items, error: itemsError } = await supabase
+          .from("order_items")
+          .select("qty, price")
+          .eq("order_id", data.order_id);
+
+        if (itemsError) {
+          console.warn("[create-payment-intent] Error al obtener items:", itemsError.message);
+          return NextResponse.json(
+            { error: "Error al calcular el monto de la orden" },
+            { status: 500 },
+          );
+        }
+
+        if (!items || items.length === 0) {
+          console.warn("[create-payment-intent] Orden sin items:", data.order_id);
+          return NextResponse.json(
+            { error: "Orden sin monto válido" },
+            { status: 422 },
+          );
+        }
+
+        // Recomputar: SUM(qty * price) y convertir a centavos
+        const recomputedTotal = items.reduce(
+          (sum, item) => sum + (item.qty || 0) * (item.price || 0),
+          0,
+        );
+        amount = Math.round(recomputedTotal * 100);
+
+        if (amount <= 0) {
+          console.warn("[create-payment-intent] Orden sin monto válido tras recomputar:", data.order_id);
+          return NextResponse.json(
+            { error: "Orden sin monto válido" },
+            { status: 422 },
+          );
+        }
+      }
     } else {
       // Si no hay Supabase, usar total_cents del body si está disponible
       const totalCents = (body as any).total_cents;
@@ -100,15 +141,16 @@ export async function POST(req: NextRequest) {
       } else {
         return NextResponse.json(
           { error: "No se pudo determinar el monto de la orden" },
-          { status: 400 },
+          { status: 422 },
         );
       }
     }
 
     if (amount <= 0) {
+      console.warn("[create-payment-intent] Amount inválido:", amount);
       return NextResponse.json(
-        { error: "El monto debe ser mayor a 0" },
-        { status: 400 },
+        { error: "Orden sin monto válido" },
+        { status: 422 },
       );
     }
 
@@ -142,12 +184,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       client_secret: paymentIntent.client_secret,
       payment_intent_id: paymentIntent.id,
+      amount,
     });
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : "Error al crear payment intent";
     
-    // Log controlado
+    // Log controlado sin stack ruidoso
     console.warn("[create-payment-intent]", errorMessage);
     
     return NextResponse.json(
