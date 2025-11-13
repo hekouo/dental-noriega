@@ -145,10 +145,19 @@ export default function StripePaymentForm({
       setIsLoading(true);
 
       try {
+        const payload = {
+          order_id: effectiveOrderId,
+          total_cents: totalCents && totalCents > 0 ? totalCents : undefined,
+        };
+        
+        if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
+          console.info("[StripePaymentForm] Payload para create-payment-intent:", payload);
+        }
+        
         const res = await fetch("/api/stripe/create-payment-intent", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ order_id: effectiveOrderId }),
+          body: JSON.stringify(payload),
         });
 
         if (!res.ok) {
@@ -177,7 +186,7 @@ export default function StripePaymentForm({
     }
 
     run();
-  }, [effectiveOrderId, onError]);
+  }, [effectiveOrderId, totalCents, onError]);
 
   const handleRetry = async () => {
     if (retryCount >= maxRetries) {
@@ -189,10 +198,15 @@ export default function StripePaymentForm({
     setIsLoading(true);
 
     try {
+      const payload = {
+        order_id: effectiveOrderId,
+        total_cents: totalCents && totalCents > 0 ? totalCents : undefined,
+      };
+      
       const res = await fetch("/api/stripe/create-payment-intent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ order_id: effectiveOrderId }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {

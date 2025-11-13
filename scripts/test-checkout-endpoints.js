@@ -59,11 +59,12 @@ async function testCreateOrder() {
   }
 }
 
-async function testCreatePaymentIntent(orderId) {
+async function testCreatePaymentIntent(orderId, expectedAmount) {
   console.log('\n💳 Testing /api/stripe/create-payment-intent...');
   
   const payload = {
-    order_id: orderId
+    order_id: orderId,
+    total_cents: expectedAmount
   };
 
   try {
@@ -85,8 +86,8 @@ async function testCreatePaymentIntent(orderId) {
       return false;
     }
 
-    if (data.amount !== 12345) {
-      console.error(`❌ Expected amount=12345, got ${data.amount}`);
+    if (data.amount !== expectedAmount) {
+      console.error(`❌ Expected amount=${expectedAmount}, got ${data.amount}`);
       return false;
     }
 
@@ -163,7 +164,7 @@ async function main() {
     process.exit(1);
   }
 
-  const paymentIntentOk = await testCreatePaymentIntent(orderId);
+  const paymentIntentOk = await testCreatePaymentIntent(orderId, 12345);
   
   if (!paymentIntentOk) {
     console.error('\n❌ create-payment-intent test failed');
@@ -173,7 +174,8 @@ async function main() {
   // Test 2: Multiple items
   const orderId2 = await testMultipleItems();
   if (orderId2) {
-    const paymentIntentOk2 = await testCreatePaymentIntent(orderId2);
+    const expectedTotal2 = 2 * 5000 + 1 * 7500; // 17500
+    const paymentIntentOk2 = await testCreatePaymentIntent(orderId2, expectedTotal2);
     if (!paymentIntentOk2) {
       console.error('\n❌ create-payment-intent test failed for multiple items');
       process.exit(1);

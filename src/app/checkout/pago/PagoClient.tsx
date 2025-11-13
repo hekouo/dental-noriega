@@ -259,6 +259,36 @@ export default function PagoClient() {
   const selectedPaymentMethod = watch("paymentMethod");
   const shippingCost = shippingData.prices[selectedShippingMethod] || 0;
 
+  // Calcular totalCents directamente desde itemsForOrder usando price_cents
+  const totalCents = useMemo(() => {
+    const subtotalCents = itemsForOrder.reduce((sum, item) => {
+      const qty = item.qty ?? 1;
+      const priceCents =
+        typeof item.price_cents === "number" && item.price_cents > 0
+          ? item.price_cents
+          : typeof item.price === "number" && item.price > 0
+            ? Math.round(item.price * 100)
+            : 0;
+      return sum + priceCents * qty;
+    }, 0);
+    
+    // Agregar shipping cost en centavos
+    const shippingCents = Math.round(shippingCost * 100);
+    
+    // Aplicar descuento si existe
+    let finalCents = subtotalCents + shippingCents;
+    if (discount && discountScope) {
+      const discountCents = Math.round(discount * 100);
+      if (discountScope === "subtotal") {
+        finalCents = subtotalCents - discountCents + shippingCents;
+      } else if (discountScope === "shipping") {
+        finalCents = subtotalCents + Math.max(0, shippingCents - discountCents);
+      }
+    }
+    
+    return Math.max(0, finalCents);
+  }, [itemsForOrder, shippingCost, discount, discountScope]);
+
   // Calcular totales con cupón
   const total = useMemo(() => {
     let calculated = subtotal + shippingCost;
@@ -897,7 +927,7 @@ export default function PagoClient() {
           </div>
           <StripePaymentForm
             orderId={orderId}
-            totalCents={Math.round(total * 100)}
+            totalCents={totalCents}
             onSuccess={(orderId) => {
               // NO limpiar carrito aquí - se limpiará en /checkout/gracias cuando la orden sea 'paid'
               resetCheckout();

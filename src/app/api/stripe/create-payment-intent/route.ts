@@ -10,6 +10,7 @@ export const revalidate = 0;
 // Schema Zod para validación
 const CreatePaymentIntentRequestSchema = z.object({
   order_id: z.string().uuid(),
+  total_cents: z.number().int().positive().optional(),
 });
 
 type CreatePaymentIntentRequest = z.infer<typeof CreatePaymentIntentRequestSchema>;
@@ -63,133 +64,142 @@ export async function POST(req: NextRequest) {
     }
 
     const data = validationResult.data;
+    const { order_id, total_cents } = data;
 
-    // Buscar la orden en DB para obtener amount
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    
-    let amount: number;
-    
-    if (supabaseUrl && serviceRoleKey) {
-      const supabase = createClient(supabaseUrl, serviceRoleKey, {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
+    // Usar total_cents del body como fuente principal
+    let amount: number | null = total_cents && total_cents > 0 ? total_cents : null;
+
+    // Log controlado para debugging
+    const debug = process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1";
+    if (debug) {
+      console.info("[create-payment-intent] Iniciando con:", {
+        order_id,
+        total_cents_from_body: total_cents,
+        amount_from_body: amount,
       });
+    }
 
-      // Buscar la orden
-      const { data: order, error: orderError } = await supabase
-        .from("orders")
-        .select("total")
-        .eq("id", data.order_id)
-        .single();
-
-      if (orderError || !order) {
-        console.warn("[create-payment-intent] Orden no encontrada:", {
-          order_id: data.order_id,
-          error: orderError?.message,
-        });
-        return NextResponse.json(
-          { error: `Orden no encontrada: ${data.order_id}` },
-          { status: 404 },
-        );
-      }
-
-      // Determinar amount desde orders.total (convertir a centavos)
-      amount = order.total ? Math.round(order.total * 100) : 0;
+    // Si no hay total_cents válido en el body, usar fallback desde DB
+    if (!amount || amount <= 0) {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
       
-      // Log controlado para debugging
-      if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
-        console.info("[create-payment-intent] Orden encontrada:", {
-          order_id: data.order_id,
-          total: order.total,
-          amount_from_total: amount,
+      if (supabaseUrl && serviceRoleKey) {
+        const supabase = createClient(supabaseUrl, serviceRoleKey, {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false,
+          },
         });
-      }
 
-      // Si amount es 0 o negativo, recomputar desde order_items
-      if (!amount || amount <= 0) {
-        const { data: items, error: itemsError } = await supabase
-          .from("order_items")
-          .select("qty, price")
-          .eq("order_id", data.order_id);
+        // Buscar la orden
+        const { data: order, error: orderError } = await supabase
+          .from("orders")
+          .select("total")
+          .eq("id", order_id)
+          .single();
 
-        if (itemsError) {
-          console.warn("[create-payment-intent] Error al obtener items:", itemsError.message);
+        if (orderError || !order) {
+          console.warn("[create-payment-intent] Orden no encontrada:", {
+            order_id,
+            error: orderError?.message,
+          });
           return NextResponse.json(
-            { error: "Error al calcular el monto de la orden" },
-            { status: 500 },
+            { error: `Orden no encontrada: ${order_id}` },
+            { status: 404 },
           );
         }
 
-        if (!items || items.length === 0) {
-          console.warn("[create-payment-intent] Orden sin items:", data.order_id);
-          return NextResponse.json(
-            { error: "Orden sin monto válido" },
-            { status: 422 },
-          );
-        }
-
-        // Recomputar: SUM(qty * price) y convertir a centavos
-        const recomputedTotal = items.reduce(
-          (sum, item) => sum + (item.qty || 0) * (item.price || 0),
-          0,
-        );
-        amount = Math.round(recomputedTotal * 100);
-
+        // Determinar amount desde orders.total (convertir a centavos)
+        amount = order.total ? Math.round(order.total * 100) : 0;
+        
         // Log controlado para debugging
-        if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
-          console.info("[create-payment-intent] Recomputando desde items:", {
-            order_id: data.order_id,
-            items_count: items.length,
-            items: items.map((i) => ({
-              qty: i.qty,
-              price: i.price,
-              subtotal: (i.qty || 0) * (i.price || 0),
-            })),
-            recomputed_total_decimal: recomputedTotal,
-            recomputed_total_cents: amount,
+        if (debug) {
+          console.info("[create-payment-intent] Orden encontrada en DB:", {
+            order_id,
+            total: order.total,
+            amount_from_db: amount,
           });
         }
 
-        if (amount <= 0) {
-          console.warn("[create-payment-intent] invalid amount después de recomputar", {
-            order_id: data.order_id,
-            total_from_order: order.total,
-            recomputed_total_decimal: recomputedTotal,
-            recomputed_total_cents: amount,
-            items_count: items.length,
-            items: items.map((i) => ({
-              qty: i.qty,
-              price: i.price,
-            })),
-          });
-          return NextResponse.json(
-            { error: "No se pudo determinar el monto de la orden" },
-            { status: 422 },
+        // Si amount es 0 o negativo, recomputar desde order_items
+        if (!amount || amount <= 0) {
+          const { data: items, error: itemsError } = await supabase
+            .from("order_items")
+            .select("qty, price")
+            .eq("order_id", order_id);
+
+          if (itemsError) {
+            console.warn("[create-payment-intent] Error al obtener items:", itemsError.message);
+            return NextResponse.json(
+              { error: "Error al calcular el monto de la orden" },
+              { status: 500 },
+            );
+          }
+
+          if (!items || items.length === 0) {
+            console.warn("[create-payment-intent] Orden sin items:", order_id);
+            return NextResponse.json(
+              { error: "Orden sin monto válido" },
+              { status: 422 },
+            );
+          }
+
+          // Recomputar: SUM(qty * price) y convertir a centavos
+          const recomputedTotal = items.reduce(
+            (sum, item) => sum + (item.qty || 0) * (item.price || 0),
+            0,
           );
+          amount = Math.round(recomputedTotal * 100);
+
+          // Log controlado para debugging
+          if (debug) {
+            console.info("[create-payment-intent] Recomputando desde items:", {
+              order_id,
+              items_count: items.length,
+              items: items.map((i) => ({
+                qty: i.qty,
+                price: i.price,
+                subtotal: (i.qty || 0) * (i.price || 0),
+              })),
+              recomputed_total_decimal: recomputedTotal,
+              recomputed_total_cents: amount,
+            });
+          }
+
+          if (amount <= 0) {
+            const errorInfo = {
+              order_id,
+              amount,
+              total_cents_from_body: total_cents,
+              order_from_db: order.total,
+              recomputed_total_cents: amount,
+            };
+            
+            if (debug) {
+              console.warn("[create-payment-intent] invalid amount después de recomputar", errorInfo);
+            }
+            
+            return NextResponse.json(
+              { error: "No se pudo determinar el monto de la orden" },
+              { status: 422 },
+            );
+          }
         }
-      }
-    } else {
-      // Si no hay Supabase, usar total_cents del body si está disponible
-      const totalCents = (body as any).total_cents;
-      if (typeof totalCents === "number" && totalCents > 0) {
-        amount = totalCents;
-      } else {
-        return NextResponse.json(
-          { error: "No se pudo determinar el monto de la orden" },
-          { status: 422 },
-        );
       }
     }
 
-    if (amount <= 0) {
-      console.warn("[create-payment-intent] invalid amount final", {
-        order_id: data.order_id,
+    if (!amount || amount <= 0) {
+      const errorInfo = {
+        order_id,
         amount,
-        has_supabase: !!(supabaseUrl && serviceRoleKey),
-      });
+        total_cents_from_body: total_cents,
+      };
+      
+      if (debug) {
+        console.warn("[create-payment-intent] invalid amount final", errorInfo);
+      }
+      
       return NextResponse.json(
         { error: "No se pudo determinar el monto de la orden" },
         { status: 422 },
@@ -197,16 +207,17 @@ export async function POST(req: NextRequest) {
     }
 
     // Log controlado antes de crear PaymentIntent
-    if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
+    if (debug) {
       console.info("[create-payment-intent] Creando PaymentIntent:", {
-        order_id: data.order_id,
+        order_id,
         amount,
         currency: "mxn",
+        source: total_cents && total_cents > 0 ? "body" : "db",
       });
     }
 
     // Idempotencia: usar order_id como idempotencyKey
-    const idempotencyKey = `pi_${data.order_id}`;
+    const idempotencyKey = `pi_${order_id}`;
 
     // Crear PaymentIntent con idempotencia
     const paymentIntent = await stripe.paymentIntents.create(
@@ -214,7 +225,7 @@ export async function POST(req: NextRequest) {
         amount,
         currency: "mxn",
         metadata: {
-          order_id: data.order_id,
+          order_id: order_id,
         },
         automatic_payment_methods: {
           enabled: true,
