@@ -783,16 +783,27 @@ export default function PagoClient() {
         )}
       </div>
 
-      {/* Validación de carrito vacío */}
+      {/* Validación de carrito vacío - NO es un error de API */}
       {itemsForOrder.length === 0 && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
-          <p className="text-yellow-800 mb-4">Tu carrito está vacío</p>
-          <Link
-            href="/catalogo"
-            className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
-          >
-            Ir al Catálogo
-          </Link>
+          <p className="text-yellow-800 mb-4">No se encontraron productos para esta orden</p>
+          <p className="text-yellow-700 text-sm mb-4">
+            Por favor, vuelve al catálogo y agrega productos antes de continuar.
+          </p>
+          <div className="flex gap-3 justify-center">
+            <Link
+              href="/catalogo"
+              className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
+            >
+              Ir al Catálogo
+            </Link>
+            <Link
+              href="/checkout/datos"
+              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+            >
+              Volver a Datos
+            </Link>
+          </div>
         </div>
       )}
 
@@ -885,7 +896,8 @@ export default function PagoClient() {
           )}
         </div>
 
-        {error && (
+        {/* Mostrar error solo si hay items (error de API), no si es "carrito vacío" */}
+        {error && itemsForOrder.length > 0 && (
           <div className="bg-red-50 border border-red-200 rounded-md p-3">
             <p className="text-red-600 text-sm">{error}</p>
           </div>

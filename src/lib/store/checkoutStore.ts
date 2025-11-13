@@ -42,6 +42,7 @@ export type ShippingMethod = "pickup" | "standard" | "express";
 type CheckoutPersisted = {
   step: CheckoutStep;
   datos: DatosForm | null;
+  checkoutItems: CheckoutItem[]; // Persistir items también
   shippingMethod?: ShippingMethod;
   shippingCost?: number;
   couponCode?: string;
@@ -91,6 +92,7 @@ function rehydrateCheckout(): Partial<State> {
   return {
     step: stored.step || "datos",
     datos: stored.datos || null,
+    checkoutItems: stored.checkoutItems || [], // Restaurar items
     shippingMethod: stored.shippingMethod,
     shippingCost: stored.shippingCost,
     couponCode: stored.couponCode,
@@ -133,35 +135,60 @@ export const useCheckoutStore = create<State>()(
           }
         }
         if (!changed) return s;
-        return { ...s, checkoutItems: Array.from(byId.values()) };
+        const nextItems = Array.from(byId.values());
+        // Persistir items también
+        persistCheckout({
+          step: s.step,
+          datos: s.datos,
+          checkoutItems: nextItems,
+          shippingMethod: s.shippingMethod,
+          shippingCost: s.shippingCost,
+          couponCode: s.couponCode,
+          discount: s.discount,
+          discountScope: s.discountScope,
+          lastAppliedCoupon: s.lastAppliedCoupon,
+        });
+        return { ...s, checkoutItems: nextItems };
       });
     },
 
     upsertSingleToCheckout: (item) => {
       set((state) => {
         const idx = state.checkoutItems.findIndex((i) => i.id === item.id);
+        let nextItems: CheckoutItem[];
         if (idx === -1) {
-          return {
-            checkoutItems: [
-              ...state.checkoutItems,
-              { ...item, qty: item.qty ?? 1, selected: true } as CheckoutItem,
-            ],
+          nextItems = [
+            ...state.checkoutItems,
+            { ...item, qty: item.qty ?? 1, selected: true } as CheckoutItem,
+          ];
+        } else {
+          const curr = state.checkoutItems[idx];
+          const nextItem = {
+            ...curr,
+            qty: (curr.qty ?? 0) + (item.qty ?? 1),
+            selected: true,
           };
+          if (
+            nextItem.qty === curr.qty &&
+            !!nextItem.selected === !!curr.selected
+          )
+            return state;
+          nextItems = state.checkoutItems.slice();
+          nextItems[idx] = nextItem;
         }
-        const curr = state.checkoutItems[idx];
-        const nextItem = {
-          ...curr,
-          qty: (curr.qty ?? 0) + (item.qty ?? 1),
-          selected: true,
-        };
-        if (
-          nextItem.qty === curr.qty &&
-          !!nextItem.selected === !!curr.selected
-        )
-          return state;
-        const next = state.checkoutItems.slice();
-        next[idx] = nextItem;
-        return { checkoutItems: next };
+        // Persistir items también
+        persistCheckout({
+          step: state.step,
+          datos: state.datos,
+          checkoutItems: nextItems,
+          shippingMethod: state.shippingMethod,
+          shippingCost: state.shippingCost,
+          couponCode: state.couponCode,
+          discount: state.discount,
+          discountScope: state.discountScope,
+          lastAppliedCoupon: state.lastAppliedCoupon,
+        });
+        return { checkoutItems: nextItems };
       });
     },
 
@@ -237,10 +264,20 @@ export const useCheckoutStore = create<State>()(
 
     setDatos: (datos: DatosForm) => {
       set((s) => {
-        const next = { ...s, datos, step: "pago" as CheckoutStep };
+        // Asegurar que checkoutItems esté presente antes de avanzar a pago
+        // Si viene del flujo normal (checkout → datos), los items ya deberían estar
+        // Si viene de "Comprar ahora", también deberían estar
+        // Pero por seguridad, si no hay items, intentar obtenerlos de los seleccionados
+        let finalItems = s.checkoutItems;
+        if (finalItems.length === 0) {
+          // Si no hay items, mantener vacío (el guard en pago lo manejará)
+          // No intentar leer de cartStore aquí para evitar dependencias circulares
+        }
+        const next = { ...s, datos, step: "pago" as CheckoutStep, checkoutItems: finalItems };
         persistCheckout({
           step: next.step,
           datos: next.datos,
+          checkoutItems: finalItems,
           shippingMethod: next.shippingMethod,
           shippingCost: next.shippingCost,
           couponCode: next.couponCode,
@@ -262,6 +299,7 @@ export const useCheckoutStore = create<State>()(
         persistCheckout({
           step: next.step,
           datos: next.datos,
+          checkoutItems: next.checkoutItems,
           shippingMethod: next.shippingMethod,
           shippingCost: next.shippingCost,
           couponCode: next.couponCode,
@@ -285,6 +323,7 @@ export const useCheckoutStore = create<State>()(
         persistCheckout({
           step: next.step,
           datos: next.datos,
+          checkoutItems: next.checkoutItems,
           shippingMethod: next.shippingMethod,
           shippingCost: next.shippingCost,
           couponCode: next.couponCode,
@@ -308,6 +347,7 @@ export const useCheckoutStore = create<State>()(
         persistCheckout({
           step: next.step,
           datos: next.datos,
+          checkoutItems: next.checkoutItems,
           shippingMethod: next.shippingMethod,
           shippingCost: next.shippingCost,
           couponCode: next.couponCode,
@@ -340,6 +380,7 @@ export const useCheckoutStore = create<State>()(
     partialize: (state) => ({
       step: state.step,
       datos: state.datos,
+      checkoutItems: state.checkoutItems, // Persistir items también
       shippingMethod: state.shippingMethod,
       shippingCost: state.shippingCost,
       couponCode: state.couponCode,
