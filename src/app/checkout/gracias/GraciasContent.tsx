@@ -34,9 +34,14 @@ export default function GraciasContent() {
   const [stripeSuccessDetected, setStripeSuccessDetected] = useState(false);
   const clearCart = useCartStore((s) => s.clearCart);
 
-  // Leer orderRef de URL
-  const orderRefFromUrl =
+  // Leer orderRef de URL. Si falta, intentar localStorage
+  let orderRefFromUrl =
     searchParams?.get("orden") || searchParams?.get("order") || "";
+  
+  if (!orderRefFromUrl && typeof window !== "undefined") {
+    const stored = localStorage.getItem("DDN_LAST_ORDER_V1");
+    orderRefFromUrl = stored || "";
+  }
 
   // Leer indicadores de Stripe de la URL
   const redirectStatus = searchParams?.get("redirect_status");

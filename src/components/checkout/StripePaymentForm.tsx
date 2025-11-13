@@ -38,16 +38,20 @@ function PaymentForm({
   // Obtener orderId de múltiples fuentes: prop > query > localStorage
   const sp = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
   const runtimeOrigin = typeof window !== "undefined" ? window.location.origin : (process.env.NEXT_PUBLIC_SITE_URL ?? "https://dental-noriega.vercel.app");
-  const norm = (s: string) => encodeURIComponent(s);
 
-  // Asegurar orderId: prop > query > localStorage
-  let effectiveOrderId: string | null = propsOrderId ?? sp?.get("order") ?? null;
+  // Asegurar orderId: prop > query > localStorage (en orden de prioridad)
+  let effectiveOrderId: string | null = propsOrderId ?? null;
   if (!effectiveOrderId && typeof window !== "undefined") {
-    const stored = localStorage.getItem("ddn_last_order");
+    effectiveOrderId = new URLSearchParams(window.location.search).get("order");
+  }
+  if (!effectiveOrderId && typeof window !== "undefined") {
+    const stored = localStorage.getItem("DDN_LAST_ORDER_V1");
     effectiveOrderId = stored || null;
   }
+  
+  // Siempre que tengamos un effectiveOrderId, refrescar localStorage
   if (effectiveOrderId && typeof window !== "undefined") {
-    localStorage.setItem("ddn_last_order", String(effectiveOrderId));
+    localStorage.setItem("DDN_LAST_ORDER_V1", effectiveOrderId);
   }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -67,11 +71,14 @@ function PaymentForm({
 
       const finalOrderId = String(effectiveOrderId ?? "");
       
+      // return_url debe incluir el orderId
+      const returnUrl = `${runtimeOrigin}/checkout/gracias?order=${encodeURIComponent(finalOrderId)}`;
+      
       // Confirmar pago con return_url que incluye orderId
       const result = await stripe.confirmPayment({
         elements,
         confirmParams: {
-          return_url: `${runtimeOrigin}/checkout/gracias?order=${norm(finalOrderId)}`,
+          return_url: returnUrl,
         },
         redirect: "if_required",
       });
@@ -85,12 +92,12 @@ function PaymentForm({
 
       const pi = result.paymentIntent;
       
-      // Manejar estados exitosos: succeeded, processing, requires_capture
-      // Algunos métodos (Link/guardada) no redirigen automáticamente, hacemos push manual
+      // Si redirect no ocurre (Link/one-click), hacer push manual cuando
+      // result.paymentIntent?.status ∈ { "succeeded","processing","requires_capture" }
       if (pi?.status === "succeeded" || pi?.status === "processing" || pi?.status === "requires_capture") {
         const status = pi.status === "succeeded" ? "succeeded" : pi.status === "processing" ? "processing" : "requires_capture";
         onSuccess?.(finalOrderId);
-        router.push(`/checkout/gracias?order=${norm(finalOrderId)}&redirect_status=${status}`);
+        router.push(`/checkout/gracias?order=${encodeURIComponent(finalOrderId)}&redirect_status=${status}`);
         return;
       }
 
