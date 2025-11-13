@@ -13,17 +13,16 @@ export default function GuardsClient({
   const searchParams = useSearchParams();
   const pathname = usePathname();
   
-  // a) Verificar hidratación primero
+  // a) Verificar hidratación primero - NO redirigir antes de hidratar
   const hydrated = useCartStore(selectHydrated);
   if (!hydrated) {
-    // Debug temporal
-    if (process.env.NEXT_PUBLIC_DEBUG_CHECKOUT === "1") {
+    if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
       console.debug("[GuardsClient] Esperando hidratación...");
     }
     return null; // esperar hidratación, no redirigir
   }
 
-  // b) Verificar flujo Stripe activo
+  // b) Verificar flujo Stripe activo - bypass si existe cualquiera de estos params
   const sp = searchParams;
   const hasStripeFlow = !!(
     sp?.get("order") ||
@@ -33,8 +32,7 @@ export default function GuardsClient({
   );
   
   if (hasStripeFlow) {
-    // Debug temporal
-    if (process.env.NEXT_PUBLIC_DEBUG_CHECKOUT === "1") {
+    if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
       console.debug("[GuardsClient] Bypass por flujo Stripe activo");
     }
     return <>{children}</>;
@@ -43,19 +41,17 @@ export default function GuardsClient({
   // c) Verificar count del carrito
   const count = useCartStore(selectCount);
   if (count === 0) {
-    // Debug temporal
-    if (process.env.NEXT_PUBLIC_DEBUG_CHECKOUT === "1") {
+    if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
       console.debug("[GuardsClient] Carrito vacío, redirigiendo a /checkout/datos");
     }
     router.replace("/checkout/datos");
     return null;
   }
 
-  // d) Verificar datos completos
+  // d) Verificar datos completos - permitir solo si count > 0 && isComplete === true
   const isComplete = useCheckoutStore(selectIsCheckoutDataComplete);
   if (!isComplete) {
-    // Debug temporal
-    if (process.env.NEXT_PUBLIC_DEBUG_CHECKOUT === "1") {
+    if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
       console.debug("[GuardsClient] Datos incompletos, redirigiendo a /checkout/datos");
     }
     router.replace("/checkout/datos");
@@ -63,8 +59,7 @@ export default function GuardsClient({
   }
 
   // e) Todo OK, renderizar children
-  // Debug temporal
-  if (process.env.NEXT_PUBLIC_DEBUG_CHECKOUT === "1") {
+  if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
     console.debug("[GuardsClient] Acceso permitido", {
       hydrated,
       count,
