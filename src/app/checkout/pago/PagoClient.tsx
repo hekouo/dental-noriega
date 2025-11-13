@@ -70,7 +70,6 @@ export default function PagoClient() {
     message: string;
     type: "error" | "success";
   } | null>(null);
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
 
@@ -315,37 +314,8 @@ export default function PagoClient() {
       }
       setOrderId(newOrderId);
 
-      // Si el método de pago es tarjeta, generar PaymentIntent
-      if (paymentMethod === "tarjeta") {
-        if (amountCents <= 0) {
-          throw new Error("El total debe ser mayor a 0 para pagar con tarjeta");
-        }
-
-        const paymentResponse = await fetch("/api/stripe/create-payment-intent", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            order_id: newOrderId,
-            total_cents: amountCents,
-          }),
-        });
-
-        if (!paymentResponse.ok) {
-          const errorData = await paymentResponse.json().catch(() => ({}));
-          throw new Error(
-            (errorData as { error?: string }).error || `Error al crear payment intent: ${paymentResponse.status}`,
-          );
-        }
-
-        const paymentResult = await paymentResponse.json();
-        const secret = (paymentResult as { client_secret?: string }).client_secret;
-
-        if (!secret) {
-          throw new Error("No se recibió client_secret de la API");
-        }
-
-        setClientSecret(secret);
-      } else {
+      // Si el método de pago es tarjeta, StripePaymentForm creará el PaymentIntent internamente
+      if (paymentMethod !== "tarjeta") {
         // Para otros métodos de pago, usar flujo legacy y redirigir
         handlePayNowLegacy(newOrderId);
       }
@@ -710,8 +680,8 @@ export default function PagoClient() {
         </div>
       )}
 
-      {/* Stripe Payment Form si es tarjeta y tenemos clientSecret */}
-      {selectedPaymentMethod === "tarjeta" && clientSecret && orderId ? (
+      {/* Stripe Payment Form si es tarjeta */}
+      {selectedPaymentMethod === "tarjeta" && orderId ? (
         <div className="space-y-4">
           <div className="bg-gray-50 rounded-lg p-4 mb-4">
             <h2 className="font-semibold mb-2 text-sm text-gray-700">Resumen de pago</h2>
@@ -739,7 +709,6 @@ export default function PagoClient() {
             </div>
           </div>
           <StripePaymentForm
-            clientSecret={clientSecret}
             orderId={orderId}
             totalCents={Math.round(total * 100)}
             onSuccess={(orderId) => {
@@ -751,7 +720,6 @@ export default function PagoClient() {
               setError(errorMsg);
               setToast({ message: errorMsg, type: "error" });
               setIsCreatingOrder(false);
-              setClientSecret(null);
               setOrderId(null);
             }}
           />

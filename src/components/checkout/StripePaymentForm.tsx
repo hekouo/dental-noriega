@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { loadStripe } from "@stripe/stripe-js";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Elements,
   PaymentElement,
@@ -10,51 +9,25 @@ import {
   useElements,
 } from "@stripe/react-stripe-js";
 import { formatMXN } from "@/lib/utils/currency";
-
-const stripePromise = loadStripe(
-  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!,
-);
+import { stripePromise } from "@/lib/stripe/stripeClient";
 
 type StripePaymentFormProps = {
-  clientSecret: string;
-  orderId: string;
+  orderId?: string;
   totalCents: number;
   onSuccess?: (orderId: string) => void;
   onError?: (error: string) => void;
 };
 
-function PaymentForm({
-  orderId: propsOrderId,
-  totalCents,
-  onSuccess,
-  onError,
-}: StripePaymentFormProps) {
+function InnerForm({ effectiveOrderId }: { effectiveOrderId: string }) {
   const stripe = useStripe();
   const elements = useElements();
   const router = useRouter();
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Obtener orderId de múltiples fuentes: prop > query > localStorage
-  const sp = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
   const runtimeOrigin = typeof window !== "undefined" ? window.location.origin : (process.env.NEXT_PUBLIC_SITE_URL ?? "https://dental-noriega.vercel.app");
 
-  // Asegurar orderId: prop > query > localStorage (en orden de prioridad)
-  let effectiveOrderId: string | null = propsOrderId ?? null;
-  if (!effectiveOrderId && typeof window !== "undefined") {
-    effectiveOrderId = new URLSearchParams(window.location.search).get("order");
-  }
-  if (!effectiveOrderId && typeof window !== "undefined") {
-    const stored = localStorage.getItem("DDN_LAST_ORDER_V1");
-    effectiveOrderId = stored || null;
-  }
-  
-  // Siempre que tengamos un effectiveOrderId, refrescar localStorage
-  if (effectiveOrderId && typeof window !== "undefined") {
-    localStorage.setItem("DDN_LAST_ORDER_V1", effectiveOrderId);
-  }
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
     if (!stripe || !elements) {
@@ -69,10 +42,8 @@ function PaymentForm({
       // Submit del formulario primero
       await elements.submit();
 
-      const finalOrderId = String(effectiveOrderId ?? "");
-      
       // return_url debe incluir el orderId
-      const returnUrl = `${runtimeOrigin}/checkout/gracias?order=${encodeURIComponent(finalOrderId)}`;
+      const returnUrl = `${runtimeOrigin}/checkout/gracias?order=${encodeURIComponent(effectiveOrderId)}`;
       
       // Confirmar pago con return_url que incluye orderId
       const result = await stripe.confirmPayment({
@@ -85,18 +56,16 @@ function PaymentForm({
 
       if (result?.error) {
         setError(result.error.message ?? "Error al procesar el pago");
-        onError?.(result.error.message ?? "Error al procesar el pago");
         setIsProcessing(false);
         return;
       }
 
       const pi = result.paymentIntent;
       
-      // Si Stripe no hace redirect automático, hacer push manual con redirect_status=succeeded
+      // Fallback a push manual si no hubo redirect
       if (pi?.status === "succeeded" || pi?.status === "processing" || pi?.status === "requires_capture") {
         const status = pi.status === "succeeded" ? "succeeded" : pi.status === "processing" ? "processing" : "requires_capture";
-        onSuccess?.(finalOrderId);
-        router.push(`/checkout/gracias?order=${encodeURIComponent(finalOrderId)}&redirect_status=${status}`);
+        router.push(`/checkout/gracias?order=${encodeURIComponent(effectiveOrderId)}&redirect_status=${status}`);
         return;
       }
 
@@ -107,10 +76,9 @@ function PaymentForm({
       const errorMessage =
         err instanceof Error ? err.message : "Error inesperado";
       setError(errorMessage);
-      onError?.(errorMessage);
       setIsProcessing(false);
     }
-  };
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -126,7 +94,7 @@ function PaymentForm({
 
       <div className="flex items-center justify-between pt-4 border-t">
         <div className="text-lg font-semibold">
-          Total: {formatMXN(totalCents / 100)}
+          Total: {formatMXN(0)} {/* Total se muestra en PagoClient */}
         </div>
         <button
           type="submit"
@@ -141,12 +109,70 @@ function PaymentForm({
 }
 
 export default function StripePaymentForm({
-  clientSecret,
-  orderId,
+  orderId: propsOrderId,
   totalCents,
   onSuccess,
   onError,
 }: StripePaymentFormProps) {
+  const sp = useSearchParams();
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+
+  // Resolver orderId: props > query > localStorage
+  const effectiveOrderId =
+    propsOrderId ||
+    sp?.get("order") ||
+    (typeof window !== "undefined" ? localStorage.getItem("DDN_LAST_ORDER_V1") || undefined : undefined);
+
+  // Persistir orderId en localStorage cuando esté disponible
+  useEffect(() => {
+    if (!effectiveOrderId) return;
+    if (typeof window !== "undefined") {
+      localStorage.setItem("DDN_LAST_ORDER_V1", effectiveOrderId);
+    }
+  }, [effectiveOrderId]);
+
+  // Llamar a /api/stripe/create-payment-intent una sola vez
+  useEffect(() => {
+    async function run() {
+      if (!effectiveOrderId) return;
+
+      try {
+        const res = await fetch("/api/stripe/create-payment-intent", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ order_id: effectiveOrderId }),
+        });
+
+        if (!res.ok) {
+          throw new Error(`Error al crear PaymentIntent: ${res.status}`);
+        }
+
+        const data = await res.json();
+        setClientSecret(data.client_secret ?? null);
+      } catch (err) {
+        if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
+          console.error("[StripePaymentForm] Error al crear PaymentIntent:", err);
+        }
+        onError?.(err instanceof Error ? err.message : "Error al crear PaymentIntent");
+      }
+    }
+
+    run();
+  }, [effectiveOrderId, onError]);
+
+  const options = useMemo(
+    () =>
+      clientSecret
+        ? {
+            clientSecret,
+            appearance: {
+              theme: "stripe" as const,
+            },
+          }
+        : undefined,
+    [clientSecret]
+  );
+
   if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
     return (
       <div className="bg-yellow-50 text-yellow-800 p-4 rounded-lg">
@@ -154,6 +180,10 @@ export default function StripePaymentForm({
         en tus variables de entorno.
       </div>
     );
+  }
+
+  if (!effectiveOrderId) {
+    return null; // Esperar orderId
   }
 
   if (!clientSecret) {
@@ -164,23 +194,10 @@ export default function StripePaymentForm({
     );
   }
 
+  // Elements se monta UNA sola vez y solo cuando hay clientSecret
   return (
-    <Elements
-      stripe={stripePromise}
-      options={{
-        clientSecret,
-        appearance: {
-          theme: "stripe",
-        },
-      }}
-    >
-      <PaymentForm
-        clientSecret={clientSecret}
-        orderId={orderId}
-        totalCents={totalCents}
-        onSuccess={onSuccess}
-        onError={onError}
-      />
+    <Elements stripe={stripePromise} options={options}>
+      <InnerForm effectiveOrderId={effectiveOrderId} />
     </Elements>
   );
 }
