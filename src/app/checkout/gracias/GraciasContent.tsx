@@ -27,19 +27,30 @@ const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
   : null;
 
 export default function GraciasContent() {
+  // TODOS LOS HOOKS AL INICIO - NUNCA CONDICIONALES
   const searchParams = useSearchParams();
   const [lastOrder, setLastOrder] = useState<LastOrder | null>(null);
   const [orderStatus, setOrderStatus] = useState<string | null>(null);
   const [isCheckingPayment, setIsCheckingPayment] = useState(true);
   const [stripeSuccessDetected, setStripeSuccessDetected] = useState(false);
   const [orderRefFromUrl, setOrderRefFromUrl] = useState<string>("");
+  const [isMounted, setIsMounted] = useState(false);
+  const [cartCleared, setCartCleared] = useState(false);
   const clearCart = useCartStore((s) => s.clearCart);
 
-  // Leer orderRef de URL. Si falta, intentar localStorage (solo en cliente)
+  // Marcar como montado solo en cliente
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    setIsMounted(true);
+  }, []);
+
+  // Leer orderRef de URL. Si falta, intentar localStorage (solo en cliente, después de mount)
+  useEffect(() => {
+    if (!isMounted || typeof window === "undefined") return;
     
-    const fromUrl = searchParams?.get("orden") || searchParams?.get("order") || "";
+    // Leer de URL directamente sin depender de searchParams durante SSR
+    const urlParams = new URLSearchParams(window.location.search);
+    const fromUrl = urlParams.get("orden") || urlParams.get("order") || "";
+    
     if (fromUrl) {
       setOrderRefFromUrl(fromUrl);
       return;
@@ -57,13 +68,11 @@ export default function GraciasContent() {
         setOrderRefFromUrl(stored);
       }
     }
-  }, [searchParams]);
+  }, [isMounted]);
 
-  // Leer indicadores de Stripe de la URL
-  const redirectStatus = searchParams?.get("redirect_status");
-  const paymentIntent = searchParams?.get("payment_intent");
-  const setupIntent = searchParams?.get("setup_intent");
-  const setupIntentClientSecret = searchParams?.get("setup_intent_client_secret");
+  // Leer indicadores de Stripe de la URL (solo después de mount)
+  const redirectStatus = isMounted ? (searchParams?.get("redirect_status") || null) : null;
+  const paymentIntent = isMounted ? (searchParams?.get("payment_intent") || null) : null;
 
   useEffect(() => {
     // Intentar leer de persist.ts
@@ -77,14 +86,23 @@ export default function GraciasContent() {
 
   // Detectar éxito de Stripe desde la URL y actualizar orden a paid
   useEffect(() => {
+    if (!isMounted || !orderRefFromUrl) return;
+    
     // Si redirect_status === "succeeded", marcar como paid inmediatamente y limpiar carrito
-    if (redirectStatus === "succeeded" && orderRefFromUrl) {
+    if (redirectStatus === "succeeded") {
       setStripeSuccessDetected(true);
       setOrderStatus("paid");
       setIsCheckingPayment(false);
       
-      // Limpiar carrito inmediatamente cuando el pago fue exitoso
-      clearCart();
+      // Limpiar carrito solo una vez
+      if (!cartCleared) {
+        clearCart();
+        setCartCleared(true);
+        
+        if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
+          console.debug("[GraciasContent] Carrito limpiado por redirect_status=succeeded");
+        }
+      }
       
       // Actualizar orden en backend a paid
       fetch(`/api/checkout/update-order-status`, {
@@ -94,6 +112,38 @@ export default function GraciasContent() {
           order_id: orderRefFromUrl,
           status: "paid",
         }),
+      }).then(() => {
+        // Actualizar localStorage con status paid
+        if (typeof window !== "undefined") {
+          try {
+            const stored = localStorage.getItem("DDN_LAST_ORDER_V1");
+            if (stored) {
+              try {
+                const parsed = JSON.parse(stored);
+                const updated = {
+                  ...parsed,
+                  status: "paid",
+                };
+                localStorage.setItem("DDN_LAST_ORDER_V1", JSON.stringify(updated));
+                
+                if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
+                  console.debug("[GraciasContent] localStorage actualizado con status=paid");
+                }
+              } catch {
+                // Si no es JSON, crear nuevo objeto
+                const updated = {
+                  orderRef: stored,
+                  order_id: stored,
+                  status: "paid",
+                  items: [],
+                };
+                localStorage.setItem("DDN_LAST_ORDER_V1", JSON.stringify(updated));
+              }
+            }
+          } catch {
+            // Ignorar errores de localStorage
+          }
+        }
       }).catch(() => {
         // Ignorar errores de actualización, el estado local ya está actualizado
       });
@@ -115,8 +165,15 @@ export default function GraciasContent() {
             setOrderStatus("paid");
             setIsCheckingPayment(false);
             
-            // Limpiar carrito cuando el pago fue exitoso
-            clearCart();
+            // Limpiar carrito solo una vez
+            if (!cartCleared) {
+              clearCart();
+              setCartCleared(true);
+              
+              if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
+                console.debug("[GraciasContent] Carrito limpiado por PaymentIntent succeeded");
+              }
+            }
             
             // Actualizar orden en backend a paid
             if (orderRefFromUrl) {
@@ -127,6 +184,34 @@ export default function GraciasContent() {
                   order_id: orderRefFromUrl,
                   status: "paid",
                 }),
+              }).then(() => {
+                // Actualizar localStorage con status paid
+                if (typeof window !== "undefined") {
+                  try {
+                    const stored = localStorage.getItem("DDN_LAST_ORDER_V1");
+                    if (stored) {
+                      try {
+                        const parsed = JSON.parse(stored);
+                        const updated = {
+                          ...parsed,
+                          status: "paid",
+                        };
+                        localStorage.setItem("DDN_LAST_ORDER_V1", JSON.stringify(updated));
+                      } catch {
+                        // Si no es JSON, crear nuevo objeto
+                        const updated = {
+                          orderRef: stored,
+                          order_id: stored,
+                          status: "paid",
+                          items: [],
+                        };
+                        localStorage.setItem("DDN_LAST_ORDER_V1", JSON.stringify(updated));
+                      }
+                    }
+                  } catch {
+                    // Ignorar errores de localStorage
+                  }
+                }
               }).catch(() => {
                 // Ignorar errores de actualización
               });
@@ -143,7 +228,7 @@ export default function GraciasContent() {
         // Si falla cargar Stripe, continuar con el poll normal
       });
     }
-  }, [redirectStatus, paymentIntent, orderRefFromUrl, clearCart]);
+  }, [redirectStatus, paymentIntent, orderRefFromUrl, clearCart, isMounted, cartCleared]);
 
   // Verificar estado de la orden y limpiar carrito solo si es 'paid' (fallback a Supabase)
   useEffect(() => {
@@ -185,8 +270,44 @@ export default function GraciasContent() {
           if (status === "paid") {
             setOrderStatus("paid");
             setIsCheckingPayment(false);
-            // Limpiar carrito cuando la orden está pagada
-            clearCart();
+            
+            // Limpiar carrito solo una vez
+            if (!cartCleared) {
+              clearCart();
+              setCartCleared(true);
+              
+              if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
+                console.debug("[GraciasContent] Carrito limpiado por orden paid desde API");
+              }
+            }
+            
+            // Actualizar localStorage con status paid
+            if (typeof window !== "undefined") {
+              try {
+                const stored = localStorage.getItem("DDN_LAST_ORDER_V1");
+                if (stored) {
+                  try {
+                    const parsed = JSON.parse(stored);
+                    const updated = {
+                      ...parsed,
+                      status: "paid",
+                    };
+                    localStorage.setItem("DDN_LAST_ORDER_V1", JSON.stringify(updated));
+                  } catch {
+                    // Si no es JSON, crear nuevo objeto
+                    const updated = {
+                      orderRef: stored,
+                      order_id: stored,
+                      status: "paid",
+                      items: [],
+                    };
+                    localStorage.setItem("DDN_LAST_ORDER_V1", JSON.stringify(updated));
+                  }
+                }
+              } catch {
+                // Ignorar errores de localStorage
+              }
+            }
             
             if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
               console.debug("[GraciasContent] Orden marcada como paid desde API");
@@ -246,7 +367,7 @@ export default function GraciasContent() {
         clearTimeout(timeoutId);
       }
     };
-  }, [orderRefFromUrl, clearCart, stripeSuccessDetected, redirectStatus]);
+  }, [orderRefFromUrl, clearCart, stripeSuccessDetected, redirectStatus, cartCleared]);
 
   const orderRef = lastOrder?.orderRef || orderRefFromUrl;
   const shippingMethod = lastOrder?.shippingMethod;
