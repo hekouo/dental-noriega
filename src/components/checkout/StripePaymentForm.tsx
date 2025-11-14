@@ -142,6 +142,7 @@ function InnerForm({
 export default function StripePaymentForm({
   orderId: propsOrderId,
   totalCents,
+  items: propsItems = [],
   onSuccess,
   onError,
 }: StripePaymentFormProps) {
