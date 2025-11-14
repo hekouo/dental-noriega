@@ -13,7 +13,6 @@ export default function ErrorPage({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {

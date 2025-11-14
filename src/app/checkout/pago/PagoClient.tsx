@@ -70,8 +70,6 @@ export default function PagoClient() {
       return sum + (priceCents * qty) / 100;
     }, 0);
   }, [itemsForOrder]);
-  // Mantener selectedItems para compatibilidad con código existente
-  const selectedItems = itemsForOrder;
   const setShipping = useCheckoutStore((s) => s.setShipping);
   const currentShippingMethod = useCheckoutStore((s) => s.shippingMethod);
   const couponCode = useCheckoutStore((s) => s.couponCode);
@@ -515,9 +513,28 @@ export default function PagoClient() {
         throw new Error("No se recibió order_id de la API");
       }
 
-      // Persistir orderId inmediatamente tras crear la orden (antes de cualquier render/await posterior)
+      // Persistir orderId y datos completos de la orden en localStorage
       if (typeof window !== "undefined") {
-        localStorage.setItem("DDN_LAST_ORDER_V1", newOrderId);
+        const orderData = {
+          orderRef: newOrderId,
+          order_id: newOrderId,
+          status: "pending",
+          total_cents: amountCents,
+          items: itemsForOrder.map((item) => ({
+            id: item.id,
+            qty: item.qty ?? 1,
+            title: item.title,
+            price_cents: typeof item.price_cents === "number" && item.price_cents > 0
+              ? item.price_cents
+              : typeof item.price === "number" && item.price > 0
+                ? Math.round(item.price * 100)
+                : 0,
+            image_url: item.image_url,
+          })),
+          created_at: new Date().toISOString(),
+        };
+        localStorage.setItem("DDN_LAST_ORDER_V1", JSON.stringify(orderData));
+        
         // Opcional: agregar order a la URL si no existe ya
         const currentUrl = new URL(window.location.href);
         if (!currentUrl.searchParams.has("order")) {

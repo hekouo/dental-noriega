@@ -12,9 +12,10 @@ import CheckoutStepIndicator from "@/components/CheckoutStepIndicator";
 import CheckoutDebugPanel from "@/components/CheckoutDebugPanel";
 import Link from "next/link";
 import { track } from "@/lib/analytics";
-import { validateCoupon } from "@/lib/coupons";
+import { validateCoupon } from "@/lib/discounts/coupons";
 import { useSelectedTotal } from "@/lib/store/checkoutSelectors";
 import { formatMXN as formatMXNMoney } from "@/lib/utils/money";
+import type { CheckoutItem } from "@/lib/store/checkoutStore";
 
 // eslint-disable-next-line sonarjs/cognitive-complexity -- Formulario largo pero estructurado, todos los campos son necesarios
 function DatosPageContent() {
@@ -22,12 +23,21 @@ function DatosPageContent() {
   const selectedIds = useSelectedIds();
   const datos = useCheckoutStore((s) => s.datos);
   const subtotal = useSelectedTotal();
+  const checkoutItems = useCheckoutStore((s) => s.checkoutItems);
   const couponCode = useCheckoutStore((s) => s.couponCode);
   const discount = useCheckoutStore((s) => s.discount);
+  const discountScope = useCheckoutStore((s) => s.discountScope);
   const setCoupon = useCheckoutStore((s) => s.setCoupon);
   const clearCoupon = useCheckoutStore((s) => s.clearCoupon);
   const [couponInput, setCouponInput] = React.useState("");
   const [couponError, setCouponError] = React.useState<string | null>(null);
+  
+  // Restaurar cupón aplicado si existe
+  React.useEffect(() => {
+    if (couponCode && !couponInput) {
+      setCouponInput(couponCode);
+    }
+  }, [couponCode, couponInput]);
 
   const form = useForm<DatosForm>({
     resolver: zodResolver(datosSchema),
@@ -52,6 +62,44 @@ function DatosPageContent() {
   const { register, handleSubmit, formState, setValue, watch } = form;
 
   const { errors, isValid, isSubmitting } = formState;
+
+  // Helper para aplicar cupón usando el sistema completo de validación
+  const handleApplyCoupon = React.useCallback(() => {
+    const code = couponInput.trim().toUpperCase();
+    if (!code) {
+      setCouponError("Ingresa un código de descuento");
+      return;
+    }
+
+    // Usar el sistema completo de validación de cupones
+    const validation = validateCoupon(code, {
+      subtotal,
+      shipping: 0, // En datos aún no hay shipping calculado
+      items: checkoutItems.map((item: CheckoutItem) => ({
+        section: undefined, // No tenemos section en este punto
+        price: item.price ?? 0,
+        qty: item.qty ?? 1,
+      })),
+    });
+
+    if (!validation.ok) {
+      const errorMsg = validation.reason || "Cupón no válido";
+      setCouponError(errorMsg);
+      clearCoupon();
+      return;
+    }
+
+    setCoupon(validation.appliedCode!, validation.discount, validation.scope);
+    setCouponError(null);
+    setCouponInput("");
+
+    // Analytics
+    track("apply_coupon", {
+      code: validation.appliedCode,
+      scope: validation.scope,
+      discount: validation.discount,
+    });
+  }, [couponInput, subtotal, checkoutItems, setCoupon, clearCoupon]);
 
   // Analytics: begin_checkout al entrar a la página
   useEffect(() => {
@@ -530,28 +578,12 @@ function DatosPageContent() {
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
-                  const coupon = validateCoupon(couponInput);
-                  if (coupon) {
-                    const discountAmount = (subtotal * coupon.pct) / 100;
-                    setCoupon(coupon.code, discountAmount, "subtotal");
-                    setCouponError(null);
-                  } else {
-                    setCouponError("Cupón no válido");
-                    clearCoupon();
-                  }
+                  handleApplyCoupon();
                 }
               }}
               onBlur={() => {
-                if (couponInput.trim()) {
-                  const coupon = validateCoupon(couponInput);
-                  if (coupon) {
-                    const discountAmount = (subtotal * coupon.pct) / 100;
-                    setCoupon(coupon.code, discountAmount, "subtotal");
-                    setCouponError(null);
-                  } else {
-                    setCouponError("Cupón no válido");
-                    clearCoupon();
-                  }
+                if (couponInput.trim() && !couponCode) {
+                  handleApplyCoupon();
                 }
               }}
               className="flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
@@ -579,6 +611,7 @@ function DatosPageContent() {
           {couponCode && discount && (
             <p className="text-green-600 text-sm mt-1">
               Cupón {couponCode} aplicado: -{formatMXNMoney(discount)}
+              {discountScope === "shipping" && " (en envío)"}
             </p>
           )}
         </div>
@@ -596,7 +629,15 @@ function DatosPageContent() {
             </div>
             <div className="flex justify-between font-semibold pt-2 border-t">
               <span>Total:</span>
-              <span>{formatMXNMoney(subtotal - discount)}</span>
+              <span>
+                {formatMXNMoney(
+                  discountScope === "subtotal"
+                    ? subtotal - discount
+                    : discountScope === "shipping"
+                      ? subtotal // El descuento se aplicará al shipping en pago
+                      : subtotal
+                )}
+              </span>
             </div>
           </div>
         )}
