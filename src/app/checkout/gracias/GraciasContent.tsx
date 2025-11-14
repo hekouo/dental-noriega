@@ -75,15 +75,28 @@ export default function GraciasContent() {
     }
   }, []);
 
-  // Detectar éxito de Stripe desde la URL (fallback cuando Supabase no responde)
+  // Detectar éxito de Stripe desde la URL y actualizar orden a paid
   useEffect(() => {
     // Si redirect_status === "succeeded", marcar como paid inmediatamente y limpiar carrito
-    if (redirectStatus === "succeeded") {
+    if (redirectStatus === "succeeded" && orderRefFromUrl) {
       setStripeSuccessDetected(true);
       setOrderStatus("paid");
       setIsCheckingPayment(false);
+      
       // Limpiar carrito inmediatamente cuando el pago fue exitoso
       clearCart();
+      
+      // Actualizar orden en backend a paid
+      fetch(`/api/checkout/update-order-status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          order_id: orderRefFromUrl,
+          status: "paid",
+        }),
+      }).catch(() => {
+        // Ignorar errores de actualización, el estado local ya está actualizado
+      });
       
       if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
         console.debug("[GraciasContent] Pago exitoso detectado desde redirect_status=succeeded");
@@ -101,8 +114,23 @@ export default function GraciasContent() {
             setStripeSuccessDetected(true);
             setOrderStatus("paid");
             setIsCheckingPayment(false);
+            
             // Limpiar carrito cuando el pago fue exitoso
             clearCart();
+            
+            // Actualizar orden en backend a paid
+            if (orderRefFromUrl) {
+              fetch(`/api/checkout/update-order-status`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  order_id: orderRefFromUrl,
+                  status: "paid",
+                }),
+              }).catch(() => {
+                // Ignorar errores de actualización
+              });
+            }
             
             if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
               console.debug("[GraciasContent] Pago exitoso detectado desde PaymentIntent:", pi.status);
@@ -115,7 +143,7 @@ export default function GraciasContent() {
         // Si falla cargar Stripe, continuar con el poll normal
       });
     }
-  }, [redirectStatus, paymentIntent, clearCart]);
+  }, [redirectStatus, paymentIntent, orderRefFromUrl, clearCart]);
 
   // Verificar estado de la orden y limpiar carrito solo si es 'paid' (fallback a Supabase)
   useEffect(() => {
