@@ -39,14 +39,27 @@ export default function DebugLastOrder() {
       try {
         const parsed = JSON.parse(rawStored);
         if (parsed.order_id || parsed.orderRef) {
-          setLastOrder({
+          const orderData = {
             orderRef: parsed.order_id || parsed.orderRef,
             items: parsed.items || [],
-          });
+          };
+          setLastOrder(orderData);
+          
+          // Si hay items, configurar section y apiUrl
+          if (parsed.items && parsed.items.length > 0) {
+            const detectedSection = parsed.items[0]?.section || "consumibles-y-profilaxis";
+            const excludeSlug = parsed.items[0]?.slug || "";
+            setSection(detectedSection);
+            setApiUrl(
+              `/api/products/by-section?section=${encodeURIComponent(
+                detectedSection,
+              )}&excludeSlug=${encodeURIComponent(excludeSlug)}&limit=4`,
+            );
+          }
         }
       } catch {
-        // Si no es JSON válido, intentar como string simple
-        if (rawStored && rawStored.length > 0) {
+        // Si no es JSON válido, intentar como string simple (formato legacy)
+        if (rawStored && rawStored.length > 0 && !rawStored.startsWith("{")) {
           setLastOrder({
             orderRef: rawStored,
             items: [],

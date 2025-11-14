@@ -944,6 +944,13 @@ export default function PagoClient() {
           <StripePaymentForm
             orderId={orderId}
             totalCents={totalCents}
+            items={itemsForOrder.map((item) => ({
+              id: item.id,
+              qty: item.qty ?? 1,
+              section: (item as ExtendedCheckoutItem).section || (item as ExtendedCheckoutItem).product?.section,
+              slug: (item as ExtendedCheckoutItem).slug || (item as ExtendedCheckoutItem).product_slug || (item as ExtendedCheckoutItem).product?.slug,
+              title: item.title,
+            }))}
             onSuccess={(orderId) => {
               // NO limpiar carrito aquí - se limpiará en /checkout/gracias cuando la orden sea 'paid'
               resetCheckout();

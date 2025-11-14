@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
   Elements,
   PaymentElement,
@@ -13,11 +13,18 @@ import { stripePromise } from "@/lib/stripe/stripeClient";
 type StripePaymentFormProps = {
   orderId?: string;
   totalCents: number;
+  items?: Array<{ id: string; qty: number; section?: string; slug?: string; title?: string }>;
   onSuccess?: (orderId: string) => void;
   onError?: (error: string) => void;
 };
 
-function InnerForm({ effectiveOrderId }: { effectiveOrderId: string }) {
+function InnerForm({ 
+  effectiveOrderId, 
+  items 
+}: { 
+  effectiveOrderId: string;
+  items?: Array<{ id: string; qty: number; section?: string; slug?: string; title?: string }>;
+}) {
   const stripe = useStripe();
   const elements = useElements();
   const router = useRouter();
@@ -68,12 +75,28 @@ function InnerForm({ effectiveOrderId }: { effectiveOrderId: string }) {
         // Guardar objeto completo en localStorage para /checkout/gracias
         if (typeof window !== "undefined") {
           const orderData = {
+            orderRef: effectiveOrderId,
             order_id: effectiveOrderId,
             status: status,
             total_cents: pi.amount || undefined,
+            items: items || [],
             created_at: new Date().toISOString(),
           };
           localStorage.setItem("DDN_LAST_ORDER_V1", JSON.stringify(orderData));
+          
+          // Actualizar orden en backend a paid si el pago fue exitoso
+          if (status === "paid") {
+            fetch(`/api/checkout/update-order-status`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                order_id: effectiveOrderId,
+                status: "paid",
+              }),
+            }).catch(() => {
+              // Ignorar errores, el redirect seguirá funcionando
+            });
+          }
         }
         
         router.push(`/checkout/gracias?order=${encodeURIComponent(effectiveOrderId)}&redirect_status=${status}`);
@@ -331,7 +354,7 @@ export default function StripePaymentForm({
   // Elements se monta UNA sola vez y solo cuando hay clientSecret
   return (
     <Elements stripe={stripePromise} options={options}>
-      <InnerForm effectiveOrderId={effectiveOrderId} />
+      <InnerForm effectiveOrderId={effectiveOrderId} items={propsItems || []} />
     </Elements>
   );
 }
