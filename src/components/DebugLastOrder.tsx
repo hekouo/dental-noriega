@@ -17,18 +17,42 @@ export default function DebugLastOrder() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const stored = getWithTTL<LastOrder>(KEYS.LAST_ORDER);
-    if (stored) {
-      setLastOrder(stored);
+    // Intentar leer de persist.ts primero
+    const storedFromPersist = getWithTTL<LastOrder>(KEYS.LAST_ORDER);
+    if (storedFromPersist) {
+      setLastOrder(storedFromPersist);
       const detectedSection =
-        stored.items?.[0]?.section || "consumibles-y-profilaxis";
-      const excludeSlug = stored.items?.[0]?.slug || "";
+        storedFromPersist.items?.[0]?.section || "consumibles-y-profilaxis";
+      const excludeSlug = storedFromPersist.items?.[0]?.slug || "";
       setSection(detectedSection);
       setApiUrl(
         `/api/products/by-section?section=${encodeURIComponent(
           detectedSection,
         )}&excludeSlug=${encodeURIComponent(excludeSlug)}&limit=4`,
       );
+      return;
+    }
+
+    // Fallback: leer directamente de localStorage (formato nuevo con JSON)
+    const rawStored = localStorage.getItem(KEYS.LAST_ORDER);
+    if (rawStored) {
+      try {
+        const parsed = JSON.parse(rawStored);
+        if (parsed.order_id || parsed.orderRef) {
+          setLastOrder({
+            orderRef: parsed.order_id || parsed.orderRef,
+            items: parsed.items || [],
+          });
+        }
+      } catch {
+        // Si no es JSON válido, intentar como string simple
+        if (rawStored && rawStored.length > 0) {
+          setLastOrder({
+            orderRef: rawStored,
+            items: [],
+          });
+        }
+      }
     }
   }, []);
 

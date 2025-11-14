@@ -181,7 +181,7 @@ export default function RecommendedClient() {
   return (
     <section className="mt-12">
       <h2 className="text-xl font-semibold mb-4">También te puede interesar</h2>
-      <FeaturedGrid items={products} />
+      <FeaturedGrid items={products} hideSoldOutLabel={true} />
     </section>
   );
 }
