@@ -354,7 +354,7 @@ export default function StripePaymentForm({
   // Elements se monta UNA sola vez y solo cuando hay clientSecret
   return (
     <Elements stripe={stripePromise} options={options}>
-      <InnerForm effectiveOrderId={effectiveOrderId} items={propsItems || []} />
+      <InnerForm effectiveOrderId={effectiveOrderId} items={propsItems} />
     </Elements>
   );
 }
