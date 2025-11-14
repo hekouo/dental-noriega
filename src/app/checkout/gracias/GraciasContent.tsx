@@ -10,6 +10,7 @@ import type { ShippingMethod } from "@/lib/store/checkoutStore";
 import RecommendedClient from "./Recommended.client";
 import DebugLastOrder from "@/components/DebugLastOrder";
 import { useCartStore } from "@/lib/store/cartStore";
+import { useCheckoutStore } from "@/lib/store/checkoutStore";
 import { loadStripe } from "@stripe/stripe-js";
 
 type LastOrder = {
@@ -166,6 +167,21 @@ export default function GraciasContent() {
         }
       }
       
+      // Leer datos del checkout para guardar orden completa
+      const checkoutDatos = useCheckoutStore.getState().datos;
+      const orderDataFromStorage = (() => {
+        try {
+          const stored = localStorage.getItem("DDN_LAST_ORDER_V1");
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            return parsed;
+          }
+        } catch {
+          return null;
+        }
+        return null;
+      })();
+      
       // Actualizar orden en backend a paid (async, no bloquea UI)
       fetch(`/api/checkout/update-order-status`, {
         method: "POST",
@@ -177,6 +193,63 @@ export default function GraciasContent() {
       }).then(() => {
         if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
           console.debug("[GraciasContent] Backend actualizado a paid");
+        }
+        
+        // Guardar orden completa en Supabase si tenemos los datos necesarios
+        if (checkoutDatos?.email && orderDataFromStorage?.items && Array.isArray(orderDataFromStorage.items)) {
+          const itemsForSave = orderDataFromStorage.items.map((item: { id?: string; title?: string; qty?: number; price_cents?: number; image_url?: string }) => ({
+            productId: item.id || undefined,
+            title: item.title || `Producto ${item.id || "unknown"}`,
+            qty: item.qty || 1,
+            unitPriceCents: item.price_cents || 0,
+            image_url: item.image_url || undefined,
+          }));
+          
+          const totalCents = orderDataFromStorage.total_cents || 0;
+          const checkoutStore = useCheckoutStore.getState();
+          const shippingCost = checkoutStore.shippingCost || 0;
+          const shippingMethod = checkoutStore.shippingMethod || "pickup";
+          
+          if (itemsForSave.length > 0 && totalCents > 0) {
+            // Obtener payment_intent de la URL si existe
+            const urlParams = new URLSearchParams(window.location.search);
+            const paymentIntentId = urlParams.get("payment_intent");
+            
+            fetch(`/api/checkout/save-order`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                order_id: orderRefFromUrl,
+                email: checkoutDatos.email,
+                items: itemsForSave,
+                total_cents: totalCents,
+                status: "paid",
+                payment_provider: "stripe",
+                payment_id: paymentIntentId || undefined,
+                metadata: {
+                  name: checkoutDatos.name,
+                  phone: checkoutDatos.phone,
+                  address: checkoutDatos.address,
+                  city: checkoutDatos.city,
+                  state: checkoutDatos.state,
+                  cp: checkoutDatos.cp,
+                  couponCode: checkoutStore.couponCode,
+                  discount: checkoutStore.discount || 0,
+                  shippingCost: shippingCost,
+                  shippingMethod: shippingMethod,
+                },
+              }),
+            }).then(() => {
+              if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
+                console.debug("[GraciasContent] Orden completa guardada en Supabase");
+              }
+            }).catch((err) => {
+              // No bloquear UI si falla el guardado completo
+              if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
+                console.warn("[GraciasContent] Error al guardar orden completa:", err);
+              }
+            });
+          }
         }
       }).catch(() => {
         // Ignorar errores de actualización, el estado local ya está actualizado
@@ -211,6 +284,20 @@ export default function GraciasContent() {
             
             // Actualizar orden en backend a paid
             if (orderRefFromUrl) {
+              const checkoutDatos = useCheckoutStore.getState().datos;
+              const orderDataFromStorage = (() => {
+                try {
+                  const stored = localStorage.getItem("DDN_LAST_ORDER_V1");
+                  if (stored) {
+                    const parsed = JSON.parse(stored);
+                    return parsed;
+                  }
+                } catch {
+                  return null;
+                }
+                return null;
+              })();
+              
               fetch(`/api/checkout/update-order-status`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -244,6 +331,54 @@ export default function GraciasContent() {
                     }
                   } catch {
                     // Ignorar errores de localStorage
+                  }
+                }
+                
+                // Guardar orden completa en Supabase si tenemos los datos necesarios
+                if (checkoutDatos?.email && orderDataFromStorage?.items && Array.isArray(orderDataFromStorage.items)) {
+                  const itemsForSave = orderDataFromStorage.items.map((item: { id?: string; title?: string; qty?: number; price_cents?: number; image_url?: string }) => ({
+                    productId: item.id || undefined,
+                    title: item.title || `Producto ${item.id || "unknown"}`,
+                    qty: item.qty || 1,
+                    unitPriceCents: item.price_cents || 0,
+                    image_url: item.image_url || undefined,
+                  }));
+                  
+                  const totalCents = orderDataFromStorage.total_cents || pi.amount || 0;
+                  const checkoutStore = useCheckoutStore.getState();
+                  const shippingCost = checkoutStore.shippingCost || 0;
+                  const shippingMethod = checkoutStore.shippingMethod || "pickup";
+                  
+                  if (itemsForSave.length > 0 && totalCents > 0) {
+                    fetch(`/api/checkout/save-order`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        order_id: orderRefFromUrl,
+                        email: checkoutDatos.email,
+                        items: itemsForSave,
+                        total_cents: totalCents,
+                        status: "paid",
+                        payment_provider: "stripe",
+                        payment_id: pi.id,
+                        metadata: {
+                          name: checkoutDatos.name,
+                          phone: checkoutDatos.phone,
+                          address: checkoutDatos.address,
+                          city: checkoutDatos.city,
+                          state: checkoutDatos.state,
+                          cp: checkoutDatos.cp,
+                          couponCode: checkoutStore.couponCode,
+                          discount: checkoutStore.discount || 0,
+                          shippingCost: shippingCost,
+                          shippingMethod: shippingMethod,
+                        },
+                      }),
+                    }).catch((err) => {
+                      if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
+                        console.warn("[GraciasContent] Error al guardar orden completa desde PaymentIntent:", err);
+                      }
+                    });
                   }
                 }
               }).catch(() => {

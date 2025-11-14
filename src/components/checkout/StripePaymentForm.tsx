@@ -96,6 +96,7 @@ function InnerForm({
           
           // Actualizar orden en backend a paid si el pago fue exitoso
           if (status === "paid") {
+            // Actualizar estado de la orden
             fetch(`/api/checkout/update-order-status`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -106,6 +107,9 @@ function InnerForm({
             }).catch(() => {
               // Ignorar errores, el redirect seguirá funcionando
             });
+            
+            // Guardar orden completa en Supabase (si tenemos datos del checkout)
+            // Esto se hará también desde GraciasContent para asegurar que tenemos todos los datos
           }
         }
         
