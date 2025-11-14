@@ -25,13 +25,22 @@ function InnerForm({
   effectiveOrderId: string;
   items?: Array<{ id: string; qty: number; section?: string; slug?: string; title?: string }>;
 }) {
+  // TODOS LOS HOOKS AL INICIO - NUNCA CONDICIONALES
   const stripe = useStripe();
   const elements = useElements();
   const router = useRouter();
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [runtimeOrigin, setRuntimeOrigin] = useState<string>("");
 
-  const runtimeOrigin = typeof window !== "undefined" ? window.location.origin : (process.env.NEXT_PUBLIC_SITE_URL ?? "https://dental-noriega.vercel.app");
+  // Obtener origin solo en cliente, después de mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setRuntimeOrigin(window.location.origin);
+    } else {
+      setRuntimeOrigin(process.env.NEXT_PUBLIC_SITE_URL ?? "https://dental-noriega.vercel.app");
+    }
+  }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -48,8 +57,9 @@ function InnerForm({
       // Submit del formulario primero
       await elements.submit();
 
-      // return_url debe incluir el orderId
-      const returnUrl = `${runtimeOrigin}/checkout/gracias?order=${encodeURIComponent(effectiveOrderId)}`;
+      // return_url debe incluir el orderId (solo si runtimeOrigin está disponible)
+      const origin = runtimeOrigin || (typeof window !== "undefined" ? window.location.origin : process.env.NEXT_PUBLIC_SITE_URL ?? "https://dental-noriega.vercel.app");
+      const returnUrl = `${origin}/checkout/gracias?order=${encodeURIComponent(effectiveOrderId)}`;
       
       // Confirmar pago con return_url que incluye orderId
       const result = await stripe.confirmPayment({
@@ -143,7 +153,6 @@ export default function StripePaymentForm({
   orderId: propsOrderId,
   totalCents,
   items: propsItems = [],
-  onSuccess,
   onError,
 }: StripePaymentFormProps) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);

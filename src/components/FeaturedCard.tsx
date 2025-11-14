@@ -28,7 +28,6 @@ export default function FeaturedCard({
       : `/catalogo`;
   const priceCents = item.price_cents ?? 0;
   const price = priceCents > 0 ? mxnFromCents(priceCents) : null;
-  const soldOut = !item.in_stock || !item.is_active;
 
   return (
     <div className="border rounded-xl overflow-hidden flex flex-col">
@@ -63,9 +62,7 @@ export default function FeaturedCard({
             {price !== null ? formatMXN(price) : "—"}
           </div>
           {controls}
-          {!controls && soldOut ? (
-            <p className="text-sm text-muted-foreground">Agotado</p>
-          ) : null}
+          {/* NO mostrar "Agotado" si controls es null (hideSoldOutLabel=true) */}
         </div>
       </div>
     </div>
