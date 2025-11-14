@@ -71,8 +71,29 @@ export default function GraciasContent() {
   }, [isMounted]);
 
   // Leer indicadores de Stripe de la URL (solo después de mount)
-  const redirectStatus = isMounted ? (searchParams?.get("redirect_status") || null) : null;
-  const paymentIntent = isMounted ? (searchParams?.get("payment_intent") || null) : null;
+  // Leer directamente de window.location.search como fallback para evitar problemas de hidratación
+  const [redirectStatus, setRedirectStatus] = useState<string | null>(null);
+  const [paymentIntent, setPaymentIntent] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isMounted || typeof window === "undefined") return;
+    
+    // Leer directamente de URL para evitar problemas con searchParams durante SSR
+    const urlParams = new URLSearchParams(window.location.search);
+    const redirect = urlParams.get("redirect_status");
+    const pi = urlParams.get("payment_intent");
+    
+    setRedirectStatus(redirect);
+    setPaymentIntent(pi);
+    
+    // También leer de searchParams como fallback
+    if (searchParams) {
+      const spRedirect = searchParams.get("redirect_status");
+      const spPi = searchParams.get("payment_intent");
+      if (spRedirect && !redirect) setRedirectStatus(spRedirect);
+      if (spPi && !pi) setPaymentIntent(spPi);
+    }
+  }, [isMounted, searchParams]);
 
   useEffect(() => {
     // Intentar leer de persist.ts

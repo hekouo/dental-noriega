@@ -1,23 +1,43 @@
 "use client";
 
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCheckoutStore, selectIsCheckoutDataComplete } from "@/lib/store/checkoutStore";
 import { useCartStore, selectHydrated, selectCount } from "@/lib/store/cartStore";
+import { useState, useEffect } from "react";
 
 export default function GuardsClient({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // TODOS LOS HOOKS AL INICIO - NUNCA CONDICIONALES
   const router = useRouter();
   const searchParams = useSearchParams();
-  const pathname = usePathname();
+  const [isMounted, setIsMounted] = useState(false);
+  const [hasLastOrder, setHasLastOrder] = useState(false);
+  
+  // Marcar como montado solo en cliente
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Leer localStorage solo después de mount (evitar SSR mismatch)
+  useEffect(() => {
+    if (!isMounted || typeof window === "undefined") return;
+    
+    try {
+      const stored = localStorage.getItem("DDN_LAST_ORDER_V1");
+      setHasLastOrder(!!stored);
+    } catch {
+      setHasLastOrder(false);
+    }
+  }, [isMounted]);
   
   // a) Verificar hidratación primero - NO redirigir antes de hidratar
   const hydrated = useCartStore(selectHydrated);
-  if (!hydrated) {
+  if (!hydrated || !isMounted) {
     if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
-      console.debug("[GuardsClient] Esperando hidratación...");
+      console.debug("[GuardsClient] Esperando hidratación o mount...");
     }
     return null; // esperar hidratación, no redirigir
   }
@@ -30,9 +50,6 @@ export default function GuardsClient({
     sp?.has("client_secret") ||
     sp?.get("redirect_status")
   );
-  
-  // Nuevo: verificar localStorage.DDN_LAST_ORDER_V1 para bypass
-  const hasLastOrder = typeof window !== "undefined" && !!localStorage.getItem("DDN_LAST_ORDER_V1");
   
   if (hasStripeFlow || hasLastOrder) {
     if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
