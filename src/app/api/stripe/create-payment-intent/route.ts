@@ -28,6 +28,12 @@ const stripe = process.env.STRIPE_SECRET_KEY
 
 export async function POST(req: NextRequest) {
   noStore();
+  
+  // Variables para contexto en catch
+  let order_id: string | undefined;
+  let amount: number | null | undefined;
+  let total_cents: number | undefined;
+  
   try {
     if (!process.env.STRIPE_SECRET_KEY) {
       return NextResponse.json(
@@ -64,7 +70,7 @@ export async function POST(req: NextRequest) {
     }
 
     const data = validationResult.data;
-    const { order_id, total_cents } = data;
+    ({ order_id, total_cents } = data);
 
     // Usar total_cents del body como fuente principal
     let amount: number | null = total_cents && total_cents > 0 ? total_cents : null;
@@ -265,9 +271,9 @@ export async function POST(req: NextRequest) {
     
     // Capturar contexto disponible del scope
     const context = {
-      order_id: typeof order_id !== "undefined" ? order_id : "unknown",
-      amount: typeof amount !== "undefined" ? amount : "unknown",
-      total_cents_from_body: typeof total_cents !== "undefined" ? total_cents : "unknown",
+      order_id: order_id ?? "unknown",
+      amount: amount ?? "unknown",
+      total_cents_from_body: total_cents ?? "unknown",
     };
     
     if (error && typeof error === "object" && "type" in error) {
