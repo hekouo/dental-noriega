@@ -61,9 +61,21 @@ function InnerForm({ effectiveOrderId }: { effectiveOrderId: string }) {
 
       const pi = result.paymentIntent;
       
-      // Fallback a push manual si no hubo redirect
+      // Guardar información completa de la orden en localStorage después de pago exitoso
       if (pi?.status === "succeeded" || pi?.status === "processing" || pi?.status === "requires_capture") {
-        const status = pi.status === "succeeded" ? "succeeded" : pi.status === "processing" ? "processing" : "requires_capture";
+        const status = pi.status === "succeeded" ? "paid" : pi.status === "processing" ? "processing" : "requires_capture";
+        
+        // Guardar objeto completo en localStorage para /checkout/gracias
+        if (typeof window !== "undefined") {
+          const orderData = {
+            order_id: effectiveOrderId,
+            status: status,
+            total_cents: pi.amount || undefined,
+            created_at: new Date().toISOString(),
+          };
+          localStorage.setItem("DDN_LAST_ORDER_V1", JSON.stringify(orderData));
+        }
+        
         router.push(`/checkout/gracias?order=${encodeURIComponent(effectiveOrderId)}&redirect_status=${status}`);
         return;
       }
@@ -114,18 +126,30 @@ export default function StripePaymentForm({
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [effectiveOrderId, setEffectiveOrderId] = useState<string | undefined>(undefined);
   const maxRetries = 3;
 
-  // Resolver orderId: props > query > localStorage
-  const effectiveOrderId =
-    propsOrderId ||
-    sp?.get("order") ||
-    (typeof window !== "undefined" ? localStorage.getItem("DDN_LAST_ORDER_V1") || undefined : undefined);
+  // Resolver orderId: props > query > localStorage (en useEffect para evitar SSR issues)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    
+    const resolvedId =
+      propsOrderId ||
+      sp?.get("order") ||
+      localStorage.getItem("DDN_LAST_ORDER_V1") ||
+      undefined;
+    
+    setEffectiveOrderId(resolvedId);
+  }, [propsOrderId, sp]);
 
-  // Persistir orderId en localStorage cuando esté disponible
+  // Persistir orderId en localStorage cuando esté disponible (solo si es string simple)
   useEffect(() => {
     if (!effectiveOrderId) return;
-    if (typeof window !== "undefined") {
+    if (typeof window === "undefined") return;
+    
+    // Solo guardar como string si no es ya un objeto JSON
+    const existing = localStorage.getItem("DDN_LAST_ORDER_V1");
+    if (!existing || !existing.startsWith("{")) {
       localStorage.setItem("DDN_LAST_ORDER_V1", effectiveOrderId);
     }
   }, [effectiveOrderId]);

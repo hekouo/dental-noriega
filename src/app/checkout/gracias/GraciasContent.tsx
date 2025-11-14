@@ -40,7 +40,16 @@ export default function GraciasContent() {
   
   if (!orderRefFromUrl && typeof window !== "undefined") {
     const stored = localStorage.getItem("DDN_LAST_ORDER_V1");
-    orderRefFromUrl = stored || "";
+    if (stored) {
+      try {
+        // Intentar parsear como JSON (nuevo formato)
+        const parsed = JSON.parse(stored);
+        orderRefFromUrl = parsed.order_id || parsed.orderRef || stored;
+      } catch {
+        // Si no es JSON, usar como string (formato legacy)
+        orderRefFromUrl = stored;
+      }
+    }
   }
 
   // Leer indicadores de Stripe de la URL

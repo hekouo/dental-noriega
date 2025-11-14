@@ -3,7 +3,13 @@ import FeaturedCardControlsLazy from "@/components/FeaturedCardControls.lazy.cli
 import { hasPurchasablePrice } from "@/lib/catalog/model";
 import type { FeaturedItem } from "@/lib/catalog/getFeatured.server";
 
-export default function FeaturedGrid({ items }: { items: FeaturedItem[] }) {
+export default function FeaturedGrid({ 
+  items, 
+  hideSoldOutLabel = false 
+}: { 
+  items: FeaturedItem[]; 
+  hideSoldOutLabel?: boolean;
+}) {
   if (!items?.length) return null;
 
   return (
@@ -12,7 +18,7 @@ export default function FeaturedGrid({ items }: { items: FeaturedItem[] }) {
         const soldOut = !item.in_stock || !item.is_active;
         const controls = !soldOut && hasPurchasablePrice(item) ? (
           <FeaturedCardControlsLazy item={item} compact />
-        ) : soldOut ? (
+        ) : soldOut && !hideSoldOutLabel ? (
           <p className="text-sm text-muted-foreground">Agotado</p>
         ) : null;
 
