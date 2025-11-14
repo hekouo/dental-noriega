@@ -109,7 +109,9 @@ function InnerForm({
           }
         }
         
-        router.push(`/checkout/gracias?order=${encodeURIComponent(effectiveOrderId)}&redirect_status=${status}`);
+        // Usar "succeeded" como redirect_status para que GraciasContent lo detecte correctamente
+        const redirectStatusParam = status === "paid" ? "succeeded" : status;
+        router.push(`/checkout/gracias?order=${encodeURIComponent(effectiveOrderId)}&redirect_status=${redirectStatusParam}`);
         return;
       }
 
@@ -330,12 +332,25 @@ export default function StripePaymentForm({
     );
   }
 
+  // No renderizar nada hasta que esté montado para evitar SSR mismatch
+  if (!isMounted) {
+    return (
+      <div className="bg-gray-50 text-gray-600 p-4 rounded-lg">
+        <p>Cargando formulario de pago...</p>
+      </div>
+    );
+  }
+
   if (!effectiveOrderId) {
     return (
       <div className="bg-yellow-50 text-yellow-800 p-4 rounded-lg space-y-2">
         <p>No se encontró el ID de la orden. Por favor, intenta nuevamente.</p>
         <button
-          onClick={() => window.location.reload()}
+          onClick={() => {
+            if (typeof window !== "undefined") {
+              window.location.reload();
+            }
+          }}
           className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
         >
           Reintentar
