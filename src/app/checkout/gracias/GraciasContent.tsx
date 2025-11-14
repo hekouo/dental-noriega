@@ -71,27 +71,35 @@ export default function GraciasContent() {
   }, [isMounted]);
 
   // Leer indicadores de Stripe de la URL (solo después de mount)
-  // Leer directamente de window.location.search como fallback para evitar problemas de hidratación
+  // Leer directamente de window.location.search como fuente principal para evitar problemas de hidratación
   const [redirectStatus, setRedirectStatus] = useState<string | null>(null);
   const [paymentIntent, setPaymentIntent] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isMounted || typeof window === "undefined") return;
     
-    // Leer directamente de URL para evitar problemas con searchParams durante SSR
+    // Leer directamente de URL como fuente principal
     const urlParams = new URLSearchParams(window.location.search);
     const redirect = urlParams.get("redirect_status");
     const pi = urlParams.get("payment_intent");
     
-    setRedirectStatus(redirect);
-    setPaymentIntent(pi);
-    
-    // También leer de searchParams como fallback
-    if (searchParams) {
+    // Priorizar valores de URL, luego searchParams como fallback
+    if (redirect) {
+      setRedirectStatus(redirect);
+    } else if (searchParams) {
       const spRedirect = searchParams.get("redirect_status");
+      if (spRedirect) setRedirectStatus(spRedirect);
+    }
+    
+    if (pi) {
+      setPaymentIntent(pi);
+    } else if (searchParams) {
       const spPi = searchParams.get("payment_intent");
-      if (spRedirect && !redirect) setRedirectStatus(spRedirect);
-      if (spPi && !pi) setPaymentIntent(spPi);
+      if (spPi) setPaymentIntent(spPi);
+    }
+    
+    if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
+      console.debug("[GraciasContent] redirect_status detectado:", redirect || searchParams?.get("redirect_status"));
     }
   }, [isMounted, searchParams]);
 
@@ -111,6 +119,7 @@ export default function GraciasContent() {
     
     // Si redirect_status === "succeeded", marcar como paid inmediatamente y limpiar carrito
     if (redirectStatus === "succeeded") {
+      // Actualizar estado inmediatamente (antes de cualquier async)
       setStripeSuccessDetected(true);
       setOrderStatus("paid");
       setIsCheckingPayment(false);
@@ -125,7 +134,39 @@ export default function GraciasContent() {
         }
       }
       
-      // Actualizar orden en backend a paid
+      // Actualizar localStorage inmediatamente con status paid (antes de llamar API)
+      if (typeof window !== "undefined") {
+        try {
+          const stored = localStorage.getItem("DDN_LAST_ORDER_V1");
+          if (stored) {
+            try {
+              const parsed = JSON.parse(stored);
+              const updated = {
+                ...parsed,
+                status: "paid",
+              };
+              localStorage.setItem("DDN_LAST_ORDER_V1", JSON.stringify(updated));
+              
+              if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
+                console.debug("[GraciasContent] localStorage actualizado inmediatamente con status=paid");
+              }
+            } catch {
+              // Si no es JSON, crear nuevo objeto
+              const updated = {
+                orderRef: stored,
+                order_id: stored,
+                status: "paid",
+                items: [],
+              };
+              localStorage.setItem("DDN_LAST_ORDER_V1", JSON.stringify(updated));
+            }
+          }
+        } catch {
+          // Ignorar errores de localStorage
+        }
+      }
+      
+      // Actualizar orden en backend a paid (async, no bloquea UI)
       fetch(`/api/checkout/update-order-status`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -134,36 +175,8 @@ export default function GraciasContent() {
           status: "paid",
         }),
       }).then(() => {
-        // Actualizar localStorage con status paid
-        if (typeof window !== "undefined") {
-          try {
-            const stored = localStorage.getItem("DDN_LAST_ORDER_V1");
-            if (stored) {
-              try {
-                const parsed = JSON.parse(stored);
-                const updated = {
-                  ...parsed,
-                  status: "paid",
-                };
-                localStorage.setItem("DDN_LAST_ORDER_V1", JSON.stringify(updated));
-                
-                if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
-                  console.debug("[GraciasContent] localStorage actualizado con status=paid");
-                }
-              } catch {
-                // Si no es JSON, crear nuevo objeto
-                const updated = {
-                  orderRef: stored,
-                  order_id: stored,
-                  status: "paid",
-                  items: [],
-                };
-                localStorage.setItem("DDN_LAST_ORDER_V1", JSON.stringify(updated));
-              }
-            }
-          } catch {
-            // Ignorar errores de localStorage
-          }
+        if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
+          console.debug("[GraciasContent] Backend actualizado a paid");
         }
       }).catch(() => {
         // Ignorar errores de actualización, el estado local ya está actualizado
