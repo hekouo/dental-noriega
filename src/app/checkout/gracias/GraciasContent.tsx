@@ -32,25 +32,32 @@ export default function GraciasContent() {
   const [orderStatus, setOrderStatus] = useState<string | null>(null);
   const [isCheckingPayment, setIsCheckingPayment] = useState(true);
   const [stripeSuccessDetected, setStripeSuccessDetected] = useState(false);
+  const [orderRefFromUrl, setOrderRefFromUrl] = useState<string>("");
   const clearCart = useCartStore((s) => s.clearCart);
 
-  // Leer orderRef de URL. Si falta, intentar localStorage
-  let orderRefFromUrl =
-    searchParams?.get("orden") || searchParams?.get("order") || "";
-  
-  if (!orderRefFromUrl && typeof window !== "undefined") {
+  // Leer orderRef de URL. Si falta, intentar localStorage (solo en cliente)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    
+    const fromUrl = searchParams?.get("orden") || searchParams?.get("order") || "";
+    if (fromUrl) {
+      setOrderRefFromUrl(fromUrl);
+      return;
+    }
+    
+    // Intentar leer de localStorage
     const stored = localStorage.getItem("DDN_LAST_ORDER_V1");
     if (stored) {
       try {
         // Intentar parsear como JSON (nuevo formato)
         const parsed = JSON.parse(stored);
-        orderRefFromUrl = parsed.order_id || parsed.orderRef || stored;
+        setOrderRefFromUrl(parsed.order_id || parsed.orderRef || stored);
       } catch {
         // Si no es JSON, usar como string (formato legacy)
-        orderRefFromUrl = stored;
+        setOrderRefFromUrl(stored);
       }
     }
-  }
+  }, [searchParams]);
 
   // Leer indicadores de Stripe de la URL
   const redirectStatus = searchParams?.get("redirect_status");
