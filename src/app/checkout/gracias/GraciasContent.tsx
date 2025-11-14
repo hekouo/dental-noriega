@@ -70,12 +70,17 @@ export default function GraciasContent() {
 
   // Detectar éxito de Stripe desde la URL (fallback cuando Supabase no responde)
   useEffect(() => {
-    // Si redirect_status === "succeeded", limpiar carrito inmediatamente
+    // Si redirect_status === "succeeded", marcar como paid inmediatamente y limpiar carrito
     if (redirectStatus === "succeeded") {
       setStripeSuccessDetected(true);
       setOrderStatus("paid");
-      clearCart();
       setIsCheckingPayment(false);
+      // Limpiar carrito inmediatamente cuando el pago fue exitoso
+      clearCart();
+      
+      if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
+        console.debug("[GraciasContent] Pago exitoso detectado desde redirect_status=succeeded");
+      }
       return;
     }
 
@@ -88,8 +93,13 @@ export default function GraciasContent() {
           if (pi?.status === "succeeded" || pi?.status === "processing" || pi?.status === "requires_capture") {
             setStripeSuccessDetected(true);
             setOrderStatus("paid");
-            clearCart();
             setIsCheckingPayment(false);
+            // Limpiar carrito cuando el pago fue exitoso
+            clearCart();
+            
+            if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
+              console.debug("[GraciasContent] Pago exitoso detectado desde PaymentIntent:", pi.status);
+            }
           }
         }).catch(() => {
           // Si falla la verificación, continuar con el poll normal
@@ -102,8 +112,13 @@ export default function GraciasContent() {
 
   // Verificar estado de la orden y limpiar carrito solo si es 'paid' (fallback a Supabase)
   useEffect(() => {
-    // Si ya detectamos éxito de Stripe, no hacer poll
+    // Si ya detectamos éxito de Stripe desde URL, no hacer poll
     if (stripeSuccessDetected) {
+      return;
+    }
+
+    // Si redirect_status === "succeeded", no hacer poll (ya se manejó arriba)
+    if (redirectStatus === "succeeded") {
       return;
     }
 
@@ -133,8 +148,14 @@ export default function GraciasContent() {
 
           // Limpiar carrito solo si la orden está 'paid'
           if (status === "paid") {
-            clearCart();
+            setOrderStatus("paid");
             setIsCheckingPayment(false);
+            // Limpiar carrito cuando la orden está pagada
+            clearCart();
+            
+            if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
+              console.debug("[GraciasContent] Orden marcada como paid desde API");
+            }
             return;
           }
 
@@ -190,7 +211,7 @@ export default function GraciasContent() {
         clearTimeout(timeoutId);
       }
     };
-  }, [orderRefFromUrl, clearCart, stripeSuccessDetected]);
+  }, [orderRefFromUrl, clearCart, stripeSuccessDetected, redirectStatus]);
 
   const orderRef = lastOrder?.orderRef || orderRefFromUrl;
   const shippingMethod = lastOrder?.shippingMethod;

@@ -122,25 +122,49 @@ export default function StripePaymentForm({
   onSuccess,
   onError,
 }: StripePaymentFormProps) {
-  const sp = useSearchParams();
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [effectiveOrderId, setEffectiveOrderId] = useState<string | undefined>(undefined);
+  const [isMounted, setIsMounted] = useState(false);
   const maxRetries = 3;
+
+  // Marcar como montado solo en cliente
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Resolver orderId: props > query > localStorage (en useEffect para evitar SSR issues)
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (!isMounted || typeof window === "undefined") return;
     
-    const resolvedId =
-      propsOrderId ||
-      sp?.get("order") ||
-      localStorage.getItem("DDN_LAST_ORDER_V1") ||
-      undefined;
+    // Leer de URL directamente sin useSearchParams para evitar SSR issues
+    const urlParams = new URLSearchParams(window.location.search);
+    const orderFromUrl = urlParams.get("order");
     
-    setEffectiveOrderId(resolvedId);
-  }, [propsOrderId, sp]);
+    // Leer de localStorage (puede ser string o JSON)
+    let orderFromStorage: string | null = null;
+    try {
+      const stored = localStorage.getItem("DDN_LAST_ORDER_V1");
+      if (stored) {
+        // Intentar parsear como JSON, si falla usar como string
+        try {
+          const parsed = JSON.parse(stored);
+          orderFromStorage = parsed.order_id || parsed.orderRef || stored;
+        } catch {
+          orderFromStorage = stored;
+        }
+      }
+    } catch {
+      // Ignorar errores de localStorage
+    }
+    
+    const resolvedId = propsOrderId || orderFromUrl || orderFromStorage || undefined;
+    
+    if (resolvedId) {
+      setEffectiveOrderId(resolvedId);
+    }
+  }, [propsOrderId, isMounted]);
 
   // Persistir orderId en localStorage cuando esté disponible (solo si es string simple)
   useEffect(() => {

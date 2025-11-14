@@ -16,11 +16,14 @@ export default function FeaturedGrid({
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
       {items.map((item, index) => {
         const soldOut = !item.in_stock || !item.is_active;
-        const controls = !soldOut && hasPurchasablePrice(item) ? (
-          <FeaturedCardControlsLazy item={item} compact />
-        ) : soldOut && !hideSoldOutLabel ? (
-          <p className="text-sm text-muted-foreground">Agotado</p>
-        ) : null;
+        // Si hideSoldOutLabel es true, nunca mostrar "Agotado" ni controls
+        const controls = hideSoldOutLabel ? null : (
+          !soldOut && hasPurchasablePrice(item) ? (
+            <FeaturedCardControlsLazy item={item} compact />
+          ) : soldOut ? (
+            <p className="text-sm text-muted-foreground">Agotado</p>
+          ) : null
+        );
 
         return (
           <FeaturedCard

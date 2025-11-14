@@ -100,7 +100,23 @@ export default function PagoClient() {
 
       const urlParams = new URLSearchParams(window.location.search);
       const orderFromUrl = urlParams.get("order");
-      const orderFromStorage = localStorage.getItem("DDN_LAST_ORDER_V1");
+      
+      // Leer de localStorage (puede ser string o JSON)
+      let orderFromStorage: string | null = null;
+      try {
+        const stored = localStorage.getItem("DDN_LAST_ORDER_V1");
+        if (stored) {
+          // Intentar parsear como JSON, si falla usar como string
+          try {
+            const parsed = JSON.parse(stored);
+            orderFromStorage = parsed.order_id || parsed.orderRef || stored;
+          } catch {
+            orderFromStorage = stored;
+          }
+        }
+      } catch {
+        // Ignorar errores de localStorage
+      }
 
       if (orderFromUrl || orderFromStorage) {
         setOrderId(orderFromUrl || orderFromStorage);
