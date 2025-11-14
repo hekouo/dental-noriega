@@ -1,7 +1,8 @@
 // src/app/error.tsx
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useCallback } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { ROUTES } from "@/lib/routes";
 
@@ -12,9 +13,34 @@ export default function ErrorPage({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const router = useRouter();
+  const pathname = usePathname();
+
   useEffect(() => {
     console.error("Error:", error);
   }, [error]);
+
+  // Handler mejorado para "Intentar de nuevo" que maneja errores de hidratación
+  const handleRetry = useCallback(() => {
+    try {
+      // Si estamos en una ruta de checkout, intentar recargar manteniendo parámetros
+      if (pathname?.includes("/checkout")) {
+        if (typeof window !== "undefined") {
+          // Preservar parámetros de URL si existen
+          const currentUrl = window.location.href;
+          window.location.href = currentUrl;
+        }
+      } else {
+        // Para otras rutas, usar reset() normal
+        reset();
+      }
+    } catch (err) {
+      // Si reset falla, hacer reload completo
+      if (typeof window !== "undefined") {
+        window.location.reload();
+      }
+    }
+  }, [reset, pathname]);
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-12 text-center">
@@ -23,7 +49,7 @@ export default function ErrorPage({
         Hubo un error al cargar esta página.
       </p>
       <div className="flex flex-col sm:flex-row gap-4 justify-center mb-4">
-        <button onClick={reset} className="btn btn-primary">
+        <button onClick={handleRetry} className="btn btn-primary">
           Intentar de nuevo
         </button>
         <Link href={ROUTES.home()} className="btn btn-outline">

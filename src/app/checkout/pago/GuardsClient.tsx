@@ -11,10 +11,16 @@ export default function GuardsClient({
   children: React.ReactNode;
 }) {
   // TODOS LOS HOOKS AL INICIO - NUNCA CONDICIONALES
+  // CRÍTICO: Todos los hooks deben llamarse ANTES de cualquier return condicional
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isMounted, setIsMounted] = useState(false);
   const [hasLastOrder, setHasLastOrder] = useState(false);
+  
+  // TODOS LOS HOOKS DE STORES DEBEN LLAMARSE ANTES DE CUALQUIER RETURN
+  const hydrated = useCartStore(selectHydrated);
+  const count = useCartStore(selectCount);
+  const isComplete = useCheckoutStore(selectIsCheckoutDataComplete);
   
   // Marcar como montado solo en cliente
   useEffect(() => {
@@ -34,7 +40,6 @@ export default function GuardsClient({
   }, [isMounted]);
   
   // a) Verificar hidratación primero - NO redirigir antes de hidratar
-  const hydrated = useCartStore(selectHydrated);
   if (!hydrated || !isMounted) {
     if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
       console.debug("[GuardsClient] Esperando hidratación o mount...");
@@ -62,7 +67,6 @@ export default function GuardsClient({
   }
 
   // c) Verificar count del carrito
-  const count = useCartStore(selectCount);
   if (count === 0) {
     if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
       console.debug("[GuardsClient] Carrito vacío, redirigiendo a /checkout/datos");
@@ -72,7 +76,6 @@ export default function GuardsClient({
   }
 
   // d) Verificar datos completos - permitir solo si count > 0 && isComplete === true
-  const isComplete = useCheckoutStore(selectIsCheckoutDataComplete);
   if (!isComplete) {
     if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
       console.debug("[GuardsClient] Datos incompletos, redirigiendo a /checkout/datos");
