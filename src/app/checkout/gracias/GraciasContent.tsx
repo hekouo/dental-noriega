@@ -403,10 +403,47 @@ export default function GraciasContent() {
     };
   }, [orderRefFromUrl, clearCart, stripeSuccessDetected, redirectStatus, cartCleared]);
 
+  // Leer datos completos de la orden desde localStorage (incluyendo items y total_cents)
+  const [orderDataFromStorage, setOrderDataFromStorage] = useState<{
+    items?: Array<{ id: string; qty: number; title?: string }>;
+    total_cents?: number;
+    status?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!isMounted || typeof window === "undefined") return;
+    
+    try {
+      const stored = localStorage.getItem("DDN_LAST_ORDER_V1");
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          setOrderDataFromStorage({
+            items: parsed.items || [],
+            total_cents: parsed.total_cents,
+            status: parsed.status,
+          });
+        } catch {
+          // Si no es JSON válido, dejar como null
+        }
+      }
+    } catch {
+      // Ignorar errores
+    }
+  }, [isMounted]);
+
   const orderRef = lastOrder?.orderRef || orderRefFromUrl;
   const shippingMethod = lastOrder?.shippingMethod;
   const shippingCost = lastOrder?.shippingCost ?? 0;
   const total = lastOrder?.total ?? 0;
+  
+  // Calcular total desde orderDataFromStorage si está disponible
+  const totalFromStorage = orderDataFromStorage?.total_cents 
+    ? orderDataFromStorage.total_cents / 100 
+    : null;
+  const displayTotal = totalFromStorage ?? total;
+  const displayItems = orderDataFromStorage?.items || [];
+  const displayStatus = orderStatus || orderDataFromStorage?.status || null;
 
   const getShippingMethodLabel = (method?: ShippingMethod): string => {
     switch (method) {
@@ -421,12 +458,98 @@ export default function GraciasContent() {
     }
   };
 
+  const getStatusLabel = (status: string | null): string => {
+    if (!status) return "";
+    switch (status.toLowerCase()) {
+      case "paid":
+        return "Pagado";
+      case "pending":
+        return "Pendiente";
+      case "processing":
+        return "Procesando";
+      case "failed":
+        return "Fallido";
+      default:
+        return status;
+    }
+  };
+
+  const getStatusColor = (status: string | null): string => {
+    if (!status) return "bg-gray-100 text-gray-700";
+    switch (status.toLowerCase()) {
+      case "paid":
+        return "bg-green-100 text-green-800";
+      case "pending":
+        return "bg-yellow-100 text-yellow-800";
+      case "processing":
+        return "bg-blue-100 text-blue-800";
+      case "failed":
+        return "bg-red-100 text-red-800";
+      default:
+        return "bg-gray-100 text-gray-700";
+    }
+  };
+
   return (
     <main className="max-w-3xl mx-auto px-4 py-10">
       <CheckoutStepIndicator currentStep="gracias" />
 
-      <h1 className="text-2xl font-semibold mb-4">¡Gracias por tu compra!</h1>
+      {/* Hero Card */}
+      <div className="mb-8 text-center">
+        {/* Check icon */}
+        <div className="flex justify-center mb-4">
+          <div className="w-20 h-20 rounded-full bg-primary-600 flex items-center justify-center shadow-lg">
+            <svg
+              className="w-12 h-12 text-white"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={3}
+                d="M5 13l4 4L19 7"
+              />
+            </svg>
+          </div>
+        </div>
 
+        {/* Título */}
+        <h1 className="text-3xl font-bold mb-3 text-gray-900">
+          ¡Gracias por tu compra!
+        </h1>
+
+        {/* Número de orden y estado */}
+        {orderRef && (
+          <div className="space-y-2">
+            <p className="text-gray-600">
+              Tu número de orden es{" "}
+              <span className="font-mono font-semibold text-lg text-gray-900">
+                {orderRef}
+              </span>
+            </p>
+            {displayStatus && (
+              <div className="flex justify-center">
+                <span
+                  className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(displayStatus)}`}
+                >
+                  {getStatusLabel(displayStatus)}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {!orderRef && (
+          <p className="text-gray-600">
+            Registramos tu pedido. Te contactaremos para coordinar el pago y el
+            envío.
+          </p>
+        )}
+      </div>
+
+      {/* Loading state */}
       {isCheckingPayment && orderRefFromUrl && (
         <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
           <p className="text-blue-800 mb-2 flex items-center gap-2">
@@ -439,88 +562,107 @@ export default function GraciasContent() {
         </div>
       )}
 
-      {orderRef && (
-        <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-          <p className="text-gray-700 mb-2">
-            Tu número de orden es{" "}
-            <span className="font-mono font-semibold text-lg">{orderRef}</span>
-          </p>
-          {orderStatus && (
-            <p className="text-sm text-gray-600 mt-2">
-              Estado: <span className="font-medium">{orderStatus}</span>
-            </p>
-          )}
-        </div>
-      )}
-
-      {!orderRef && (
-        <p className="text-gray-600 mb-6">
-          Registramos tu pedido. Te contactaremos para coordinar el pago y el
-          envío.
-        </p>
-      )}
-
       {/* Resumen del pedido */}
-      {(lastOrder || shippingMethod) && (
-        <div className="mb-6 p-4 bg-gray-50 rounded-lg space-y-3">
-          <h2 className="font-semibold text-lg mb-3">Resumen del pedido</h2>
+      {(displayItems.length > 0 || displayTotal > 0 || shippingMethod) && (
+        <div className="mb-8 p-6 bg-white border border-gray-200 rounded-lg shadow-sm">
+          <h2 className="font-semibold text-lg mb-4 text-gray-900">
+            Resumen de tu pedido
+          </h2>
 
+          {/* Items */}
+          {displayItems.length > 0 && (
+            <div className="mb-4 space-y-2">
+              {displayItems.map((item, idx) => (
+                <div
+                  key={item.id || idx}
+                  className="flex justify-between text-sm text-gray-700"
+                >
+                  <span>
+                    {item.qty || 1} × {item.title || `Producto ${idx + 1}`}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Método de envío */}
           {shippingMethod && (
-            <div className="flex justify-between text-sm">
+            <div className="flex justify-between text-sm py-2 border-t border-gray-200">
               <span className="text-gray-600">Método de envío:</span>
-              <span className="font-medium">
+              <span className="font-medium text-gray-900">
                 {getShippingMethodLabel(shippingMethod)}
               </span>
             </div>
           )}
 
-          {shippingMethod && shippingMethod !== "pickup" && (
-            <div className="flex justify-between text-sm">
+          {/* Costo de envío */}
+          {shippingMethod && shippingMethod !== "pickup" && shippingCost > 0 && (
+            <div className="flex justify-between text-sm py-2">
               <span className="text-gray-600">Costo de envío:</span>
-              <span className="font-medium">
+              <span className="font-medium text-gray-900">
                 {formatMXNMoney(shippingCost)}
               </span>
             </div>
           )}
 
-          {total > 0 && (
-            <div className="flex justify-between font-semibold pt-2 border-t">
-              <span>Total:</span>
-              <span>{formatMXNMoney(total)}</span>
-            </div>
-          )}
+          {/* Cupón */}
           {lastOrder?.couponCode && lastOrder?.discount && (
-            <div className="flex justify-between text-sm text-green-600 pt-1">
+            <div className="flex justify-between text-sm text-green-600 py-2">
               <span>Cupón {lastOrder.couponCode} aplicado:</span>
               <span>-{formatMXNMoney(lastOrder.discount)}</span>
+            </div>
+          )}
+
+          {/* Total */}
+          {displayTotal > 0 && (
+            <div className="flex justify-between font-semibold pt-3 mt-3 border-t-2 border-gray-300">
+              <span className="text-gray-900">Total:</span>
+              <span className="text-gray-900">{formatMXNMoney(displayTotal)}</span>
             </div>
           )}
         </div>
       )}
 
-      <p className="text-gray-600 mb-6">
-        Te contactaremos para coordinar el pago y el envío.
-      </p>
+      {/* Mensaje si no hay datos completos */}
+      {displayItems.length === 0 && displayTotal === 0 && !shippingMethod && (
+        <div className="mb-8 p-6 bg-gray-50 rounded-lg border border-gray-200">
+          <p className="text-gray-600 text-center">
+            Hemos registrado tu compra. En breve te contactaremos para confirmar
+            los detalles.
+          </p>
+        </div>
+      )}
 
-      <div className="flex gap-3 flex-wrap">
-        <Link href="/catalogo" className="btn btn-primary">
+      {/* Botones de navegación */}
+      <div className="flex flex-col sm:flex-row gap-3 justify-center mb-8">
+        <Link
+          href="/catalogo"
+          className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-semibold text-center shadow-sm hover:shadow-md"
+        >
           Continuar compra
         </Link>
-        <Link href="/destacados" className="btn">
+        <Link
+          href="/destacados"
+          className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-semibold text-center"
+        >
           Ver destacados
         </Link>
-        <Link href="/catalogo" className="btn">
+        <Link
+          href="/catalogo"
+          className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-semibold text-center"
+        >
           Ver catálogo completo
         </Link>
       </div>
 
-      {/* Debug panel */}
+      {/* Debug panel - solo si DEBUG está activo */}
       {process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1" && <DebugLastOrder />}
 
       {/* Recomendaciones */}
       <RecommendedClient />
 
-      <section className="mt-10 text-sm text-gray-500">
+      {/* Footer */}
+      <section className="mt-10 text-sm text-gray-500 text-center">
         <p>
           Si tienes dudas, escríbenos por WhatsApp desde la burbuja en la
           esquina.
