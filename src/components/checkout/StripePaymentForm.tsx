@@ -8,7 +8,6 @@ import {
   useStripe,
   useElements,
 } from "@stripe/react-stripe-js";
-import { formatMXN } from "@/lib/utils/currency";
 import { stripePromise } from "@/lib/stripe/stripeClient";
 
 type StripePaymentFormProps = {
@@ -92,10 +91,7 @@ function InnerForm({ effectiveOrderId }: { effectiveOrderId: string }) {
         </div>
       )}
 
-      <div className="flex items-center justify-between pt-4 border-t">
-        <div className="text-lg font-semibold">
-          Total: {formatMXN(0)} {/* Total se muestra en PagoClient */}
-        </div>
+      <div className="flex items-center justify-end pt-4 border-t">
         <button
           type="submit"
           disabled={!stripe || !elements || isProcessing}
