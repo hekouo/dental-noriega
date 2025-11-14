@@ -216,8 +216,19 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Idempotencia: usar order_id como idempotencyKey
-    const idempotencyKey = `pi_${order_id}`;
+    // Idempotencia: incluir amount en la key para evitar errores cuando cambia el monto
+    // Si la misma orden se intenta con el mismo amount → idempotente
+    // Si cambia el amount (cupón, shipping, etc.) → nueva key, no da error
+    const idempotencyKey = `pi_${order_id}_${amount}`;
+
+    // Log controlado antes de crear PaymentIntent
+    if (debug) {
+      console.info("[create-payment-intent] Creando PaymentIntent con idempotency:", {
+        order_id,
+        amount,
+        idempotencyKey,
+      });
+    }
 
     // Crear PaymentIntent con idempotencia
     const paymentIntent = await stripe.paymentIntents.create(
@@ -249,11 +260,60 @@ export async function POST(req: NextRequest) {
       amount,
     });
   } catch (error) {
+    // Manejo mejorado de errores de Stripe
+    const debug = process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1";
+    
+    // Capturar contexto disponible del scope
+    const context = {
+      order_id: typeof order_id !== "undefined" ? order_id : "unknown",
+      amount: typeof amount !== "undefined" ? amount : "unknown",
+      total_cents_from_body: typeof total_cents !== "undefined" ? total_cents : "unknown",
+    };
+    
+    if (error && typeof error === "object" && "type" in error) {
+      // Es un error de Stripe
+      const stripeError = error as Stripe.errors.StripeError;
+      const errorInfo = {
+        type: stripeError.type,
+        message: stripeError.message,
+        code: stripeError.code,
+        param: stripeError.param,
+        requestId: stripeError.requestId,
+        ...context,
+      };
+      
+      if (debug) {
+        console.error("[create-payment-intent] Stripe error:", errorInfo);
+      } else {
+        console.warn("[create-payment-intent] Stripe error:", {
+          type: stripeError.type,
+          message: stripeError.message,
+          code: stripeError.code,
+          order_id: context.order_id,
+        });
+      }
+      
+      return NextResponse.json(
+        {
+          error: stripeError.message ?? "Error al crear payment intent",
+        },
+        { status: 500 },
+      );
+    }
+    
+    // Error genérico
     const errorMessage =
       error instanceof Error ? error.message : "Error al crear payment intent";
     
-    // Log controlado sin stack ruidoso
-    console.warn("[create-payment-intent]", errorMessage);
+    if (debug) {
+      console.error("[create-payment-intent] Error:", {
+        message: errorMessage,
+        ...context,
+        error,
+      });
+    } else {
+      console.warn("[create-payment-intent]", errorMessage, context);
+    }
     
     return NextResponse.json(
       {
