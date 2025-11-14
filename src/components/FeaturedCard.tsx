@@ -14,6 +14,7 @@ type Props = {
   priority?: boolean;
   sizes?: string;
   controls?: ReactNode;
+  hideSoldOutLabel?: boolean;
 };
 
 export default function FeaturedCard({
@@ -21,6 +22,7 @@ export default function FeaturedCard({
   priority = false,
   sizes,
   controls,
+  hideSoldOutLabel = false,
 }: Props) {
   const href =
     item.section && item.product_slug
@@ -63,7 +65,7 @@ export default function FeaturedCard({
             {price !== null ? formatMXN(price) : "—"}
           </div>
           {controls}
-          {!controls && soldOut ? (
+          {!controls && soldOut && !hideSoldOutLabel ? (
             <p className="text-sm text-muted-foreground">Agotado</p>
           ) : null}
         </div>

@@ -129,12 +129,12 @@ export default function StripePaymentForm({
   const [isMounted, setIsMounted] = useState(false);
   const maxRetries = 3;
 
-  // Marcar como montado solo en cliente
+  // Marcar como montado solo en cliente para evitar SSR issues
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  // Resolver orderId: props > query > localStorage (en useEffect para evitar SSR issues)
+  // Resolver orderId: props > query > localStorage (solo en cliente, después de mount)
   useEffect(() => {
     if (!isMounted || typeof window === "undefined") return;
     
