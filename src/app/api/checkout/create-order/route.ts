@@ -138,78 +138,61 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Crear orden con total_cents persistido
-    // Nota: El schema tiene 'total' como numeric(12,2), así que guardamos total = total_cents / 100
-    // Si el schema tuviera total_cents INT, lo guardaríamos directamente
-    const totalDecimal = total_cents / 100;
-    
-    // Validar que totalDecimal sea válido antes de insertar
-    if (!totalDecimal || totalDecimal <= 0 || !isFinite(totalDecimal)) {
-      console.warn("[create-order] Total decimal inválido antes de insertar:", {
-        total_cents,
-        totalDecimal,
-      });
-      return NextResponse.json(
-        { error: "Total de la orden inválido" },
-        { status: 422 },
-      );
-    }
+    // Construir metadata con información adicional
+    const metadata: Record<string, unknown> = {
+      subtotal_cents: total_cents, // Por ahora subtotal = total (sin envío ni descuento aún)
+      shipping_cost_cents: 0,
+      discount_cents: 0,
+      shipping_method: orderData.shippingMethod || "pickup",
+      contact_name: orderData.name || null,
+      contact_email: orderData.email || null,
+    };
 
+    // Crear orden usando SOLO las columnas válidas del schema real
     const { data: order, error: orderError } = await supabase
       .from("orders")
       .insert({
         user_id: user_id,
-        subtotal: totalDecimal,
-        total: totalDecimal,
-        shipping_cost: 0,
-        discount_amount: 0,
-        fulfillment_method: orderData.shippingMethod || "pickup",
+        email: orderData.email || null,
+        total_cents: total_cents, // INT en centavos
         status: "pending",
+        payment_provider: null, // Se actualizará cuando se cree el PaymentIntent
+        payment_id: null,
+        metadata: metadata,
       })
-      .select("id, total")
+      .select("id, total_cents")
       .single();
 
     if (orderError || !order) {
-      console.warn("[create-order] Error al crear orden:", orderError?.message);
+      console.error("[create-order] Error al crear orden:", {
+        message: orderError?.message,
+        details: orderError?.details,
+        hint: orderError?.hint,
+        code: orderError?.code,
+        total_cents,
+        items_count: orderData.items.length,
+      });
       return NextResponse.json(
         { error: `Error al crear orden: ${orderError?.message || "Error desconocido"}` },
         { status: 500 },
       );
     }
 
-    // Verificar que la orden se creó con total válido
-    if (!order.total || order.total <= 0) {
-      console.warn("[create-order] Orden creada con total inválido:", {
-        order_id: order.id,
-        total: order.total,
-        total_cents,
-        totalDecimal,
-      });
-      // Intentar actualizar el total
-      await supabase
-        .from("orders")
-        .update({ total: totalDecimal, subtotal: totalDecimal })
-        .eq("id", order.id);
-    }
-
-    // Crear items de la orden con price_cents persistido como price (decimal)
-    // Nota: El schema tiene 'price' como numeric(12,2), así que guardamos price = price_cents / 100
-    // Si el schema tuviera price_cents INT, lo guardaríamos directamente
+    // Crear items de la orden usando SOLO las columnas válidas del schema real
     const orderItems = orderData.items.map((item) => {
-      const priceDecimal = item.price_cents / 100;
-      if (!priceDecimal || priceDecimal <= 0 || !isFinite(priceDecimal)) {
+      if (item.price_cents <= 0) {
         console.warn("[create-order] Item con precio inválido:", {
           id: item.id,
           price_cents: item.price_cents,
-          priceDecimal,
         });
       }
       return {
         order_id: order.id,
-        sku: item.id,
-        name: `Item ${item.id}`, // Fallback si no hay title
-        price: priceDecimal,
+        product_id: item.id || null, // UUID si es válido, sino null
+        title: `Producto ${item.id}`, // Fallback, se actualizará en save-order con el título real
+        unit_price_cents: item.price_cents, // INT en centavos
         qty: item.qty,
+        image_url: null, // Se actualizará en save-order con la imagen real
       };
     });
 
@@ -220,7 +203,14 @@ export async function POST(req: NextRequest) {
     if (itemsError) {
       // Limpiar orden si fallan los items
       await supabase.from("orders").delete().eq("id", order.id);
-      console.warn("[create-order] Error al crear items:", itemsError.message);
+      console.error("[create-order] Error al crear items:", {
+        message: itemsError.message,
+        details: itemsError.details,
+        hint: itemsError.hint,
+        code: itemsError.code,
+        order_id: order.id,
+        items_count: orderItems.length,
+      });
       return NextResponse.json(
         { error: `Error al crear items: ${itemsError.message}` },
         { status: 500 },
