@@ -352,6 +352,8 @@ export default function PagoClient() {
             id: item.id,
             qty,
             price_cents: priceCents,
+            title: item.title, // Título del producto para order_items
+            image_url: item.image_url || null, // URL de imagen del producto
           };
         }).filter((item) => item.price_cents > 0), // Filtrar items sin precio válido
       };

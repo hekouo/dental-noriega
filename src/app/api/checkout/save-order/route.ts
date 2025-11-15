@@ -114,6 +114,8 @@ export async function POST(req: NextRequest) {
 
     if (existingOrder) {
       // Actualizar orden existente usando el schema real
+      // IMPORTANTE: NO eliminamos ni recreamos order_items aquí
+      // Los items ya fueron creados en create-order y solo se actualizan si es necesario
       const { error: updateError } = await supabase
         .from("orders")
         .update({
@@ -142,11 +144,52 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // Eliminar items existentes y crear nuevos
-      await supabase
+      // Verificar si ya existen items para esta orden
+      const { data: existingItems } = await supabase
         .from("order_items")
-        .delete()
-        .eq("order_id", orderData.order_id);
+        .select("id")
+        .eq("order_id", orderData.order_id)
+        .limit(1);
+
+      // Solo insertar items si NO existen (idempotencia)
+      if (!existingItems || existingItems.length === 0) {
+        const orderItems = orderData.items.map((item) => ({
+          order_id: orderData.order_id,
+          product_id: item.productId || null,
+          title: item.title,
+          unit_price_cents: item.unitPriceCents,
+          qty: item.qty,
+          image_url: item.image_url || null,
+        }));
+
+        const { error: itemsError } = await supabase
+          .from("order_items")
+          .insert(orderItems);
+
+        if (itemsError) {
+          console.error("[save-order] Error al crear items:", {
+            message: itemsError.message,
+            details: itemsError.details,
+            hint: itemsError.hint,
+            code: itemsError.code,
+            order_id: orderData.order_id,
+            items_count: orderItems.length,
+          });
+          // No fallar completamente si los items ya existen
+          if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
+            console.warn("[save-order] Items no insertados (puede que ya existan)");
+          }
+        }
+      } else {
+        if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
+          console.info("[save-order] Items ya existen para esta orden, no se insertan duplicados");
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        order_id: orderData.order_id,
+      });
     } else {
       // Crear nueva orden usando el schema real
       const { error: insertError } = await supabase
@@ -176,35 +219,36 @@ export async function POST(req: NextRequest) {
           { status: 500 },
         );
       }
-    }
 
-    // Crear items de la orden usando el schema real
-    const orderItems = orderData.items.map((item) => ({
-      order_id: orderData.order_id,
-      product_id: item.productId || null,
-      title: item.title,
-      unit_price_cents: item.unitPriceCents,
-      qty: item.qty,
-      image_url: item.image_url || null,
-    }));
-
-    const { error: itemsError } = await supabase
-      .from("order_items")
-      .insert(orderItems);
-
-    if (itemsError) {
-      console.error("[save-order] Error al crear items:", {
-        message: itemsError.message,
-        details: itemsError.details,
-        hint: itemsError.hint,
-        code: itemsError.code,
+      // Crear items de la orden solo si la orden es nueva
+      // IMPORTANTE: unit_price_cents es el precio UNITARIO en centavos
+      const orderItems = orderData.items.map((item) => ({
         order_id: orderData.order_id,
-        items_count: orderItems.length,
-      });
-      return NextResponse.json(
-        { error: "No se pudo guardar la orden" },
-        { status: 500 },
-      );
+        product_id: item.productId || null,
+        title: item.title,
+        unit_price_cents: item.unitPriceCents, // INT en centavos - precio UNITARIO
+        qty: item.qty,
+        image_url: item.image_url || null,
+      }));
+
+      const { error: itemsError } = await supabase
+        .from("order_items")
+        .insert(orderItems);
+
+      if (itemsError) {
+        console.error("[save-order] Error al crear items:", {
+          message: itemsError.message,
+          details: itemsError.details,
+          hint: itemsError.hint,
+          code: itemsError.code,
+          order_id: orderData.order_id,
+          items_count: orderItems.length,
+        });
+        return NextResponse.json(
+          { error: "No se pudo guardar la orden" },
+          { status: 500 },
+        );
+      }
     }
 
     if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
@@ -213,7 +257,7 @@ export async function POST(req: NextRequest) {
         email: orderData.email,
         total_cents: orderData.total_cents,
         status: orderData.status,
-        items_count: orderItems.length,
+        items_count: orderData.items.length,
       });
     }
 
