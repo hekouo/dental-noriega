@@ -74,7 +74,6 @@ export default function PagoClient() {
   } | null>(null);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
-  const [orderCreated, setOrderCreated] = useState(false);
 
   // Crear orden una sola vez al montar si no hay order en URL ni localStorage
   useEffect(() => {
@@ -102,22 +101,18 @@ export default function PagoClient() {
         // Ignorar errores de localStorage
       }
 
-      if (orderFromUrl || orderFromStorage) {
-        setOrderId(orderFromUrl || orderFromStorage);
-        if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
-          console.debug("[PagoClient] OrderId encontrado:", orderFromUrl || orderFromStorage);
-        }
-        return;
+    if (orderFromUrl || orderFromStorage) {
+      setOrderId(orderFromUrl || orderFromStorage);
+      if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
+        console.debug("[PagoClient] OrderId encontrado:", orderFromUrl || orderFromStorage);
       }
-
+    } else if (itemsForOrder.length === 0) {
       // Si no hay items seleccionados, redirigir a /checkout
-      if (itemsForOrder.length === 0) {
-        if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
-          console.debug("[PagoClient] No hay items seleccionados, redirigiendo a /checkout");
-        }
-        router.replace("/checkout");
-        return;
+      if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
+        console.debug("[PagoClient] No hay items seleccionados, redirigiendo a /checkout");
       }
+      router.replace("/checkout");
+    }
 
       // Si ya se creó una orden, no crear otra
       if (orderCreated || isCreatingOrder) {
