@@ -10,10 +10,6 @@ import {
   type ShippingMethod,
   type CheckoutItem,
 } from "@/lib/store/checkoutStore";
-import {
-  useSelectedTotal,
-  useSelectedItems,
-} from "@/lib/store/checkoutSelectors";
 import { selectCheckoutItems } from "@/lib/store/checkoutStore";
 import { formatMXN as formatMXNMoney } from "@/lib/utils/money";
 import CheckoutStepIndicator from "@/components/CheckoutStepIndicator";
@@ -25,7 +21,7 @@ import { validateCoupon } from "@/lib/discounts/coupons";
 import Toast from "@/components/ui/Toast";
 import type { DatosForm } from "@/lib/checkout/schemas";
 import StripePaymentForm from "@/components/checkout/StripePaymentForm";
-import { getBrowserSupabase } from "@/lib/supabase/client";
+import { getSelectedItems, getSelectedSubtotalCents } from "@/lib/checkout/selection";
 
 type FormValues = {
   paymentMethod: string;
@@ -53,23 +49,13 @@ export default function PagoClient() {
   const router = useRouter();
   const datos = useCheckoutStore((s) => s.datos);
   const resetCheckout = useCheckoutStore((s) => s.reset);
-  // Usar TODOS los items del checkoutStore, no solo los seleccionados
-  // En /checkout/pago ya pasaron por la selección en /checkout
+  // Usar SOLO los items seleccionados del checkoutStore
   const checkoutItems = useCheckoutStore(selectCheckoutItems);
-  const itemsForOrder = checkoutItems.length > 0 ? checkoutItems : [];
-  // Calcular subtotal desde todos los items usando price_cents si existe
+  const itemsForOrder = useMemo(() => getSelectedItems(checkoutItems), [checkoutItems]);
+  // Calcular subtotal desde items seleccionados usando price_cents si existe
   const subtotal = useMemo(() => {
-    return itemsForOrder.reduce((sum, item) => {
-      const qty = item.qty ?? 1;
-      const priceCents =
-        typeof item.price_cents === "number"
-          ? item.price_cents
-          : typeof item.price === "number"
-            ? Math.round(item.price * 100)
-            : 0;
-      return sum + (priceCents * qty) / 100;
-    }, 0);
-  }, [itemsForOrder]);
+    return getSelectedSubtotalCents(checkoutItems) / 100;
+  }, [checkoutItems]);
   const setShipping = useCheckoutStore((s) => s.setShipping);
   const currentShippingMethod = useCheckoutStore((s) => s.shippingMethod);
   const couponCode = useCheckoutStore((s) => s.couponCode);
@@ -124,11 +110,12 @@ export default function PagoClient() {
         return;
       }
 
-      // Si no hay items, no crear orden
+      // Si no hay items seleccionados, redirigir a /checkout
       if (itemsForOrder.length === 0) {
         if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
-          console.debug("[PagoClient] No hay items, no se crea orden");
+          console.debug("[PagoClient] No hay items seleccionados, redirigiendo a /checkout");
         }
+        router.replace("/checkout");
         return;
       }
 
@@ -142,18 +129,6 @@ export default function PagoClient() {
       setOrderCreated(true);
 
       try {
-        // Obtener user_id si hay sesión
-        let userId: string | undefined;
-        try {
-          const supabase = getBrowserSupabase();
-          if (supabase) {
-            const { data: { user } } = await supabase.auth.getUser();
-            userId = user?.id;
-          }
-        } catch {
-          // Continuar como guest si no hay sesión
-        }
-
         // Crear orden
         const orderPayload = {
           items: itemsForOrder.map((item) => ({
@@ -273,18 +248,9 @@ export default function PagoClient() {
   const selectedPaymentMethod = watch("paymentMethod");
   const shippingCost = shippingData.prices[selectedShippingMethod] || 0;
 
-  // Calcular totalCents directamente desde itemsForOrder usando price_cents
+  // Calcular totalCents directamente desde items seleccionados usando price_cents
   const totalCents = useMemo(() => {
-    const subtotalCents = itemsForOrder.reduce((sum, item) => {
-      const qty = item.qty ?? 1;
-      const priceCents =
-        typeof item.price_cents === "number" && item.price_cents > 0
-          ? item.price_cents
-          : typeof item.price === "number" && item.price > 0
-            ? Math.round(item.price * 100)
-            : 0;
-      return sum + priceCents * qty;
-    }, 0);
+    const subtotalCents = getSelectedSubtotalCents(checkoutItems);
     
     // Agregar shipping cost en centavos
     const shippingCents = Math.round(shippingCost * 100);
@@ -301,7 +267,7 @@ export default function PagoClient() {
     }
     
     return Math.max(0, finalCents);
-  }, [itemsForOrder, shippingCost, discount, discountScope]);
+  }, [checkoutItems, shippingCost, discount, discountScope]);
 
   // Calcular totales con cupón
   const total = useMemo(() => {
@@ -434,18 +400,6 @@ export default function PagoClient() {
     setError(null);
 
     try {
-      // Obtener user_id si hay sesión
-      let userId: string | undefined;
-      try {
-        const supabase = getBrowserSupabase();
-        if (supabase) {
-          const { data: { user } } = await supabase.auth.getUser();
-          userId = user?.id;
-        }
-      } catch {
-        // Continuar como guest si no hay sesión
-      }
-
       // Crear orden primero - usar price_cents directamente si existe
       const orderPayload = {
         items: itemsForOrder.map((item) => {
@@ -667,7 +621,34 @@ export default function PagoClient() {
     }
   };
 
+  // Guard: redirigir si no hay items seleccionados
+  useEffect(() => {
+    if (itemsForOrder.length === 0 && datos) {
+      router.replace("/checkout");
+    }
+  }, [itemsForOrder.length, datos, router]);
+
   if (!datos) return null;
+
+  // Si no hay items seleccionados, mostrar mensaje mientras redirige
+  if (itemsForOrder.length === 0) {
+    return (
+      <div className="max-w-4xl mx-auto p-6">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
+          <p className="text-yellow-800 mb-4">No hay productos seleccionados</p>
+          <p className="text-yellow-700 text-sm mb-4">
+            Por favor, selecciona productos en el checkout antes de continuar.
+          </p>
+          <Link
+            href="/checkout"
+            className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
+          >
+            Ir a Checkout
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto p-6">

@@ -21,7 +21,7 @@ export type Coupon = {
  */
 export const COUPONS: Coupon[] = [
   {
-    code: "DENT10",
+    code: "DDN10",
     type: "percent",
     value: 10,
     label: "10% de descuento",
