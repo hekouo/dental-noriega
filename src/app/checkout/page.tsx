@@ -9,6 +9,7 @@ import {
   selectSelectedCount,
   selectSelectedTotal,
 } from "@/lib/store/checkoutStore";
+import { useCartStore } from "@/lib/store/cartStore";
 import CheckoutItemRow from "@/components/CheckoutItemRow";
 import CheckoutSummary from "@/components/CheckoutSummary";
 
@@ -33,15 +34,25 @@ export default function CheckoutIndex() {
   const router = useRouter();
   const did = useRef(false);
 
-  // Selectores primitivos
+  // Sincronizar con cartStore: fuente única de verdad
+  const cartItems = useCartStore((s) => s.cartItems);
   const checkoutItems = useCheckoutStore(selectCheckoutItems);
   const selectedCount = useCheckoutStore(selectSelectedCount);
   const selectedTotal = useCheckoutStore(selectSelectedTotal);
+  const clearCheckout = useCheckoutStore((s) => s.clearCheckout);
+  const clearSelection = useCheckoutStore((s) => s.clearSelection);
 
   // Acciones del store
   const selectAllCheckout = useCheckoutStore((s) => s.selectAllCheckout);
   const deselectAllCheckout = useCheckoutStore((s) => s.deselectAllCheckout);
-  const clearCheckout = useCheckoutStore((s) => s.clearCheckout);
+
+  // Guard: si el carrito está vacío, limpiar checkout también
+  useEffect(() => {
+    if (cartItems.length === 0 && checkoutItems.length > 0) {
+      clearCheckout();
+      clearSelection();
+    }
+  }, [cartItems.length, checkoutItems.length, clearCheckout, clearSelection]);
 
   // Redirect once if no items
   useEffect(() => {
