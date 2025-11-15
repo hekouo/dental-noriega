@@ -12,32 +12,26 @@ import CheckoutStepIndicator from "@/components/CheckoutStepIndicator";
 import CheckoutDebugPanel from "@/components/CheckoutDebugPanel";
 import Link from "next/link";
 import { track } from "@/lib/analytics";
-import { validateCoupon } from "@/lib/discounts/coupons";
-import { useSelectedTotal } from "@/lib/store/checkoutSelectors";
 import { formatMXN as formatMXNMoney } from "@/lib/utils/money";
-import type { CheckoutItem } from "@/lib/store/checkoutStore";
+import { getSelectedItems } from "@/lib/checkout/selection";
 
 // eslint-disable-next-line sonarjs/cognitive-complexity -- Formulario largo pero estructurado, todos los campos son necesarios
 function DatosPageContent() {
   const router = useRouter();
   const selectedIds = useSelectedIds();
   const datos = useCheckoutStore((s) => s.datos);
-  const subtotal = useSelectedTotal();
   const checkoutItems = useCheckoutStore((s) => s.checkoutItems);
+  const selectedItems = React.useMemo(() => getSelectedItems(checkoutItems), [checkoutItems]);
   const couponCode = useCheckoutStore((s) => s.couponCode);
   const discount = useCheckoutStore((s) => s.discount);
   const discountScope = useCheckoutStore((s) => s.discountScope);
-  const setCoupon = useCheckoutStore((s) => s.setCoupon);
-  const clearCoupon = useCheckoutStore((s) => s.clearCoupon);
-  const [couponInput, setCouponInput] = React.useState("");
-  const [couponError, setCouponError] = React.useState<string | null>(null);
-  
-  // Restaurar cupón aplicado si existe
+
+  // Guard: redirigir si no hay items seleccionados
   React.useEffect(() => {
-    if (couponCode && !couponInput) {
-      setCouponInput(couponCode);
+    if (selectedItems.length === 0) {
+      router.replace("/checkout");
     }
-  }, [couponCode, couponInput]);
+  }, [selectedItems.length, router]);
 
   const form = useForm<DatosForm>({
     resolver: zodResolver(datosSchema),
@@ -63,43 +57,7 @@ function DatosPageContent() {
 
   const { errors, isValid, isSubmitting } = formState;
 
-  // Helper para aplicar cupón usando el sistema completo de validación
-  const handleApplyCoupon = React.useCallback(() => {
-    const code = couponInput.trim().toUpperCase();
-    if (!code) {
-      setCouponError("Ingresa un código de descuento");
-      return;
-    }
-
-    // Usar el sistema completo de validación de cupones
-    const validation = validateCoupon(code, {
-      subtotal,
-      shipping: 0, // En datos aún no hay shipping calculado
-      items: checkoutItems.map((item: CheckoutItem) => ({
-        section: undefined, // No tenemos section en este punto
-        price: item.price ?? 0,
-        qty: item.qty ?? 1,
-      })),
-    });
-
-    if (!validation.ok) {
-      const errorMsg = validation.reason || "Cupón no válido";
-      setCouponError(errorMsg);
-      clearCoupon();
-      return;
-    }
-
-    setCoupon(validation.appliedCode!, validation.discount, validation.scope);
-    setCouponError(null);
-    setCouponInput("");
-
-    // Analytics
-    track("apply_coupon", {
-      code: validation.appliedCode,
-      scope: validation.scope,
-      discount: validation.discount,
-    });
-  }, [couponInput, subtotal, checkoutItems, setCoupon, clearCoupon]);
+  // En /checkout/datos NO se puede aplicar cupón, solo se muestra resumen si ya está aplicado
 
   // Analytics: begin_checkout al entrar a la página
   useEffect(() => {
@@ -558,86 +516,20 @@ function DatosPageContent() {
           </p>
         )}
 
-        {/* Cupón */}
-        <div>
-          <label
-            htmlFor="coupon"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Cupón de descuento (opcional)
-          </label>
-          <div className="flex gap-2">
-            <input
-              id="coupon"
-              type="text"
-              value={couponInput}
-              onChange={(e) => {
-                setCouponInput(e.target.value.toUpperCase());
-                setCouponError(null);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  handleApplyCoupon();
-                }
-              }}
-              onBlur={() => {
-                if (couponInput.trim() && !couponCode) {
-                  handleApplyCoupon();
-                }
-              }}
-              className="flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-              placeholder="Ej: DDN10"
-            />
-            {couponCode && (
-              <button
-                type="button"
-                onClick={() => {
-                  setCouponInput("");
-                  clearCoupon();
-                  setCouponError(null);
-                }}
-                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
-              >
-                Quitar
-              </button>
-            )}
-          </div>
-          {couponError && (
-            <p className="text-red-500 text-sm mt-1" role="alert">
-              {couponError}
-            </p>
-          )}
-          {couponCode && discount && (
-            <p className="text-green-600 text-sm mt-1">
-              Cupón {couponCode} aplicado: -{formatMXNMoney(discount)}
-              {discountScope === "shipping" && " (en envío)"}
-            </p>
-          )}
-        </div>
-
-        {/* Resumen con descuento */}
+        {/* Resumen de cupón (solo lectura, si está aplicado) */}
         {couponCode && discount && (
           <div className="bg-gray-50 p-4 rounded-lg space-y-2">
-            <div className="flex justify-between text-sm">
-              <span>Subtotal:</span>
-              <span>{formatMXNMoney(subtotal)}</span>
-            </div>
-            <div className="flex justify-between text-sm text-green-600">
-              <span>Descuento ({couponCode}):</span>
-              <span>-{formatMXNMoney(discount)}</span>
-            </div>
-            <div className="flex justify-between font-semibold pt-2 border-t">
-              <span>Total:</span>
-              <span>
-                {formatMXNMoney(
-                  discountScope === "subtotal"
-                    ? subtotal - discount
-                    : discountScope === "shipping"
-                      ? subtotal // El descuento se aplicará al shipping en pago
-                      : subtotal
-                )}
-              </span>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-700">Cupón aplicado</p>
+                <p className="text-sm text-green-600">
+                  {couponCode} - {formatMXNMoney(discount)} de descuento
+                  {discountScope === "shipping" && " (en envío)"}
+                </p>
+              </div>
+              <p className="text-xs text-gray-500">
+                Puedes modificarlo en el paso de pago
+              </p>
             </div>
           </div>
         )}

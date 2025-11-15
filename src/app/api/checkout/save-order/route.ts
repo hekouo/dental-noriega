@@ -92,47 +92,31 @@ export async function POST(req: NextRequest) {
       .eq("id", orderData.order_id)
       .single();
 
-    // El schema actual de orders usa total (decimal), no total_cents (INT)
-    // Convertir total_cents a decimal para guardar en total
-    const totalDecimal = orderData.total_cents / 100;
-    
-    // Calcular subtotal desde items
-    const subtotalDecimal = orderData.items.reduce(
-      (sum, item) => sum + (item.unitPriceCents * item.qty) / 100,
-      0,
-    );
-    
-    // Extraer shipping y discount de metadata si existen
-    // shippingCost puede venir como número (centavos) o como decimal
-    const shippingCostRaw = orderData.metadata?.shippingCost;
-    const shippingCost = typeof shippingCostRaw === "number" 
-      ? (shippingCostRaw > 100 ? shippingCostRaw / 100 : shippingCostRaw) // Si es > 100, asumir centavos
-      : 0;
-    
-    // discount puede venir como número (centavos) o como decimal
-    const discountRaw = orderData.metadata?.discount;
-    const discountAmount = typeof discountRaw === "number"
-      ? (discountRaw > 100 ? discountRaw / 100 : discountRaw) // Si es > 100, asumir centavos
-      : 0;
-    
-    // Obtener fulfillment_method de metadata o usar default
-    const fulfillmentMethod = (orderData.metadata?.shippingMethod as string) || "pickup";
+    // Construir metadata con toda la información adicional
+    const metadata: Record<string, unknown> = {
+      ...orderData.metadata,
+      items: orderData.items.map((item) => ({
+        productId: item.productId,
+        title: item.title,
+        qty: item.qty,
+        unitPriceCents: item.unitPriceCents,
+        image_url: item.image_url,
+      })),
+    };
 
     if (existingOrder) {
-      // Actualizar orden existente usando el schema actual (total como decimal)
+      // Actualizar orden existente usando el schema real
       const { error: updateError } = await supabase
         .from("orders")
         .update({
           user_id: user_id,
-          contact_email: orderData.email,
-          contact_name: (orderData.metadata?.name as string) || null,
-          contact_phone: (orderData.metadata?.phone as string) || null,
-          subtotal: subtotalDecimal,
-          total: totalDecimal,
-          shipping_cost: shippingCost,
-          discount_amount: discountAmount,
+          email: orderData.email,
+          total_cents: orderData.total_cents,
           status: orderData.status,
-          stripe_session_id: orderData.payment_id || null,
+          payment_provider: orderData.payment_provider || "stripe",
+          payment_id: orderData.payment_id || null,
+          metadata: metadata,
+          updated_at: new Date().toISOString(),
         })
         .eq("id", orderData.order_id);
 
@@ -150,22 +134,18 @@ export async function POST(req: NextRequest) {
         .delete()
         .eq("order_id", orderData.order_id);
     } else {
-      // Crear nueva orden usando el schema actual
+      // Crear nueva orden usando el schema real
       const { error: insertError } = await supabase
         .from("orders")
         .insert({
           id: orderData.order_id,
           user_id: user_id,
-          contact_email: orderData.email,
-          contact_name: (orderData.metadata?.name as string) || null,
-          contact_phone: (orderData.metadata?.phone as string) || null,
-          subtotal: subtotalDecimal,
-          total: totalDecimal,
-          shipping_cost: shippingCost,
-          discount_amount: discountAmount,
+          email: orderData.email,
+          total_cents: orderData.total_cents,
           status: orderData.status,
-          fulfillment_method: fulfillmentMethod,
-          stripe_session_id: orderData.payment_id || null,
+          payment_provider: orderData.payment_provider || "stripe",
+          payment_id: orderData.payment_id || null,
+          metadata: metadata,
         });
 
       if (insertError) {
@@ -177,13 +157,14 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Crear items de la orden usando el schema actual (sku, name, price como decimal)
+    // Crear items de la orden usando el schema real
     const orderItems = orderData.items.map((item) => ({
       order_id: orderData.order_id,
-      sku: item.productId || `item-${item.title}`,
-      name: item.title,
-      price: item.unitPriceCents / 100, // Convertir a decimal
+      product_id: item.productId || null,
+      title: item.title,
+      unit_price_cents: item.unitPriceCents,
       qty: item.qty,
+      image_url: item.image_url || null,
     }));
 
     const { error: itemsError } = await supabase

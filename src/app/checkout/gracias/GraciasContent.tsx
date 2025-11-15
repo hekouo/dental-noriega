@@ -38,6 +38,7 @@ export default function GraciasContent() {
   const [isMounted, setIsMounted] = useState(false);
   const [cartCleared, setCartCleared] = useState(false);
   const clearCart = useCartStore((s) => s.clearCart);
+  const clearSelection = useCheckoutStore((s) => s.clearSelection);
 
   // Marcar como montado solo en cliente
   useEffect(() => {
@@ -125,13 +126,14 @@ export default function GraciasContent() {
       setOrderStatus("paid");
       setIsCheckingPayment(false);
       
-      // Limpiar carrito solo una vez
+      // Limpiar carrito y selección solo una vez
       if (!cartCleared) {
         clearCart();
+        clearSelection();
         setCartCleared(true);
         
         if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
-          console.debug("[GraciasContent] Carrito limpiado por redirect_status=succeeded");
+          console.debug("[GraciasContent] Carrito y selección limpiados por redirect_status=succeeded");
         }
       }
       
@@ -272,13 +274,14 @@ export default function GraciasContent() {
             setOrderStatus("paid");
             setIsCheckingPayment(false);
             
-            // Limpiar carrito solo una vez
+            // Limpiar carrito y selección solo una vez
             if (!cartCleared) {
               clearCart();
+              clearSelection();
               setCartCleared(true);
               
               if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
-                console.debug("[GraciasContent] Carrito limpiado por PaymentIntent succeeded");
+                console.debug("[GraciasContent] Carrito y selección limpiados por PaymentIntent succeeded");
               }
             }
             
@@ -397,7 +400,7 @@ export default function GraciasContent() {
         // Si falla cargar Stripe, continuar con el poll normal
       });
     }
-  }, [redirectStatus, paymentIntent, orderRefFromUrl, clearCart, isMounted, cartCleared]);
+  }, [redirectStatus, paymentIntent, orderRefFromUrl, clearCart, clearSelection, isMounted, cartCleared]);
 
   // Verificar estado de la orden y limpiar carrito solo si es 'paid' (fallback a Supabase)
   useEffect(() => {
@@ -440,13 +443,14 @@ export default function GraciasContent() {
             setOrderStatus("paid");
             setIsCheckingPayment(false);
             
-            // Limpiar carrito solo una vez
+            // Limpiar carrito y selección solo una vez
             if (!cartCleared) {
               clearCart();
+              clearSelection();
               setCartCleared(true);
               
               if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
-                console.debug("[GraciasContent] Carrito limpiado por orden paid desde API");
+                console.debug("[GraciasContent] Carrito y selección limpiados por orden paid desde API");
               }
             }
             
@@ -536,7 +540,7 @@ export default function GraciasContent() {
         clearTimeout(timeoutId);
       }
     };
-  }, [orderRefFromUrl, clearCart, stripeSuccessDetected, redirectStatus, cartCleared]);
+  }, [orderRefFromUrl, clearCart, clearSelection, stripeSuccessDetected, redirectStatus, cartCleared]);
 
   // Leer datos completos de la orden desde localStorage (incluyendo items y total_cents)
   const [orderDataFromStorage, setOrderDataFromStorage] = useState<{

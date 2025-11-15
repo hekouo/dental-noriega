@@ -66,6 +66,7 @@ type State = CheckoutPersisted & {
   selectAllCheckout: () => void;
   deselectAllCheckout: () => void;
   clearSelectedFromCheckout: () => void;
+  clearSelection: () => void;
   setDatos: (datos: DatosForm) => void;
   setOrderId: (orderId: string) => void;
   setShipping: (method: ShippingMethod, cost: number) => void;
@@ -293,6 +294,27 @@ export const useCheckoutStore = create<State>()(
       set((state) => {
         const next = state.checkoutItems.filter((i) => !i.selected);
         if (next.length === state.checkoutItems.length) return state;
+        return { checkoutItems: next };
+      });
+    },
+
+    clearSelection: () => {
+      set((state) => {
+        const next = state.checkoutItems.map((i) => ({ ...i, selected: false }));
+        if (next.every((i) => !i.selected) && state.checkoutItems.every((i) => !i.selected)) {
+          return state;
+        }
+        persistCheckout({
+          step: state.step,
+          datos: state.datos,
+          checkoutItems: next,
+          shippingMethod: state.shippingMethod,
+          shippingCost: state.shippingCost,
+          couponCode: state.couponCode,
+          discount: state.discount,
+          discountScope: state.discountScope,
+          lastAppliedCoupon: state.lastAppliedCoupon,
+        });
         return { checkoutItems: next };
       });
     },
