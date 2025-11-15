@@ -300,22 +300,27 @@ export const useCheckoutStore = create<State>()(
 
     clearSelection: () => {
       set((state) => {
-        const next = state.checkoutItems.map((i) => ({ ...i, selected: false }));
-        if (next.every((i) => !i.selected) && state.checkoutItems.every((i) => !i.selected)) {
-          return state;
-        }
+        // Limpiar completamente checkoutItems y selección después de pago exitoso
+        const next = {
+          ...state,
+          checkoutItems: [],
+          couponCode: undefined,
+          discount: undefined,
+          discountScope: undefined,
+          // Mantener datos y shipping por si el usuario quiere hacer otra compra
+        };
         persistCheckout({
-          step: state.step,
-          datos: state.datos,
-          checkoutItems: next,
-          shippingMethod: state.shippingMethod,
-          shippingCost: state.shippingCost,
-          couponCode: state.couponCode,
-          discount: state.discount,
-          discountScope: state.discountScope,
-          lastAppliedCoupon: state.lastAppliedCoupon,
+          step: "datos",
+          datos: next.datos,
+          checkoutItems: [],
+          shippingMethod: next.shippingMethod,
+          shippingCost: next.shippingCost,
+          couponCode: undefined,
+          discount: undefined,
+          discountScope: undefined,
+          lastAppliedCoupon: next.lastAppliedCoupon,
         });
-        return { checkoutItems: next };
+        return next;
       });
     },
 

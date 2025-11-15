@@ -58,10 +58,18 @@ export async function POST(req: NextRequest) {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (!supabaseUrl || !serviceRoleKey) {
-      console.error("[save-order] Supabase no está configurado");
+    if (!supabaseUrl) {
+      console.error("[save-order] NEXT_PUBLIC_SUPABASE_URL no está configurado");
       return NextResponse.json(
-        { error: "Servidor no configurado correctamente" },
+        { error: "No se pudo guardar la orden: configuración de Supabase incompleta" },
+        { status: 500 },
+      );
+    }
+
+    if (!serviceRoleKey) {
+      console.error("[save-order] SUPABASE_SERVICE_ROLE_KEY no está configurado");
+      return NextResponse.json(
+        { error: "No se pudo guardar la orden: falta clave de servicio de Supabase" },
         { status: 500 },
       );
     }
@@ -121,9 +129,15 @@ export async function POST(req: NextRequest) {
         .eq("id", orderData.order_id);
 
       if (updateError) {
-        console.error("[save-order] Error al actualizar orden:", updateError);
+        console.error("[save-order] Error al actualizar orden:", {
+          message: updateError.message,
+          details: updateError.details,
+          hint: updateError.hint,
+          code: updateError.code,
+          order_id: orderData.order_id,
+        });
         return NextResponse.json(
-          { error: `Error al actualizar orden: ${updateError.message}` },
+          { error: "No se pudo guardar la orden" },
           { status: 500 },
         );
       }
@@ -149,9 +163,16 @@ export async function POST(req: NextRequest) {
         });
 
       if (insertError) {
-        console.error("[save-order] Error al crear orden:", insertError);
+        console.error("[save-order] Error al crear orden:", {
+          message: insertError.message,
+          details: insertError.details,
+          hint: insertError.hint,
+          code: insertError.code,
+          order_id: orderData.order_id,
+          email: orderData.email,
+        });
         return NextResponse.json(
-          { error: `Error al crear orden: ${insertError.message}` },
+          { error: "No se pudo guardar la orden" },
           { status: 500 },
         );
       }
@@ -172,9 +193,16 @@ export async function POST(req: NextRequest) {
       .insert(orderItems);
 
     if (itemsError) {
-      console.error("[save-order] Error al crear items:", itemsError);
+      console.error("[save-order] Error al crear items:", {
+        message: itemsError.message,
+        details: itemsError.details,
+        hint: itemsError.hint,
+        code: itemsError.code,
+        order_id: orderData.order_id,
+        items_count: orderItems.length,
+      });
       return NextResponse.json(
-        { error: `Error al crear items: ${itemsError.message}` },
+        { error: "No se pudo guardar la orden" },
         { status: 500 },
       );
     }
