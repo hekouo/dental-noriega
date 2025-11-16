@@ -237,7 +237,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Obtener email de la orden desde Supabase para usar en Stripe
-    // Prioridad: orders.email > metadata.contact_email > body.email
+    // Prioridad: orders.email > metadata->>'contact_email' > body (si existe)
     let customerEmail: string | undefined = undefined;
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -264,6 +264,12 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (orderError || !order) {
+      if (debug) {
+        console.warn("[create-payment-intent] Orden no encontrada:", {
+          order_id,
+          error: orderError?.message,
+        });
+      }
       return NextResponse.json(
         { error: `Orden no encontrada: ${order_id}` },
         { status: 404 },
@@ -271,54 +277,44 @@ export async function POST(req: NextRequest) {
     }
 
     // Prioridad 1: orders.email
-    if (order.email) {
+    if (order.email && typeof order.email === "string") {
       customerEmail = order.email;
+    } 
+    // Prioridad 2: metadata->>'contact_email'
+    else if (order.metadata && typeof order.metadata === "object") {
+      const metadata = order.metadata as Record<string, unknown>;
+      const contactEmail = metadata.contact_email;
+      if (contactEmail && typeof contactEmail === "string") {
+        customerEmail = contactEmail;
+      }
+    }
+    // Prioridad 3: body.email (si existe en el schema)
+    // Nota: El schema actual no incluye email, pero lo dejamos como fallback por si se agrega
+
+    // Validar que tenemos un email válido
+    if (!customerEmail || !customerEmail.includes("@")) {
       if (debug) {
-        console.info("[create-payment-intent] Email obtenido de orders.email:", {
+        console.warn("[create-payment-intent] Email no encontrado para orden:", {
           order_id,
-          email: customerEmail,
+          order_email: order.email,
+          metadata: order.metadata,
         });
       }
-    } else {
-      // Prioridad 2: metadata.contact_email
-      const metadata = order.metadata as Record<string, unknown> | null;
-      if (metadata && typeof metadata === "object" && "contact_email" in metadata) {
-        const contactEmail = metadata.contact_email;
-        if (typeof contactEmail === "string" && contactEmail.length > 0) {
-          customerEmail = contactEmail;
-          if (debug) {
-            console.info("[create-payment-intent] Email obtenido de metadata.contact_email:", {
-              order_id,
-              email: customerEmail,
-            });
-          }
-        }
-      }
-    }
-
-    // Prioridad 3: body.email (solo si no se encontró en orden)
-    if (!customerEmail && body && typeof body === "object" && "email" in body) {
-      const bodyEmail = body.email;
-      if (typeof bodyEmail === "string" && bodyEmail.length > 0) {
-        customerEmail = bodyEmail;
-        if (debug) {
-          console.info("[create-payment-intent] Email obtenido de body:", {
-            order_id,
-            email: customerEmail,
-          });
-        }
-      }
-    }
-
-    // Validar que existe email antes de crear PaymentIntent
-    if (!customerEmail) {
       return NextResponse.json(
-        { error: "Missing email for order. Email is required for Stripe payment." },
+        { error: "Missing email for order. Please ensure the order has a valid email address." },
         { status: 422 },
       );
     }
 
-    // Obtener título del primer producto para description
+    if (debug) {
+      console.info("[create-payment-intent] Email obtenido para Stripe:", {
+        order_id,
+        email: customerEmail,
+        source: order.email ? "orders.email" : "metadata.contact_email",
+      });
+    }
+
+    // Obtener título del primer producto para la descripción
     let description = `Depósito Dental Noriega - Pedido ${order.id}`;
     try {
       const { data: items } = await supabase
@@ -328,23 +324,23 @@ export async function POST(req: NextRequest) {
         .limit(1);
 
       const mainTitle = items?.[0]?.title;
-      if (mainTitle && typeof mainTitle === "string" && mainTitle.length > 0) {
+      if (mainTitle && typeof mainTitle === "string") {
         description = `Depósito Dental Noriega - Pedido ${order.id} - ${mainTitle}`;
       }
     } catch (itemsError) {
-      // Si falla obtener items, usar description básica
+      // Si falla obtener items, usar descripción básica (ya está asignada arriba)
       if (debug) {
         console.warn("[create-payment-intent] No se pudo obtener título del producto:", itemsError);
       }
     }
 
-    // Crear PaymentIntent con idempotencia, email del cliente y description útil
+    // Crear PaymentIntent con idempotencia, email del cliente y descripción útil
     const paymentIntent = await stripe.paymentIntents.create(
       {
         amount,
         currency: "mxn",
         receipt_email: customerEmail, // Email para el recibo de Stripe
-        description, // Descripción útil con order.id y título del primer producto
+        description, // Descripción útil con orderId y título del producto
         metadata: {
           order_id: order_id,
         },
