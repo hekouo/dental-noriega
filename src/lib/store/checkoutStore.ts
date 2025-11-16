@@ -478,6 +478,8 @@ export const useCheckoutStore = create<State>()(
       discount: state.discount,
       discountScope: state.discountScope,
       lastAppliedCoupon: state.lastAppliedCoupon,
+      // NO persistir orderId - debe ser null después de resetAfterSuccess()
+      // Cada compra nueva debe generar un nuevo orderId
     }),
   },
   ),

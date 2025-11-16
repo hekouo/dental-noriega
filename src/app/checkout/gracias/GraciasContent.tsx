@@ -131,11 +131,20 @@ export default function GraciasContent() {
       if (!cartCleared) {
         clearCart();
         clearSelection();
-        resetAfterSuccess(); // Limpiar orderId y campos relacionados para nueva compra
+        resetAfterSuccess(); // CRÍTICO: Limpiar orderId del store para nueva compra
         setCartCleared(true);
         
+        // Limpiar también localStorage para evitar que se restaure orderId viejo
+        if (typeof window !== "undefined") {
+          try {
+            localStorage.removeItem("DDN_LAST_ORDER_V1");
+          } catch {
+            // Ignorar errores
+          }
+        }
+        
         if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
-          console.debug("[GraciasContent] Carrito, selección y orderId limpiados por redirect_status=succeeded");
+          console.debug("[GraciasContent] Carrito, selección, orderId y localStorage limpiados por redirect_status=succeeded");
         }
       }
       
@@ -289,11 +298,20 @@ export default function GraciasContent() {
             if (!cartCleared) {
               clearCart();
               clearSelection();
-              resetAfterSuccess(); // Limpiar orderId y campos relacionados para nueva compra
+              resetAfterSuccess(); // CRÍTICO: Limpiar orderId del store para nueva compra
               setCartCleared(true);
               
+              // Limpiar también localStorage para evitar que se restaure orderId viejo
+              if (typeof window !== "undefined") {
+                try {
+                  localStorage.removeItem("DDN_LAST_ORDER_V1");
+                } catch {
+                  // Ignorar errores
+                }
+              }
+              
               if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
-                console.debug("[GraciasContent] Carrito, selección y orderId limpiados por PaymentIntent succeeded");
+                console.debug("[GraciasContent] Carrito, selección, orderId y localStorage limpiados por PaymentIntent succeeded");
               }
             }
             
@@ -468,11 +486,20 @@ export default function GraciasContent() {
             if (!cartCleared) {
               clearCart();
               clearSelection();
-              resetAfterSuccess(); // Limpiar orderId y campos relacionados para nueva compra
+              resetAfterSuccess(); // CRÍTICO: Limpiar orderId del store para nueva compra
               setCartCleared(true);
               
+              // Limpiar también localStorage para evitar que se restaure orderId viejo
+              if (typeof window !== "undefined") {
+                try {
+                  localStorage.removeItem("DDN_LAST_ORDER_V1");
+                } catch {
+                  // Ignorar errores
+                }
+              }
+              
               if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
-                console.debug("[GraciasContent] Carrito, selección y orderId limpiados por orden paid desde API");
+                console.debug("[GraciasContent] Carrito, selección, orderId y localStorage limpiados por orden paid desde API");
               }
             }
             
