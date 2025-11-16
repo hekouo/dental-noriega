@@ -237,29 +237,72 @@ export async function POST(req: NextRequest) {
     }
 
     // Obtener email de la orden desde Supabase para usar en Stripe
+    // Prioridad: orders.email > metadata.contact_email > body.email
     let customerEmail: string | undefined = undefined;
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     
-    if (supabaseUrl && serviceRoleKey) {
-      const supabase = createClient(supabaseUrl, serviceRoleKey, {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      });
+    if (!supabaseUrl || !serviceRoleKey) {
+      return NextResponse.json(
+        { error: "Configuración de Supabase no disponible" },
+        { status: 500 },
+      );
+    }
 
-      const { data: orderData } = await supabase
-        .from("orders")
-        .select("email")
-        .eq("id", order_id)
-        .single();
+    const supabase = createClient(supabaseUrl, serviceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
 
-      if (orderData?.email) {
-        customerEmail = orderData.email;
-        
+    // Buscar orden con email y metadata
+    const { data: order, error: orderError } = await supabase
+      .from("orders")
+      .select("id, email, metadata")
+      .eq("id", order_id)
+      .single();
+
+    if (orderError || !order) {
+      return NextResponse.json(
+        { error: `Orden no encontrada: ${order_id}` },
+        { status: 404 },
+      );
+    }
+
+    // Prioridad 1: orders.email
+    if (order.email) {
+      customerEmail = order.email;
+      if (debug) {
+        console.info("[create-payment-intent] Email obtenido de orders.email:", {
+          order_id,
+          email: customerEmail,
+        });
+      }
+    } else {
+      // Prioridad 2: metadata.contact_email
+      const metadata = order.metadata as Record<string, unknown> | null;
+      if (metadata && typeof metadata === "object" && "contact_email" in metadata) {
+        const contactEmail = metadata.contact_email;
+        if (typeof contactEmail === "string" && contactEmail.length > 0) {
+          customerEmail = contactEmail;
+          if (debug) {
+            console.info("[create-payment-intent] Email obtenido de metadata.contact_email:", {
+              order_id,
+              email: customerEmail,
+            });
+          }
+        }
+      }
+    }
+
+    // Prioridad 3: body.email (solo si no se encontró en orden)
+    if (!customerEmail && body && typeof body === "object" && "email" in body) {
+      const bodyEmail = body.email;
+      if (typeof bodyEmail === "string" && bodyEmail.length > 0) {
+        customerEmail = bodyEmail;
         if (debug) {
-          console.info("[create-payment-intent] Email obtenido de orden:", {
+          console.info("[create-payment-intent] Email obtenido de body:", {
             order_id,
             email: customerEmail,
           });
@@ -267,12 +310,41 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Crear PaymentIntent con idempotencia y email del cliente
+    // Validar que existe email antes de crear PaymentIntent
+    if (!customerEmail) {
+      return NextResponse.json(
+        { error: "Missing email for order. Email is required for Stripe payment." },
+        { status: 422 },
+      );
+    }
+
+    // Obtener título del primer producto para description
+    let description = `Depósito Dental Noriega - Pedido ${order.id}`;
+    try {
+      const { data: items } = await supabase
+        .from("order_items")
+        .select("title")
+        .eq("order_id", order_id)
+        .limit(1);
+
+      const mainTitle = items?.[0]?.title;
+      if (mainTitle && typeof mainTitle === "string" && mainTitle.length > 0) {
+        description = `Depósito Dental Noriega - Pedido ${order.id} - ${mainTitle}`;
+      }
+    } catch (itemsError) {
+      // Si falla obtener items, usar description básica
+      if (debug) {
+        console.warn("[create-payment-intent] No se pudo obtener título del producto:", itemsError);
+      }
+    }
+
+    // Crear PaymentIntent con idempotencia, email del cliente y description útil
     const paymentIntent = await stripe.paymentIntents.create(
       {
         amount,
         currency: "mxn",
         receipt_email: customerEmail, // Email para el recibo de Stripe
+        description, // Descripción útil con order.id y título del primer producto
         metadata: {
           order_id: order_id,
         },
