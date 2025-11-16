@@ -72,6 +72,7 @@ type State = CheckoutPersisted & {
   setShipping: (method: ShippingMethod, cost: number) => void;
   setCoupon: (code: string, discount: number, scope: DiscountScope) => void;
   clearCoupon: () => void;
+  resetAfterSuccess: () => void; // Limpiar orderId y campos relacionados después de pago exitoso
   reset: () => void;
 };
 
@@ -415,6 +416,33 @@ export const useCheckoutStore = create<State>()(
           couponCode: next.couponCode,
           discount: next.discount,
           discountScope: next.discountScope,
+          lastAppliedCoupon: next.lastAppliedCoupon,
+        });
+        return next;
+      });
+    },
+
+    resetAfterSuccess: () => {
+      set((s) => {
+        // Limpiar orderId y campos relacionados después de pago exitoso
+        // Mantener datos de contacto/envío para facilitar siguiente compra
+        const next = {
+          ...s,
+          orderId: null, // CRÍTICO: limpiar orderId para que la siguiente compra genere uno nuevo
+          couponCode: undefined,
+          discount: undefined,
+          discountScope: undefined,
+          // Mantener datos y shipping por si el usuario quiere hacer otra compra
+        };
+        persistCheckout({
+          step: "datos", // Resetear al paso inicial
+          datos: next.datos,
+          checkoutItems: [],
+          shippingMethod: next.shippingMethod,
+          shippingCost: next.shippingCost,
+          couponCode: undefined,
+          discount: undefined,
+          discountScope: undefined,
           lastAppliedCoupon: next.lastAppliedCoupon,
         });
         return next;

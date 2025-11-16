@@ -100,9 +100,48 @@ export async function POST(req: NextRequest) {
       .eq("id", orderData.order_id)
       .single();
 
-    // Construir metadata con toda la información adicional
+    // Construir metadata limpia y consistente con toda la información adicional
+    // IMPORTANTE: metadata debe tener estructura clara para facilitar queries en Supabase
+    const metadataFromPayload = orderData.metadata || {};
+    
+    // Extraer valores del metadata recibido o calcularlos
+    const subtotalCents = typeof metadataFromPayload.subtotal_cents === "number"
+      ? metadataFromPayload.subtotal_cents
+      : orderData.total_cents - (typeof metadataFromPayload.shipping_cost_cents === "number" ? metadataFromPayload.shipping_cost_cents : 0) + (typeof metadataFromPayload.discount_cents === "number" ? metadataFromPayload.discount_cents : 0);
+    
+    const shippingCostCents = typeof metadataFromPayload.shipping_cost_cents === "number"
+      ? metadataFromPayload.shipping_cost_cents
+      : 0;
+    
+    const discountCents = typeof metadataFromPayload.discount_cents === "number"
+      ? metadataFromPayload.discount_cents
+      : 0;
+    
+    const couponCode = typeof metadataFromPayload.coupon_code === "string"
+      ? metadataFromPayload.coupon_code
+      : null;
+    
+    const shippingMethod = typeof metadataFromPayload.shipping_method === "string"
+      ? metadataFromPayload.shipping_method
+      : null;
+    
+    // Construir metadata limpia y estructurada
     const metadata: Record<string, unknown> = {
-      ...orderData.metadata,
+      subtotal_cents: subtotalCents,
+      shipping_cost_cents: shippingCostCents,
+      discount_cents: discountCents,
+      coupon_code: couponCode,
+      shipping_method: shippingMethod,
+      items_count: orderData.items.length,
+      // Información de contacto (si está disponible)
+      contact_name: metadataFromPayload.contact_name || null,
+      contact_email: metadataFromPayload.contact_email || orderData.email || null,
+      contact_phone: metadataFromPayload.contact_phone || null,
+      contact_address: metadataFromPayload.contact_address || null,
+      contact_city: metadataFromPayload.contact_city || null,
+      contact_state: metadataFromPayload.contact_state || null,
+      contact_cp: metadataFromPayload.contact_cp || null,
+      // Items detallados (opcional, para referencia)
       items: orderData.items.map((item) => ({
         productId: item.productId,
         title: item.title,
