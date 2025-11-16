@@ -314,8 +314,10 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Obtener título del primer producto para la descripción
+    // Obtener título del primer producto y nombre de contacto para la descripción
     let description = `Depósito Dental Noriega - Pedido ${order.id}`;
+    let contactName: string | undefined = undefined;
+    
     try {
       const { data: items } = await supabase
         .from("order_items")
@@ -334,20 +336,94 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Crear PaymentIntent con idempotencia, email del cliente y descripción útil
-    const paymentIntent = await stripe.paymentIntents.create(
-      {
-        amount,
-        currency: "mxn",
-        receipt_email: customerEmail, // Email para el recibo de Stripe
-        description, // Descripción útil con orderId y título del producto
-        metadata: {
-          order_id: order_id,
-        },
-        automatic_payment_methods: {
-          enabled: true,
-        },
+    // Obtener nombre de contacto desde metadata para crear/actualizar Customer
+    if (order.metadata && typeof order.metadata === "object") {
+      const metadata = order.metadata as Record<string, unknown>;
+      const name = metadata.contact_name;
+      if (name && typeof name === "string") {
+        contactName = name;
+      }
+    }
+
+    // OPCIÓN AVANZADA: Buscar o crear Customer en Stripe por email
+    // Esto asegura que cada email tenga su propio Customer y no se reutilice uno fijo
+    let customerId: string | undefined = undefined;
+    
+    try {
+      // Buscar Customer existente por email
+      const existingCustomers = await stripe.customers.list({
+        email: customerEmail,
+        limit: 1,
+      });
+
+      if (existingCustomers.data.length > 0) {
+        // Usar Customer existente
+        customerId = existingCustomers.data[0].id;
+        
+        // Actualizar nombre si está disponible y es diferente
+        if (contactName && existingCustomers.data[0].name !== contactName) {
+          await stripe.customers.update(customerId, {
+            name: contactName,
+          });
+        }
+
+        if (debug) {
+          console.info("[create-payment-intent] Customer existente encontrado:", {
+            customer_id: customerId,
+            email: customerEmail,
+          });
+        }
+      } else {
+        // Crear nuevo Customer
+        const newCustomer = await stripe.customers.create({
+          email: customerEmail,
+          name: contactName || undefined,
+          metadata: {
+            // Guardar order_id del primer pedido para referencia
+            first_order_id: order.id,
+          },
+        });
+        
+        customerId = newCustomer.id;
+        
+        if (debug) {
+          console.info("[create-payment-intent] Nuevo Customer creado:", {
+            customer_id: customerId,
+            email: customerEmail,
+            name: contactName,
+          });
+        }
+      }
+    } catch (customerError) {
+      // Si falla crear/buscar Customer, continuar sin customer (solo con receipt_email)
+      // Esto es un fallback para no romper el flujo si hay problemas con Stripe Customers API
+      if (debug) {
+        console.warn("[create-payment-intent] Error al buscar/crear Customer, continuando sin customer:", customerError);
+      }
+      // customerId queda como undefined, el PaymentIntent se creará solo con receipt_email
+    }
+
+    // Crear PaymentIntent con idempotencia, email del cliente, customer (si existe) y descripción útil
+    const paymentIntentData: Stripe.PaymentIntentCreateParams = {
+      amount,
+      currency: "mxn",
+      receipt_email: customerEmail, // Email para el recibo de Stripe
+      description, // Descripción útil con orderId y título del producto
+      metadata: {
+        order_id: order_id,
       },
+      automatic_payment_methods: {
+        enabled: true,
+      },
+    };
+
+    // Solo agregar customer si se encontró/creó exitosamente
+    if (customerId) {
+      paymentIntentData.customer = customerId;
+    }
+
+    const paymentIntent = await stripe.paymentIntents.create(
+      paymentIntentData,
       {
         idempotencyKey,
       },
