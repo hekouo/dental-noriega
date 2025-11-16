@@ -39,6 +39,7 @@ export default function GraciasContent() {
   const [cartCleared, setCartCleared] = useState(false);
   const clearCart = useCartStore((s) => s.clearCart);
   const clearSelection = useCheckoutStore((s) => s.clearSelection);
+  const resetAfterSuccess = useCheckoutStore((s) => s.resetAfterSuccess);
 
   // Marcar como montado solo en cliente
   useEffect(() => {
@@ -130,10 +131,11 @@ export default function GraciasContent() {
       if (!cartCleared) {
         clearCart();
         clearSelection();
+        resetAfterSuccess(); // Limpiar orderId y campos relacionados para nueva compra
         setCartCleared(true);
         
         if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
-          console.debug("[GraciasContent] Carrito y selección limpiados por redirect_status=succeeded");
+          console.debug("[GraciasContent] Carrito, selección y orderId limpiados por redirect_status=succeeded");
         }
       }
       
@@ -211,6 +213,13 @@ export default function GraciasContent() {
           const checkoutStore = useCheckoutStore.getState();
           const shippingCost = checkoutStore.shippingCost || 0;
           const shippingMethod = checkoutStore.shippingMethod || "pickup";
+          const discount = checkoutStore.discount || 0;
+          
+          // Calcular subtotal_cents correctamente: subtotal = total - shipping + discount
+          // (porque total = subtotal - discount + shipping)
+          const shippingCents = Math.round(shippingCost * 100);
+          const discountCents = Math.round(discount * 100);
+          const subtotalCents = totalCents - shippingCents + discountCents;
           
           if (itemsForSave.length > 0 && totalCents > 0) {
             // Obtener payment_intent de la URL si existe
@@ -229,16 +238,18 @@ export default function GraciasContent() {
                 payment_provider: "stripe",
                 payment_id: paymentIntentId || undefined,
                 metadata: {
-                  name: checkoutDatos.name,
-                  phone: checkoutDatos.phone,
-                  address: checkoutDatos.address,
-                  city: checkoutDatos.city,
-                  state: checkoutDatos.state,
-                  cp: checkoutDatos.cp,
-                  couponCode: checkoutStore.couponCode,
-                  discount: checkoutStore.discount || 0,
-                  shippingCost: shippingCost,
-                  shippingMethod: shippingMethod,
+                  subtotal_cents: subtotalCents,
+                  shipping_cost_cents: shippingCents,
+                  discount_cents: discountCents,
+                  coupon_code: checkoutStore.couponCode || null,
+                  shipping_method: shippingMethod,
+                  contact_name: checkoutDatos.name || null,
+                  contact_email: checkoutDatos.email || null,
+                  contact_phone: checkoutDatos.phone || null,
+                  contact_address: checkoutDatos.address || null,
+                  contact_city: checkoutDatos.city || null,
+                  contact_state: checkoutDatos.state || null,
+                  contact_cp: checkoutDatos.cp || null,
                 },
               }),
             }).then(() => {
@@ -278,10 +289,11 @@ export default function GraciasContent() {
             if (!cartCleared) {
               clearCart();
               clearSelection();
+              resetAfterSuccess(); // Limpiar orderId y campos relacionados para nueva compra
               setCartCleared(true);
               
               if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
-                console.debug("[GraciasContent] Carrito y selección limpiados por PaymentIntent succeeded");
+                console.debug("[GraciasContent] Carrito, selección y orderId limpiados por PaymentIntent succeeded");
               }
             }
             
@@ -351,6 +363,13 @@ export default function GraciasContent() {
                   const checkoutStore = useCheckoutStore.getState();
                   const shippingCost = checkoutStore.shippingCost || 0;
                   const shippingMethod = checkoutStore.shippingMethod || "pickup";
+                  const discount = checkoutStore.discount || 0;
+                  
+                  // Calcular subtotal_cents correctamente: subtotal = total - shipping + discount
+                  // (porque total = subtotal - discount + shipping)
+                  const shippingCents = Math.round(shippingCost * 100);
+                  const discountCents = Math.round(discount * 100);
+                  const subtotalCents = totalCents - shippingCents + discountCents;
                   
                   if (itemsForSave.length > 0 && totalCents > 0) {
                     fetch(`/api/checkout/save-order`, {
@@ -365,16 +384,18 @@ export default function GraciasContent() {
                         payment_provider: "stripe",
                         payment_id: pi.id,
                         metadata: {
-                          name: checkoutDatos.name,
-                          phone: checkoutDatos.phone,
-                          address: checkoutDatos.address,
-                          city: checkoutDatos.city,
-                          state: checkoutDatos.state,
-                          cp: checkoutDatos.cp,
-                          couponCode: checkoutStore.couponCode,
-                          discount: checkoutStore.discount || 0,
-                          shippingCost: shippingCost,
-                          shippingMethod: shippingMethod,
+                          subtotal_cents: subtotalCents,
+                          shipping_cost_cents: shippingCents,
+                          discount_cents: discountCents,
+                          coupon_code: checkoutStore.couponCode || null,
+                          shipping_method: shippingMethod,
+                          contact_name: checkoutDatos.name || null,
+                          contact_email: checkoutDatos.email || null,
+                          contact_phone: checkoutDatos.phone || null,
+                          contact_address: checkoutDatos.address || null,
+                          contact_city: checkoutDatos.city || null,
+                          contact_state: checkoutDatos.state || null,
+                          contact_cp: checkoutDatos.cp || null,
                         },
                       }),
                     }).catch((err) => {
@@ -400,7 +421,7 @@ export default function GraciasContent() {
         // Si falla cargar Stripe, continuar con el poll normal
       });
     }
-  }, [redirectStatus, paymentIntent, orderRefFromUrl, clearCart, clearSelection, isMounted, cartCleared]);
+  }, [redirectStatus, paymentIntent, orderRefFromUrl, clearCart, clearSelection, resetAfterSuccess, isMounted, cartCleared]);
 
   // Verificar estado de la orden y limpiar carrito solo si es 'paid' (fallback a Supabase)
   useEffect(() => {
@@ -447,10 +468,11 @@ export default function GraciasContent() {
             if (!cartCleared) {
               clearCart();
               clearSelection();
+              resetAfterSuccess(); // Limpiar orderId y campos relacionados para nueva compra
               setCartCleared(true);
               
               if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
-                console.debug("[GraciasContent] Carrito y selección limpiados por orden paid desde API");
+                console.debug("[GraciasContent] Carrito, selección y orderId limpiados por orden paid desde API");
               }
             }
             
