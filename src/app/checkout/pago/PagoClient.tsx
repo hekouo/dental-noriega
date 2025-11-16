@@ -72,47 +72,38 @@ export default function PagoClient() {
     message: string;
     type: "error" | "success";
   } | null>(null);
-  const [orderId, setOrderId] = useState<string | null>(null);
+  // CRÍTICO: Usar orderId del store, NO estado local ni localStorage
+  // El store se limpia con resetAfterSuccess() después de pago exitoso
+  const storeOrderId = useCheckoutStore((s) => s.orderId);
+  const setStoreOrderId = useCheckoutStore((s) => s.setOrderId);
+  const [orderId, setOrderId] = useState<string | null>(null); // Estado local solo para UI (StripePaymentForm)
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
 
-  // Crear orden una sola vez al montar si no hay order en URL ni localStorage
-  // Solo leer orderId existente de URL o localStorage, NO crear orden automáticamente
+  // Sincronizar orderId local con el del store
+  // Solo usar orderId del store, NO restaurar de localStorage/URL automáticamente
   useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const urlParams = new URLSearchParams(window.location.search);
-    const orderFromUrl = urlParams.get("order");
-    
-    // Leer de localStorage (puede ser string o JSON)
-    let orderFromStorage: string | null = null;
-    try {
-      const stored = localStorage.getItem("DDN_LAST_ORDER_V1");
-      if (stored) {
-        // Intentar parsear como JSON, si falla usar como string
-        try {
-          const parsed = JSON.parse(stored);
-          orderFromStorage = parsed.order_id || parsed.orderRef || stored;
-        } catch {
-          orderFromStorage = stored;
-        }
+    // Si el store tiene orderId, usarlo
+    // Si el store NO tiene orderId, dejar orderId local como null (nueva compra)
+    if (storeOrderId) {
+      setOrderId(storeOrderId);
+      if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
+        console.debug("[PagoClient] OrderId del store:", storeOrderId);
       }
-    } catch {
-      // Ignorar errores de localStorage
+    } else {
+      // Store no tiene orderId = nueva compra, asegurar que orderId local también es null
+      setOrderId(null);
+      if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
+        console.debug("[PagoClient] Store sin orderId, preparado para nueva compra");
+      }
     }
+  }, [storeOrderId]);
 
-    if (orderFromUrl || orderFromStorage) {
-      setOrderId(orderFromUrl || orderFromStorage);
-      if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
-        console.debug("[PagoClient] OrderId encontrado:", orderFromUrl || orderFromStorage);
-      }
-    } else if (itemsForOrder.length === 0) {
-      // Si no hay items seleccionados, redirigir a /checkout
-      if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
-        console.debug("[PagoClient] No hay items seleccionados, redirigiendo a /checkout");
-      }
+  // Guard: redirigir si no hay items seleccionados
+  useEffect(() => {
+    if (itemsForOrder.length === 0 && datos) {
       router.replace("/checkout");
     }
-  }, [itemsForOrder.length, router]);
+  }, [itemsForOrder.length, datos, router]);
 
   // Restaurar último cupón aplicado solo al montar inicialmente, NO después de quitarlo explícitamente
   // Usar un ref para rastrear si el usuario quitó el cupón explícitamente
@@ -332,16 +323,36 @@ export default function PagoClient() {
       }
     }
 
+    // CRÍTICO: Verificar si ya hay un orderId en el store
+    // Si checkoutStore.orderId es null, crear SIEMPRE una nueva orden
+    // Si checkoutStore.orderId tiene valor, puede ser un reintento de la MISMA compra
+    const currentStoreOrderId = useCheckoutStore.getState().orderId;
+    
+    if (currentStoreOrderId && orderId === currentStoreOrderId) {
+      // Ya tenemos un orderId válido en el store y en el estado local
+      // Esto puede ser un reintento de la misma compra (refresh, etc.)
+      if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
+        console.debug("[PagoClient] Reutilizando orderId existente del store:", currentStoreOrderId);
+      }
+      // Si el método de pago es tarjeta, StripePaymentForm ya tiene el orderId
+      // Si no es tarjeta, redirigir con el orderId existente
+      if (paymentMethod !== "tarjeta") {
+        handlePayNowLegacy(currentStoreOrderId);
+      }
+      return;
+    }
+
     setIsCreatingOrder(true);
     setError(null);
 
     try {
-      // Crear orden primero - usar price_cents directamente si existe
+      // Crear orden NUEVA - NO enviar orderId en el payload para forzar creación nueva
       // IMPORTANTE: Incluir email del checkout para que se guarde en la orden y se use en Stripe
       const orderPayload = {
         email: datos.email, // Email del checkout para la orden y Stripe
         name: datos.name, // Nombre para metadata
         shippingMethod: selectedShippingMethod || "pickup", // Método de envío
+        // NO incluir orderId aquí - queremos que create-order cree SIEMPRE una nueva orden
         items: itemsForOrder.map((item) => {
           const qty = item.qty ?? 1;
           const priceCents =
@@ -409,7 +420,12 @@ export default function PagoClient() {
         throw new Error("No se recibió order_id de la API");
       }
 
-      // Persistir orderId y datos completos de la orden en localStorage
+      // CRÍTICO: Guardar orderId en el store (no solo en estado local)
+      // Esto asegura que si el usuario refresca, el store mantiene el orderId
+      setStoreOrderId(newOrderId);
+      setOrderId(newOrderId);
+
+      // Persistir orderId y datos completos de la orden en localStorage (para GraciasContent)
       if (typeof window !== "undefined") {
         const orderData = {
           orderRef: newOrderId,
@@ -438,7 +454,6 @@ export default function PagoClient() {
           router.replace(currentUrl.pathname + currentUrl.search, { scroll: false });
         }
       }
-      setOrderId(newOrderId);
 
       // Si el método de pago es tarjeta, StripePaymentForm creará el PaymentIntent internamente
       if (paymentMethod !== "tarjeta") {
