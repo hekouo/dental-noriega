@@ -4,7 +4,7 @@ import React from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import Link from "next/link";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   useCheckoutStore,
   type ShippingMethod,
@@ -114,9 +114,17 @@ export default function PagoClient() {
     }
   }, [itemsForOrder.length, router]);
 
-  // Restaurar último cupón aplicado si existe
+  // Restaurar último cupón aplicado solo al montar inicialmente, NO después de quitarlo explícitamente
+  // Usar un ref para rastrear si el usuario quitó el cupón explícitamente
+  const couponWasRemovedRef = useRef(false);
+  
   useEffect(() => {
-    if (lastAppliedCoupon && !couponCode && !couponInput) {
+    // Solo restaurar si:
+    // 1. Hay un lastAppliedCoupon
+    // 2. No hay cupón aplicado actualmente
+    // 3. El input está vacío
+    // 4. El usuario NO quitó el cupón explícitamente
+    if (lastAppliedCoupon && !couponCode && !couponInput && !couponWasRemovedRef.current) {
       setCouponInput(lastAppliedCoupon);
     }
   }, [lastAppliedCoupon, couponCode, couponInput]);
@@ -263,6 +271,7 @@ export default function PagoClient() {
       return;
     }
 
+    couponWasRemovedRef.current = false; // Resetear flag cuando se aplica un cupón nuevo
     setCoupon(validation.appliedCode!, validation.discount, validation.scope);
     setCouponError(null);
     setCouponInput("");
@@ -782,6 +791,7 @@ export default function PagoClient() {
             <button
               type="button"
               onClick={() => {
+                couponWasRemovedRef.current = true; // Marcar que el usuario quitó el cupón explícitamente
                 clearCoupon();
                 setCouponInput("");
                 setCouponError(null);

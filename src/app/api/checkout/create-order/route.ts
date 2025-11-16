@@ -142,6 +142,51 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // IDEMPOTENCIA: Verificar si ya existe una orden con estos items (por si se llama múltiples veces)
+    // Usar un hash de los items para detectar duplicados
+    const itemsHash = JSON.stringify(
+      orderData.items.map((i) => ({ id: i.id, qty: i.qty, price_cents: i.price_cents })).sort((a, b) => a.id.localeCompare(b.id))
+    );
+    
+    // Buscar órdenes recientes (últimos 5 minutos) con el mismo hash de items
+    const recentOrders = await supabase
+      .from("orders")
+      .select("id, created_at, metadata")
+      .eq("status", "pending")
+      .gte("created_at", new Date(Date.now() - 5 * 60 * 1000).toISOString())
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    // Si encontramos una orden reciente con los mismos items, devolver su ID
+    if (recentOrders.data && recentOrders.data.length > 0) {
+      for (const existingOrder of recentOrders.data) {
+        // Verificar items de la orden existente
+        const { data: existingItems } = await supabase
+          .from("order_items")
+          .select("product_id, qty, unit_price_cents")
+          .eq("order_id", existingOrder.id)
+          .order("product_id");
+        
+        if (existingItems && existingItems.length === orderData.items.length) {
+          const existingItemsHash = JSON.stringify(
+            existingItems.map((i) => ({ id: i.product_id || "", qty: i.qty, price_cents: i.unit_price_cents })).sort((a, b) => a.id.localeCompare(b.id))
+          );
+          
+          if (existingItemsHash === itemsHash) {
+            // Orden duplicada encontrada, devolver la existente
+            if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
+              console.info("[create-order] Orden duplicada detectada, devolviendo orden existente:", existingOrder.id);
+            }
+            return NextResponse.json({
+              order_id: existingOrder.id,
+              total_cents,
+              currency: "mxn",
+            });
+          }
+        }
+      }
+    }
+
     // Construir metadata con información adicional
     const metadata: Record<string, unknown> = {
       subtotal_cents: total_cents, // Por ahora subtotal = total (sin envío ni descuento aún)
@@ -150,6 +195,7 @@ export async function POST(req: NextRequest) {
       shipping_method: orderData.shippingMethod || "pickup",
       contact_name: orderData.name || null,
       contact_email: orderData.email || null,
+      items_hash: itemsHash, // Guardar hash para detección de duplicados
     };
 
     // Crear orden usando SOLO las columnas válidas del schema real
@@ -182,44 +228,58 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Crear items de la orden usando SOLO las columnas válidas del schema real
-    // IMPORTANTE: unit_price_cents es el precio UNITARIO en centavos (no el total del item)
-    const orderItems = orderData.items.map((item) => {
-      if (item.price_cents <= 0) {
-        console.warn("[create-order] Item con precio inválido:", {
-          id: item.id,
-          price_cents: item.price_cents,
-        });
-      }
-      return {
-        order_id: order.id,
-        product_id: item.id || null, // UUID si es válido, sino null
-        title: item.title || `Producto ${item.id}`, // Usar título del payload si está disponible
-        unit_price_cents: item.price_cents, // INT en centavos - precio UNITARIO del producto
-        qty: item.qty, // Cantidad comprada
-        image_url: item.image_url || null, // URL de imagen si está disponible
-      };
-    });
-
-    const { error: itemsError } = await supabase
+    // IDEMPOTENCIA: Verificar si ya existen items para esta orden antes de insertar
+    const { data: existingItems } = await supabase
       .from("order_items")
-      .insert(orderItems);
+      .select("id")
+      .eq("order_id", order.id)
+      .limit(1);
 
-    if (itemsError) {
-      // Limpiar orden si fallan los items
-      await supabase.from("orders").delete().eq("id", order.id);
-      console.error("[create-order] Error al crear items:", {
-        message: itemsError.message,
-        details: itemsError.details,
-        hint: itemsError.hint,
-        code: itemsError.code,
-        order_id: order.id,
-        items_count: orderItems.length,
+    // Solo insertar items si NO existen (idempotencia)
+    if (!existingItems || existingItems.length === 0) {
+      // Crear items de la orden usando SOLO las columnas válidas del schema real
+      // IMPORTANTE: unit_price_cents es el precio UNITARIO en centavos (no el total del item)
+      const orderItems = orderData.items.map((item) => {
+        if (item.price_cents <= 0) {
+          console.warn("[create-order] Item con precio inválido:", {
+            id: item.id,
+            price_cents: item.price_cents,
+          });
+        }
+        return {
+          order_id: order.id,
+          product_id: item.id || null, // UUID si es válido, sino null
+          title: item.title || `Producto ${item.id}`, // Usar título del payload si está disponible
+          unit_price_cents: item.price_cents, // INT en centavos - precio UNITARIO del producto
+          qty: item.qty, // Cantidad comprada
+          image_url: item.image_url || null, // URL de imagen si está disponible
+        };
       });
-      return NextResponse.json(
-        { error: `Error al crear items: ${itemsError.message}` },
-        { status: 500 },
-      );
+
+      const { error: itemsError } = await supabase
+        .from("order_items")
+        .insert(orderItems);
+
+      if (itemsError) {
+        // Limpiar orden si fallan los items
+        await supabase.from("orders").delete().eq("id", order.id);
+        console.error("[create-order] Error al crear items:", {
+          message: itemsError.message,
+          details: itemsError.details,
+          hint: itemsError.hint,
+          code: itemsError.code,
+          order_id: order.id,
+          items_count: orderItems.length,
+        });
+        return NextResponse.json(
+          { error: `Error al crear items: ${itemsError.message}` },
+          { status: 500 },
+        );
+      }
+    } else {
+      if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
+        console.info("[create-order] Items ya existen para esta orden, no se insertan duplicados");
+      }
     }
 
     console.info("[create-order] order", order.id, total_cents);

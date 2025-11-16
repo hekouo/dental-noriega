@@ -183,6 +183,16 @@ export async function POST(req: NextRequest) {
         );
       }
 
+      // IDEMPOTENCIA CRÍTICA: Verificar si ya existen items para esta orden
+      // Si la orden ya está 'paid', NO modificar items ni recalcular montos
+      const { data: existingOrderStatus } = await supabase
+        .from("orders")
+        .select("status")
+        .eq("id", orderData.order_id)
+        .single();
+
+      const isAlreadyPaid = existingOrderStatus?.status === "paid";
+
       // Verificar si ya existen items para esta orden
       const { data: existingItems } = await supabase
         .from("order_items")
@@ -190,8 +200,14 @@ export async function POST(req: NextRequest) {
         .eq("order_id", orderData.order_id)
         .limit(1);
 
-      // Solo insertar items si NO existen (idempotencia)
+      // Solo insertar items si NO existen Y la orden NO está ya pagada (idempotencia)
       if (!existingItems || existingItems.length === 0) {
+        if (isAlreadyPaid) {
+          // Si ya está pagada y no tiene items, algo está mal pero no insertamos para evitar duplicados
+          if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
+            console.warn("[save-order] Orden ya pagada sin items, no se insertan items nuevos");
+          }
+        } else {
         const orderItems = orderData.items.map((item) => ({
           order_id: orderData.order_id,
           product_id: item.productId || null,
@@ -218,6 +234,7 @@ export async function POST(req: NextRequest) {
           if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
             console.warn("[save-order] Items no insertados (puede que ya existan)");
           }
+        }
         }
       } else {
         if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
