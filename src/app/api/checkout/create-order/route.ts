@@ -22,7 +22,9 @@ const CreateOrderRequestSchema = z.object({
   items: z.array(OrderItemSchema).min(1),
   email: z.string().email().optional(),
   name: z.string().min(2).optional(),
-  shippingMethod: z.enum(["pickup", "delivery"]).optional(),
+  // Aceptar los valores reales del frontend: pickup, standard, express
+  // Mapear standard/express a "delivery" internamente para metadata
+  shippingMethod: z.enum(["pickup", "standard", "express"]).optional(),
 });
 
 type CreateOrderRequest = z.infer<typeof CreateOrderRequestSchema>;
@@ -146,12 +148,17 @@ export async function POST(req: NextRequest) {
     // NO reusar órdenes basándose en hash de items (cada compra debe generar un nuevo orderId)
     // Solo reusar si la misma orden se llama múltiples veces mientras está pendiente
     
+    // Mapear shippingMethod del frontend a valor interno para metadata
+    // Frontend usa: "pickup" | "standard" | "express"
+    // Guardamos el valor original en metadata para referencia
+    const shippingMethodForMetadata = orderData.shippingMethod || "pickup";
+    
     // Construir metadata con información adicional
     const metadata: Record<string, unknown> = {
       subtotal_cents: total_cents, // Por ahora subtotal = total (sin envío ni descuento aún)
       shipping_cost_cents: 0,
       discount_cents: 0,
-      shipping_method: orderData.shippingMethod || "pickup",
+      shipping_method: shippingMethodForMetadata, // Guardar valor original: pickup, standard, express
       contact_name: orderData.name || null,
       contact_email: orderData.email || null,
     };
