@@ -236,11 +236,43 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Crear PaymentIntent con idempotencia
+    // Obtener email de la orden desde Supabase para usar en Stripe
+    let customerEmail: string | undefined = undefined;
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    
+    if (supabaseUrl && serviceRoleKey) {
+      const supabase = createClient(supabaseUrl, serviceRoleKey, {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      });
+
+      const { data: orderData } = await supabase
+        .from("orders")
+        .select("email")
+        .eq("id", order_id)
+        .single();
+
+      if (orderData?.email) {
+        customerEmail = orderData.email;
+        
+        if (debug) {
+          console.info("[create-payment-intent] Email obtenido de orden:", {
+            order_id,
+            email: customerEmail,
+          });
+        }
+      }
+    }
+
+    // Crear PaymentIntent con idempotencia y email del cliente
     const paymentIntent = await stripe.paymentIntents.create(
       {
         amount,
         currency: "mxn",
+        receipt_email: customerEmail, // Email para el recibo de Stripe
         metadata: {
           order_id: order_id,
         },

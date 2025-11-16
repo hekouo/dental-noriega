@@ -142,51 +142,10 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // IDEMPOTENCIA: Verificar si ya existe una orden con estos items (por si se llama múltiples veces)
-    // Usar un hash de los items para detectar duplicados
-    const itemsHash = JSON.stringify(
-      orderData.items.map((i) => ({ id: i.id, qty: i.qty, price_cents: i.price_cents })).sort((a, b) => a.id.localeCompare(b.id))
-    );
+    // IDEMPOTENCIA SIMPLIFICADA: Solo reusar órdenes si están en estados específicos y NO están paid
+    // NO reusar órdenes basándose en hash de items (cada compra debe generar un nuevo orderId)
+    // Solo reusar si la misma orden se llama múltiples veces mientras está pendiente
     
-    // Buscar órdenes recientes (últimos 5 minutos) con el mismo hash de items
-    const recentOrders = await supabase
-      .from("orders")
-      .select("id, created_at, metadata")
-      .eq("status", "pending")
-      .gte("created_at", new Date(Date.now() - 5 * 60 * 1000).toISOString())
-      .order("created_at", { ascending: false })
-      .limit(10);
-
-    // Si encontramos una orden reciente con los mismos items, devolver su ID
-    if (recentOrders.data && recentOrders.data.length > 0) {
-      for (const existingOrder of recentOrders.data) {
-        // Verificar items de la orden existente
-        const { data: existingItems } = await supabase
-          .from("order_items")
-          .select("product_id, qty, unit_price_cents")
-          .eq("order_id", existingOrder.id)
-          .order("product_id");
-        
-        if (existingItems && existingItems.length === orderData.items.length) {
-          const existingItemsHash = JSON.stringify(
-            existingItems.map((i) => ({ id: i.product_id || "", qty: i.qty, price_cents: i.unit_price_cents })).sort((a, b) => a.id.localeCompare(b.id))
-          );
-          
-          if (existingItemsHash === itemsHash) {
-            // Orden duplicada encontrada, devolver la existente
-            if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
-              console.info("[create-order] Orden duplicada detectada, devolviendo orden existente:", existingOrder.id);
-            }
-            return NextResponse.json({
-              order_id: existingOrder.id,
-              total_cents,
-              currency: "mxn",
-            });
-          }
-        }
-      }
-    }
-
     // Construir metadata con información adicional
     const metadata: Record<string, unknown> = {
       subtotal_cents: total_cents, // Por ahora subtotal = total (sin envío ni descuento aún)
@@ -195,7 +154,6 @@ export async function POST(req: NextRequest) {
       shipping_method: orderData.shippingMethod || "pickup",
       contact_name: orderData.name || null,
       contact_email: orderData.email || null,
-      items_hash: itemsHash, // Guardar hash para detección de duplicados
     };
 
     // Crear orden usando SOLO las columnas válidas del schema real

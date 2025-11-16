@@ -337,7 +337,11 @@ export default function PagoClient() {
 
     try {
       // Crear orden primero - usar price_cents directamente si existe
+      // IMPORTANTE: Incluir email del checkout para que se guarde en la orden y se use en Stripe
       const orderPayload = {
+        email: datos.email, // Email del checkout para la orden y Stripe
+        name: datos.name, // Nombre para metadata
+        shippingMethod: selectedShippingMethod || "pickup", // Método de envío
         items: itemsForOrder.map((item) => {
           const qty = item.qty ?? 1;
           const priceCents =
