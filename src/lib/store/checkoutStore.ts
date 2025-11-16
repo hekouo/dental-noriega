@@ -432,6 +432,7 @@ export const useCheckoutStore = create<State>()(
           couponCode: undefined,
           discount: undefined,
           discountScope: undefined,
+          lastAppliedCoupon: undefined, // CRÍTICO: limpiar también lastAppliedCoupon para evitar que se restaure automáticamente
           // Mantener datos y shipping por si el usuario quiere hacer otra compra
         };
         persistCheckout({
@@ -443,7 +444,7 @@ export const useCheckoutStore = create<State>()(
           couponCode: undefined,
           discount: undefined,
           discountScope: undefined,
-          lastAppliedCoupon: next.lastAppliedCoupon,
+          lastAppliedCoupon: undefined, // Limpiar también en persistencia
         });
         return next;
       });
