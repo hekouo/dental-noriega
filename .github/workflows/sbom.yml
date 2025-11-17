@@ -27,7 +27,7 @@ jobs:
           path: .
           format: cyclonedx-json
           output-file: sbom.cdx.json
-          artifact-name: sbom-cyclonedx
+          artifact-name: sbom-pr
           upload-artifact: true
 
       # Sube el SBOM al Dependency Graph cuando es push a main

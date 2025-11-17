@@ -1,6 +1,7 @@
 // src/components/pdp/AddToCartControls.tsx
 "use client";
 import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import QtyStepper from "@/components/ui/QtyStepper";
 import { useCartStore } from "@/lib/store/cartStore";
 
@@ -18,8 +19,10 @@ type Props = {
 };
 
 export default function AddToCartControls({ product }: Props) {
+  const router = useRouter();
   const addToCart = useCartStore((s) => s.addToCart);
   const [qty, setQty] = useState(1);
+  const [isAdding, setIsAdding] = useState(false);
   const busyRef = useRef(false);
   const soldOut = !product.in_stock || !product.is_active;
   const canBuy = !soldOut;
@@ -27,6 +30,8 @@ export default function AddToCartControls({ product }: Props) {
   function onAdd() {
     if (busyRef.current || !canBuy) return;
     busyRef.current = true;
+    setIsAdding(true);
+    
     addToCart({
       id: product.id,
       title: product.title,
@@ -35,35 +40,74 @@ export default function AddToCartControls({ product }: Props) {
       image_url: product.image_url,
       selected: true,
     });
-    setTimeout(() => (busyRef.current = false), 250);
+
+    // Analytics: add_to_cart
+    if (typeof window !== "undefined" && window.dataLayer) {
+      window.dataLayer.push({
+        event: "add_to_cart",
+        ecommerce: {
+          currency: "MXN",
+          value: product.price * qty,
+          items: [
+            {
+              item_id: product.id,
+              item_name: product.title,
+              price: product.price,
+              quantity: qty,
+            },
+          ],
+        },
+      });
+    }
+
+    setTimeout(() => {
+      busyRef.current = false;
+      setIsAdding(false);
+    }, 250);
+    
     console.info("✅ Agregado al carrito:", product.slug, "x", qty);
   }
 
   function onBuyNow() {
+    if (busyRef.current || !canBuy) return;
+    
+    // Agregar al carrito primero
     onAdd();
-    location.href = "/checkout";
+    
+    // Redirigir al checkout después de un pequeño delay para asegurar que el carrito se actualizó
+    setTimeout(() => {
+      router.push("/checkout/datos");
+    }, 100);
   }
 
   return (
-    <div className="mt-6 flex items-center gap-4">
-      <QtyStepper
-        value={qty}
-        onValueChange={setQty}
-        min={1}
-        max={99}
-        disabled={!canBuy}
-      />
+    <div className="mt-6 space-y-4">
+      <div className="flex items-center gap-4">
+        <QtyStepper
+          value={qty}
+          onValueChange={setQty}
+          min={1}
+          max={99}
+          disabled={!canBuy || isAdding}
+        />
+        <button
+          type="button"
+          onClick={onAdd}
+          disabled={!canBuy || isAdding}
+          aria-busy={isAdding}
+          aria-label={`Agregar ${product.title} al carrito`}
+          className="flex-1 px-4 py-2 rounded-lg bg-black text-white hover:bg-black/90 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 transition-colors"
+        >
+          {isAdding ? "Agregando..." : "Agregar al carrito"}
+        </button>
+      </div>
       <button
-        onClick={onAdd}
-        disabled={!canBuy}
-        className="px-4 py-2 rounded-lg bg-black text-white disabled:opacity-50"
-      >
-        Agregar al carrito
-      </button>
-      <button
+        type="button"
         onClick={onBuyNow}
-        disabled={!canBuy}
-        className="px-4 py-2 rounded-lg border border-black disabled:opacity-50"
+        disabled={!canBuy || isAdding}
+        aria-busy={isAdding}
+        aria-label={`Comprar ${product.title} ahora`}
+        className="w-full px-4 py-2 rounded-lg border-2 border-black text-black hover:bg-black hover:text-white disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 transition-colors font-semibold"
       >
         Comprar ahora
       </button>

@@ -59,7 +59,8 @@ export default function DebugLastOrder() {
         }
       } catch {
         // Si no es JSON válido, intentar como string simple (formato legacy)
-        if (rawStored && rawStored.length > 0 && !rawStored.startsWith("{")) {
+        // Verificar que rawStored existe y no es un objeto JSON antes de procesarlo
+        if (typeof rawStored === "string" && rawStored.length > 0 && !rawStored.startsWith("{")) {
           setLastOrder({
             orderRef: rawStored,
             items: [],

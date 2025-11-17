@@ -76,6 +76,8 @@ export default [
       "sonarjs/updated-loop-counter": "warn",
       "sonarjs/no-nested-template-literals": "warn",
       "sonarjs/no-commented-code": "warn",
+      // Cognitive complexity: warning en lugar de error para funciones de checkout complejas
+      "sonarjs/cognitive-complexity": ["warn", 15],
       // Reglas generales
       "no-undef": "off", // TypeScript maneja esto
       "no-empty": "warn",

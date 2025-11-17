@@ -7,9 +7,12 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? "", {
-  apiVersion: "2025-02-24.acacia",
-});
+// Inicializar Stripe solo si hay secret key (evitar error en build si no está configurado)
+const stripe = process.env.STRIPE_SECRET_KEY
+  ? new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: "2025-02-24.acacia",
+    })
+  : null;
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -20,6 +23,13 @@ export async function POST(req: NextRequest) {
     if (!process.env.STRIPE_SECRET_KEY || !supabaseUrl || !serviceRoleKey) {
       return NextResponse.json(
         { error: "Configuración faltante" },
+        { status: 500 },
+      );
+    }
+
+    if (!stripe) {
+      return NextResponse.json(
+        { error: "Stripe no está inicializado" },
         { status: 500 },
       );
     }

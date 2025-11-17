@@ -63,7 +63,7 @@ jobs:
               l: '🔴',
               xl: '🚨'
             };
-            const comment = ## PR Size: ${emoji[size]} ${size.toUpperCase()}\n\nThis PR has been classified as **${size.toUpperCase()}** size.;
+            const comment = `# PR Size: ${emoji[size]} ${size.toUpperCase()}\n\nThis PR has been classified as **${size.toUpperCase()}** size`;
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
