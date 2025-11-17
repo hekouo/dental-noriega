@@ -42,29 +42,54 @@ export async function POST(req: NextRequest) {
     }
 
     const { email, orderId } = validationResult.data;
+    const normalizedEmail = email.trim().toLowerCase();
 
     // Si viene orderId, devolver detalle de una orden
     if (orderId) {
-      const order = await getOrderWithItems(orderId, email);
+      try {
+        const order = await getOrderWithItems(orderId, normalizedEmail);
 
-      if (!order) {
+        if (!order) {
+          return NextResponse.json(
+            { error: "Orden no encontrada o no pertenece a este email" },
+            { status: 404 },
+          );
+        }
+
+        return NextResponse.json({ order });
+      } catch (err) {
+        console.error("[api/account/orders] Error al obtener orden:", err);
         return NextResponse.json(
-          { error: "Orden no encontrada o no pertenece a este email" },
-          { status: 404 },
+          { error: "Ocurrió un error al buscar el pedido. Intenta de nuevo más tarde." },
+          { status: 500 },
         );
       }
-
-      return NextResponse.json({ order });
     }
 
     // Si no viene orderId, devolver lista de órdenes
-    const orders = await getOrdersByEmail(email, { limit: 20 });
+    try {
+      const orders = await getOrdersByEmail(normalizedEmail, { limit: 20 });
 
-    return NextResponse.json({ orders });
+      // Log temporal para debugging
+      if (process.env.NODE_ENV === "development") {
+        console.log("[api/account/orders] Respuesta:", {
+          email: normalizedEmail,
+          ordersCount: orders.length,
+        });
+      }
+
+      return NextResponse.json({ orders });
+    } catch (err) {
+      console.error("[api/account/orders] Error al obtener órdenes:", err);
+      return NextResponse.json(
+        { error: "Ocurrió un error al buscar tus pedidos. Intenta de nuevo más tarde." },
+        { status: 500 },
+      );
+    }
   } catch (error) {
-    console.error("[api/account/orders] Error:", error);
+    console.error("[api/account/orders] Error inesperado:", error);
     return NextResponse.json(
-      { error: "Error al obtener órdenes" },
+      { error: "Ocurrió un error al procesar tu solicitud. Intenta de nuevo más tarde." },
       { status: 500 },
     );
   }

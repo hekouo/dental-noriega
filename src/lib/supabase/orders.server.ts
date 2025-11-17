@@ -1,5 +1,5 @@
 import "server-only";
-import { createActionSupabase } from "./server-actions";
+import { createClient } from "@supabase/supabase-js";
 
 /**
  * Tipos para órdenes y items
@@ -34,6 +34,26 @@ export type OrderDetail = OrderSummary & {
 };
 
 /**
+ * Crea un cliente Supabase con SERVICE_ROLE_KEY (bypassa RLS)
+ * Reutiliza el mismo patrón que los endpoints de checkout
+ */
+function createServiceRoleSupabase() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error("Faltan variables de Supabase (URL o SERVICE_ROLE_KEY)");
+  }
+
+  return createClient(supabaseUrl, serviceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+}
+
+/**
  * Obtiene las órdenes de un email específico
  * @param email - Email del usuario
  * @param options - Opciones de consulta (limit por defecto 10)
@@ -43,19 +63,29 @@ export async function getOrdersByEmail(
   email: string,
   options?: { limit?: number },
 ): Promise<OrderSummary[]> {
-  const supabase = createActionSupabase();
+  const supabase = createServiceRoleSupabase();
   const limit = options?.limit ?? 10;
+  const normalizedEmail = email.trim().toLowerCase();
 
   const { data, error } = await supabase
     .from("orders")
     .select("id, created_at, status, email, total_cents, metadata")
-    .eq("email", email.toLowerCase().trim())
+    .eq("email", normalizedEmail)
     .order("created_at", { ascending: false })
     .limit(limit);
 
   if (error) {
-    console.error("[getOrdersByEmail] Error:", error);
+    console.error("[getOrdersByEmail] Error:", { email: normalizedEmail, error });
     throw new Error(`Error al obtener órdenes: ${error.message}`);
+  }
+
+  // Log temporal para debugging
+  if (process.env.NODE_ENV === "development") {
+    console.log("[getOrdersByEmail] Resultado:", {
+      email: normalizedEmail,
+      count: data?.length || 0,
+      orders: data?.map((o) => ({ id: o.id, status: o.status, created_at: o.created_at })),
+    });
   }
 
   return (data || []).map((order) => ({
@@ -78,19 +108,21 @@ export async function getOrderWithItems(
   orderId: string,
   email: string,
 ): Promise<OrderDetail | null> {
-  const supabase = createActionSupabase();
+  const supabase = createServiceRoleSupabase();
+  const normalizedEmail = email.trim().toLowerCase();
 
-  // Primero verificar que la orden existe y pertenece al email
+  // Verificar que la orden existe y pertenece al email en una sola query
   const { data: orderData, error: orderError } = await supabase
     .from("orders")
     .select("id, created_at, status, email, total_cents, metadata")
     .eq("id", orderId)
-    .eq("email", email.toLowerCase().trim())
+    .eq("email", normalizedEmail)
     .single();
 
   if (orderError || !orderData) {
     console.warn(
-      `[getOrderWithItems] Orden ${orderId} no encontrada o no pertenece a ${email}`,
+      `[getOrderWithItems] Orden ${orderId} no encontrada o no pertenece a ${normalizedEmail}`,
+      { error: orderError },
     );
     return null;
   }
@@ -114,6 +146,15 @@ export async function getOrderWithItems(
       metadata: (orderData.metadata as OrderSummary["metadata"]) || null,
       items: [],
     };
+  }
+
+  // Log temporal para debugging
+  if (process.env.NODE_ENV === "development") {
+    console.log("[getOrderWithItems] Resultado:", {
+      orderId,
+      email: normalizedEmail,
+      itemsCount: itemsData?.length || 0,
+    });
   }
 
   return {
