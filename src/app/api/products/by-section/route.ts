@@ -13,6 +13,8 @@ type Response = {
     title: string;
     price_cents: number | null;
     image_url: string | null;
+    in_stock: boolean | null;
+    is_active: boolean | null;
   }>;
 };
 
@@ -39,6 +41,8 @@ export async function GET(req: Request) {
         title: p.title,
         price_cents: p.price_cents ?? null,
         image_url: p.image_url ?? null,
+        in_stock: p.in_stock ?? null,
+        is_active: p.is_active ?? null,
       }));
 
     return NextResponse.json<Response>({ items: filtered });

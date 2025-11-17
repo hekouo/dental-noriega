@@ -59,7 +59,8 @@ export async function getProductsBySectionFromView(
       currency: item.currency ?? "mxn",
       image_url: item.image_url ?? null,
       in_stock: item.in_stock ?? null,
-      is_active: item.active ?? true,
+      // La vista puede tener 'active' o 'is_active', mapear correctamente
+      is_active: item.is_active ?? item.active ?? null,
     })) as CatalogItem[];
   } catch (error) {
     console.warn("[getProductsBySectionFromView] Error:", error);
