@@ -2,12 +2,8 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { getBySection } from "@/lib/catalog/getBySection.server";
-import { formatMXN } from "@/lib/utils/currency";
 import { ROUTES } from "@/lib/routes";
-import { MessageCircle } from "lucide-react";
-import ImageWithFallback from "@/components/ui/ImageWithFallback";
-import CatalogCardControls from "@/components/CatalogCardControls";
-import { generateWhatsAppLink } from "@/lib/utils/whatsapp";
+import ProductCard from "@/components/catalog/ProductCard";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -170,82 +166,22 @@ export default async function CatalogoSectionPage({ params }: Props) {
       <div className="max-w-7xl mx-auto px-4 py-12">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {products.map((product, idx) => {
-            const whatsappHref = generateWhatsAppLink(
-              process.env.NEXT_PUBLIC_WHATSAPP_PHONE || "",
-              `Hola, me interesa: ${product.title} (${sectionName}).`,
-            );
-
-            // Convertir CatalogItem para compatibilidad con CatalogCardControls
-            const catalogItem = {
-              id: product.id,
-              product_slug: product.slug,
-              section: product.section,
-              title: product.title,
-              description: product.description ?? null,
-              price_cents: Math.round(product.price * 100),
-              currency: "mxn",
-              image_url: product.image_url ?? null,
-              in_stock: product.in_stock,
-              is_active: product.is_active,
-            };
-
+            // Usar ProductCard canónico
             return (
-              <div
+              <ProductCard
                 key={product.id}
-                className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow overflow-hidden flex flex-col"
-              >
-                <Link
-                  href={`/catalogo/${product.section}/${product.slug}`}
-                  prefetch={idx < 4}
-                >
-                  <span className="block">
-                    <div className="relative w-full aspect-square bg-white">
-                      <ImageWithFallback
-                        src={product.image_url}
-                        alt={product.title}
-                        width={400}
-                        height={400}
-                        className="w-full h-full object-contain"
-                        sizes="(min-width: 1280px) 20vw, (min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw"
-                        priority={idx === 0}
-                      />
-                    </div>
-                  </span>
-                </Link>
-
-                <div className="p-4 flex flex-col flex-grow">
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <Link
-                      href={`/catalogo/${product.section}/${product.slug}`}
-                      prefetch={false}
-                    >
-                      <span className="block">
-                        <h3 className="font-semibold text-gray-900 line-clamp-2 hover:text-primary-600">
-                          {product.title}
-                        </h3>
-                      </span>
-                    </Link>
-                  </div>
-
-                  <p className="text-xl font-bold text-primary-600 mb-3">
-                    {formatMXN(product.price)}
-                  </p>
-
-                  <div className="mt-auto space-y-2">
-                    <CatalogCardControls item={catalogItem} />
-
-                    <a
-                      href={whatsappHref}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 text-sm underline opacity-80 hover:opacity-100"
-                    >
-                      <MessageCircle size={14} />
-                      <span>Consultar por WhatsApp</span>
-                    </a>
-                  </div>
-                </div>
-              </div>
+                id={product.id}
+                section={product.section}
+                product_slug={product.slug}
+                title={product.title}
+                price_cents={Math.round(product.price * 100)}
+                image_url={product.image_url ?? null}
+                in_stock={product.in_stock}
+                is_active={product.is_active}
+                description={product.description ?? null}
+                priority={idx < 4}
+                sizes="(min-width: 1280px) 20vw, (min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw"
+              />
             );
           })}
         </div>
