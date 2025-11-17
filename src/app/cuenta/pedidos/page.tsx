@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { formatMXNFromCents } from "@/lib/utils/currency";
 import type {
   OrderSummary,
@@ -16,6 +16,7 @@ export default function PedidosPage() {
   const [orders, setOrders] = useState<OrderSummary[] | null>(null);
   const [orderDetail, setOrderDetail] = useState<OrderDetail | null>(null);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const detailRef = useRef<HTMLDivElement | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -162,6 +163,21 @@ export default function PedidosPage() {
     return methodMap[method || ""] || method || "No especificado";
   };
 
+  // Scroll suave al panel de detalle cuando se carga
+  useEffect(() => {
+    if (!orderDetail || !detailRef.current) return;
+    
+    // Pequeño delay para asegurar que el DOM se actualizó
+    const timeoutId = setTimeout(() => {
+      detailRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 100);
+
+    return () => clearTimeout(timeoutId);
+  }, [orderDetail]);
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 py-12">
@@ -237,11 +253,17 @@ export default function PedidosPage() {
               </h2>
             </div>
             <div className="divide-y divide-gray-200">
-              {orders.map((order) => (
-                <div
-                  key={order.id}
-                  className="px-6 py-4 hover:bg-gray-50 transition-colors"
-                >
+              {orders.map((order) => {
+                const isSelected = selectedOrderId === order.id;
+                return (
+                  <div
+                    key={order.id}
+                    className={`px-6 py-4 transition-colors ${
+                      isSelected
+                        ? "bg-blue-50 border-l-4 border-blue-500"
+                        : "hover:bg-gray-50"
+                    }`}
+                  >
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
@@ -278,7 +300,7 @@ export default function PedidosPage() {
                       <button
                         type="button"
                         onClick={() => handleViewDetail(order.id)}
-                        disabled={loadingDetail}
+                        disabled={loadingDetail && selectedOrderId === order.id}
                         className="mt-2 text-sm text-primary-600 hover:text-primary-700 underline disabled:opacity-50 disabled:cursor-not-allowed"
                         aria-label={`Ver detalle del pedido ${order.id.substring(0, 8)}`}
                       >
@@ -288,8 +310,9 @@ export default function PedidosPage() {
                       </button>
                     </div>
                   </div>
-                </div>
-              ))}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -304,7 +327,7 @@ export default function PedidosPage() {
 
         {/* Detalle de orden */}
         {orderDetail && (
-          <div className="bg-white rounded-lg shadow overflow-hidden mt-8">
+          <div ref={detailRef} className="bg-white rounded-lg shadow overflow-hidden mt-8">
             <div className="px-6 py-4 border-b border-gray-200">
               <h2 className="text-xl font-semibold">Detalle del Pedido</h2>
             </div>
