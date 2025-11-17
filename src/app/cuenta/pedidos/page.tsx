@@ -1,33 +1,401 @@
-import React from "react";
-import { Metadata } from "next";
-import Link from "next/link";
+"use client";
 
-export const metadata: Metadata = {
-  title: "Mis Pedidos | Depósito Dental Noriega",
-  robots: { index: false, follow: false },
-};
-
-export const dynamic = "force-dynamic";
+import { useState } from "react";
+import { formatMXNFromCents } from "@/lib/utils/currency";
+import type {
+  OrderSummary,
+  OrderDetail,
+} from "@/lib/supabase/orders.server";
 
 export default function PedidosPage() {
+  const [email, setEmail] = useState("");
+  const [orderId, setOrderId] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [orders, setOrders] = useState<OrderSummary[] | null>(null);
+  const [orderDetail, setOrderDetail] = useState<OrderDetail | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    setOrders(null);
+    setOrderDetail(null);
+
+    try {
+      const response = await fetch("/api/account/orders", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: email.trim(),
+          orderId: orderId.trim() || undefined,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || "Error al obtener pedidos");
+        return;
+      }
+
+      if (data.order) {
+        // Detalle de una orden
+        setOrderDetail(data.order);
+        setOrders(null);
+      } else if (data.orders) {
+        // Lista de órdenes
+        setOrders(data.orders);
+        setOrderDetail(null);
+      }
+    } catch (err) {
+      setError("Error de conexión. Intenta de nuevo.");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleViewDetail = async (id: string) => {
+    if (!email.trim()) return;
+
+    setLoading(true);
+    setError(null);
+    setOrderDetail(null);
+
+    try {
+      const response = await fetch("/api/account/orders", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: email.trim(),
+          orderId: id,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || "Error al obtener detalle del pedido");
+        return;
+      }
+
+      if (data.order) {
+        setOrderDetail(data.order);
+      }
+    } catch (err) {
+      setError("Error de conexión. Intenta de nuevo.");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat("es-MX", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(date);
+  };
+
+  const formatStatus = (status: string) => {
+    const statusMap: Record<string, string> = {
+      pending: "Pendiente",
+      paid: "Pagado",
+      failed: "Fallido",
+      canceled: "Cancelado",
+      requires_payment: "Requiere pago",
+      requires_action: "Requiere acción",
+    };
+    return statusMap[status] || status;
+  };
+
+  const formatShippingMethod = (method?: string) => {
+    const methodMap: Record<string, string> = {
+      pickup: "Recoger en tienda",
+      standard: "Envío estándar",
+      express: "Envío express",
+      delivery: "Entrega",
+    };
+    return methodMap[method || ""] || method || "No especificado";
+  };
+
   return (
-    <main className="max-w-4xl mx-auto px-4 py-10">
-      <h1 className="text-2xl font-semibold mb-4">Mis Pedidos</h1>
-      <div className="bg-gray-50 rounded-lg p-8 text-center">
-        <p className="text-gray-600 mb-6">Próximamente disponible</p>
-        <p className="text-sm text-gray-500 mb-6">
-          Estamos trabajando en esta funcionalidad. Pronto podrás ver el
-          historial de tus pedidos aquí.
-        </p>
-        <div className="flex gap-3 justify-center flex-wrap">
-          <Link href="/" className="btn btn-primary">
-            Volver al inicio
-          </Link>
-          <Link href="/catalogo" className="btn">
-            Ir al catálogo
-          </Link>
-        </div>
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-4xl mx-auto px-4 py-12">
+        <h1 className="text-3xl font-bold mb-8">Mis Pedidos</h1>
+
+        {/* Formulario de búsqueda */}
+        <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg shadow mb-8">
+          <div className="space-y-4">
+            <div>
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Email *
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                placeholder="tu@email.com"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="orderId"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                ID de pedido (opcional)
+              </label>
+              <input
+                id="orderId"
+                type="text"
+                value={orderId}
+                onChange={(e) => setOrderId(e.target.value)}
+                placeholder="UUID del pedido"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              />
+              <p className="mt-1 text-sm text-gray-500">
+                Deja vacío para ver todos tus pedidos
+              </p>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading || !email.trim()}
+              className="w-full px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold"
+            >
+              {loading ? "Buscando..." : "Buscar pedidos"}
+            </button>
+          </div>
+        </form>
+
+        {/* Mensaje de error */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+            {error}
+          </div>
+        )}
+
+        {/* Lista de órdenes */}
+        {orders && orders.length > 0 && (
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-xl font-semibold">
+                {orders.length} pedido{orders.length !== 1 ? "s" : ""} encontrado
+                {orders.length !== 1 ? "s" : ""}
+              </h2>
+            </div>
+            <div className="divide-y divide-gray-200">
+              {orders.map((order) => (
+                <div
+                  key={order.id}
+                  className="px-6 py-4 hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="font-mono text-sm text-gray-500">
+                          {order.id.substring(0, 8)}...
+                        </span>
+                        <span
+                          className={`px-2 py-1 rounded text-xs font-medium ${
+                            order.status === "paid"
+                              ? "bg-green-100 text-green-700"
+                              : order.status === "pending"
+                                ? "bg-yellow-100 text-yellow-700"
+                                : "bg-gray-100 text-gray-700"
+                          }`}
+                        >
+                          {formatStatus(order.status)}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600">
+                        {formatDate(order.created_at)}
+                      </p>
+                      {order.metadata?.shipping_method && (
+                        <p className="text-sm text-gray-600 mt-1">
+                          {formatShippingMethod(order.metadata.shipping_method)}
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-right ml-4">
+                      {order.total_cents !== null && (
+                        <p className="text-lg font-bold">
+                          {formatMXNFromCents(order.total_cents)}
+                        </p>
+                      )}
+                      <button
+                        onClick={() => handleViewDetail(order.id)}
+                        className="mt-2 text-sm text-primary-600 hover:text-primary-700 underline"
+                      >
+                        Ver detalle
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {orders && orders.length === 0 && (
+          <div className="bg-white p-8 rounded-lg shadow text-center">
+            <p className="text-gray-600">
+              No se encontraron pedidos para este email.
+            </p>
+          </div>
+        )}
+
+        {/* Detalle de orden */}
+        {orderDetail && (
+          <div className="bg-white rounded-lg shadow overflow-hidden mt-8">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-xl font-semibold">Detalle del Pedido</h2>
+            </div>
+
+            <div className="px-6 py-4 space-y-4">
+              {/* Información básica */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-gray-600">ID del pedido</p>
+                  <p className="font-mono text-sm">{orderDetail.id}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Fecha</p>
+                  <p>{formatDate(orderDetail.created_at)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Estado</p>
+                  <span
+                    className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                      orderDetail.status === "paid"
+                        ? "bg-green-100 text-green-700"
+                        : orderDetail.status === "pending"
+                          ? "bg-yellow-100 text-yellow-700"
+                          : "bg-gray-100 text-gray-700"
+                    }`}
+                  >
+                    {formatStatus(orderDetail.status)}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Email</p>
+                  <p>{orderDetail.email}</p>
+                </div>
+              </div>
+
+              {/* Items */}
+              {orderDetail.items.length > 0 && (
+                <div className="mt-6">
+                  <h3 className="text-lg font-semibold mb-4">Productos</h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
+                            Producto
+                          </th>
+                          <th className="px-4 py-3 text-center text-sm font-medium text-gray-700">
+                            Cantidad
+                          </th>
+                          <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">
+                            Precio unitario
+                          </th>
+                          <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">
+                            Subtotal
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {orderDetail.items.map((item) => (
+                          <tr key={item.id}>
+                            <td className="px-4 py-3">
+                              <p className="font-medium">{item.title}</p>
+                              {item.product_id && (
+                                <p className="text-sm text-gray-500">
+                                  ID: {item.product_id.substring(0, 8)}...
+                                </p>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              {item.qty}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              {formatMXNFromCents(item.unit_price_cents)}
+                            </td>
+                            <td className="px-4 py-3 text-right font-medium">
+                              {formatMXNFromCents(
+                                item.unit_price_cents * item.qty,
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Totales */}
+              <div className="mt-6 pt-4 border-t border-gray-200">
+                <div className="flex justify-end">
+                  <div className="w-full md:w-64 space-y-2">
+                    {orderDetail.metadata?.subtotal_cents && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Subtotal:</span>
+                        <span>
+                          {formatMXNFromCents(
+                            orderDetail.metadata.subtotal_cents,
+                          )}
+                        </span>
+                      </div>
+                    )}
+                    {orderDetail.metadata?.discount_cents &&
+                      orderDetail.metadata.discount_cents > 0 && (
+                        <div className="flex justify-between text-sm text-green-600">
+                          <span>
+                            Descuento
+                            {orderDetail.metadata.coupon_code &&
+                              ` (${orderDetail.metadata.coupon_code})`}
+                            :
+                          </span>
+                          <span>
+                            -{formatMXNFromCents(
+                              orderDetail.metadata.discount_cents,
+                            )}
+                          </span>
+                        </div>
+                      )}
+                    {orderDetail.total_cents !== null && (
+                      <div className="flex justify-between text-lg font-bold pt-2 border-t border-gray-200">
+                        <span>Total:</span>
+                        <span>
+                          {formatMXNFromCents(orderDetail.total_cents)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
-    </main>
+    </div>
   );
 }
