@@ -68,7 +68,7 @@ export default function ErrorPage({
         </Link>
       </div>
       {/* Error digest para debugging - solo mostrar si existe */}
-      {error.digest && process.env.NODE_ENV === "development" && (
+      {process.env.NODE_ENV === "development" && error.digest && (
         <p className="mt-4 text-xs text-gray-400 font-mono">{error.digest}</p>
       )}
     </main>
