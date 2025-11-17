@@ -57,7 +57,7 @@ export default function ErrorPage({
         <button onClick={handleRetry} className="btn btn-primary">
           Intentar de nuevo
         </button>
-        <Link href={ROUTES.home()} className="btn btn-outline">
+        <Link href="/" className="btn btn-outline">
           Ir al inicio
         </Link>
       </div>
