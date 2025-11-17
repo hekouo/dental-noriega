@@ -131,6 +131,7 @@ export default function CuentaClientPage() {
               required
               className="input"
               placeholder="tu@email.com"
+              autoComplete="email"
             />
           </div>
 
@@ -143,6 +144,7 @@ export default function CuentaClientPage() {
               className="input"
               placeholder="••••••••"
               minLength={6}
+              autoComplete={mode === "login" ? "current-password" : "new-password"}
             />
           </div>
 
@@ -156,6 +158,7 @@ export default function CuentaClientPage() {
                 className="input"
                 placeholder="••••••••"
                 minLength={6}
+                autoComplete="new-password"
               />
             </div>
           )}
