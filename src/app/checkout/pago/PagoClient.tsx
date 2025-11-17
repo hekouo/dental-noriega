@@ -12,7 +12,8 @@ import {
 } from "@/lib/store/checkoutStore";
 import { selectCheckoutItems } from "@/lib/store/checkoutStore";
 import { formatMXN as formatMXNMoney } from "@/lib/utils/money";
-import CheckoutStepIndicator from "@/components/CheckoutStepIndicator";
+import CheckoutStepper from "@/components/checkout/CheckoutStepper";
+import CheckoutOrderSummary from "@/components/checkout/CheckoutOrderSummary";
 import CheckoutDebugPanel from "@/components/CheckoutDebugPanel";
 import { cpToZone, quote } from "@/lib/shipping/config";
 import { cartKg } from "@/lib/shipping/weights";
@@ -612,11 +613,13 @@ export default function PagoClient() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <CheckoutStepIndicator currentStep="pago" />
+    <div className="max-w-4xl mx-auto p-6 space-y-6">
+      <CheckoutStepper current="payment" />
 
-      {/* Botón Volver al carrito */}
-      <div className="mb-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          {/* Botón Volver al carrito */}
+          <div>
         <Link
           href="/carrito"
           className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
@@ -1022,6 +1025,15 @@ export default function PagoClient() {
         </form>
       )}
       <CheckoutDebugPanel />
+        </div>
+
+        {/* Resumen del pedido - lado derecho en desktop */}
+        <div className="lg:col-span-1">
+          <div className="lg:sticky lg:top-6">
+            <CheckoutOrderSummary />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

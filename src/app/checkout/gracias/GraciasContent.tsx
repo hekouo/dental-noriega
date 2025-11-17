@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import CheckoutStepIndicator from "@/components/CheckoutStepIndicator";
+import CheckoutStepper from "@/components/checkout/CheckoutStepper";
 import { formatMXN as formatMXNMoney } from "@/lib/utils/money";
 import { getWithTTL, KEYS } from "@/lib/utils/persist";
 import type { ShippingMethod } from "@/lib/store/checkoutStore";
@@ -691,8 +691,8 @@ export default function GraciasContent() {
   };
 
   return (
-    <main className="max-w-3xl mx-auto px-4 py-10">
-      <CheckoutStepIndicator currentStep="gracias" />
+    <main className="max-w-3xl mx-auto px-4 py-10 space-y-6">
+      <CheckoutStepper current="success" />
 
       {/* Hero Card */}
       <div className="mb-8 text-center">

@@ -8,7 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useSelectedIds } from "@/lib/store/checkoutSelectors";
 import { useCheckoutStore } from "@/lib/store/checkoutStore";
 import { datosSchema, type DatosForm, MX_STATES } from "@/lib/checkout/schemas";
-import CheckoutStepIndicator from "@/components/CheckoutStepIndicator";
+import CheckoutStepper from "@/components/checkout/CheckoutStepper";
 import CheckoutDebugPanel from "@/components/CheckoutDebugPanel";
 import Link from "next/link";
 import { track } from "@/lib/analytics";
@@ -143,7 +143,7 @@ function DatosPageContent() {
 
   return (
     <main className="mx-auto max-w-3xl p-6 space-y-6">
-      <CheckoutStepIndicator currentStep="datos" />
+      <CheckoutStepper current="details" />
 
       <h1 className="text-2xl font-semibold mb-2">Datos de Envío</h1>
       <p className="text-gray-600 mb-6">

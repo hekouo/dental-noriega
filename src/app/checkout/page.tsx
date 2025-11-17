@@ -12,20 +12,43 @@ import {
 import { useCartStore } from "@/lib/store/cartStore";
 import CheckoutItemRow from "@/components/CheckoutItemRow";
 import CheckoutSummary from "@/components/CheckoutSummary";
+import CheckoutStepper from "@/components/checkout/CheckoutStepper";
 
 function EmptyCheckout() {
   return (
-    <section className="mx-auto max-w-3xl p-6 text-center">
-      <h1 className="text-2xl font-semibold">Tu checkout está vacío</h1>
-      <p className="opacity-70 mt-2">
-        Agrega productos desde el catálogo para continuar al pago.
-      </p>
-      <Link
-        href="/catalogo"
-        className="mt-4 inline-block rounded-lg bg-blue-600 px-6 py-3 text-white hover:bg-blue-700 transition-colors"
-      >
-        Ir al catálogo
-      </Link>
+    <section className="mx-auto max-w-3xl p-6 text-center space-y-6">
+      <CheckoutStepper current="cart" />
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-12">
+        <div className="mb-6">
+          <svg
+            className="mx-auto h-24 w-24 text-gray-400"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.5}
+              d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+            />
+          </svg>
+        </div>
+        <h1 className="text-2xl font-semibold text-gray-900 mb-2">
+          Tu carrito está vacío
+        </h1>
+        <p className="text-gray-600 mb-6">
+          Agrega productos desde el catálogo para continuar al pago.
+        </p>
+        <Link
+          href="/catalogo"
+          className="inline-block rounded-lg bg-primary-600 px-6 py-3 text-white hover:bg-primary-700 transition-colors font-semibold"
+          aria-label="Ir al catálogo para agregar productos"
+        >
+          Ir al catálogo
+        </Link>
+      </div>
     </section>
   );
 }
@@ -82,6 +105,7 @@ export default function CheckoutIndex() {
 
   return (
     <main className="mx-auto max-w-4xl p-6 space-y-6">
+      <CheckoutStepper current="cart" />
       <header className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Checkout</h1>
