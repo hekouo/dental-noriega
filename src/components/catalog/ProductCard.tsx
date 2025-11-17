@@ -241,8 +241,8 @@ export default function ProductCard({
           </div>
         )}
 
-        {/* Botón WhatsApp para consultas */}
-        {waHref && (!canPurchase || soldOut) && (
+        {/* Botón WhatsApp para consultas - SIEMPRE visible si hay link */}
+        {waHref && (
           <a
             href={waHref}
             target="_blank"
