@@ -36,11 +36,13 @@ function mapToFeaturedItem(
     section: p.section || section,
     title: p.title,
     description: p.description || null,
-    price_cents: p.price_cents || 0,
+    // No usar || 0, mantener null si no hay precio para que ProductCard lo maneje correctamente
+    price_cents: p.price_cents ?? null,
     currency: p.currency || "mxn",
     image_url: p.image_url || null,
+    // Mantener los valores reales de la API, no forzar valores por defecto
     in_stock: p.in_stock ?? null,
-    is_active: p.is_active ?? true,
+    is_active: p.is_active ?? null,
     position: 0,
   };
 }
