@@ -49,6 +49,16 @@ export async function POST(req: NextRequest) {
       try {
         const order = await getOrderWithItems(orderId, normalizedEmail);
 
+        // Log temporal para debugging
+        if (process.env.NODE_ENV === "development") {
+          console.log("[api/account/orders] getOrderWithItems result:", {
+            orderId,
+            email: normalizedEmail,
+            found: !!order,
+            itemsCount: order?.items?.length || 0,
+          });
+        }
+
         if (!order) {
           return NextResponse.json(
             { error: "Orden no encontrada o no pertenece a este email" },

@@ -66,6 +66,17 @@ export default function PedidosPage() {
     setLoadingDetail(true);
     setError(null);
     setSelectedOrderId(id);
+    setOrderDetail(null); // Limpiar detalle anterior
+
+    const requestBody = {
+      email: email.trim(),
+      orderId: id,
+    };
+
+    // Log temporal para debugging
+    if (process.env.NODE_ENV === "development") {
+      console.log("[handleViewDetail] Request:", requestBody);
+    }
 
     try {
       const response = await fetch("/api/account/orders", {
@@ -73,27 +84,46 @@ export default function PedidosPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          email: email.trim(),
-          orderId: id,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const data = await response.json();
 
+      // Log temporal para debugging
+      if (process.env.NODE_ENV === "development") {
+        console.log("[handleViewDetail] Response:", {
+          status: response.status,
+          ok: response.ok,
+          data,
+        });
+      }
+
       if (!response.ok) {
         setError(data.error || "Error al obtener detalle del pedido");
         setSelectedOrderId(null);
+        setOrderDetail(null);
         return;
       }
 
       if (data.order) {
         setOrderDetail(data.order);
+        // Log temporal para debugging
+        if (process.env.NODE_ENV === "development") {
+          console.log("[handleViewDetail] Order detail set:", {
+            id: data.order.id,
+            itemsCount: data.order.items?.length || 0,
+          });
+        }
+      } else {
+        setError("No se recibió información del pedido");
+        setSelectedOrderId(null);
+        setOrderDetail(null);
       }
     } catch (err) {
       setError("Error de conexión. Intenta de nuevo.");
       setSelectedOrderId(null);
-      console.error(err);
+      setOrderDetail(null);
+      console.error("[handleViewDetail] Error:", err);
     } finally {
       setLoadingDetail(false);
     }
@@ -154,6 +184,7 @@ export default function PedidosPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 placeholder="tu@email.com"
+                autoComplete="email"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               />
             </div>
@@ -171,6 +202,7 @@ export default function PedidosPage() {
                 value={orderId}
                 onChange={(e) => setOrderId(e.target.value)}
                 placeholder="UUID del pedido"
+                autoComplete="off"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               />
               <p className="mt-1 text-sm text-gray-500">
