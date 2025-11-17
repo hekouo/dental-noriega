@@ -60,7 +60,7 @@ export default function ErrorPage({
         </Link>
       </div>
       <div className="flex flex-col sm:flex-row gap-4 justify-center">
-        <Link href={ROUTES.buscar()} className="btn btn-outline">
+        <Link href="/buscar" className="btn btn-outline">
           Buscar productos
         </Link>
         <Link href="/tienda" className="btn btn-outline">
