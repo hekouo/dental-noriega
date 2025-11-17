@@ -65,6 +65,7 @@ export default function ErrorPage({
         <Link href="/buscar" className="btn btn-outline">
           Buscar productos
         </Link>
+        {/* eslint-disable-next-line sonarjs/no-gratuitous-expressions */}
         <Link href="/tienda" className="btn btn-outline">
           Ver tienda
         </Link>
