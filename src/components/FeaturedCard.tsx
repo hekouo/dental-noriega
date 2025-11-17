@@ -8,7 +8,6 @@ type Props = {
   item: FeaturedItem;
   priority?: boolean;
   sizes?: string;
-  controls?: React.ReactNode; // Mantener compatibilidad con controles custom si se necesitan
 };
 
 /**
@@ -36,27 +35,14 @@ function toProductCardProps(
 
 /**
  * FeaturedCard: wrapper que usa ProductCard canónico
- * Si se pasa `controls`, se renderiza en lugar de los controles por defecto
+ * ProductCard ya incluye todos los controles necesarios (cantidad + agregar + WhatsApp)
  * @deprecated Usar ProductCard directamente cuando sea posible
  */
 export default function FeaturedCard({
   item,
   priority = false,
   sizes,
-  controls,
 }: Props) {
-  // Si hay controles custom, usar el layout antiguo (compatibilidad)
-  if (controls) {
-    // Mantener compatibilidad con código que pasa controles custom
-    const props = toProductCardProps(item, priority, sizes);
-    return (
-      <div className="border rounded-xl overflow-hidden flex flex-col">
-        <ProductCard {...props} />
-        {controls}
-      </div>
-    );
-  }
-
-  // Usar ProductCard directamente
+  // Siempre usar ProductCard directamente - ya incluye todos los controles
   return <ProductCard {...toProductCardProps(item, priority, sizes)} />;
 }
