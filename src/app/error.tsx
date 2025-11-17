@@ -63,7 +63,7 @@ export default function ErrorPage({
         <Link href={ROUTES.buscar()} className="btn btn-outline">
           Buscar productos
         </Link>
-        <Link href={ROUTES.tienda()} className="btn btn-outline">
+        <Link href="/tienda" className="btn btn-outline">
           Ver tienda
         </Link>
       </div>
