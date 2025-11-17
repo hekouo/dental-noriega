@@ -159,6 +159,13 @@ export function ToothAccountMenu() {
               >
                 Crear cuenta
               </Link>
+              <Link
+                href="/cuenta/pedidos"
+                className="block rounded-xl px-3 py-2 hover:bg-neutral-50"
+                onClick={() => setOpen(false)}
+              >
+                Mis pedidos
+              </Link>
             </>
           )}
         </div>

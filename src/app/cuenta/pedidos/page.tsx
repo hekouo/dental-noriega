@@ -11,9 +11,11 @@ export default function PedidosPage() {
   const [email, setEmail] = useState("");
   const [orderId, setOrderId] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingDetail, setLoadingDetail] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [orders, setOrders] = useState<OrderSummary[] | null>(null);
   const [orderDetail, setOrderDetail] = useState<OrderDetail | null>(null);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,9 +63,9 @@ export default function PedidosPage() {
   const handleViewDetail = async (id: string) => {
     if (!email.trim()) return;
 
-    setLoading(true);
+    setLoadingDetail(true);
     setError(null);
-    setOrderDetail(null);
+    setSelectedOrderId(id);
 
     try {
       const response = await fetch("/api/account/orders", {
@@ -81,6 +83,7 @@ export default function PedidosPage() {
 
       if (!response.ok) {
         setError(data.error || "Error al obtener detalle del pedido");
+        setSelectedOrderId(null);
         return;
       }
 
@@ -89,9 +92,10 @@ export default function PedidosPage() {
       }
     } catch (err) {
       setError("Error de conexión. Intenta de nuevo.");
+      setSelectedOrderId(null);
       console.error(err);
     } finally {
-      setLoading(false);
+      setLoadingDetail(false);
     }
   };
 
@@ -240,10 +244,15 @@ export default function PedidosPage() {
                         </p>
                       )}
                       <button
+                        type="button"
                         onClick={() => handleViewDetail(order.id)}
-                        className="mt-2 text-sm text-primary-600 hover:text-primary-700 underline"
+                        disabled={loadingDetail}
+                        className="mt-2 text-sm text-primary-600 hover:text-primary-700 underline disabled:opacity-50 disabled:cursor-not-allowed"
+                        aria-label={`Ver detalle del pedido ${order.id.substring(0, 8)}`}
                       >
-                        Ver detalle
+                        {loadingDetail && selectedOrderId === order.id
+                          ? "Cargando detalle..."
+                          : "Ver detalle"}
                       </button>
                     </div>
                   </div>
