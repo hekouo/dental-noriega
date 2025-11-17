@@ -27,7 +27,7 @@ export default function ErrorPage({
   const handleRetry = useCallback(() => {
     try {
       // Si estamos en una ruta de checkout, intentar recargar manteniendo parámetros
-      if (pathname?.includes("/checkout")) {
+      if (pathname && pathname.includes("/checkout")) {
         if (typeof window !== "undefined") {
           // Preservar parámetros de URL si existen
           const currentUrl = window.location.href;
@@ -37,7 +37,7 @@ export default function ErrorPage({
         // Para otras rutas, usar reset() normal
         reset();
       }
-    } catch (err) {
+    } catch {
       // Si reset falla, hacer reload completo
       if (typeof window !== "undefined") {
         window.location.reload();
