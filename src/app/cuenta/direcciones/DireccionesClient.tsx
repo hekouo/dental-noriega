@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useTransition } from "react";
 import type { AccountAddress } from "@/lib/supabase/addresses.server";
+import { isValidEmail } from "@/lib/validation/email";
 
 type AddressFormData = {
   full_name: string;
@@ -35,17 +36,15 @@ export default function DireccionesClient() {
     is_default: false,
   });
 
-  // Cargar direcciones cuando cambia el email
-  useEffect(() => {
-    if (email.trim()) {
-      loadAddresses();
-    } else {
-      setAddresses([]);
-    }
-  }, [email]);
-
+  // NO cargar direcciones automáticamente al escribir
+  // Solo se cargan cuando el usuario hace clic en "Buscar" o presiona Enter
   const loadAddresses = async () => {
-    if (!email.trim()) return;
+    // Validar email antes de hacer la llamada
+    if (!isValidEmail(email)) {
+      setError("Ingresa un correo electrónico válido para buscar tus direcciones.");
+      setAddresses([]);
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -63,11 +62,25 @@ export default function DireccionesClient() {
 
       const data = await response.json();
       setAddresses(data.addresses || []);
+      
+      // Si no hay direcciones, mostrar mensaje amigable
+      if (!data.addresses || data.addresses.length === 0) {
+        setError(null); // No es un error, solo no hay direcciones
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al cargar direcciones");
       console.error("[loadAddresses] Error:", err);
+      setAddresses([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Manejar Enter en el input de email
+  const handleEmailKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      loadAddresses();
     }
   };
 
@@ -138,7 +151,7 @@ export default function DireccionesClient() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!email.trim() || !confirm("¿Eliminar esta dirección?")) return;
+    if (!email.trim() || !isValidEmail(email) || !confirm("¿Eliminar esta dirección?")) return;
 
     startTransition(async () => {
       try {
@@ -154,16 +167,23 @@ export default function DireccionesClient() {
           throw new Error(data.error || "Error al eliminar dirección");
         }
 
+        // Actualizar estado local inmediatamente (optimistic update)
+        setAddresses((prev) => prev.filter((a) => a.id !== id));
+        setError(null);
+        
+        // Recargar para asegurar consistencia
         await loadAddresses();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Error al eliminar dirección");
         console.error("[handleDelete] Error:", err);
+        // Recargar en caso de error para restaurar estado
+        await loadAddresses();
       }
     });
   };
 
   const handleSetDefault = async (id: string) => {
-    if (!email.trim()) return;
+    if (!email.trim() || !isValidEmail(email)) return;
 
     startTransition(async () => {
       try {
@@ -179,10 +199,22 @@ export default function DireccionesClient() {
           throw new Error(data.error || "Error al marcar como predeterminada");
         }
 
+        // Actualizar estado local inmediatamente (optimistic update)
+        setAddresses((prev) =>
+          prev.map((a) => ({
+            ...a,
+            is_default: a.id === id,
+          })),
+        );
+        setError(null);
+        
+        // Recargar para asegurar consistencia
         await loadAddresses();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Error al marcar como predeterminada");
         console.error("[handleSetDefault] Error:", err);
+        // Recargar en caso de error para restaurar estado
+        await loadAddresses();
       }
     });
   };
@@ -196,7 +228,12 @@ export default function DireccionesClient() {
           <input
             type="email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              // Limpiar error cuando el usuario empieza a escribir
+              if (error) setError(null);
+            }}
+            onKeyDown={handleEmailKeyDown}
             placeholder="tu@email.com"
             className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
             autoComplete="email"
@@ -205,7 +242,7 @@ export default function DireccionesClient() {
           <button
             type="button"
             onClick={loadAddresses}
-            disabled={!email.trim() || loading}
+            disabled={!email.trim() || loading || !isValidEmail(email)}
             className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? "Cargando..." : "Buscar"}
@@ -213,7 +250,7 @@ export default function DireccionesClient() {
         </div>
       </div>
 
-      {/* Mensaje de error */}
+      {/* Mensaje de error o información */}
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <p className="text-red-800 text-sm">{error}</p>
@@ -485,10 +522,10 @@ export default function DireccionesClient() {
         </div>
       )}
 
-      {/* Estado vacío */}
-      {email.trim() && !loading && addresses.length === 0 && !editingId && (
+      {/* Estado vacío: solo mostrar si el email es válido y ya se buscó */}
+      {email.trim() && isValidEmail(email) && !loading && addresses.length === 0 && !editingId && !error && (
         <div className="bg-gray-50 rounded-lg p-8 text-center">
-          <p className="text-gray-600 mb-4">No tienes direcciones guardadas aún</p>
+          <p className="text-gray-600 mb-4">No se encontraron direcciones para este correo</p>
           <p className="text-sm text-gray-500">
             Completa el formulario arriba para agregar tu primera dirección
           </p>
