@@ -15,6 +15,19 @@ import { track } from "@/lib/analytics";
 import { formatMXN as formatMXNMoney } from "@/lib/utils/money";
 import { getSelectedItems } from "@/lib/checkout/selection";
 import type { AccountAddress } from "@/lib/supabase/addresses.server";
+import { z } from "zod";
+
+// Schema para validar email antes de llamar a la API
+const emailSchema = z.string().email();
+
+/**
+ * Valida si un email es válido antes de hacer la llamada a la API
+ */
+function isValidEmail(value: string | undefined | null): boolean {
+  if (!value) return false;
+  const parsed = emailSchema.safeParse(value.trim());
+  return parsed.success;
+}
 
 // eslint-disable-next-line sonarjs/cognitive-complexity -- Formulario largo pero estructurado, todos los campos son necesarios
 function DatosPageContent() {
@@ -71,26 +84,46 @@ function DatosPageContent() {
     track("begin_checkout");
   }, []);
 
-  // Cargar direcciones cuando el email cambia
+  // Cargar direcciones cuando el email cambia (solo si es válido)
   const emailValue = watch("email");
   useEffect(() => {
-    if (emailValue?.trim() && emailValue.includes("@")) {
-      loadAddresses();
-    } else {
+    // Limpiar direcciones si el email no es válido
+    if (!isValidEmail(emailValue)) {
       setAddresses([]);
       setSelectedAddressId(null);
+      return;
     }
+
+    // Debounce: esperar 400ms antes de llamar a la API
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      loadAddresses(controller.signal).catch((err) => {
+        // Ignorar errores de abort
+        if (err.name !== "AbortError" && process.env.NODE_ENV === "development") {
+          console.error("[loadAddresses] Error:", err);
+        }
+      });
+    }, 400);
+
+    return () => {
+      controller.abort();
+      clearTimeout(timeoutId);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [emailValue]);
 
-  const loadAddresses = async () => {
-    if (!emailValue || !emailValue.trim() || !emailValue.includes("@")) return;
+  const loadAddresses = async (signal?: AbortSignal) => {
+    if (!isValidEmail(emailValue)) return;
 
     try {
-      const normalizedEmail = emailValue.trim().toLowerCase();
+      const normalizedEmail = emailValue!.trim().toLowerCase();
       const response = await fetch(
         `/api/account/addresses?email=${encodeURIComponent(normalizedEmail)}`,
+        { signal },
       );
+
+      // Ignorar si fue abortado
+      if (signal?.aborted) return;
 
       if (response.ok) {
         const data = await response.json();
@@ -102,7 +135,11 @@ function DatosPageContent() {
         }
       }
     } catch (err) {
-      console.error("[loadAddresses] Error:", err);
+      // Ignorar errores de abort
+      if (err instanceof Error && err.name === "AbortError") return;
+      if (process.env.NODE_ENV === "development") {
+        console.error("[loadAddresses] Error:", err);
+      }
     }
   };
 
