@@ -81,9 +81,7 @@ export default function DireccionesClient() {
     startTransition(async () => {
       try {
         const normalizedEmail = email.trim().toLowerCase();
-        const url = editingId
-          ? "/api/account/addresses"
-          : "/api/account/addresses";
+        const url = "/api/account/addresses";
         const method = editingId ? "PUT" : "POST";
 
         const body = editingId
