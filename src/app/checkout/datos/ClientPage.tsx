@@ -15,19 +15,8 @@ import { track } from "@/lib/analytics";
 import { formatMXN as formatMXNMoney } from "@/lib/utils/money";
 import { getSelectedItems } from "@/lib/checkout/selection";
 import type { AccountAddress } from "@/lib/supabase/addresses.server";
-import { z } from "zod";
-
-// Schema para validar email antes de llamar a la API
-const emailSchema = z.string().email();
-
-/**
- * Valida si un email es válido antes de hacer la llamada a la API
- */
-function isValidEmail(value: string | undefined | null): boolean {
-  if (!value) return false;
-  const parsed = emailSchema.safeParse(value.trim());
-  return parsed.success;
-}
+import { isValidEmail } from "@/lib/validation/email";
+import { splitFullName, buildFullName } from "@/lib/utils/names";
 
 // eslint-disable-next-line sonarjs/cognitive-complexity -- Formulario largo pero estructurado, todos los campos son necesarios
 function DatosPageContent() {
@@ -146,10 +135,10 @@ function DatosPageContent() {
   const handleSelectAddress = (address: AccountAddress) => {
     setSelectedAddressId(address.id);
     setUseSavedAddress(true);
-    // Autocompletar formulario
-    const nameParts = address.full_name.split(" ");
-    setValue("name", nameParts[0] || "");
-    setValue("last_name", nameParts.slice(1).join(" ") || "");
+    // Autocompletar formulario usando helper para dividir nombre completo
+    const { firstName, lastName } = splitFullName(address.full_name);
+    setValue("name", firstName);
+    setValue("last_name", lastName);
     setValue("phone", address.phone);
     setValue("address", address.street);
     setValue("neighborhood", address.neighborhood);
@@ -227,7 +216,7 @@ function DatosPageContent() {
         try {
           const normalizedEmail = values.email.trim().toLowerCase();
           const addressData = {
-            full_name: `${values.name} ${values.last_name}`.trim(),
+            full_name: buildFullName(values.name, values.last_name),
             phone: values.phone,
             street: values.address,
             neighborhood: values.neighborhood,
