@@ -127,6 +127,13 @@ export function ToothAccountMenu() {
                 Mis pedidos
               </Link>
               <Link
+                href="/cuenta/direcciones"
+                className="block rounded-xl px-3 py-2 hover:bg-neutral-50"
+                onClick={() => setOpen(false)}
+              >
+                Mis direcciones
+              </Link>
+              <Link
                 href="/checkout"
                 className="block rounded-xl px-3 py-2 hover:bg-neutral-50"
                 onClick={() => setOpen(false)}
