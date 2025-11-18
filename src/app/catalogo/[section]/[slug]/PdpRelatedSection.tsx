@@ -52,6 +52,9 @@ export default async function PdpRelatedSection({
           <ProductCard key={product.id} {...product} />
         ))}
       </div>
+      <p className="text-sm text-gray-600 mt-4 text-center">
+        Si tienes dudas sobre cualquier producto, escríbenos por WhatsApp desde la burbuja en la esquina.
+      </p>
     </section>
   );
 }

@@ -155,6 +155,9 @@ export default function RecommendedClient() {
             />
           ))}
         </div>
+        <p className="text-sm text-gray-600 mt-4 text-center">
+          Si tienes dudas sobre cualquier producto, escríbenos por WhatsApp desde la burbuja en la esquina.
+        </p>
       </section>
     );
   }
@@ -176,6 +179,9 @@ export default function RecommendedClient() {
             </Link>
           </div>
         </div>
+        <p className="text-sm text-gray-600 mt-4 text-center">
+          Si tienes dudas sobre cualquier producto, escríbenos por WhatsApp desde la burbuja en la esquina.
+        </p>
       </section>
     );
   }
@@ -184,6 +190,9 @@ export default function RecommendedClient() {
     <section className="mt-12">
       <h2 className="text-xl font-semibold mb-4">También te puede interesar</h2>
       <FeaturedGrid items={products} hideSoldOutLabel={true} />
+      <p className="text-sm text-gray-600 mt-4 text-center">
+        Si tienes dudas sobre cualquier producto, escríbenos por WhatsApp desde la burbuja en la esquina.
+      </p>
     </section>
   );
 }
