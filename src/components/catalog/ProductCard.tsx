@@ -70,7 +70,9 @@ export default function ProductCard({
   const price = priceCents > 0 ? mxnFromCents(priceCents) : null;
 
   // Estado de disponibilidad
-  const soldOut = !in_stock || !is_active;
+  // soldOut solo es true si explícitamente in_stock === false o is_active === false
+  // null/undefined en in_stock no significa agotado, significa "no especificado" (disponible por defecto)
+  const soldOut = in_stock === false || is_active === false;
   const canPurchase = hasPurchasablePrice({
     price_cents,
     in_stock,

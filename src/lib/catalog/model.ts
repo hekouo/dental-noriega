@@ -35,6 +35,11 @@ export function normalizePrice(value?: number | string | null): number {
 
 /**
  * Verifica si un item tiene un precio comprable (price_cents > 0 y stock disponible)
+ * 
+ * Reglas:
+ * - Si in_stock es null/undefined, se considera disponible si is_active es true
+ * - Si in_stock es false, está agotado
+ * - Si is_active es false, no está disponible
  */
 export function hasPurchasablePrice(
   item:
@@ -42,8 +47,15 @@ export function hasPurchasablePrice(
     | { price_cents?: number | null; in_stock?: boolean | null; is_active?: boolean | null },
 ): boolean {
   const priceCents = normalizePrice(item.price_cents);
-  // Usar in_stock e is_active
-  const in_stock = item.in_stock ?? false;
-  const is_active = item.is_active ?? true;
-  return priceCents > 0 && in_stock && is_active;
+  if (priceCents <= 0) return false;
+  
+  // Si is_active es false, no está disponible
+  if (item.is_active === false) return false;
+  
+  // Si in_stock es false, está agotado
+  if (item.in_stock === false) return false;
+  
+  // Si in_stock es null/undefined pero is_active es true (o null), considerar disponible
+  // (null significa "no especificado", no "agotado")
+  return true;
 }
