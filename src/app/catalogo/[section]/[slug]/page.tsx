@@ -8,6 +8,7 @@ import ProductViewTracker from "@/components/ProductViewTracker.client";
 import { ROUTES } from "@/lib/routes";
 import Link from "next/link";
 import { Package, Truck, Shield } from "lucide-react";
+import PdpRelatedSection from "./PdpRelatedSection";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -252,6 +253,12 @@ export default async function ProductDetailPage({ params }: Props) {
               </div>
             </div>
           </div>
+
+          {/* Productos relacionados */}
+          <PdpRelatedSection
+            section={product.section}
+            currentProductId={product.id}
+          />
         </div>
       </div>
     );

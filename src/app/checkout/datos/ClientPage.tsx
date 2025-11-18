@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { useEffect, Suspense } from "react";
+import { useEffect, Suspense, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -14,6 +14,7 @@ import Link from "next/link";
 import { track } from "@/lib/analytics";
 import { formatMXN as formatMXNMoney } from "@/lib/utils/money";
 import { getSelectedItems } from "@/lib/checkout/selection";
+import type { AccountAddress } from "@/lib/supabase/addresses.server";
 
 // eslint-disable-next-line sonarjs/cognitive-complexity -- Formulario largo pero estructurado, todos los campos son necesarios
 function DatosPageContent() {
@@ -57,12 +58,73 @@ function DatosPageContent() {
 
   const { errors, isValid, isSubmitting } = formState;
 
+  // Estado para direcciones guardadas
+  const [addresses, setAddresses] = useState<AccountAddress[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+  const [useSavedAddress, setUseSavedAddress] = useState(false);
+  const [saveAddress, setSaveAddress] = useState(false);
+
   // En /checkout/datos NO se puede aplicar cupón, solo se muestra resumen si ya está aplicado
 
   // Analytics: begin_checkout al entrar a la página
   useEffect(() => {
     track("begin_checkout");
   }, []);
+
+  // Cargar direcciones cuando el email cambia
+  const emailValue = watch("email");
+  useEffect(() => {
+    if (emailValue?.trim() && emailValue.includes("@")) {
+      loadAddresses();
+    } else {
+      setAddresses([]);
+      setSelectedAddressId(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [emailValue]);
+
+  const loadAddresses = async () => {
+    if (!emailValue || !emailValue.trim() || !emailValue.includes("@")) return;
+
+    try {
+      const normalizedEmail = emailValue.trim().toLowerCase();
+      const response = await fetch(
+        `/api/account/addresses?email=${encodeURIComponent(normalizedEmail)}`,
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setAddresses(data.addresses || []);
+        // Si hay una dirección predeterminada, seleccionarla automáticamente
+        const defaultAddress = data.addresses?.find((a: AccountAddress) => a.is_default);
+        if (defaultAddress && !selectedAddressId) {
+          handleSelectAddress(defaultAddress);
+        }
+      }
+    } catch (err) {
+      console.error("[loadAddresses] Error:", err);
+    }
+  };
+
+  const handleSelectAddress = (address: AccountAddress) => {
+    setSelectedAddressId(address.id);
+    setUseSavedAddress(true);
+    // Autocompletar formulario
+    const nameParts = address.full_name.split(" ");
+    setValue("name", nameParts[0] || "");
+    setValue("last_name", nameParts.slice(1).join(" ") || "");
+    setValue("phone", address.phone);
+    setValue("address", address.street);
+    setValue("neighborhood", address.neighborhood);
+    setValue("city", address.city);
+    setValue("state", address.state);
+    setValue("cp", address.zip_code);
+  };
+
+  const handleUseNewAddress = () => {
+    setUseSavedAddress(false);
+    setSelectedAddressId(null);
+  };
 
   // Máscara de teléfono: solo números, bloquea e, +, -, .
   useEffect(() => {
@@ -122,6 +184,37 @@ function DatosPageContent() {
         console.warn("[datos] No hay items en checkoutStore, no se puede avanzar a pago");
         return;
       }
+
+      // Si el usuario marcó "Guardar dirección", crear/actualizar en account_addresses
+      if (saveAddress && !useSavedAddress && values.email) {
+        try {
+          const normalizedEmail = values.email.trim().toLowerCase();
+          const addressData = {
+            full_name: `${values.name} ${values.last_name}`.trim(),
+            phone: values.phone,
+            street: values.address,
+            neighborhood: values.neighborhood,
+            city: values.city,
+            state: values.state,
+            zip_code: values.cp,
+            country: "México",
+            is_default: addresses.length === 0, // Primera dirección = default
+          };
+
+          await fetch("/api/account/addresses", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: normalizedEmail,
+              ...addressData,
+            }),
+          });
+        } catch (err) {
+          console.warn("[onSubmit] Error al guardar dirección:", err);
+          // No bloquear el flujo si falla guardar la dirección
+        }
+      }
+
       store.setDatos(values); // avanza step -> "pago" y persiste checkoutItems
       router.push("/checkout/pago");
     } catch (err) {
@@ -149,6 +242,55 @@ function DatosPageContent() {
       <p className="text-gray-600 mb-6">
         Completa la información para enviar tu pedido
       </p>
+
+      {/* Selector de direcciones guardadas */}
+      {addresses.length > 0 && emailValue && emailValue.includes("@") && (
+        <div className="bg-white rounded-lg border p-4 mb-6">
+          <h2 className="text-lg font-semibold mb-3">Direcciones guardadas</h2>
+          <div className="space-y-2">
+            {addresses.map((address) => (
+              <div
+                key={address.id}
+                className={`border rounded-lg p-3 cursor-pointer transition-colors ${
+                  selectedAddressId === address.id && useSavedAddress
+                    ? "border-primary-500 bg-primary-50"
+                    : "border-gray-300 hover:border-gray-400"
+                }`}
+                onClick={() => handleSelectAddress(address)}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    {address.is_default && (
+                      <span className="inline-block px-2 py-0.5 bg-primary-100 text-primary-800 text-xs font-medium rounded mb-1">
+                        Predeterminada
+                      </span>
+                    )}
+                    <p className="font-medium">{address.full_name}</p>
+                    <p className="text-sm text-gray-600">{address.phone}</p>
+                    <p className="text-sm text-gray-700 mt-1">
+                      {address.street}, {address.neighborhood}, {address.city}, {address.state} {address.zip_code}
+                    </p>
+                  </div>
+                  <input
+                    type="radio"
+                    name="selectedAddress"
+                    checked={selectedAddressId === address.id && useSavedAddress}
+                    onChange={() => handleSelectAddress(address)}
+                    className="ml-2"
+                  />
+                </div>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={handleUseNewAddress}
+              className="w-full mt-2 px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+            >
+              Usar una dirección nueva
+            </button>
+          </div>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" noValidate>
         <CheckoutDebugPanel />
@@ -475,6 +617,22 @@ function DatosPageContent() {
             </p>
           )}
         </div>
+
+        {/* Guardar dirección */}
+        {!useSavedAddress && emailValue && emailValue.includes("@") && (
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="saveAddress"
+              checked={saveAddress}
+              onChange={(e) => setSaveAddress(e.target.checked)}
+              className="mr-2"
+            />
+            <label htmlFor="saveAddress" className="text-sm text-gray-700">
+              Guardar esta dirección para futuros pedidos
+            </label>
+          </div>
+        )}
 
         {/* Acepta aviso */}
         <div className="flex items-start">
