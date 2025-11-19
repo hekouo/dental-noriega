@@ -154,6 +154,66 @@ export async function POST(req: NextRequest) {
     };
 
     if (existingOrder) {
+      // Manejar puntos de lealtad si la orden está siendo marcada como "paid"
+      let loyaltyMetadata = metadata;
+      if (orderData.status === "paid") {
+        try {
+          const loyaltyData = metadataFromPayload.loyalty as
+            | {
+                applied?: boolean;
+                pointsToSpend?: number;
+                discountPercent?: number;
+                discountCents?: number;
+                balanceBefore?: number;
+              }
+            | undefined;
+
+          // Si se aplicó descuento de puntos, gastar puntos primero
+          if (loyaltyData?.applied && loyaltyData.pointsToSpend) {
+            const { spendLoyaltyPoints } = await import("@/lib/loyalty/points.server");
+            const loyaltySummary = await spendLoyaltyPoints(
+              orderData.email,
+              loyaltyData.pointsToSpend,
+            );
+
+            loyaltyMetadata = {
+              ...metadata,
+              loyalty: {
+                ...loyaltyData,
+                balanceBefore: loyaltySummary.pointsBalance + loyaltyData.pointsToSpend,
+                balanceAfter: loyaltySummary.pointsBalance,
+              },
+            };
+          }
+
+          // Añadir puntos ganados (solo si no se han añadido ya)
+          const existingMetadata = metadataFromPayload as Record<string, unknown>;
+          if (!existingMetadata.loyalty_points_earned && orderData.total_cents) {
+            const { addLoyaltyPoints } = await import("@/lib/loyalty/points.server");
+            const { LOYALTY_POINTS_PER_MXN } = await import("@/lib/loyalty/config");
+
+            // Calcular puntos sobre el total pagado (después de descuentos)
+            const mxnTotal = Math.max(0, Math.floor(orderData.total_cents / 100));
+            const pointsEarned = mxnTotal * LOYALTY_POINTS_PER_MXN;
+
+            if (pointsEarned > 0) {
+              const loyaltySummary = await addLoyaltyPoints(orderData.email, pointsEarned);
+
+              loyaltyMetadata = {
+                ...loyaltyMetadata,
+                loyalty_points_earned: pointsEarned,
+                loyalty_points_spent: loyaltyData?.pointsToSpend || 0,
+                loyalty_discount_cents: loyaltyData?.discountCents || 0,
+                loyalty_points_balance_after: loyaltySummary.pointsBalance,
+              };
+            }
+          }
+        } catch (loyaltyError) {
+          // No fallar la orden si falla la lógica de puntos
+          console.error("[save-order] Error al procesar puntos:", loyaltyError);
+        }
+      }
+
       // Actualizar orden existente usando el schema real
       // IMPORTANTE: NO eliminamos ni recreamos order_items aquí
       // Los items ya fueron creados en create-order y solo se actualizan si es necesario
@@ -166,7 +226,7 @@ export async function POST(req: NextRequest) {
           status: orderData.status,
           payment_provider: orderData.payment_provider || "stripe",
           payment_id: orderData.payment_id || null,
-          metadata: metadata,
+          metadata: loyaltyMetadata,
           updated_at: new Date().toISOString(),
         })
         .eq("id", orderData.order_id);
