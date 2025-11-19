@@ -154,82 +154,26 @@ export async function POST(req: NextRequest) {
     };
 
     if (existingOrder) {
-      // Manejar puntos de lealtad si la orden está siendo marcada como "paid"
-      let loyaltyMetadata = metadata;
+      // Procesar puntos de lealtad si la orden está siendo marcada como "paid"
+      // El helper processLoyaltyForOrder es idempotente y maneja todo el flujo
       if (orderData.status === "paid") {
         try {
-          const loyaltyData = metadataFromPayload.loyalty as
-            | {
-                applied?: boolean;
-                pointsToSpend?: number;
-                discountPercent?: number;
-                discountCents?: number;
-                balanceBefore?: number;
-              }
-            | undefined;
-
-          // Si se aplicó descuento de puntos, gastar puntos primero
-          if (loyaltyData?.applied && loyaltyData.pointsToSpend) {
-            const { spendLoyaltyPoints } = await import("@/lib/loyalty/points.server");
-            const loyaltySummary = await spendLoyaltyPoints(
-              orderData.email,
-              loyaltyData.pointsToSpend,
-            );
-
-            loyaltyMetadata = {
-              ...metadata,
-              loyalty: {
-                ...loyaltyData,
-                balanceBefore: loyaltySummary.pointsBalance + loyaltyData.pointsToSpend,
-                balanceAfter: loyaltySummary.pointsBalance,
-              },
-            };
-          }
-
-          // Añadir puntos ganados (solo si no se han añadido ya)
-          const existingMetadata = metadataFromPayload as Record<string, unknown>;
-          if (!existingMetadata.loyalty_points_earned && orderData.total_cents && orderData.email) {
-            const { addLoyaltyPoints } = await import("@/lib/loyalty/points.server");
-            const { LOYALTY_POINTS_PER_MXN } = await import("@/lib/loyalty/config");
-
-            // Calcular puntos sobre el total pagado (después de descuentos)
-            const mxnTotal = Math.max(0, Math.floor(orderData.total_cents / 100));
-            const pointsEarned = mxnTotal * LOYALTY_POINTS_PER_MXN;
-
-            if (pointsEarned > 0) {
-              if (process.env.NODE_ENV === "development") {
-                console.log("[LOYALTY] about to add points", {
-                  email: orderData.email,
-                  pointsToAdd: pointsEarned,
-                  mxnTotal,
-                  context: "save-order-update",
-                });
-              }
-
-              const loyaltySummary = await addLoyaltyPoints(orderData.email, pointsEarned);
-
-              if (process.env.NODE_ENV === "development") {
-                console.log("[LOYALTY] points added successfully", {
-                  email: orderData.email,
-                  pointsEarned,
-                  newBalance: loyaltySummary.pointsBalance,
-                });
-              }
-
-              loyaltyMetadata = {
-                ...loyaltyMetadata,
-                loyalty_points_earned: pointsEarned,
-                loyalty_points_spent: loyaltyData?.pointsToSpend || 0,
-                loyalty_discount_cents: loyaltyData?.discountCents || 0,
-                loyalty_points_balance_after: loyaltySummary.pointsBalance,
-              };
-            }
-          }
+          const { processLoyaltyForOrder } = await import("@/lib/loyalty/processOrder.server");
+          await processLoyaltyForOrder(orderData.order_id);
         } catch (loyaltyError) {
           // No fallar la orden si falla la lógica de puntos
           console.error("[save-order] Error al procesar puntos:", loyaltyError);
         }
       }
+
+      // Obtener metadata actualizada después de procesar puntos (si se procesaron)
+      const { data: updatedOrder } = await supabase
+        .from("orders")
+        .select("metadata")
+        .eq("id", orderData.order_id)
+        .single();
+
+      const loyaltyMetadata = updatedOrder?.metadata || metadata;
 
       // Actualizar orden existente usando el schema real
       // IMPORTANTE: NO eliminamos ni recreamos order_items aquí
@@ -327,78 +271,6 @@ export async function POST(req: NextRequest) {
       });
     } else {
       // Crear nueva orden usando el schema real
-      // Manejar puntos de lealtad si la orden se crea con status "paid"
-      let loyaltyMetadata = metadata;
-      if (orderData.status === "paid" && orderData.email && orderData.total_cents) {
-        try {
-          const loyaltyData = metadataFromPayload.loyalty as
-            | {
-                applied?: boolean;
-                pointsToSpend?: number;
-                discountPercent?: number;
-                discountCents?: number;
-                balanceBefore?: number;
-              }
-            | undefined;
-
-          // Si se aplicó descuento de puntos, gastar puntos primero
-          if (loyaltyData?.applied && loyaltyData.pointsToSpend) {
-            const { spendLoyaltyPoints } = await import("@/lib/loyalty/points.server");
-            const loyaltySummary = await spendLoyaltyPoints(
-              orderData.email,
-              loyaltyData.pointsToSpend,
-            );
-
-            loyaltyMetadata = {
-              ...metadata,
-              loyalty: {
-                ...loyaltyData,
-                balanceBefore: loyaltySummary.pointsBalance + loyaltyData.pointsToSpend,
-                balanceAfter: loyaltySummary.pointsBalance,
-              },
-            };
-          }
-
-          // Añadir puntos ganados
-          const { addLoyaltyPoints } = await import("@/lib/loyalty/points.server");
-          const { LOYALTY_POINTS_PER_MXN } = await import("@/lib/loyalty/config");
-
-          const mxnTotal = Math.max(0, Math.floor(orderData.total_cents / 100));
-          const pointsEarned = mxnTotal * LOYALTY_POINTS_PER_MXN;
-
-          if (pointsEarned > 0) {
-            if (process.env.NODE_ENV === "development") {
-              console.log("[LOYALTY] about to add points", {
-                email: orderData.email,
-                pointsToAdd: pointsEarned,
-                mxnTotal,
-                context: "save-order-new",
-              });
-            }
-
-            const loyaltySummary = await addLoyaltyPoints(orderData.email, pointsEarned);
-
-            if (process.env.NODE_ENV === "development") {
-              console.log("[LOYALTY] points added successfully", {
-                email: orderData.email,
-                pointsEarned,
-                newBalance: loyaltySummary.pointsBalance,
-              });
-            }
-
-            loyaltyMetadata = {
-              ...loyaltyMetadata,
-              loyalty_points_earned: pointsEarned,
-              loyalty_points_spent: loyaltyData?.pointsToSpend || 0,
-              loyalty_discount_cents: loyaltyData?.discountCents || 0,
-              loyalty_points_balance_after: loyaltySummary.pointsBalance,
-            };
-          }
-        } catch (loyaltyError) {
-          // No fallar la orden si falla la lógica de puntos
-          console.error("[save-order] Error al procesar puntos en orden nueva:", loyaltyError);
-        }
-      }
 
       const { error: insertError } = await supabase
         .from("orders")
@@ -410,7 +282,7 @@ export async function POST(req: NextRequest) {
           status: orderData.status,
           payment_provider: orderData.payment_provider || "stripe",
           payment_id: orderData.payment_id || null,
-          metadata: loyaltyMetadata,
+          metadata: metadata,
         });
 
       if (insertError) {
@@ -426,6 +298,18 @@ export async function POST(req: NextRequest) {
           { error: "No se pudo guardar la orden" },
           { status: 500 },
         );
+      }
+
+      // Procesar puntos de lealtad si la orden se crea con status "paid"
+      // El helper processLoyaltyForOrder es idempotente y maneja todo el flujo
+      if (orderData.status === "paid") {
+        try {
+          const { processLoyaltyForOrder } = await import("@/lib/loyalty/processOrder.server");
+          await processLoyaltyForOrder(orderData.order_id);
+        } catch (loyaltyError) {
+          // No fallar la orden si falla la lógica de puntos
+          console.error("[save-order] Error al procesar puntos en orden nueva:", loyaltyError);
+        }
       }
 
       // Crear items de la orden solo si la orden es nueva
