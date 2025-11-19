@@ -223,7 +223,10 @@ export default function DireccionesClient() {
     <div className="space-y-6">
       {/* Formulario de email */}
       <div className="bg-white rounded-lg border p-6">
-        <h2 className="text-lg font-semibold mb-4">Ingresa tu email</h2>
+        <h2 className="text-lg font-semibold mb-2">Ingresa tu email</h2>
+        <p className="text-sm text-gray-600 mb-4">
+          Ingresa el correo con el que haces tus compras para ver y administrar tus direcciones guardadas.
+        </p>
         <div className="flex gap-3">
           <input
             type="email"
@@ -464,7 +467,11 @@ export default function DireccionesClient() {
             {addresses.map((address) => (
               <div
                 key={address.id}
-                className="bg-white rounded-lg border p-4 space-y-3"
+                className={`bg-white rounded-lg border p-4 space-y-3 ${
+                  address.is_default
+                    ? "border-blue-500 shadow-sm"
+                    : "border-gray-200 hover:border-gray-300"
+                }`}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -525,9 +532,9 @@ export default function DireccionesClient() {
       {/* Estado vacío: solo mostrar si el email es válido y ya se buscó */}
       {email.trim() && isValidEmail(email) && !loading && addresses.length === 0 && !editingId && !error && (
         <div className="bg-gray-50 rounded-lg p-8 text-center">
-          <p className="text-gray-600 mb-4">No se encontraron direcciones para este correo</p>
+          <p className="text-gray-600 mb-2">No tienes direcciones guardadas todavía.</p>
           <p className="text-sm text-gray-500">
-            Completa el formulario arriba para agregar tu primera dirección
+            Guarda una dirección desde el checkout para usarla más rápido en tus próximas compras.
           </p>
         </div>
       )}

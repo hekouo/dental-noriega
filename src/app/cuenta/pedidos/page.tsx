@@ -187,6 +187,9 @@ export default function PedidosPage() {
         <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg shadow mb-8">
           <div className="space-y-4">
             <div>
+              <p className="text-sm text-gray-600 mb-3">
+                Ingresa el correo con el que realizaste tu compra para ver el historial de pedidos.
+              </p>
               <label
                 htmlFor="email"
                 className="block text-sm font-medium text-gray-700 mb-2"
@@ -319,8 +322,11 @@ export default function PedidosPage() {
 
         {orders && orders.length === 0 && (
           <div className="bg-white p-8 rounded-lg shadow text-center">
-            <p className="text-gray-600">
-              No se encontraron pedidos para este email.
+            <p className="text-gray-600 mb-2">
+              No encontramos pedidos con este correo.
+            </p>
+            <p className="text-sm text-gray-500">
+              Verifica que tu email esté bien escrito o prueba con otro que hayas usado antes para comprar.
             </p>
           </div>
         )}

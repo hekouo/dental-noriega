@@ -266,7 +266,7 @@ function DatosPageContent() {
 
       <h1 className="text-2xl font-semibold mb-2">Datos de Envío</h1>
       <p className="text-gray-600 mb-6">
-        Completa la información para enviar tu pedido
+        Usaremos esta información solo para entregar tu pedido y enviarte actualizaciones por correo.
       </p>
 
       {/* Selector de direcciones guardadas */}
@@ -628,7 +628,7 @@ function DatosPageContent() {
             className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
               errors.notes ? "border-red-500" : "border-gray-300"
             }`}
-            placeholder="Ej: Llame antes de entregar, portería abierta 24h..."
+            placeholder="Ej: Llame antes de entregar, portería abierta 24h, referencias de la puerta..."
           />
           <p id="notes-help" className="text-gray-500 text-xs mt-1">
             Máximo 300 caracteres
@@ -673,21 +673,7 @@ function DatosPageContent() {
             className="mt-1 h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
           />
           <label htmlFor="aceptaAviso" className="ml-2 text-sm text-gray-700">
-            Acepto el{" "}
-            <Link
-              href="/terminos-condiciones"
-              className="text-primary-600 underline"
-            >
-              contrato
-            </Link>{" "}
-            y el{" "}
-            <Link
-              href="/aviso-privacidad"
-              className="text-primary-600 underline"
-            >
-              aviso de privacidad
-            </Link>{" "}
-            *
+            Acepto el contrato de compra y el aviso de privacidad *
           </label>
         </div>
         {errors.aceptaAviso && (
