@@ -90,15 +90,38 @@ export async function addLoyaltyPoints(
   const normalizedEmail = normalizeEmail(email);
   const supabase = createServiceRoleSupabase();
 
+  if (process.env.NODE_ENV === "development") {
+    console.log("[addLoyaltyPoints] starting", {
+      email: normalizedEmail,
+      points,
+    });
+  }
+
   // Obtener registro existente
-  const { data: existing } = await supabase
+  const { data: existing, error: fetchError } = await supabase
     .from("account_points")
     .select("points_balance, lifetime_earned")
     .eq("user_email", normalizedEmail)
     .single();
 
+  if (fetchError && fetchError.code !== "PGRST116") {
+    // PGRST116 = no encontrado, es esperado
+    if (process.env.NODE_ENV === "development") {
+      console.error("[addLoyaltyPoints] Error al buscar registro:", fetchError);
+    }
+    throw new Error(`Error al buscar puntos: ${fetchError.message}`);
+  }
+
   if (existing) {
     // Actualizar existente
+    if (process.env.NODE_ENV === "development") {
+      console.log("[addLoyaltyPoints] updating existing", {
+        email: normalizedEmail,
+        currentBalance: existing.points_balance,
+        pointsToAdd: points,
+      });
+    }
+
     const { data: updated, error: updateError } = await supabase
       .from("account_points")
       .update({
@@ -116,6 +139,14 @@ export async function addLoyaltyPoints(
       throw new Error(`Error al añadir puntos: ${updateError?.message || "Error desconocido"}`);
     }
 
+    if (process.env.NODE_ENV === "development") {
+      console.log("[addLoyaltyPoints] updated successfully", {
+        email: normalizedEmail,
+        newBalance: updated.points_balance,
+        newLifetime: updated.lifetime_earned,
+      });
+    }
+
     return {
       email: normalizedEmail,
       pointsBalance: updated.points_balance || 0,
@@ -123,6 +154,13 @@ export async function addLoyaltyPoints(
     };
   } else {
     // Crear nuevo
+    if (process.env.NODE_ENV === "development") {
+      console.log("[addLoyaltyPoints] creating new record", {
+        email: normalizedEmail,
+        points,
+      });
+    }
+
     const { data: created, error: createError } = await supabase
       .from("account_points")
       .insert({
@@ -136,8 +174,22 @@ export async function addLoyaltyPoints(
     if (createError || !created) {
       if (process.env.NODE_ENV === "development") {
         console.error("[addLoyaltyPoints] Error al crear:", createError);
+        console.error("[addLoyaltyPoints] createError details:", {
+          code: createError?.code,
+          message: createError?.message,
+          details: createError?.details,
+          hint: createError?.hint,
+        });
       }
       throw new Error(`Error al crear puntos: ${createError?.message || "Error desconocido"}`);
+    }
+
+    if (process.env.NODE_ENV === "development") {
+      console.log("[addLoyaltyPoints] created successfully", {
+        email: normalizedEmail,
+        balance: created.points_balance,
+        lifetime: created.lifetime_earned,
+      });
     }
 
     return {
