@@ -12,6 +12,7 @@ export type OrderSummary = {
   total_cents: number | null;
   metadata: {
     shipping_method?: string;
+    shipping_cost_cents?: number;
     coupon_code?: string;
     subtotal_cents?: number;
     discount_cents?: number;

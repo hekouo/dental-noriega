@@ -379,7 +379,17 @@ export default function PedidosPage() {
                       </p>
                       {order.metadata?.shipping_method && (
                         <p className="text-sm text-gray-600 mt-1">
-                          {formatShippingMethod(order.metadata.shipping_method)}
+                          {(() => {
+                            const method = formatShippingMethod(order.metadata.shipping_method);
+                            const shippingCostCents = order.metadata.shipping_cost_cents;
+                            
+                            if (shippingCostCents !== undefined && shippingCostCents !== null && shippingCostCents > 0) {
+                              return `${method} · ${formatMXNFromCents(shippingCostCents)}`;
+                            }
+                            
+                            // Para "Recoger en tienda" con costo 0, solo mostrar el método
+                            return method;
+                          })()}
                         </p>
                       )}
                     </div>
