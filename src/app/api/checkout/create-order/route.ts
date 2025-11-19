@@ -25,6 +25,14 @@ const CreateOrderRequestSchema = z.object({
   // Aceptar los valores reales del frontend: pickup, standard, express
   // Mapear standard/express a "delivery" internamente para metadata
   shippingMethod: z.enum(["pickup", "standard", "express"]).optional(),
+  // Datos de loyalty opcionales
+  loyalty: z.object({
+    applied: z.boolean(),
+    pointsToSpend: z.number().int().positive(),
+    discountPercent: z.number().int().nonnegative(),
+    discountCents: z.number().int().nonnegative(),
+    balanceBefore: z.number().int().nonnegative(),
+  }).optional(),
 });
 
 type CreateOrderRequest = z.infer<typeof CreateOrderRequestSchema>;
@@ -164,6 +172,11 @@ export async function POST(req: NextRequest) {
       contact_name: orderData.name || null,
       contact_email: orderData.email || null,
     };
+
+    // Incluir datos de loyalty si están presentes
+    if (orderData.loyalty) {
+      metadata.loyalty = orderData.loyalty;
+    }
 
     // Crear orden usando SOLO las columnas válidas del schema real
     const { data: order, error: orderError } = await supabase

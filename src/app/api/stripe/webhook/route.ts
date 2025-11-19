@@ -74,14 +74,53 @@ export async function POST(req: NextRequest) {
       const order_id = paymentIntent.metadata.order_id;
 
       if (order_id) {
-        await supabase
+        // Actualizar orden a paid
+        const { data: order, error: updateError } = await supabase
           .from("orders")
           .update({
             status: "paid",
             payment_id: paymentIntent.id,
             payment_amount: paymentIntent.amount / 100,
           })
-          .eq("id", order_id);
+          .eq("id", order_id)
+          .select("email, total_cents, metadata")
+          .single();
+
+        if (!updateError && order && order.email) {
+          // Añadir puntos de lealtad (solo si no se han añadido ya)
+          try {
+            const metadata = (order.metadata as Record<string, unknown>) || {};
+            const loyaltyPointsEarned = metadata.loyalty_points_earned;
+
+            // Solo añadir puntos si no se han añadido ya
+            if (!loyaltyPointsEarned && order.total_cents) {
+              const { addLoyaltyPoints } = await import("@/lib/loyalty/points.server");
+              const { LOYALTY_POINTS_PER_MXN } = await import("@/lib/loyalty/config");
+
+              const mxnTotal = Math.max(0, Math.floor(order.total_cents / 100));
+              const pointsEarned = mxnTotal * LOYALTY_POINTS_PER_MXN;
+
+              if (pointsEarned > 0) {
+                const loyaltySummary = await addLoyaltyPoints(order.email, pointsEarned);
+
+                // Actualizar metadata de la orden con información de puntos
+                await supabase
+                  .from("orders")
+                  .update({
+                    metadata: {
+                      ...metadata,
+                      loyalty_points_earned: pointsEarned,
+                      loyalty_points_balance_after: loyaltySummary.pointsBalance,
+                    },
+                  })
+                  .eq("id", order_id);
+              }
+            }
+          } catch (loyaltyError) {
+            // No fallar el webhook si falla la lógica de puntos
+            console.error("[webhook] Error al añadir puntos:", loyaltyError);
+          }
+        }
       }
     } else if (event.type === "payment_intent.payment_failed") {
       const paymentIntent = event.data.object as Stripe.PaymentIntent;

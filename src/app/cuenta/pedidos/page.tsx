@@ -2,6 +2,11 @@
 
 import { useState, useRef, useEffect } from "react";
 import { formatMXNFromCents } from "@/lib/utils/currency";
+import { isValidEmail } from "@/lib/validation/email";
+import {
+  LOYALTY_MIN_POINTS_FOR_DISCOUNT,
+  LOYALTY_DISCOUNT_PERCENT,
+} from "@/lib/loyalty/config";
 import type {
   OrderSummary,
   OrderDetail,
@@ -17,6 +22,12 @@ export default function PedidosPage() {
   const [orderDetail, setOrderDetail] = useState<OrderDetail | null>(null);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const detailRef = useRef<HTMLDivElement | null>(null);
+  const [loyaltyPoints, setLoyaltyPoints] = useState<{
+    pointsBalance: number;
+    lifetimeEarned: number;
+    canApplyDiscount: boolean;
+  } | null>(null);
+  const [loyaltyLoading, setLoyaltyLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -178,6 +189,44 @@ export default function PedidosPage() {
     return () => clearTimeout(timeoutId);
   }, [orderDetail]);
 
+  // Cargar puntos de lealtad cuando hay email válido
+  useEffect(() => {
+    if (!email.trim() || !isValidEmail(email)) {
+      setLoyaltyPoints(null);
+      return;
+    }
+
+    let cancelled = false;
+    setLoyaltyLoading(true);
+
+    fetch(`/api/account/loyalty?email=${encodeURIComponent(email.trim())}`)
+      .then((res) => {
+        if (cancelled) return null;
+        if (!res.ok) throw new Error("Error al cargar puntos");
+        return res.json();
+      })
+      .then((data) => {
+        if (cancelled || !data) return;
+        setLoyaltyPoints({
+          pointsBalance: data.pointsBalance || 0,
+          lifetimeEarned: data.lifetimeEarned || 0,
+          canApplyDiscount: data.canApplyDiscount || false,
+        });
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.error("[PedidosPage] Error al cargar puntos:", err);
+        setLoyaltyPoints(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoyaltyLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [email]);
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 py-12">
@@ -243,6 +292,46 @@ export default function PedidosPage() {
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
             {error}
+          </div>
+        )}
+
+        {/* Panel de puntos de lealtad */}
+        {email.trim() && isValidEmail(email) && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">
+            <h2 className="text-xl font-semibold mb-4">Tus puntos</h2>
+            {loyaltyLoading ? (
+              <p className="text-gray-600">Cargando puntos...</p>
+            ) : loyaltyPoints !== null ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-700">Puntos actuales:</span>
+                  <span className="text-2xl font-bold text-primary-600">
+                    {loyaltyPoints.pointsBalance.toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-700">Has acumulado:</span>
+                  <span className="text-lg font-semibold text-gray-900">
+                    {loyaltyPoints.lifetimeEarned.toLocaleString()} puntos en total
+                  </span>
+                </div>
+                <div className="pt-3 border-t border-blue-200 space-y-1">
+                  <p className="text-sm text-gray-600">
+                    1 punto por cada $1 MXN pagado.
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    Con {LOYALTY_MIN_POINTS_FOR_DISCOUNT} puntos obtienes {LOYALTY_DISCOUNT_PERCENT}% de descuento en un pedido.
+                  </p>
+                  {loyaltyPoints.canApplyDiscount && (
+                    <p className="text-sm font-medium text-green-700 mt-2">
+                      ¡Tienes suficientes puntos para usar el descuento en tu próxima compra!
+                    </p>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <p className="text-gray-600">No se pudieron cargar los puntos.</p>
+            )}
           </div>
         )}
 

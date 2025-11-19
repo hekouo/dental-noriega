@@ -23,6 +23,11 @@ import Toast from "@/components/ui/Toast";
 import type { DatosForm } from "@/lib/checkout/schemas";
 import StripePaymentForm from "@/components/checkout/StripePaymentForm";
 import { getSelectedItems, getSelectedSubtotalCents } from "@/lib/checkout/selection";
+import { isValidEmail } from "@/lib/validation/email";
+import {
+  LOYALTY_MIN_POINTS_FOR_DISCOUNT,
+  LOYALTY_DISCOUNT_PERCENT,
+} from "@/lib/loyalty/config";
 
 type FormValues = {
   paymentMethod: string;
@@ -80,6 +85,14 @@ export default function PagoClient() {
   const [orderId, setOrderId] = useState<string | null>(null); // Estado local solo para UI (StripePaymentForm)
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
 
+  // Estado para puntos de lealtad
+  const [loyaltyPoints, setLoyaltyPoints] = useState<{
+    pointsBalance: number;
+    lifetimeEarned: number;
+    canApplyDiscount: boolean;
+  } | null>(null);
+  const [loyaltyApplied, setLoyaltyApplied] = useState(false);
+
   // Sincronizar orderId local con el del store
   // Solo usar orderId del store, NO restaurar de localStorage/URL automáticamente
   useEffect(() => {
@@ -120,6 +133,40 @@ export default function PagoClient() {
       setCouponInput(lastAppliedCoupon);
     }
   }, [lastAppliedCoupon, couponCode, couponInput]);
+
+  // Cargar puntos de lealtad cuando hay email válido
+  useEffect(() => {
+    if (!datos?.email || !isValidEmail(datos.email)) {
+      setLoyaltyPoints(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    fetch(`/api/account/loyalty?email=${encodeURIComponent(datos.email)}`)
+      .then((res) => {
+        if (cancelled) return null;
+        if (!res.ok) throw new Error("Error al cargar puntos");
+        return res.json();
+      })
+      .then((data) => {
+        if (cancelled || !data) return;
+        setLoyaltyPoints({
+          pointsBalance: data.pointsBalance || 0,
+          lifetimeEarned: data.lifetimeEarned || 0,
+          canApplyDiscount: data.canApplyDiscount || false,
+        });
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.error("[PagoClient] Error al cargar puntos:", err);
+        setLoyaltyPoints(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [datos?.email]);
 
   // Calcular envío basado en CP y peso
   const shippingData = useMemo(() => {
@@ -175,6 +222,13 @@ export default function PagoClient() {
   const selectedPaymentMethod = watch("paymentMethod");
   const shippingCost = shippingData.prices[selectedShippingMethod] || 0;
 
+  // Calcular descuento de puntos si está aplicado
+  const loyaltyDiscountCents = useMemo(() => {
+    if (!loyaltyApplied || !loyaltyPoints?.canApplyDiscount) return 0;
+    const subtotalCents = getSelectedSubtotalCents(checkoutItems);
+    return Math.floor(subtotalCents * (LOYALTY_DISCOUNT_PERCENT / 100));
+  }, [loyaltyApplied, loyaltyPoints?.canApplyDiscount, checkoutItems]);
+
   // Calcular totalCents directamente desde items seleccionados usando price_cents
   const totalCents = useMemo(() => {
     const subtotalCents = getSelectedSubtotalCents(checkoutItems);
@@ -182,7 +236,7 @@ export default function PagoClient() {
     // Agregar shipping cost en centavos
     const shippingCents = Math.round(shippingCost * 100);
     
-    // Aplicar descuento si existe
+    // Aplicar descuento de cupón si existe
     let finalCents = subtotalCents + shippingCents;
     if (discount && discountScope) {
       const discountCents = Math.round(discount * 100);
@@ -193,10 +247,15 @@ export default function PagoClient() {
       }
     }
     
+    // Aplicar descuento de puntos (sobre el subtotal elegible, después de cupones)
+    if (loyaltyDiscountCents > 0) {
+      finalCents = Math.max(0, finalCents - loyaltyDiscountCents);
+    }
+    
     return Math.max(0, finalCents);
-  }, [checkoutItems, shippingCost, discount, discountScope]);
+  }, [checkoutItems, shippingCost, discount, discountScope, loyaltyDiscountCents]);
 
-  // Calcular totales con cupón
+  // Calcular totales con cupón y puntos
   const total = useMemo(() => {
     let calculated = subtotal + shippingCost;
 
@@ -208,8 +267,13 @@ export default function PagoClient() {
       }
     }
 
+    // Aplicar descuento de puntos
+    if (loyaltyDiscountCents > 0) {
+      calculated = Math.max(0, calculated - loyaltyDiscountCents / 100);
+    }
+
     return Math.max(0, calculated);
-  }, [subtotal, shippingCost, discount, discountScope]);
+  }, [subtotal, shippingCost, discount, discountScope, loyaltyDiscountCents]);
 
   // Actualizar store cuando cambia el método de envío
   useEffect(() => {
@@ -356,6 +420,16 @@ export default function PagoClient() {
         name: datos.name, // Nombre para metadata
         shippingMethod: selectedShippingMethod || "pickup", // Método de envío
         // NO incluir orderId aquí - queremos que create-order cree SIEMPRE una nueva orden
+        // Incluir datos de loyalty si está aplicado
+        loyalty: loyaltyApplied && loyaltyPoints?.canApplyDiscount
+          ? {
+              applied: true,
+              pointsToSpend: LOYALTY_MIN_POINTS_FOR_DISCOUNT,
+              discountPercent: LOYALTY_DISCOUNT_PERCENT,
+              discountCents: loyaltyDiscountCents,
+              balanceBefore: loyaltyPoints.pointsBalance,
+            }
+          : undefined,
         items: itemsForOrder.map((item) => {
           const qty = item.qty ?? 1;
           const priceCents =
@@ -745,6 +819,45 @@ export default function PagoClient() {
         )}
       </div>
 
+      {/* Puntos de lealtad */}
+      {loyaltyPoints !== null && (
+        <div className="bg-blue-50 rounded-lg p-4 mb-6 border border-blue-200">
+          <div className="flex items-start justify-between mb-3">
+            <div>
+              <h2 className="font-semibold text-sm text-gray-700 mb-1">
+                Tus puntos
+              </h2>
+              <p className="text-sm text-gray-600">
+                Tienes <strong>{loyaltyPoints.pointsBalance}</strong> puntos disponibles
+              </p>
+              {loyaltyPoints.canApplyDiscount && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Usa {LOYALTY_MIN_POINTS_FOR_DISCOUNT} puntos para obtener {LOYALTY_DISCOUNT_PERCENT}% de descuento
+                </p>
+              )}
+            </div>
+          </div>
+          {loyaltyPoints.canApplyDiscount && (
+            <label className="flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={loyaltyApplied}
+                onChange={(e) => setLoyaltyApplied(e.target.checked)}
+                className="mr-2"
+              />
+              <span className="text-sm text-gray-700">
+                Usar {LOYALTY_MIN_POINTS_FOR_DISCOUNT} puntos para obtener {LOYALTY_DISCOUNT_PERCENT}% de descuento en este pedido
+              </span>
+            </label>
+          )}
+          {!loyaltyPoints.canApplyDiscount && loyaltyPoints.pointsBalance > 0 && (
+            <p className="text-xs text-gray-500 mt-2">
+              Necesitas {LOYALTY_MIN_POINTS_FOR_DISCOUNT - loyaltyPoints.pointsBalance} puntos más para usar el descuento
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Resumen de productos */}
       <div className="bg-gray-50 rounded-lg p-4 mb-6">
         <h2 className="font-semibold mb-2 text-sm text-gray-700">
@@ -769,6 +882,12 @@ export default function PagoClient() {
             <div className="flex justify-between text-sm text-green-600">
               <span>Descuento {couponCode ? `(${couponCode})` : ""}:</span>
               <span>-{formatMXNMoney(discount)}</span>
+            </div>
+          )}
+          {loyaltyDiscountCents > 0 && (
+            <div className="flex justify-between text-sm text-green-600">
+              <span>Descuento por puntos ({LOYALTY_DISCOUNT_PERCENT}%):</span>
+              <span>-{formatMXNMoney(loyaltyDiscountCents / 100)}</span>
             </div>
           )}
           <div className="flex justify-between text-sm">
