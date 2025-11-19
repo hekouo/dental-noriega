@@ -75,6 +75,7 @@ export async function POST(req: NextRequest) {
 
       if (order_id) {
         // Actualizar orden a paid
+        // Nota: la tabla orders puede tener 'email' o 'contact_email', verificar ambos
         const { data: order, error: updateError } = await supabase
           .from("orders")
           .update({
@@ -83,10 +84,14 @@ export async function POST(req: NextRequest) {
             payment_amount: paymentIntent.amount / 100,
           })
           .eq("id", order_id)
-          .select("email, total_cents, metadata")
+          .select("email, contact_email, total_cents, metadata")
           .single();
 
-        if (!updateError && order && order.email) {
+        // Usar email o contact_email (según el schema real)
+        const orderEmail = order ? ((order as { email?: string; contact_email?: string }).email || 
+                                     (order as { email?: string; contact_email?: string }).contact_email) : null;
+
+        if (!updateError && order && orderEmail) {
           // Añadir puntos de lealtad (solo si no se han añadido ya)
           try {
             const metadata = (order.metadata as Record<string, unknown>) || {};
@@ -101,7 +106,25 @@ export async function POST(req: NextRequest) {
               const pointsEarned = mxnTotal * LOYALTY_POINTS_PER_MXN;
 
               if (pointsEarned > 0) {
-                const loyaltySummary = await addLoyaltyPoints(order.email, pointsEarned);
+                if (process.env.NODE_ENV === "development") {
+                  console.log("[LOYALTY] about to add points", {
+                    email: orderEmail,
+                    pointsToAdd: pointsEarned,
+                    mxnTotal,
+                    context: "webhook",
+                    order_id: order_id,
+                  });
+                }
+
+                const loyaltySummary = await addLoyaltyPoints(orderEmail, pointsEarned);
+
+                if (process.env.NODE_ENV === "development") {
+                  console.log("[LOYALTY] points added successfully", {
+                    email: orderEmail,
+                    pointsEarned,
+                    newBalance: loyaltySummary.pointsBalance,
+                  });
+                }
 
                 // Actualizar metadata de la orden con información de puntos
                 await supabase
@@ -114,11 +137,42 @@ export async function POST(req: NextRequest) {
                     },
                   })
                   .eq("id", order_id);
+              } else {
+                if (process.env.NODE_ENV === "development") {
+                  console.log("[LOYALTY] skipping - no points to add (mxnTotal is 0)", {
+                    email: orderEmail,
+                    mxnTotal,
+                    total_cents: order.total_cents,
+                  });
+                }
+              }
+            } else {
+              if (process.env.NODE_ENV === "development") {
+                console.log("[LOYALTY] skipping - points already earned", {
+                  email: orderEmail,
+                  loyaltyPointsEarned,
+                  total_cents: order.total_cents,
+                });
               }
             }
           } catch (loyaltyError) {
             // No fallar el webhook si falla la lógica de puntos
             console.error("[webhook] Error al añadir puntos:", loyaltyError);
+            if (process.env.NODE_ENV === "development") {
+              console.error("[LOYALTY] error details:", {
+                email: orderEmail,
+                error: loyaltyError instanceof Error ? loyaltyError.message : String(loyaltyError),
+                stack: loyaltyError instanceof Error ? loyaltyError.stack : undefined,
+              });
+            }
+          }
+        } else {
+          if (process.env.NODE_ENV === "development") {
+            console.log("[LOYALTY] skipping - no email or order not found", {
+              hasOrder: !!order,
+              hasEmail: !!orderEmail,
+              updateError: updateError?.message,
+            });
           }
         }
       }
