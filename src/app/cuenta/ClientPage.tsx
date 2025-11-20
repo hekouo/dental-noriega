@@ -2,8 +2,15 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { loginSchema, registerSchema } from "@/lib/validations/auth";
 import { loginAction, registerAction } from "@/lib/actions/auth";
+import { getBrowserSupabase } from "@/lib/supabase/client";
+import { isValidEmail } from "@/lib/validation/email";
+import {
+  LOYALTY_MIN_POINTS_FOR_DISCOUNT,
+  LOYALTY_DISCOUNT_PERCENT,
+} from "@/lib/loyalty/config";
 
 export default function CuentaClientPage() {
   const searchParams = useSearchParams();
@@ -14,6 +21,15 @@ export default function CuentaClientPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const router = useRouter();
+  
+  // Estado para puntos de lealtad
+  const [loyaltyPoints, setLoyaltyPoints] = useState<{
+    pointsBalance: number;
+    lifetimeEarned: number;
+    canApplyDiscount: boolean;
+  } | null>(null);
+  const [loyaltyLoading, setLoyaltyLoading] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
 
   useEffect(() => {
     if (!searchParams) return;
@@ -22,6 +38,44 @@ export default function CuentaClientPage() {
       setMode(modeParam);
     }
   }, [searchParams]);
+
+  // Cargar email del usuario autenticado y puntos de lealtad
+  useEffect(() => {
+    const loadUserEmailAndPoints = async () => {
+      const supabase = getBrowserSupabase();
+      if (!supabase) return;
+
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.email && isValidEmail(user.email)) {
+          setUserEmail(user.email);
+          // Cargar puntos de lealtad
+          setLoyaltyLoading(true);
+          try {
+            const response = await fetch(
+              `/api/account/loyalty?email=${encodeURIComponent(user.email)}`,
+            );
+            if (response.ok) {
+              const data = await response.json();
+              setLoyaltyPoints({
+                pointsBalance: data.pointsBalance || 0,
+                lifetimeEarned: data.lifetimeEarned || 0,
+                canApplyDiscount: data.canApplyDiscount || false,
+              });
+            }
+          } catch (err) {
+            console.error("[CuentaClientPage] Error al cargar puntos:", err);
+          } finally {
+            setLoyaltyLoading(false);
+          }
+        }
+      } catch (err) {
+        // Ignorar errores de autenticación
+      }
+    };
+
+    loadUserEmailAndPoints();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -95,6 +149,98 @@ export default function CuentaClientPage() {
         {success && (
           <div className="bg-green-50 text-green-600 p-3 rounded-lg mb-4 text-sm">
             {success}
+          </div>
+        )}
+
+        {/* Bloque de puntos de lealtad */}
+        {userEmail && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+            <h2 className="text-xl font-semibold mb-4 text-gray-900">
+              Mis puntos de lealtad
+            </h2>
+            {loyaltyLoading ? (
+              <div className="space-y-3">
+                <div className="h-4 bg-blue-100 rounded animate-pulse"></div>
+                <div className="h-4 bg-blue-100 rounded animate-pulse w-3/4"></div>
+              </div>
+            ) : loyaltyPoints !== null ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-700">Puntos actuales:</span>
+                  <span className="text-2xl font-bold text-primary-600">
+                    {loyaltyPoints.pointsBalance.toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-700">Puntos acumulados:</span>
+                  <span className="text-lg font-semibold text-gray-900">
+                    {loyaltyPoints.lifetimeEarned.toLocaleString()}
+                  </span>
+                </div>
+                <div className="pt-3 border-t border-blue-200 space-y-2">
+                  <p className="text-sm text-gray-600">
+                    1 punto por cada $1 MXN pagado.
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    Con {LOYALTY_MIN_POINTS_FOR_DISCOUNT.toLocaleString()} puntos obtienes {LOYALTY_DISCOUNT_PERCENT}% de descuento en un pedido.
+                  </p>
+                  {loyaltyPoints.canApplyDiscount ? (
+                    <p className="text-sm font-medium text-green-700 mt-2">
+                      Ya puedes usar tu {LOYALTY_DISCOUNT_PERCENT}% de descuento en tu próxima compra.
+                    </p>
+                  ) : (
+                    <p className="text-sm text-gray-600 mt-2">
+                      Te faltan <strong>{(LOYALTY_MIN_POINTS_FOR_DISCOUNT - loyaltyPoints.pointsBalance).toLocaleString()}</strong> puntos para poder usar el {LOYALTY_DISCOUNT_PERCENT}% de descuento.
+                    </p>
+                  )}
+                </div>
+                <Link
+                  href="/cuenta/pedidos"
+                  className="inline-block mt-4 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium"
+                >
+                  Ver mis pedidos
+                </Link>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-700">Puntos actuales:</span>
+                  <span className="text-2xl font-bold text-gray-400">0</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-700">Puntos acumulados:</span>
+                  <span className="text-lg font-semibold text-gray-400">0</span>
+                </div>
+                <div className="pt-3 border-t border-blue-200">
+                  <p className="text-sm text-gray-600">
+                    Todavía no has acumulado puntos. Compra con este correo para empezar a acumular.
+                  </p>
+                </div>
+                <Link
+                  href="/cuenta/pedidos"
+                  className="inline-block mt-4 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium"
+                >
+                  Ver mis pedidos
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
+
+        {!userEmail && (
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 mb-6">
+            <h2 className="text-xl font-semibold mb-2 text-gray-900">
+              Mis puntos de lealtad
+            </h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Ingresa o busca tus pedidos para ver tus puntos disponibles.
+            </p>
+            <Link
+              href="/cuenta/pedidos"
+              className="inline-block px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium"
+            >
+              Ver mis pedidos
+            </Link>
           </div>
         )}
 
