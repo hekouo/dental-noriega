@@ -1,14 +1,52 @@
 ![CI](https://github.com/hekouo/dental-noriega/actions/workflows/ci.yml/badge.svg)
 ![Audit](https://github.com/hekouo/dental-noriega/actions/workflows/audit.yml/badge.svg)
 
-# DENTAL NORIEGA - Catálogo Digital
+# Depósito Dental Noriega - Catálogo Digital
 
-Sitio web de catálogo de productos dentales con carrito de compras, integración de WhatsApp y sistema de pedidos.
+Sitio web de catálogo de productos dentales con carrito de compras, checkout completo con Stripe, sistema de puntos de lealtad, gestión de pedidos por email y direcciones guardadas. Plataforma e-commerce completa para insumos dentales con envíos a todo México.
 
-## ⚠️ Checkout desactivado temporalmente
+## 🛠️ Stack
 
-Se movió `/api/checkout/create-session` a `/api_disabled/checkout/create-session` para evitar el fallo de build en Vercel.
-Rehabilitar cuando existan las ENV de Stripe y el handler tenga manejo de errores.
+- **Framework**: Next.js 14 (App Router)
+- **Base de datos**: Supabase (catálogo, órdenes, puntos de lealtad, direcciones)
+- **Pagos**: Stripe (modo test)
+- **Estilos**: Tailwind CSS
+- **Estado global**: Zustand (carrito, checkout)
+- **Validación**: Zod + React Hook Form
+- **Hosting**: Vercel
+
+## 🔄 Flujos clave
+
+### Checkout completo
+
+Flujo de compra: **Carrito** → **Datos de envío** → **Pago** → **Confirmación**
+
+1. **Carrito (`/checkout`)**: Revisa productos seleccionados
+2. **Datos (`/checkout/datos`)**: Formulario de envío con validación, direcciones guardadas
+3. **Pago (`/checkout/pago`)**: Método de envío, método de pago (Stripe, efectivo, transferencia), opción de usar puntos de lealtad
+4. **Gracias (`/checkout/gracias`)**: Confirmación con resumen, puntos ganados, productos recomendados
+
+### Mis pedidos por email
+
+- **Sin login requerido**: Los usuarios buscan sus pedidos ingresando su email en `/cuenta/pedidos`
+- **Historial completo**: Muestra todos los pedidos asociados al email
+- **Detalle de pedido**: Información completa incluyendo productos, totales, envío, puntos ganados/usados
+
+### Direcciones guardadas
+
+- **Gestión en `/cuenta/direcciones`**: Crear, editar, eliminar direcciones
+- **Dirección predeterminada**: Se marca automáticamente la primera, o se puede cambiar manualmente
+- **Uso en checkout**: Al ingresar email en `/checkout/datos`, se muestran direcciones guardadas para selección rápida
+
+### Puntos de lealtad
+
+- **Cómo se ganan**: 1 punto por cada $1 MXN pagado (redondeado hacia abajo)
+- **Cómo se usan**: Con 1000 puntos o más, se puede aplicar un 5% de descuento en un pedido
+- **Visualización**: 
+  - Panel en `/cuenta` muestra balance actual y acumulado
+  - Panel en `/cuenta/pedidos` muestra puntos al buscar pedidos
+  - Detalle de pedido muestra puntos ganados/usados por orden
+- **Proceso**: Los puntos se gastan (1000) cuando se aplica el descuento, pero el usuario sigue ganando puntos por ese pedido (sobre el total pagado con descuento)
 
 ## 🔍 DEBUG
 
@@ -353,7 +391,38 @@ pnpm test    # unit tests
 - Verificar variables de entorno en Vercel dashboard
 - Clear build cache si hay problemas
 
-## ✅ QA post-deploy
+## ✅ QA
+
+### QA técnico
+
+Antes de cada commit y PR, ejecutar:
+
+```bash
+# Verificar tipos TypeScript
+pnpm typecheck
+
+# Verificar linting
+pnpm lint
+
+# Verificar build
+pnpm build
+```
+
+Todos deben pasar sin errores (warnings preexistentes son aceptables).
+
+### QA manual
+
+Para pruebas manuales completas, consulta el [Checklist de QA Manual](./docs/qa-manual-checklist.md).
+
+El checklist incluye:
+- Flujos completos de checkout
+- Sistema de puntos de lealtad
+- Gestión de direcciones
+- Páginas de error
+- Layout responsive
+- Integración con Stripe (modo test)
+
+### QA post-deploy
 
 Después de cada deploy, verificar estas rutas críticas:
 
