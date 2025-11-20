@@ -390,6 +390,27 @@ export default function PedidosPage() {
                           })()}
                         </p>
                       )}
+                      {/* Resumen de puntos en la lista (solo si está paid y tiene info) */}
+                      {order.status === "paid" && (() => {
+                        const earned = order.metadata?.loyalty_points_earned;
+                        const spent = order.metadata?.loyalty_points_spent;
+                        const hasEarned = earned !== null && earned !== undefined && earned > 0;
+                        const hasSpent = spent !== null && spent !== undefined && spent > 0;
+                        
+                        if (!hasEarned && !hasSpent) return null;
+                        
+                        return (
+                          <p className="text-xs text-gray-500 mt-1">
+                            {hasEarned && hasSpent && earned && spent
+                              ? `Puntos: +${earned.toLocaleString()} / -${spent.toLocaleString()}`
+                              : hasEarned && earned
+                                ? `Puntos: +${earned.toLocaleString()}`
+                                : hasSpent && spent
+                                  ? `Puntos: -${spent.toLocaleString()}`
+                                  : null}
+                          </p>
+                        );
+                      })()}
                     </div>
                     <div className="text-right ml-4">
                       {order.total_cents !== null && (
@@ -559,6 +580,54 @@ export default function PedidosPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Puntos de lealtad por pedido */}
+              {orderDetail.status === "paid" && (() => {
+                const earned = orderDetail.metadata?.loyalty_points_earned;
+                const spent = orderDetail.metadata?.loyalty_points_spent;
+                const hasEarned = earned !== null && earned !== undefined && earned > 0;
+                const hasSpent = spent !== null && spent !== undefined && spent > 0;
+                
+                if (!hasEarned && !hasSpent) return null;
+                
+                const netPoints = (earned || 0) - (spent || 0);
+                
+                return (
+                  <div className="mt-6 pt-4 border-t border-gray-200">
+                    <h3 className="text-sm font-semibold text-gray-700 mb-3">
+                      Puntos de lealtad
+                    </h3>
+                    <div className="flex justify-end">
+                      <div className="w-full md:w-64 space-y-2">
+                        {hasEarned && earned && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-600">Puntos ganados:</span>
+                            <span className="text-green-600 font-medium">
+                              +{earned.toLocaleString()}
+                            </span>
+                          </div>
+                        )}
+                        {hasSpent && spent && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-600">Puntos usados:</span>
+                            <span className="text-orange-600 font-medium">
+                              -{spent.toLocaleString()}
+                            </span>
+                          </div>
+                        )}
+                        {(hasEarned || hasSpent) && (
+                          <div className="flex justify-between text-sm font-semibold pt-2 border-t border-gray-200">
+                            <span className="text-gray-700">Puntos netos:</span>
+                            <span className="text-gray-900">
+                              {netPoints.toLocaleString()}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         )}
