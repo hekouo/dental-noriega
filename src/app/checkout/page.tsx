@@ -3,6 +3,9 @@
 import { useMemo, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+
+// Metadata se maneja en el layout o en un wrapper server component si es necesario
+// Esta página es client-only, así que el metadata debe estar en un layout padre
 import {
   useCheckoutStore,
   selectCheckoutItems,

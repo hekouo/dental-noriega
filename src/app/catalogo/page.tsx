@@ -1,5 +1,6 @@
 // src/app/catalogo/page.tsx
 import Link from "next/link";
+import type { Metadata } from "next";
 import { listSectionsFromCatalog } from "@/lib/supabase/catalog";
 import { getSectionsFromCatalogView } from "@/lib/catalog/getSectionsFromCatalogView.server";
 import { ROUTES } from "@/lib/routes";
@@ -8,6 +9,18 @@ import { ROUTES } from "@/lib/routes";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
+
+export const metadata: Metadata = {
+  title: "Catálogo",
+  description:
+    "Explora todas nuestras categorías de productos dentales. Insumos, equipos e instrumental organizados por secciones.",
+  openGraph: {
+    title: "Catálogo | Depósito Dental Noriega",
+    description:
+      "Explora todas nuestras categorías de productos dentales. Insumos, equipos e instrumental organizados por secciones.",
+    type: "website",
+  },
+};
 
 export default async function CatalogoIndexPage() {
   let sections = await listSectionsFromCatalog();

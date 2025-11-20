@@ -42,10 +42,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     };
   }
 
-  const title = `${product.title} | ${siteName}`;
+  // Formatear sección para título legible
+  const sectionFormatted = section
+    .replace(/-/g, " ")
+    .replace(/\b\w/g, (l: string) => l.toUpperCase());
+
+  const title = `${product.title} | ${sectionFormatted} | ${siteName}`;
   const description =
-    product.description?.slice(0, 150) ?? `${product.title} en ${siteName}`;
-  const image = product.image_url ?? "/og/cover.jpg";
+    product.description?.slice(0, 150) ??
+    `${product.title} - ${sectionFormatted}. Disponible en ${siteName}.`;
+  const image = product.image_url ?? "/og-default.jpg";
   const url = `${base}/catalogo/${product.section}/${product.slug}`;
 
   return {

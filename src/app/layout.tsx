@@ -56,16 +56,26 @@ export const metadata: Metadata = {
     process.env.NEXT_PUBLIC_SITE_URL ?? "https://dental-noriega.vercel.app",
   ),
   title: {
-    default: "Depósito Dental Noriega",
-    template: "%s · Dental Noriega",
+    default: "Depósito Dental Noriega | Insumos dentales en México",
+    template: "%s | Depósito Dental Noriega",
   },
-  description: "Suministros dentales con envío y asesoría.",
+  description:
+    "Insumos y equipos dentales de calidad. Servicio a clínicas, consultorios y mayoristas. Envío a todo México.",
+  keywords: [
+    "insumos dentales",
+    "equipos dentales",
+    "material dental",
+    "instrumental odontológico",
+    "productos dentales",
+    "México",
+  ],
   openGraph: {
     type: "website",
     url: "/",
     siteName: process.env.NEXT_PUBLIC_SITE_NAME ?? "Depósito Dental Noriega",
-    title: "Depósito Dental Noriega",
-    description: "Suministros dentales con envío y asesoría.",
+    title: "Depósito Dental Noriega | Insumos dentales en México",
+    description:
+      "Insumos y equipos dentales de calidad. Servicio a clínicas, consultorios y mayoristas. Envío a todo México.",
     images: [
       {
         url: "/og-default.jpg",
@@ -74,13 +84,19 @@ export const metadata: Metadata = {
         alt: "Depósito Dental Noriega",
       },
     ],
+    locale: "es_MX",
   },
   twitter: {
     card: "summary_large_image",
     creator: "@dentalnoriega",
-    title: "Depósito Dental Noriega",
-    description: "Suministros dentales con envío y asesoría.",
+    title: "Depósito Dental Noriega | Insumos dentales en México",
+    description:
+      "Insumos y equipos dentales de calidad. Servicio a clínicas, consultorios y mayoristas.",
     images: ["/og-default.jpg"],
+  },
+  robots: {
+    index: true,
+    follow: true,
   },
 };
 

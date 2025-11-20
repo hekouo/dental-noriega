@@ -81,9 +81,23 @@ const FinalThanks = dynamicImport(() => import("@/components/FinalThanks"), {
   ssr: false,
 });
 
+import type { Metadata } from "next";
+
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
+
+export const metadata: Metadata = {
+  title: "Inicio",
+  description:
+    "Equipamiento e instrumental odontológico de calidad. Explora nuestro catálogo de insumos dentales con envío a todo México.",
+  openGraph: {
+    title: "Depósito Dental Noriega | Insumos dentales en México",
+    description:
+      "Equipamiento e instrumental odontológico de calidad. Explora nuestro catálogo de insumos dentales con envío a todo México.",
+    type: "website",
+  },
+};
 
 export default async function HomePage() {
   const items = await getFeaturedItems();

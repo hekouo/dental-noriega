@@ -2,8 +2,16 @@ import { Metadata } from "next";
 import DireccionesClient from "./DireccionesClient";
 
 export const metadata: Metadata = {
-  title: "Mis Direcciones | Depósito Dental Noriega",
-  robots: { index: false, follow: false },
+  title: "Mis direcciones",
+  description:
+    "Gestiona tus direcciones de envío. Agrega, edita o elimina direcciones para facilitar tus compras.",
+  robots: { index: false, follow: true },
+  openGraph: {
+    title: "Mis direcciones | Depósito Dental Noriega",
+    description:
+      "Gestiona tus direcciones de envío. Agrega, edita o elimina direcciones para facilitar tus compras.",
+    type: "website",
+  },
 };
 
 export const dynamic = "force-dynamic";
