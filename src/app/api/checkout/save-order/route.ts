@@ -111,9 +111,31 @@ export async function POST(req: NextRequest) {
       ? metadataFromPayload.subtotal_cents
       : orderData.total_cents - (typeof metadataFromPayload.shipping_cost_cents === "number" ? metadataFromPayload.shipping_cost_cents : 0) + (typeof metadataFromPayload.discount_cents === "number" ? metadataFromPayload.discount_cents : 0);
     
-    const shippingCostCents = typeof metadataFromPayload.shipping_cost_cents === "number"
+    // Obtener shipping_cost_cents del payload o del metadata existente de la orden
+    let shippingCostCents = typeof metadataFromPayload.shipping_cost_cents === "number"
       ? metadataFromPayload.shipping_cost_cents
-      : 0;
+      : undefined;
+    
+    // Si no viene en el payload y la orden ya existe, intentar obtenerlo del metadata existente
+    if (shippingCostCents === undefined && existingOrder) {
+      const { data: existingOrderData } = await supabase
+        .from("orders")
+        .select("metadata")
+        .eq("id", orderData.order_id)
+        .single();
+      
+      if (existingOrderData?.metadata) {
+        const existingMetadata = existingOrderData.metadata as Record<string, unknown>;
+        if (typeof existingMetadata.shipping_cost_cents === "number") {
+          shippingCostCents = existingMetadata.shipping_cost_cents;
+        }
+      }
+    }
+    
+    // Si aún no tenemos shipping_cost_cents, usar 0 como fallback
+    if (shippingCostCents === undefined) {
+      shippingCostCents = 0;
+    }
     
     const discountCents = typeof metadataFromPayload.discount_cents === "number"
       ? metadataFromPayload.discount_cents

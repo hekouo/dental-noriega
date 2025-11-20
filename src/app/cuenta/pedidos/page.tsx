@@ -27,7 +27,6 @@ export default function PedidosPage() {
     lifetimeEarned: number;
     canApplyDiscount: boolean;
   } | null>(null);
-  const [loyaltyLoading, setLoyaltyLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,33 +35,57 @@ export default function PedidosPage() {
     setOrders(null);
     setOrderDetail(null);
 
+    const searchEmail = email.trim();
+    if (!searchEmail || !isValidEmail(searchEmail)) {
+      setError("Email inválido");
+      setLoading(false);
+      return;
+    }
+
     try {
-      const response = await fetch("/api/account/orders", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: email.trim(),
-          orderId: orderId.trim() || undefined,
+      // Hacer ambas llamadas en paralelo: órdenes y puntos de lealtad
+      const [ordersResponse, loyaltyResponse] = await Promise.all([
+        fetch("/api/account/orders", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: searchEmail,
+            orderId: orderId.trim() || undefined,
+          }),
         }),
-      });
+        fetch(`/api/account/loyalty?email=${encodeURIComponent(searchEmail)}`),
+      ]);
 
-      const data = await response.json();
+      const ordersData = await ordersResponse.json();
+      const loyaltyData = await loyaltyResponse.json();
 
-      if (!response.ok) {
-        setError(data.error || "Error al obtener pedidos");
+      if (!ordersResponse.ok) {
+        setError(ordersData.error || "Error al obtener pedidos");
         return;
       }
 
-      if (data.order) {
+      if (ordersData.order) {
         // Detalle de una orden
-        setOrderDetail(data.order);
+        setOrderDetail(ordersData.order);
         setOrders(null);
-      } else if (data.orders) {
+      } else if (ordersData.orders) {
         // Lista de órdenes
-        setOrders(data.orders);
+        setOrders(ordersData.orders);
         setOrderDetail(null);
+      }
+
+      // Actualizar puntos de lealtad si la respuesta fue exitosa
+      if (loyaltyResponse.ok && loyaltyData) {
+        setLoyaltyPoints({
+          pointsBalance: loyaltyData.pointsBalance || 0,
+          lifetimeEarned: loyaltyData.lifetimeEarned || 0,
+          canApplyDiscount: loyaltyData.canApplyDiscount || false,
+        });
+      } else {
+        // Si falla, mantener el estado anterior pero loguear el error
+        console.error("[PedidosPage] Error al cargar puntos:", loyaltyData.error);
       }
     } catch (err) {
       setError("Error de conexión. Intenta de nuevo.");
@@ -189,43 +212,8 @@ export default function PedidosPage() {
     return () => clearTimeout(timeoutId);
   }, [orderDetail]);
 
-  // Cargar puntos de lealtad cuando hay email válido
-  useEffect(() => {
-    if (!email.trim() || !isValidEmail(email)) {
-      setLoyaltyPoints(null);
-      return;
-    }
-
-    let cancelled = false;
-    setLoyaltyLoading(true);
-
-    fetch(`/api/account/loyalty?email=${encodeURIComponent(email.trim())}`)
-      .then((res) => {
-        if (cancelled) return null;
-        if (!res.ok) throw new Error("Error al cargar puntos");
-        return res.json();
-      })
-      .then((data) => {
-        if (cancelled || !data) return;
-        setLoyaltyPoints({
-          pointsBalance: data.pointsBalance || 0,
-          lifetimeEarned: data.lifetimeEarned || 0,
-          canApplyDiscount: data.canApplyDiscount || false,
-        });
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        console.error("[PedidosPage] Error al cargar puntos:", err);
-        setLoyaltyPoints(null);
-      })
-      .finally(() => {
-        if (!cancelled) setLoyaltyLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [email]);
+  // Los puntos de lealtad ahora se cargan en handleSubmit junto con las órdenes
+  // para asegurar que siempre estén actualizados cuando el usuario busca pedidos
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -299,7 +287,7 @@ export default function PedidosPage() {
         {email.trim() && isValidEmail(email) && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">
             <h2 className="text-xl font-semibold mb-4">Tus puntos</h2>
-            {loyaltyLoading ? (
+            {loading ? (
               <p className="text-gray-600">Cargando puntos...</p>
             ) : loyaltyPoints !== null ? (
               <div className="space-y-3">
@@ -382,6 +370,16 @@ export default function PedidosPage() {
                           {(() => {
                             const method = formatShippingMethod(order.metadata.shipping_method);
                             const shippingCostCents = order.metadata.shipping_cost_cents;
+                            
+                            // Log temporal para debugging
+                            if (process.env.NODE_ENV === "development") {
+                              console.log("[PedidosPage] Shipping info:", {
+                                orderId: order.id,
+                                method: order.metadata.shipping_method,
+                                shippingCostCents,
+                                metadata: order.metadata,
+                              });
+                            }
                             
                             if (shippingCostCents !== undefined && shippingCostCents !== null && shippingCostCents > 0) {
                               return `${method} · ${formatMXNFromCents(shippingCostCents)}`;

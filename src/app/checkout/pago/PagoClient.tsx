@@ -419,6 +419,7 @@ export default function PagoClient() {
         email: datos.email, // Email del checkout para la orden y Stripe
         name: datos.name, // Nombre para metadata
         shippingMethod: selectedShippingMethod || "pickup", // Método de envío
+        shippingCostCents: Math.round(shippingCost * 100), // Costo de envío en centavos
         // NO incluir orderId aquí - queremos que create-order cree SIEMPRE una nueva orden
         // Incluir datos de loyalty si está aplicado
         loyalty: loyaltyApplied && loyaltyPoints?.canApplyDiscount
