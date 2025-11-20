@@ -80,12 +80,20 @@ export async function getOrdersByEmail(
     throw new Error(`Error al obtener órdenes: ${error.message}`);
   }
 
-  // Log temporal para debugging
-  if (process.env.NODE_ENV === "development") {
-    console.log("[getOrdersByEmail] Resultado:", {
+  // Log temporal para debugging - incluir metadata completo para inspeccionar shipping_cost_cents
+  if (process.env.NODE_ENV === "development" && data && data.length > 0) {
+    console.log("[getOrdersByEmail] Resultado completo (primer pedido):", {
       email: normalizedEmail,
-      count: data?.length || 0,
-      orders: data?.map((o) => ({ id: o.id, status: o.status, created_at: o.created_at })),
+      count: data.length,
+      firstOrder: {
+        id: data[0].id,
+        status: data[0].status,
+        created_at: data[0].created_at,
+        total_cents: data[0].total_cents,
+        metadata: data[0].metadata,
+        metadata_shipping_cost_cents: (data[0].metadata as Record<string, unknown>)?.shipping_cost_cents,
+        metadata_shipping_method: (data[0].metadata as Record<string, unknown>)?.shipping_method,
+      },
     });
   }
 

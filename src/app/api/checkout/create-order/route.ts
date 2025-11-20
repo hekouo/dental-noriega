@@ -25,6 +25,7 @@ const CreateOrderRequestSchema = z.object({
   // Aceptar los valores reales del frontend: pickup, standard, express
   // Mapear standard/express a "delivery" internamente para metadata
   shippingMethod: z.enum(["pickup", "standard", "express"]).optional(),
+  shippingCostCents: z.number().int().nonnegative().optional(), // Costo de envío en centavos
   // Datos de loyalty opcionales
   loyalty: z.object({
     applied: z.boolean(),
@@ -163,10 +164,13 @@ export async function POST(req: NextRequest) {
     // Guardamos el valor original en metadata para referencia
     const shippingMethodForMetadata = orderData.shippingMethod || "pickup";
     
+    // Obtener costo de envío del payload o calcularlo (por defecto 0 para pickup)
+    const shippingCostCents = orderData.shippingCostCents ?? 0;
+    
     // Construir metadata con información adicional
     const metadata: Record<string, unknown> = {
       subtotal_cents: total_cents, // Por ahora subtotal = total (sin envío ni descuento aún)
-      shipping_cost_cents: 0,
+      shipping_cost_cents: shippingCostCents, // Costo de envío en centavos
       discount_cents: 0,
       shipping_method: shippingMethodForMetadata, // Guardar valor original: pickup, standard, express
       contact_name: orderData.name || null,
