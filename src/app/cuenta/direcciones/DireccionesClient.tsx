@@ -151,7 +151,13 @@ export default function DireccionesClient() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!email.trim() || !isValidEmail(email) || !confirm("¿Eliminar esta dirección?")) return;
+    if (!email.trim() || !isValidEmail(email)) return;
+    
+    const addressToDelete = addresses.find((a) => a.id === id);
+    const isDefault = addressToDelete?.is_default;
+    const hasOtherAddresses = addresses.length > 1;
+    
+    if (!confirm(`¿Eliminar esta dirección${isDefault && hasOtherAddresses ? "? Se marcará otra como predeterminada" : ""}?`)) return;
 
     startTransition(async () => {
       try {
@@ -168,7 +174,24 @@ export default function DireccionesClient() {
         }
 
         // Actualizar estado local inmediatamente (optimistic update)
-        setAddresses((prev) => prev.filter((a) => a.id !== id));
+        const remainingAddresses = addresses.filter((a) => a.id !== id);
+        
+        // Si se eliminó la predeterminada y hay otras, marcar la primera como predeterminada
+        if (isDefault && remainingAddresses.length > 0) {
+          const firstRemaining = remainingAddresses[0];
+          try {
+            await fetch("/api/account/addresses", {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ id: firstRemaining.id, email: normalizedEmail }),
+            });
+          } catch (err) {
+            // Si falla, no importa, se corregirá al recargar
+            console.warn("[handleDelete] Error al marcar nueva predeterminada:", err);
+          }
+        }
+        
+        setAddresses(remainingAddresses);
         setError(null);
         
         // Recargar para asegurar consistencia
@@ -274,7 +297,7 @@ export default function DireccionesClient() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label htmlFor="full_name" className="block text-sm font-medium text-gray-700 mb-1">
-                Nombre completo *
+                Nombre completo (nombre y apellidos) *
               </label>
               <input
                 type="text"
@@ -284,9 +307,13 @@ export default function DireccionesClient() {
                   setFormData({ ...formData, full_name: e.target.value })
                 }
                 required
+                placeholder="Ej: Juan Pérez García"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 autoComplete="name"
               />
+              <p className="text-gray-500 text-xs mt-1">
+                Incluye tu nombre y apellidos completos
+              </p>
             </div>
 
             <div>
@@ -302,9 +329,13 @@ export default function DireccionesClient() {
                 }
                 required
                 maxLength={10}
+                placeholder="5512345678"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 autoComplete="tel"
               />
+              <p className="text-gray-500 text-xs mt-1">
+                10 dígitos, solo números
+              </p>
             </div>
 
             <div className="md:col-span-2">
@@ -410,7 +441,7 @@ export default function DireccionesClient() {
             </div>
           </div>
 
-          <div className="flex items-center">
+          <div className="flex items-start">
             <input
               type="checkbox"
               id="is_default"
@@ -418,10 +449,13 @@ export default function DireccionesClient() {
               onChange={(e) =>
                 setFormData({ ...formData, is_default: e.target.checked })
               }
-              className="mr-2"
+              className="mt-1 mr-2"
             />
             <label htmlFor="is_default" className="text-sm text-gray-700">
               Usar como dirección predeterminada
+              <span className="block text-xs text-gray-500 mt-1">
+                Esta dirección se seleccionará automáticamente en futuros pedidos
+              </span>
             </label>
           </div>
 
@@ -531,10 +565,10 @@ export default function DireccionesClient() {
 
       {/* Estado vacío: solo mostrar si el email es válido y ya se buscó */}
       {email.trim() && isValidEmail(email) && !loading && addresses.length === 0 && !editingId && !error && (
-        <div className="bg-gray-50 rounded-lg p-8 text-center">
-          <p className="text-gray-600 mb-2">No tienes direcciones guardadas todavía.</p>
-          <p className="text-sm text-gray-500">
-            Guarda una dirección desde el checkout para usarla más rápido en tus próximas compras.
+        <div className="bg-gray-50 rounded-lg border border-gray-200 p-8 text-center">
+          <p className="text-gray-700 font-medium mb-2">No tienes direcciones guardadas todavía</p>
+          <p className="text-sm text-gray-600">
+            Puedes guardar una dirección desde el checkout o crear una nueva aquí arriba. Las direcciones guardadas te ayudan a completar tus pedidos más rápido.
           </p>
         </div>
       )}

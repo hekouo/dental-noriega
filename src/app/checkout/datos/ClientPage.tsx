@@ -266,13 +266,16 @@ function DatosPageContent() {
 
       <h1 className="text-2xl font-semibold mb-2">Datos de Envío</h1>
       <p className="text-gray-600 mb-6">
-        Usaremos esta información solo para entregar tu pedido y enviarte actualizaciones por correo.
+        Completa la información para entregar tu pedido. Solo usaremos estos datos para el envío y actualizaciones por correo.
       </p>
 
       {/* Selector de direcciones guardadas */}
       {addresses.length > 0 && emailValue && emailValue.includes("@") && (
-        <div className="bg-white rounded-lg border p-4 mb-6">
-          <h2 className="text-lg font-semibold mb-3">Direcciones guardadas</h2>
+        <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
+          <h2 className="text-lg font-semibold mb-3 text-gray-900">Direcciones guardadas</h2>
+          <p className="text-sm text-gray-600 mb-4">
+            Selecciona una dirección guardada o usa una nueva
+          </p>
           <div className="space-y-2">
             {addresses.map((address) => (
               <div
@@ -291,7 +294,7 @@ function DatosPageContent() {
                         Predeterminada
                       </span>
                     )}
-                    <p className="font-medium">{address.full_name}</p>
+                    <p className="font-medium text-gray-900">{address.full_name}</p>
                     <p className="text-sm text-gray-600">{address.phone}</p>
                     <p className="text-sm text-gray-700 mt-1">
                       {address.street}, {address.neighborhood}, {address.city}, {address.state} {address.zip_code}
@@ -302,7 +305,8 @@ function DatosPageContent() {
                     name="selectedAddress"
                     checked={selectedAddressId === address.id && useSavedAddress}
                     onChange={() => handleSelectAddress(address)}
-                    className="ml-2"
+                    className="ml-2 mt-1"
+                    aria-label={`Seleccionar dirección de ${address.full_name}`}
                   />
                 </div>
               </div>
@@ -310,7 +314,7 @@ function DatosPageContent() {
             <button
               type="button"
               onClick={handleUseNewAddress}
-              className="w-full mt-2 px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+              className="w-full mt-3 px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 font-medium"
             >
               Usar una dirección nueva
             </button>
@@ -321,65 +325,72 @@ function DatosPageContent() {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" noValidate>
         <CheckoutDebugPanel />
         {/* Nombre y Apellido */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-4">
           <div>
-            <label
-              htmlFor="name"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Nombre *
-            </label>
-            <input
-              id="name"
-              type="text"
-              {...register("name")}
-              onBlur={() => handleBlur("name")}
-              aria-invalid={errors.name ? "true" : "false"}
-              aria-describedby={errors.name ? "name-error" : undefined}
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
-                errors.name ? "border-red-500" : "border-gray-300"
-              }`}
-            />
-            {errors.name && (
-              <p
-                id="name-error"
-                className="text-red-500 text-sm mt-1"
-                role="alert"
-              >
-                {errors.name.message}
-              </p>
-            )}
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Datos personales</h2>
           </div>
-
-          <div>
-            <label
-              htmlFor="last_name"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Apellido *
-            </label>
-            <input
-              id="last_name"
-              type="text"
-              {...register("last_name")}
-              onBlur={() => handleBlur("last_name")}
-              aria-invalid={errors.last_name ? "true" : "false"}
-              aria-describedby={
-                errors.last_name ? "last_name-error" : undefined
-              }
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
-                errors.last_name ? "border-red-500" : "border-gray-300"
-              }`}
-            />
-            {errors.last_name && (
-              <p
-                id="last_name-error"
-                className="text-red-500 text-sm mt-1"
-                role="alert"
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label
+                htmlFor="name"
+                className="block text-sm font-medium text-gray-700 mb-1"
               >
-                {errors.last_name.message}
-              </p>
-            )}
+                Nombre (s) *
+              </label>
+              <input
+                id="name"
+                type="text"
+                {...register("name")}
+                onBlur={() => handleBlur("name")}
+                aria-invalid={errors.name ? "true" : "false"}
+                aria-describedby={errors.name ? "name-error" : undefined}
+                placeholder="Ej: Juan"
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                  errors.name ? "border-red-500" : "border-gray-300"
+                }`}
+              />
+              {errors.name && (
+                <p
+                  id="name-error"
+                  className="text-red-500 text-sm mt-1"
+                  role="alert"
+                >
+                  {errors.name.message}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label
+                htmlFor="last_name"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Apellido (s) *
+              </label>
+              <input
+                id="last_name"
+                type="text"
+                {...register("last_name")}
+                onBlur={() => handleBlur("last_name")}
+                aria-invalid={errors.last_name ? "true" : "false"}
+                aria-describedby={
+                  errors.last_name ? "last_name-error" : undefined
+                }
+                placeholder="Ej: Pérez García"
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                  errors.last_name ? "border-red-500" : "border-gray-300"
+                }`}
+              />
+              {errors.last_name && (
+                <p
+                  id="last_name-error"
+                  className="text-red-500 text-sm mt-1"
+                  role="alert"
+                >
+                  {errors.last_name.message}
+                </p>
+              )}
+            </div>
           </div>
         </div>
 
@@ -397,12 +408,15 @@ function DatosPageContent() {
             {...register("email")}
             onBlur={() => handleBlur("email")}
             aria-invalid={errors.email ? "true" : "false"}
-            aria-describedby={errors.email ? "email-error" : undefined}
+            aria-describedby={errors.email ? "email-error" : "email-help"}
             className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
               errors.email ? "border-red-500" : "border-gray-300"
             }`}
             placeholder="tu@email.com"
           />
+          <p id="email-help" className="text-gray-500 text-xs mt-1">
+            Te enviaremos la confirmación y actualizaciones del pedido a este correo
+          </p>
           {errors.email && (
             <p
               id="email-error"
@@ -420,7 +434,7 @@ function DatosPageContent() {
             htmlFor="phone"
             className="block text-sm font-medium text-gray-700 mb-1"
           >
-            Teléfono (10 dígitos) *
+            Teléfono *
           </label>
           <input
             id="phone"
@@ -428,13 +442,16 @@ function DatosPageContent() {
             inputMode="numeric"
             {...register("phone")}
             aria-invalid={errors.phone ? "true" : "false"}
-            aria-describedby={errors.phone ? "phone-error" : undefined}
+            aria-describedby={errors.phone ? "phone-error" : "phone-help"}
             className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
               errors.phone ? "border-red-500" : "border-gray-300"
             }`}
             placeholder="5512345678"
             maxLength={10}
           />
+          <p id="phone-help" className="text-gray-500 text-xs mt-1">
+            10 dígitos, solo números (sin espacios ni guiones)
+          </p>
           {errors.phone && (
             <p
               id="phone-error"
@@ -444,40 +461,45 @@ function DatosPageContent() {
               {errors.phone.message}
             </p>
           )}
-          <p className="text-gray-500 text-xs mt-1">
-            Solo números, sin espacios ni guiones
-          </p>
         </div>
 
         {/* Dirección */}
-        <div>
-          <label
-            htmlFor="address"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Dirección *
-          </label>
-          <textarea
-            id="address"
-            rows={3}
-            {...register("address")}
-            onBlur={() => handleBlur("address")}
-            aria-invalid={errors.address ? "true" : "false"}
-            aria-describedby={errors.address ? "address-error" : undefined}
-            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
-              errors.address ? "border-red-500" : "border-gray-300"
-            }`}
-            placeholder="Ej: Av. Insurgentes Sur 123, Int. 45"
-          />
-          {errors.address && (
-            <p
-              id="address-error"
-              className="text-red-500 text-sm mt-1"
-              role="alert"
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Dirección de envío</h2>
+          </div>
+          <div>
+            <label
+              htmlFor="address"
+              className="block text-sm font-medium text-gray-700 mb-1"
             >
-              {errors.address.message}
+              Calle y número *
+            </label>
+            <textarea
+              id="address"
+              rows={3}
+              {...register("address")}
+              onBlur={() => handleBlur("address")}
+              aria-invalid={errors.address ? "true" : "false"}
+              aria-describedby={errors.address ? "address-error" : "address-help"}
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                errors.address ? "border-red-500" : "border-gray-300"
+              }`}
+              placeholder="Ej: Av. Insurgentes Sur 123, Int. 45"
+            />
+            <p id="address-help" className="text-gray-500 text-xs mt-1">
+              Incluye número exterior e interior si aplica
             </p>
-          )}
+            {errors.address && (
+              <p
+                id="address-error"
+                className="text-red-500 text-sm mt-1"
+                role="alert"
+              >
+                {errors.address.message}
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Colonia */}
@@ -486,7 +508,7 @@ function DatosPageContent() {
             htmlFor="neighborhood"
             className="block text-sm font-medium text-gray-700 mb-1"
           >
-            Colonia *
+            Colonia o asentamiento *
           </label>
           <input
             id="neighborhood"
@@ -661,30 +683,35 @@ function DatosPageContent() {
         )}
 
         {/* Acepta aviso */}
-        <div className="flex items-start">
-          <input
-            id="aceptaAviso"
-            type="checkbox"
-            {...register("aceptaAviso")}
-            aria-invalid={errors.aceptaAviso ? "true" : "false"}
-            aria-describedby={
-              errors.aceptaAviso ? "aceptaAviso-error" : undefined
-            }
-            className="mt-1 h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-          />
-          <label htmlFor="aceptaAviso" className="ml-2 text-sm text-gray-700">
-            Acepto el contrato de compra y el aviso de privacidad *
-          </label>
-        </div>
-        {errors.aceptaAviso && (
-          <p
-            id="aceptaAviso-error"
-            className="text-red-500 text-sm mt-1"
-            role="alert"
-          >
-            {errors.aceptaAviso.message}
+        <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+          <div className="flex items-start">
+            <input
+              id="aceptaAviso"
+              type="checkbox"
+              {...register("aceptaAviso")}
+              aria-invalid={errors.aceptaAviso ? "true" : "false"}
+              aria-describedby={
+                errors.aceptaAviso ? "aceptaAviso-error" : "aceptaAviso-help"
+              }
+              className="mt-1 h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+            />
+            <label htmlFor="aceptaAviso" className="ml-2 text-sm text-gray-700">
+              Acepto el contrato de compra y el aviso de privacidad *
+            </label>
+          </div>
+          <p id="aceptaAviso-help" className="text-xs text-gray-500 ml-6">
+            Al continuar, aceptas nuestros términos y condiciones de compra
           </p>
-        )}
+          {errors.aceptaAviso && (
+            <p
+              id="aceptaAviso-error"
+              className="text-red-500 text-sm mt-1 ml-6"
+              role="alert"
+            >
+              {errors.aceptaAviso.message}
+            </p>
+          )}
+        </div>
 
         {/* Resumen de cupón (solo lectura, si está aplicado) */}
         {couponCode && discount && (
