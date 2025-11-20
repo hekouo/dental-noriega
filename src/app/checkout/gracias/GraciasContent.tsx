@@ -644,6 +644,84 @@ export default function GraciasContent() {
   const displayTotal = totalFromStorage ?? total;
   const displayItems = orderDataFromStorage?.items || [];
   const displayStatus = orderStatus || orderDataFromStorage?.status || null;
+  
+  // Estado para puntos de lealtad
+  const [loyaltyInfo, setLoyaltyInfo] = useState<{
+    pointsEarned: number | null;
+    pointsBalance: number | null;
+  } | null>(null);
+  
+  // Cargar información de puntos cuando la orden está pagada
+  useEffect(() => {
+    if (displayStatus !== "paid" || !orderRef) return;
+    
+    // Intentar obtener puntos desde metadata de la orden o desde la API
+    const loadLoyaltyInfo = async () => {
+      try {
+        // Primero intentar obtener desde la orden si tenemos email
+        const checkoutDatos = useCheckoutStore.getState().datos;
+        if (checkoutDatos?.email) {
+          // Consultar la orden para obtener metadata
+          const orderResponse = await fetch(`/api/account/orders`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: checkoutDatos.email,
+              orderId: orderRef,
+            }),
+          });
+          
+          if (orderResponse.ok) {
+            const orderData = await orderResponse.json();
+            const order = orderData.order;
+            
+            if (order?.metadata) {
+              const metadata = order.metadata as Record<string, unknown>;
+              const pointsEarned = typeof metadata.loyalty_points_earned === "number"
+                ? metadata.loyalty_points_earned
+                : null;
+              
+              // Si tenemos puntos ganados, consultar balance actual
+              if (pointsEarned !== null) {
+                const loyaltyResponse = await fetch(
+                  `/api/account/loyalty?email=${encodeURIComponent(checkoutDatos.email)}`,
+                );
+                
+                if (loyaltyResponse.ok) {
+                  const loyaltyData = await loyaltyResponse.json();
+                  setLoyaltyInfo({
+                    pointsEarned,
+                    pointsBalance: loyaltyData.pointsBalance || null,
+                  });
+                  return;
+                }
+              }
+            }
+          }
+          
+          // Fallback: consultar solo la API de loyalty
+          const loyaltyResponse = await fetch(
+            `/api/account/loyalty?email=${encodeURIComponent(checkoutDatos.email)}`,
+          );
+          
+          if (loyaltyResponse.ok) {
+            const loyaltyData = await loyaltyResponse.json();
+            setLoyaltyInfo({
+              pointsEarned: null, // No sabemos cuántos ganó en este pedido
+              pointsBalance: loyaltyData.pointsBalance || null,
+            });
+          }
+        }
+      } catch (error) {
+        // Ignorar errores, no romper la página
+        if (process.env.NODE_ENV === "development") {
+          console.warn("[GraciasContent] Error al cargar información de puntos:", error);
+        }
+      }
+    };
+    
+    loadLoyaltyInfo();
+  }, [displayStatus, orderRef]);
 
   const getShippingMethodLabel = (method?: ShippingMethod): string => {
     switch (method) {
@@ -719,6 +797,28 @@ export default function GraciasContent() {
         <h1 className="text-3xl font-bold mb-3 text-gray-900">
           ¡Gracias por tu compra!
         </h1>
+
+        {/* Mensaje de puntos de lealtad */}
+        {displayStatus === "paid" && loyaltyInfo && (
+          <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            {loyaltyInfo.pointsEarned !== null && loyaltyInfo.pointsEarned > 0 ? (
+              <>
+                <p className="text-blue-900 font-medium mb-1">
+                  Por este pedido ganaste {loyaltyInfo.pointsEarned.toLocaleString()} puntos.
+                </p>
+                {loyaltyInfo.pointsBalance !== null && (
+                  <p className="text-blue-700 text-sm">
+                    Ahora tienes {loyaltyInfo.pointsBalance.toLocaleString()} puntos acumulados en tu cuenta.
+                  </p>
+                )}
+              </>
+            ) : loyaltyInfo.pointsBalance !== null ? (
+              <p className="text-blue-700 text-sm">
+                Tus puntos se actualizarán en unos minutos.
+              </p>
+            ) : null}
+          </div>
+        )}
 
         {/* Número de orden y estado */}
         {orderRef && (
