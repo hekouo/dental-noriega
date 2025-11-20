@@ -177,9 +177,60 @@ export async function POST(req: NextRequest) {
       contact_email: orderData.email || null,
     };
 
-    // Incluir datos de loyalty si están presentes
+    // Validar y procesar datos de loyalty si están presentes
     if (orderData.loyalty) {
-      metadata.loyalty = orderData.loyalty;
+      const loyaltyData = orderData.loyalty;
+      
+      // Validar que el usuario tenga puntos suficientes antes de aplicar descuento
+      if (loyaltyData.applied && orderData.email) {
+        try {
+          const { getLoyaltySummaryByEmail } = await import("@/lib/loyalty/points.server");
+          const { LOYALTY_MIN_POINTS_FOR_DISCOUNT } = await import("@/lib/loyalty/config");
+          
+          const loyaltySummary = await getLoyaltySummaryByEmail(orderData.email);
+          
+          // Si no tiene puntos suficientes, ignorar el descuento
+          if (!loyaltySummary || loyaltySummary.pointsBalance < LOYALTY_MIN_POINTS_FOR_DISCOUNT) {
+            if (process.env.NODE_ENV === "development") {
+              console.warn("[create-order] Intentando aplicar descuento sin puntos suficientes:", {
+                email: orderData.email,
+                pointsBalance: loyaltySummary?.pointsBalance || 0,
+                required: LOYALTY_MIN_POINTS_FOR_DISCOUNT,
+              });
+            }
+            // No incluir datos de loyalty en metadata si no tiene puntos suficientes
+            // Continuar con el flujo normal sin romper la orden
+          } else {
+            // Validar que los puntos a gastar sean correctos
+            if (loyaltyData.pointsToSpend !== LOYALTY_MIN_POINTS_FOR_DISCOUNT) {
+              if (process.env.NODE_ENV === "development") {
+                console.warn("[create-order] Cantidad de puntos incorrecta:", {
+                  email: orderData.email,
+                  received: loyaltyData.pointsToSpend,
+                  expected: LOYALTY_MIN_POINTS_FOR_DISCOUNT,
+                });
+              }
+              // Ajustar a la cantidad correcta
+              loyaltyData.pointsToSpend = LOYALTY_MIN_POINTS_FOR_DISCOUNT;
+            }
+            
+            metadata.loyalty = loyaltyData;
+          }
+        } catch (loyaltyError) {
+          // Si hay error al validar, no aplicar descuento pero no romper la orden
+          console.error("[create-order] Error al validar puntos de lealtad:", loyaltyError);
+          // No incluir datos de loyalty en metadata
+        }
+      } else if (loyaltyData.applied && !orderData.email) {
+        // Si intenta aplicar descuento sin email, ignorar
+        if (process.env.NODE_ENV === "development") {
+          console.warn("[create-order] Intentando aplicar descuento sin email");
+        }
+        // No incluir datos de loyalty en metadata
+      } else {
+        // Si no está aplicado, incluir los datos para referencia
+        metadata.loyalty = loyaltyData;
+      }
     }
 
     // Crear orden usando SOLO las columnas válidas del schema real

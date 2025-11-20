@@ -829,33 +829,52 @@ export default function PagoClient() {
                 Tus puntos
               </h2>
               <p className="text-sm text-gray-600">
-                Tienes <strong>{loyaltyPoints.pointsBalance}</strong> puntos disponibles
+                Tienes <strong>{loyaltyPoints.pointsBalance.toLocaleString()}</strong> puntos disponibles
               </p>
-              {loyaltyPoints.canApplyDiscount && (
-                <p className="text-xs text-gray-500 mt-1">
-                  Usa {LOYALTY_MIN_POINTS_FOR_DISCOUNT} puntos para obtener {LOYALTY_DISCOUNT_PERCENT}% de descuento
-                </p>
-              )}
             </div>
           </div>
-          {loyaltyPoints.canApplyDiscount && (
-            <label className="flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={loyaltyApplied}
-                onChange={(e) => setLoyaltyApplied(e.target.checked)}
-                className="mr-2"
-              />
-              <span className="text-sm text-gray-700">
-                Usar {LOYALTY_MIN_POINTS_FOR_DISCOUNT} puntos para obtener {LOYALTY_DISCOUNT_PERCENT}% de descuento en este pedido
-              </span>
-            </label>
-          )}
-          {!loyaltyPoints.canApplyDiscount && loyaltyPoints.pointsBalance > 0 && (
-            <p className="text-xs text-gray-500 mt-2">
-              Necesitas {LOYALTY_MIN_POINTS_FOR_DISCOUNT - loyaltyPoints.pointsBalance} puntos más para usar el descuento
-            </p>
-          )}
+          <div className="space-y-2">
+            {loyaltyPoints.canApplyDiscount ? (
+              <>
+                <label className="flex items-start cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={loyaltyApplied}
+                    onChange={(e) => setLoyaltyApplied(e.target.checked)}
+                    className="mt-1 mr-2"
+                  />
+                  <div className="flex-1">
+                    <span className="text-sm text-gray-700">
+                      Usar mis puntos para obtener {LOYALTY_DISCOUNT_PERCENT}% de descuento en este pedido (requiere al menos {LOYALTY_MIN_POINTS_FOR_DISCOUNT.toLocaleString()} puntos).
+                    </span>
+                    {loyaltyApplied && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Aplicaremos un {LOYALTY_DISCOUNT_PERCENT}% de descuento sobre el total del pedido usando tus puntos.
+                      </p>
+                    )}
+                  </div>
+                </label>
+              </>
+            ) : (
+              <>
+                <label className="flex items-start cursor-not-allowed opacity-60">
+                  <input
+                    type="checkbox"
+                    disabled
+                    className="mt-1 mr-2"
+                  />
+                  <div className="flex-1">
+                    <span className="text-sm text-gray-700">
+                      Usar mis puntos para obtener {LOYALTY_DISCOUNT_PERCENT}% de descuento en este pedido (requiere al menos {LOYALTY_MIN_POINTS_FOR_DISCOUNT.toLocaleString()} puntos).
+                    </span>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Te faltan <strong>{(LOYALTY_MIN_POINTS_FOR_DISCOUNT - loyaltyPoints.pointsBalance).toLocaleString()}</strong> puntos para poder usar el descuento de lealtad.
+                    </p>
+                  </div>
+                </label>
+              </>
+            )}
+          </div>
         </div>
       )}
 
@@ -879,6 +898,23 @@ export default function PagoClient() {
             <span>Subtotal:</span>
             <span>{formatMXNMoney(subtotal)}</span>
           </div>
+          <div className="flex justify-between text-sm">
+            <span>
+              {selectedShippingMethod === "pickup"
+                ? "Recoger en tienda"
+                : selectedShippingMethod === "standard"
+                  ? "Envío estándar"
+                  : selectedShippingMethod === "express"
+                    ? "Envío express"
+                    : "Envío"}
+              :
+            </span>
+            <span>
+              {selectedShippingMethod === "pickup"
+                ? "$0.00"
+                : formatMXNMoney(shippingCost)}
+            </span>
+          </div>
           {discount && discountScope && (
             <div className="flex justify-between text-sm text-green-600">
               <span>Descuento {couponCode ? `(${couponCode})` : ""}:</span>
@@ -887,20 +923,12 @@ export default function PagoClient() {
           )}
           {loyaltyDiscountCents > 0 && (
             <div className="flex justify-between text-sm text-green-600">
-              <span>Descuento por puntos ({LOYALTY_DISCOUNT_PERCENT}%):</span>
+              <span>Descuento por puntos:</span>
               <span>-{formatMXNMoney(loyaltyDiscountCents / 100)}</span>
             </div>
           )}
-          <div className="flex justify-between text-sm">
-            <span>Envío:</span>
-            <span>
-              {selectedShippingMethod === "pickup"
-                ? "Gratis"
-                : formatMXNMoney(shippingCost)}
-            </span>
-          </div>
-          <div className="flex justify-between font-semibold pt-2 border-t">
-            <span>Total:</span>
+          <div className="flex justify-between font-semibold pt-2 border-t text-base">
+            <span>Total a pagar:</span>
             <span>{formatMXNMoney(total)}</span>
           </div>
         </div>

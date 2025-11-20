@@ -149,6 +149,63 @@ export async function POST(req: NextRequest) {
       ? metadataFromPayload.shipping_method
       : null;
     
+    // Validar datos de loyalty si están presentes en metadata
+    let loyaltyData = metadataFromPayload.loyalty as
+      | {
+          applied?: boolean;
+          pointsToSpend?: number;
+          discountPercent?: number;
+          discountCents?: number;
+          balanceBefore?: number;
+        }
+      | undefined;
+    
+    // Si hay datos de loyalty y está aplicado, validar que el usuario tenga puntos suficientes
+    if (loyaltyData?.applied && orderData.email) {
+      try {
+        const { getLoyaltySummaryByEmail } = await import("@/lib/loyalty/points.server");
+        const { LOYALTY_MIN_POINTS_FOR_DISCOUNT } = await import("@/lib/loyalty/config");
+        
+        const loyaltySummary = await getLoyaltySummaryByEmail(orderData.email);
+        
+        // Si no tiene puntos suficientes, ignorar el descuento
+        if (!loyaltySummary || loyaltySummary.pointsBalance < LOYALTY_MIN_POINTS_FOR_DISCOUNT) {
+          if (process.env.NODE_ENV === "development") {
+            console.warn("[save-order] Intentando aplicar descuento sin puntos suficientes:", {
+              email: orderData.email,
+              pointsBalance: loyaltySummary?.pointsBalance || 0,
+              required: LOYALTY_MIN_POINTS_FOR_DISCOUNT,
+            });
+          }
+          // No incluir datos de loyalty en metadata si no tiene puntos suficientes
+          loyaltyData = undefined;
+        } else {
+          // Validar que los puntos a gastar sean correctos
+          if (loyaltyData.pointsToSpend !== LOYALTY_MIN_POINTS_FOR_DISCOUNT) {
+            if (process.env.NODE_ENV === "development") {
+              console.warn("[save-order] Cantidad de puntos incorrecta:", {
+                email: orderData.email,
+                received: loyaltyData.pointsToSpend,
+                expected: LOYALTY_MIN_POINTS_FOR_DISCOUNT,
+              });
+            }
+            // Ajustar a la cantidad correcta
+            loyaltyData.pointsToSpend = LOYALTY_MIN_POINTS_FOR_DISCOUNT;
+          }
+        }
+      } catch (loyaltyError) {
+        // Si hay error al validar, no aplicar descuento pero no romper la orden
+        console.error("[save-order] Error al validar puntos de lealtad:", loyaltyError);
+        loyaltyData = undefined;
+      }
+    } else if (loyaltyData?.applied && !orderData.email) {
+      // Si intenta aplicar descuento sin email, ignorar
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[save-order] Intentando aplicar descuento sin email");
+      }
+      loyaltyData = undefined;
+    }
+    
     // Construir metadata limpia y estructurada
     const metadata: Record<string, unknown> = {
       subtotal_cents: subtotalCents,
@@ -174,6 +231,11 @@ export async function POST(req: NextRequest) {
         image_url: item.image_url,
       })),
     };
+    
+    // Incluir datos de loyalty solo si pasaron la validación
+    if (loyaltyData) {
+      metadata.loyalty = loyaltyData;
+    }
 
     if (existingOrder) {
       // Procesar puntos de lealtad si la orden está siendo marcada como "paid"
