@@ -130,8 +130,6 @@ export default function ProductActions({ product }: Props) {
 
   const whatsappMessage = `Hola, me interesa: ${product.title} (${product.section}). Cantidad: ${qty}. Precio: ${formattedPrice}`;
   const whatsappUrl = `https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP_PHONE}?text=${encodeURIComponent(whatsappMessage)}`;
-  const isStripeTestEnv =
-    process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.includes("test") ?? false;
 
   return (
     <div className="space-y-4">
