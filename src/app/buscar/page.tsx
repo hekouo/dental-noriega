@@ -30,11 +30,19 @@ export default async function BuscarPage({ searchParams }: Props) {
     return (
       <section className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold mb-4">Buscar Productos</h1>
+          <h1 className="text-3xl font-bold mb-2 text-gray-900">
+            Buscar productos
+          </h1>
+          <p className="text-gray-600 mb-6 text-sm">
+            Encuentra los productos que necesitas
+          </p>
           <SearchInput />
         </div>
-        <div className="text-center py-12 text-gray-500">
-          <p>Escribe algo para buscar.</p>
+        <div className="text-center py-12">
+          <p className="text-gray-500 mb-2">Escribe algo para buscar</p>
+          <p className="text-sm text-gray-400">
+            Puedes buscar por nombre, categoría o descripción
+          </p>
         </div>
       </section>
     );
@@ -75,32 +83,55 @@ export default async function BuscarPage({ searchParams }: Props) {
       {total > 0 && <SearchTracker query={q} resultsCount={total} />}
 
       <div>
-        <h1 className="text-3xl font-bold mb-4">Buscar Productos</h1>
+        <h1 className="text-3xl font-bold mb-2 text-gray-900">
+          Resultados de búsqueda
+        </h1>
+        <p className="text-gray-600 mb-6 text-sm">
+          Encuentra los productos que necesitas
+        </p>
         <SearchInput />
       </div>
 
       {items.length > 0 && (
-        <p className="text-gray-600">
-          {total} resultado{total !== 1 ? "s" : ""} para <strong>"{q}"</strong>
-          {page > 1 && ` (página ${page})`}
-        </p>
+        <div className="mb-6">
+          <p className="text-gray-700">
+            {total} resultado{total !== 1 ? "s" : ""} para{" "}
+            <strong className="text-gray-900">"{q}"</strong>
+            {page > 1 && (
+              <span className="text-gray-500 text-sm"> (página {page})</span>
+            )}
+          </p>
+        </div>
       )}
 
       {items.length === 0 && (
-        <div className="text-center py-12 text-gray-500">
-          <p className="mb-4">No encontramos resultados para "{q}".</p>
-          <p className="text-sm mb-6">
-            Intenta con otros términos o explora nuestros productos destacados.
+        <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
+          <p className="text-gray-700 mb-2 font-medium">
+            No encontramos productos para "{q}"
           </p>
-          <Link href={ROUTES.destacados()} className="btn btn-primary">
-            Ver destacados
-          </Link>
+          <p className="text-sm text-gray-600 mb-6">
+            Intenta con otros términos, revisa la ortografía o prueba con menos palabras
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Link
+              href={ROUTES.destacados()}
+              className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium"
+            >
+              Ver productos destacados
+            </Link>
+            <Link
+              href="/tienda"
+              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+            >
+              Ver todos los productos
+            </Link>
+          </div>
         </div>
       )}
 
       {items.length > 0 && (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {items.map((it) => (
               <SearchResultCard
                 key={it.id}
@@ -123,22 +154,24 @@ export default async function BuscarPage({ searchParams }: Props) {
 
           {/* Paginación */}
           {totalPages > 1 && (
-            <div className="flex justify-center gap-2 pt-4">
+            <div className="flex flex-wrap justify-center items-center gap-3 pt-6 border-t border-gray-200">
               {page > 1 && (
                 <Link
                   href={`/buscar?q=${encodeURIComponent(q)}&page=${page - 1}`}
-                  className="btn btn-outline"
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                  aria-label="Página anterior"
                 >
                   ← Anterior
                 </Link>
               )}
-              <span className="px-4 py-2 text-gray-600">
+              <span className="px-4 py-2 text-gray-600 text-sm">
                 Página {page} de {totalPages}
               </span>
               {page < totalPages && (
                 <Link
                   href={`/buscar?q=${encodeURIComponent(q)}&page=${page + 1}`}
-                  className="btn btn-outline"
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                  aria-label="Página siguiente"
                 >
                   Siguiente →
                 </Link>
