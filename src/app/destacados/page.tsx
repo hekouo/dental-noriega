@@ -23,27 +23,37 @@ export default async function DestacadosPage() {
 
   if (items.length === 0) {
     return (
-      <div className="container py-10">
-        <h1 className="text-3xl font-bold mb-6">Productos Destacados</h1>
-        <div className="p-6 bg-gray-50 rounded-lg">
-          <p className="text-gray-700 mb-4">
-            {hasEnvs
-              ? "No hay productos destacados en este momento."
-              : "Catálogo no disponible."}
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 py-12">
+          <h1 className="text-3xl font-bold mb-2 text-gray-900">
+            Productos destacados
+          </h1>
+          <p className="text-gray-600 mb-8">
+            Productos recomendados que suelen interesar a nuestros clientes
           </p>
-          <div className="flex gap-4">
-            <Link
-              href="/buscar"
-              className="px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700"
-            >
-              Buscar productos
-            </Link>
-            <Link
-              href="/catalogo"
-              className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50"
-            >
-              Ver catálogo completo
-            </Link>
+          <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
+            <p className="text-gray-700 mb-2 font-medium">
+              {hasEnvs
+                ? "No hay productos destacados en este momento"
+                : "Catálogo no disponible"}
+            </p>
+            <p className="text-sm text-gray-600 mb-6">
+              Explora nuestras categorías o busca productos específicos
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Link
+                href="/tienda"
+                className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium"
+              >
+                Ver tienda completa
+              </Link>
+              <Link
+                href="/buscar"
+                className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+              >
+                Buscar productos
+              </Link>
+            </div>
           </div>
         </div>
       </div>
@@ -51,9 +61,16 @@ export default async function DestacadosPage() {
   }
 
   return (
-    <div className="container py-10">
-      <h1 className="text-3xl font-bold mb-6">Productos Destacados</h1>
-      <FeaturedGrid items={items} />
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 py-12">
+        <h1 className="text-3xl font-bold mb-2 text-gray-900">
+          Productos destacados
+        </h1>
+        <p className="text-gray-600 mb-8">
+          Productos recomendados que suelen interesar a nuestros clientes
+        </p>
+        <FeaturedGrid items={items} />
+      </div>
     </div>
   );
 }
