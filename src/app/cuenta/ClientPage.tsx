@@ -129,12 +129,12 @@ export default function CuentaClientPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-12">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
-        <h1 className="text-3xl font-bold text-center mb-2">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-8 sm:py-12">
+      <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6 sm:p-8">
+        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-center mb-2 text-gray-900">
           {mode === "login" ? "Iniciar Sesión" : "Crear Cuenta"}
         </h1>
-        <p className="text-gray-600 text-center mb-8">
+        <p className="text-sm text-gray-600 text-center mb-8">
           {mode === "login"
             ? "Ingresa a tu cuenta para continuar"
             : "Regístrate y comienza a ganar puntos"}
@@ -154,8 +154,8 @@ export default function CuentaClientPage() {
 
         {/* Bloque de puntos de lealtad */}
         {userEmail && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
-            <h2 className="text-xl font-semibold mb-4 text-gray-900">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 sm:p-6 mb-6">
+            <h2 className="text-lg sm:text-xl font-semibold tracking-tight mb-4 text-gray-900">
               Mis puntos de lealtad
             </h2>
             {loyaltyLoading ? (

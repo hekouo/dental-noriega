@@ -283,13 +283,15 @@ function DatosPageContent() {
   }
 
   return (
-    <main className="mx-auto max-w-3xl p-6 space-y-6">
+    <main className="mx-auto max-w-3xl px-4 sm:px-6 py-6 space-y-6">
       <CheckoutStepper current="details" />
 
-      <h1 className="text-2xl font-semibold mb-2">Datos de Envío</h1>
-      <p className="text-gray-600 mb-6">
-        Completa la información para entregar tu pedido. Solo usaremos estos datos para el envío y actualizaciones por correo.
-      </p>
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight mb-2 text-gray-900">Datos de Envío</h1>
+        <p className="text-sm text-gray-600">
+          Completa la información para entregar tu pedido. Solo usaremos estos datos para el envío y actualizaciones por correo.
+        </p>
+      </div>
 
       {/* Mensaje de error al cargar direcciones */}
       {addressesError && (

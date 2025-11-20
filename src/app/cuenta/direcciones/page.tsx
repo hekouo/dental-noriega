@@ -18,8 +18,8 @@ export const dynamic = "force-dynamic";
 
 export default function DireccionesPage() {
   return (
-    <main className="max-w-4xl mx-auto px-4 py-10">
-      <h1 className="text-2xl font-semibold mb-6">Mis Direcciones</h1>
+    <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
+      <h1 className="text-2xl font-semibold tracking-tight mb-6 text-gray-900">Mis Direcciones</h1>
       <DireccionesClient />
     </main>
   );

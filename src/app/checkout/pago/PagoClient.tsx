@@ -703,7 +703,7 @@ export default function PagoClient() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6">
       <CheckoutStepper current="payment" />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -718,10 +718,12 @@ export default function PagoClient() {
         </Link>
       </div>
 
-      <h1 className="text-2xl font-bold mb-2">Confirmar Pago</h1>
-      <p className="text-gray-600 mb-6">
-        Revisa tu información y completa tu pedido
-      </p>
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight mb-2 text-gray-900">Confirmar Pago</h1>
+        <p className="text-sm text-gray-600">
+          Revisa tu información y completa tu pedido
+        </p>
+      </div>
 
       {/* Toast para notificaciones */}
       {toast && (

@@ -50,10 +50,10 @@ export default async function TiendaPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="bg-gradient-to-r from-primary-600 to-primary-800 text-white py-12">
+      <div className="bg-gradient-to-r from-primary-600 to-primary-800 text-white py-8 sm:py-12">
         <div className="max-w-7xl mx-auto px-4">
-          <h1 className="text-4xl font-bold mb-2">Tienda</h1>
-          <p className="text-primary-100">
+          <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight mb-2">Tienda</h1>
+          <p className="text-sm sm:text-base text-primary-100">
             Explora todos los productos disponibles en Depósito Dental Noriega
           </p>
         </div>
@@ -62,10 +62,10 @@ export default async function TiendaPage() {
       <div className="max-w-7xl mx-auto px-4 py-8">
         {featured.length > 0 && (
           <div className="mb-12">
-            <h2 className="text-2xl font-semibold mb-2 text-gray-900">
+            <h2 className="text-2xl font-semibold tracking-tight mb-2 text-gray-900">
               Productos destacados
             </h2>
-            <p className="text-gray-600 mb-6 text-sm">
+            <p className="text-sm text-gray-600 mb-6">
               Productos recomendados que suelen interesar a nuestros clientes
             </p>
             <FeaturedGrid items={featured} />
@@ -73,13 +73,13 @@ export default async function TiendaPage() {
         )}
 
         <div>
-          <h2 className="text-2xl font-semibold mb-2 text-gray-900">
+          <h2 className="text-2xl font-semibold tracking-tight mb-2 text-gray-900">
             Categorías
           </h2>
-          <p className="text-gray-600 mb-6 text-sm">
+          <p className="text-sm text-gray-600 mb-6">
             Navega por nuestras categorías de productos
           </p>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {categories.map((category) => (
               <Link
                 key={category.href}

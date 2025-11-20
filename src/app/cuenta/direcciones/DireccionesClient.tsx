@@ -245,8 +245,8 @@ export default function DireccionesClient() {
   return (
     <div className="space-y-6">
       {/* Formulario de email */}
-      <div className="bg-white rounded-lg border p-6">
-        <h2 className="text-lg font-semibold mb-2">Ingresa tu email</h2>
+      <div className="bg-white rounded-lg border p-4 sm:p-6">
+        <h2 className="text-lg font-semibold tracking-tight mb-2 text-gray-900">Ingresa tu email</h2>
         <p className="text-sm text-gray-600 mb-4">
           Ingresa el correo con el que haces tus compras para ver y administrar tus direcciones guardadas.
         </p>
