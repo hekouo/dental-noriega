@@ -45,16 +45,20 @@ export default async function PdpRelatedSection({
   }));
 
   return (
-    <section className="mt-12 pt-8 border-t border-gray-200">
-      <h2 className="text-xl font-semibold mb-4">También te puede interesar</h2>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <section className="mt-12 pt-10 border-t border-gray-200 space-y-5">
+      <div>
+        <h2 className="text-2xl font-semibold text-gray-900">
+          También te puede interesar
+        </h2>
+        <p className="text-sm text-gray-600 mt-1">
+          Productos similares que suelen comprar otros clientes.
+        </p>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {productCards.map((product) => (
           <ProductCard key={product.id} {...product} />
         ))}
       </div>
-      <p className="text-sm text-gray-600 mt-4 text-center">
-        Si tienes dudas sobre cualquier producto, escríbenos por WhatsApp desde la burbuja en la esquina.
-      </p>
     </section>
   );
 }

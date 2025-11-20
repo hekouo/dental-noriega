@@ -6,6 +6,7 @@ import QuantityInput from "@/components/cart/QuantityInput";
 import { useCartStore } from "@/lib/store/cartStore";
 import { useCheckoutStore, selectIsCheckoutDataComplete } from "@/lib/store/checkoutStore";
 import { mxnFromCents, formatMXNFromCents } from "@/lib/utils/currency";
+import { MessageCircle, ShieldCheck, Truck } from "lucide-react";
 
 type Product = {
   id: string;
@@ -130,6 +131,8 @@ export default function ProductActions({ product }: Props) {
 
   const whatsappMessage = `Hola, me interesa: ${product.title} (${product.section}). Cantidad: ${qty}. Precio: ${formattedPrice}`;
   const whatsappUrl = `https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP_PHONE}?text=${encodeURIComponent(whatsappMessage)}`;
+  const isStripeTestEnv =
+    process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.includes("test") ?? false;
 
   return (
     <div className="space-y-4">
@@ -188,6 +191,36 @@ export default function ProductActions({ product }: Props) {
             </svg>
             Consultar por WhatsApp
           </a>
+        </div>
+
+        <div className="rounded-lg border border-gray-200 bg-white/80 p-4 space-y-3 text-sm text-gray-700">
+          <div className="flex items-start gap-3">
+            <Truck className="w-5 h-5 text-primary-600 mt-0.5" />
+            <div>
+              <p className="font-medium text-gray-900">Envíos a todo México</p>
+              <p className="text-xs text-gray-600">
+                Calculamos la paquetería ideal según tu dirección o puedes recoger en tienda.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <MessageCircle className="w-5 h-5 text-primary-600 mt-0.5" />
+            <div>
+              <p className="font-medium text-gray-900">Atención personal</p>
+              <p className="text-xs text-gray-600">
+                Escríbenos por WhatsApp si necesitas asesoría antes de comprar.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <ShieldCheck className="w-5 h-5 text-primary-600 mt-0.5" />
+            <div>
+              <p className="font-medium text-gray-900">Pagos seguros con Stripe</p>
+              <p className="text-xs text-gray-600">
+                Tarjeta, SPEI y OXXO{isStripeTestEnv ? " (modo prueba activo)" : ""}.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
