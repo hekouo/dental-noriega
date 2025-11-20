@@ -133,16 +133,25 @@ export default function RootLayout({
 
             <div className="flex items-center gap-4 text-sm">
               <Link
-                href={ROUTES.catalogIndex()}
-                className="min-h-[44px] flex items-center"
+                href={ROUTES.tienda()}
+                className="min-h-[44px] flex items-center hover:text-primary-600 transition-colors"
+                aria-label="Ir a la tienda"
               >
-                <span className="hover:text-primary-600">Catálogo</span>
+                <span>Tienda</span>
               </Link>
               <Link
                 href={ROUTES.destacados()}
-                className="min-h-[44px] flex items-center"
+                className="min-h-[44px] flex items-center hover:text-primary-600 transition-colors"
+                aria-label="Ver productos destacados"
               >
-                <span className="hover:text-primary-600">Destacados</span>
+                <span>Destacados</span>
+              </Link>
+              <Link
+                href={ROUTES.buscar()}
+                className="min-h-[44px] flex items-center hover:text-primary-600 transition-colors"
+                aria-label="Buscar productos"
+              >
+                <span>Buscar</span>
               </Link>
 
               {/* Menú de cuenta con muela 3D */}
