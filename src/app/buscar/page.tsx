@@ -1,6 +1,7 @@
 // src/app/buscar/page.tsx
 import React from "react";
 import Link from "next/link";
+import type { Metadata } from "next";
 import dynamicImport from "next/dynamic";
 import SearchResultCard from "@/components/SearchResultCard";
 import { ROUTES } from "@/lib/routes";
@@ -9,6 +10,18 @@ import SearchTracker from "@/components/SearchTracker.client";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
+
+export const metadata: Metadata = {
+  title: "Buscar productos",
+  description:
+    "Busca insumos y equipos dentales en nuestro catálogo. Encuentra el producto que necesitas por nombre, categoría o descripción.",
+  openGraph: {
+    title: "Buscar productos | Depósito Dental Noriega",
+    description:
+      "Busca insumos y equipos dentales en nuestro catálogo. Encuentra el producto que necesitas por nombre, categoría o descripción.",
+    type: "website",
+  },
+};
 
 const SearchInput = dynamicImport(
   () => import("@/components/SearchInput.client"),

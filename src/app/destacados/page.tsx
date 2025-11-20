@@ -1,11 +1,24 @@
 // src/app/destacados/page.tsx
 import Link from "next/link";
+import type { Metadata } from "next";
 import { getFeaturedItems } from "@/lib/catalog/getFeatured.server";
 import FeaturedGrid from "@/components/FeaturedGrid";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
+
+export const metadata: Metadata = {
+  title: "Productos destacados",
+  description:
+    "Productos recomendados que suelen interesar a nuestros clientes. Insumos dentales destacados seleccionados especialmente para ti.",
+  openGraph: {
+    title: "Productos destacados | Depósito Dental Noriega",
+    description:
+      "Productos recomendados que suelen interesar a nuestros clientes. Insumos dentales destacados seleccionados especialmente para ti.",
+    type: "website",
+  },
+};
 
 /**
  * Verifica si las variables de entorno de Supabase están presentes

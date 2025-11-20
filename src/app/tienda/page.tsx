@@ -1,10 +1,23 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import FeaturedGrid from "@/components/FeaturedGrid";
 import { getFeaturedItems } from "@/lib/catalog/getFeatured.server";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
+
+export const metadata: Metadata = {
+  title: "Tienda",
+  description:
+    "Explora todos los productos disponibles en Depósito Dental Noriega. Insumos, equipos e instrumental odontológico organizados por categorías.",
+  openGraph: {
+    title: "Tienda | Depósito Dental Noriega",
+    description:
+      "Explora todos los productos disponibles. Insumos, equipos e instrumental odontológico organizados por categorías.",
+    type: "website",
+  },
+};
 
 const categories = [
   { title: "Consumibles y Profilaxis", href: "/tienda/consumibles" },
