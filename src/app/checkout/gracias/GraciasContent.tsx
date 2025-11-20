@@ -39,6 +39,8 @@ export default function GraciasContent() {
   const [orderRefFromUrl, setOrderRefFromUrl] = useState<string>("");
   const [isMounted, setIsMounted] = useState(false);
   const [cartCleared, setCartCleared] = useState(false);
+  const [orderError, setOrderError] = useState<string | null>(null);
+  const [orderNotFound, setOrderNotFound] = useState(false);
   const clearCart = useCartStore((s) => s.clearCart);
   const clearSelection = useCheckoutStore((s) => s.clearSelection);
   const resetAfterSuccess = useCheckoutStore((s) => s.resetAfterSuccess);
@@ -488,6 +490,8 @@ export default function GraciasContent() {
           const data = await response.json();
           const status = (data as { status?: string }).status;
           setOrderStatus(status || null);
+          setOrderError(null);
+          setOrderNotFound(false);
 
           // Limpiar carrito solo si la orden está 'paid'
           if (status === "paid") {
@@ -566,18 +570,29 @@ export default function GraciasContent() {
           } else {
             setIsCheckingPayment(false);
           }
-        } else if (!ignore && pollCount < maxPolls) {
-          // Si la respuesta no es OK, esperar un poco y reintentar
-          pollCount++;
-          timeoutId = setTimeout(() => {
-            if (!ignore) {
-              checkOrderStatus();
-            }
-          }, 2000);
-        } else {
-          setIsCheckingPayment(false);
+        } else if (!ignore) {
+          // Si la respuesta no es OK, verificar si es 404 (orden no encontrada)
+          if (response.status === 404) {
+            setOrderNotFound(true);
+            setOrderError("No pudimos encontrar tu pedido.");
+            setIsCheckingPayment(false);
+            return;
+          }
+          
+          // Para otros errores, esperar un poco y reintentar
+          if (pollCount < maxPolls) {
+            pollCount++;
+            timeoutId = setTimeout(() => {
+              if (!ignore) {
+                checkOrderStatus();
+              }
+            }, 2000);
+          } else {
+            setOrderError("Hubo un problema al verificar el estado de tu pedido. Por favor, verifica tu correo o revisa tus pedidos.");
+            setIsCheckingPayment(false);
+          }
         }
-      } catch {
+      } catch (err) {
         // Si hay error, esperar y reintentar una vez más
         if (!ignore && pollCount < maxPolls) {
           pollCount++;
@@ -587,6 +602,7 @@ export default function GraciasContent() {
             }
           }, 2000);
         } else {
+          setOrderError("Error de conexión al verificar tu pedido. Por favor, intenta más tarde.");
           setIsCheckingPayment(false);
         }
       }
@@ -812,11 +828,11 @@ export default function GraciasContent() {
                   </p>
                 )}
               </>
-            ) : loyaltyInfo.pointsBalance !== null ? (
+            ) : (
               <p className="text-blue-700 text-sm">
                 Tus puntos se actualizarán en unos minutos.
               </p>
-            ) : null}
+            )}
           </div>
         )}
 
@@ -850,7 +866,7 @@ export default function GraciasContent() {
       </div>
 
       {/* Loading state */}
-      {isCheckingPayment && orderRefFromUrl && (
+      {isCheckingPayment && orderRefFromUrl && !orderError && !orderNotFound && (
         <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
           <p className="text-blue-800 mb-2 flex items-center gap-2">
             <span className="animate-spin">⏳</span>
@@ -859,6 +875,55 @@ export default function GraciasContent() {
           <p className="text-blue-600 text-sm">
             Por favor espera mientras verificamos el estado de tu pago.
           </p>
+        </div>
+      )}
+
+      {/* Error: Orden no encontrada */}
+      {orderNotFound && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg" role="alert">
+          <p className="text-red-800 font-medium mb-2">
+            No pudimos encontrar tu pedido.
+          </p>
+          <p className="text-red-700 text-sm mb-4">
+            Verifica tu correo o revisa tus pedidos con tu email.
+          </p>
+          <div className="flex gap-3">
+            <Link
+              href="/cuenta/pedidos"
+              className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 text-sm font-medium"
+            >
+              Ver mis pedidos
+            </Link>
+            <Link
+              href="/tienda"
+              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium"
+            >
+              Volver a la tienda
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* Error: Error al cargar orden */}
+      {orderError && !orderNotFound && (
+        <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg" role="alert">
+          <p className="text-yellow-800 font-medium mb-2">
+            {orderError}
+          </p>
+          <div className="flex gap-3">
+            <Link
+              href="/cuenta/pedidos"
+              className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 text-sm font-medium"
+            >
+              Ver mis pedidos
+            </Link>
+            <Link
+              href="/tienda"
+              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium"
+            >
+              Volver a la tienda
+            </Link>
+          </div>
         </div>
       )}
 

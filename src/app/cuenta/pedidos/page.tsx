@@ -27,6 +27,7 @@ export default function PedidosPage() {
     lifetimeEarned: number;
     canApplyDiscount: boolean;
   } | null>(null);
+  const [loyaltyError, setLoyaltyError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,12 +84,21 @@ export default function PedidosPage() {
           lifetimeEarned: loyaltyData.lifetimeEarned || 0,
           canApplyDiscount: loyaltyData.canApplyDiscount || false,
         });
+        setLoyaltyError(null);
       } else {
-        // Si falla, mantener el estado anterior pero loguear el error
-        console.error("[PedidosPage] Error al cargar puntos:", loyaltyData.error);
+        // Si falla, mostrar mensaje suave pero no romper la página
+        setLoyaltyError("No se pudieron cargar los puntos de lealtad.");
+        if (process.env.NODE_ENV === "development") {
+          console.error("[PedidosPage] Error al cargar puntos:", loyaltyData.error);
+        }
       }
     } catch (err) {
-      setError("Error de conexión. Intenta de nuevo.");
+      // Diferenciar errores de red de otros errores
+      if (err instanceof TypeError && err.message.includes("fetch")) {
+        setError("Hubo un problema al cargar tus pedidos. Intenta de nuevo en unos segundos.");
+      } else {
+        setError("Error de conexión. Intenta de nuevo.");
+      }
       console.error(err);
     } finally {
       setLoading(false);
@@ -122,6 +132,24 @@ export default function PedidosPage() {
         body: JSON.stringify(requestBody),
       });
 
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMsg = (errorData as { error?: string }).error || "Error al cargar el detalle del pedido";
+        setError(errorMsg);
+        setLoadingDetail(false);
+        return;
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMsg = (errorData as { error?: string }).error || "Error al cargar el detalle del pedido";
+        setError(errorMsg);
+        setSelectedOrderId(null);
+        setOrderDetail(null);
+        setLoadingDetail(false);
+        return;
+      }
+
       const data = await response.json();
 
       // Log temporal para debugging
@@ -131,13 +159,6 @@ export default function PedidosPage() {
           ok: response.ok,
           data,
         });
-      }
-
-      if (!response.ok) {
-        setError(data.error || "Error al obtener detalle del pedido");
-        setSelectedOrderId(null);
-        setOrderDetail(null);
-        return;
       }
 
       if (data.order) {
@@ -155,7 +176,12 @@ export default function PedidosPage() {
         setOrderDetail(null);
       }
     } catch (err) {
-      setError("Error de conexión. Intenta de nuevo.");
+      // Diferenciar errores de red de otros errores
+      if (err instanceof TypeError && err.message.includes("fetch")) {
+        setError("Hubo un problema al cargar el detalle del pedido. Intenta de nuevo en unos segundos.");
+      } else {
+        setError("Error de conexión. Intenta de nuevo.");
+      }
       setSelectedOrderId(null);
       setOrderDetail(null);
       console.error("[handleViewDetail] Error:", err);
@@ -278,8 +304,18 @@ export default function PedidosPage() {
 
         {/* Mensaje de error */}
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
-            {error}
+          <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-6" role="alert">
+            <p className="font-medium mb-2">{error}</p>
+            <button
+              type="button"
+              onClick={() => {
+                setError(null);
+                handleSubmit(new Event("submit") as unknown as React.FormEvent);
+              }}
+              className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 text-sm font-medium"
+            >
+              Reintentar
+            </button>
           </div>
         )}
 
@@ -317,6 +353,8 @@ export default function PedidosPage() {
                   )}
                 </div>
               </div>
+            ) : loyaltyError ? (
+              <p className="text-yellow-700 text-sm">{loyaltyError}</p>
             ) : (
               <p className="text-gray-600">No se pudieron cargar los puntos.</p>
             )}

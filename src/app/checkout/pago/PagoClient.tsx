@@ -72,6 +72,7 @@ export default function PagoClient() {
   const clearCoupon = useCheckoutStore((s) => s.clearCoupon);
 
   const [error, setError] = useState<string | null>(null);
+  const [errorType, setErrorType] = useState<"recoverable" | "fatal" | null>(null);
   const [couponInput, setCouponInput] = useState("");
   const [couponError, setCouponError] = useState<string | null>(null);
   const [toast, setToast] = useState<{
@@ -485,9 +486,17 @@ export default function PagoClient() {
 
       if (!orderResponse.ok) {
         const errorData = await orderResponse.json().catch(() => ({}));
-        throw new Error(
-          (errorData as { error?: string }).error || `Error al crear la orden: ${orderResponse.status}`,
-        );
+        const errorMessage = (errorData as { error?: string }).error || `Error al crear la orden: ${orderResponse.status}`;
+        
+        // Errores 5xx o de red son recuperables
+        if (orderResponse.status >= 500 || orderResponse.status === 0) {
+          setErrorType("recoverable");
+          throw new Error(`Error de conexión. Por favor, intenta de nuevo. ${errorMessage}`);
+        }
+        
+        // Errores 4xx son graves (validación, datos incorrectos)
+        setErrorType("fatal");
+        throw new Error(errorMessage);
       }
 
       const orderResult = await orderResponse.json();
@@ -495,7 +504,8 @@ export default function PagoClient() {
       const amountCents = (orderResult as { total_cents?: number }).total_cents ?? Math.round(total * 100);
 
       if (!newOrderId) {
-        throw new Error("No se recibió order_id de la API");
+        setErrorType("fatal");
+        throw new Error("No se recibió order_id de la API. Por favor, contacta con soporte.");
       }
 
       // CRÍTICO: Guardar orderId en el store (no solo en estado local)
@@ -543,6 +553,11 @@ export default function PagoClient() {
       setError(errorMessage);
       setToast({ message: errorMessage, type: "error" });
       setIsCreatingOrder(false);
+      
+      // Si no se estableció el tipo de error, asumir recuperable
+      if (!errorType) {
+        setErrorType("recoverable");
+      }
     }
   };
 
@@ -1069,6 +1084,7 @@ export default function PagoClient() {
             }}
             onError={(errorMsg) => {
               setError(errorMsg);
+              setErrorType("recoverable"); // Errores de Stripe generalmente son recuperables
               setToast({ message: errorMsg, type: "error" });
               setIsCreatingOrder(false);
               setOrderId(null);
@@ -1122,8 +1138,47 @@ export default function PagoClient() {
 
         {/* Mostrar error solo si hay items (error de API), no si es "carrito vacío" */}
         {error && itemsForOrder.length > 0 && (
-          <div className="bg-red-50 border border-red-200 rounded-md p-3">
-            <p className="text-red-600 text-sm">{error}</p>
+          <div className={`rounded-md border p-3 ${
+            errorType === "fatal"
+              ? "border-red-200 bg-red-50"
+              : "border-yellow-200 bg-yellow-50"
+          }`}>
+            <p className={`text-sm ${
+              errorType === "fatal"
+                ? "text-red-800"
+                : "text-yellow-800"
+            }`} role="alert">
+              {error}
+            </p>
+            {errorType === "fatal" && (
+              <div className="mt-3 flex gap-3">
+                <Link
+                  href="/tienda"
+                  className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 text-sm font-medium"
+                >
+                  Volver a la tienda
+                </Link>
+                <Link
+                  href="/carrito"
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium"
+                >
+                  Volver al carrito
+                </Link>
+              </div>
+            )}
+            {errorType === "recoverable" && (
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  setErrorType(null);
+                  handleCreateOrderAndPaymentIntent();
+                }}
+                className="mt-3 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 text-sm font-medium"
+              >
+                Reintentar
+              </button>
+            )}
           </div>
         )}
 

@@ -65,6 +65,8 @@ function DatosPageContent() {
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [useSavedAddress, setUseSavedAddress] = useState(false);
   const [saveAddress, setSaveAddress] = useState(false);
+  const [addressesError, setAddressesError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // En /checkout/datos NO se puede aplicar cupón, solo se muestra resumen si ya está aplicado
 
@@ -88,8 +90,11 @@ function DatosPageContent() {
     const timeoutId = setTimeout(() => {
       loadAddresses(controller.signal).catch((err) => {
         // Ignorar errores de abort
-        if (err.name !== "AbortError" && process.env.NODE_ENV === "development") {
-          console.error("[loadAddresses] Error:", err);
+        if (err.name !== "AbortError") {
+          if (process.env.NODE_ENV === "development") {
+            console.error("[loadAddresses] Error:", err);
+          }
+          setAddressesError("No pudimos cargar tus direcciones guardadas, pero puedes seguir llenando el formulario.");
         }
       });
     }, 400);
@@ -97,13 +102,18 @@ function DatosPageContent() {
     return () => {
       controller.abort();
       clearTimeout(timeoutId);
+      setAddressesError(null);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [emailValue]);
 
   const loadAddresses = async (signal?: AbortSignal) => {
-    if (!isValidEmail(emailValue)) return;
+    if (!isValidEmail(emailValue)) {
+      setAddressesError(null);
+      return;
+    }
 
+    setAddressesError(null);
     try {
       const normalizedEmail = emailValue!.trim().toLowerCase();
       const response = await fetch(
@@ -117,15 +127,19 @@ function DatosPageContent() {
       if (response.ok) {
         const data = await response.json();
         setAddresses(data.addresses || []);
+        setAddressesError(null);
         // Si hay una dirección predeterminada, seleccionarla automáticamente
         const defaultAddress = data.addresses?.find((a: AccountAddress) => a.is_default);
         if (defaultAddress && !selectedAddressId) {
           handleSelectAddress(defaultAddress);
         }
+      } else {
+        setAddressesError("No pudimos cargar tus direcciones guardadas, pero puedes seguir llenando el formulario.");
       }
     } catch (err) {
       // Ignorar errores de abort
       if (err instanceof Error && err.name === "AbortError") return;
+      setAddressesError("No pudimos cargar tus direcciones guardadas, pero puedes seguir llenando el formulario.");
       if (process.env.NODE_ENV === "development") {
         console.error("[loadAddresses] Error:", err);
       }
@@ -198,6 +212,7 @@ function DatosPageContent() {
   };
 
   const onSubmit: SubmitHandler<DatosForm> = async (values) => {
+    setSubmitError(null);
     try {
       const store = useCheckoutStore.getState();
       // Asegurar que checkoutItems esté presente antes de avanzar
@@ -207,6 +222,7 @@ function DatosPageContent() {
       const checkoutItems = store.checkoutItems;
       if (checkoutItems.length === 0) {
         // Si no hay items, no avanzar y mostrar mensaje
+        setSubmitError("No hay productos seleccionados. Por favor, vuelve al carrito.");
         console.warn("[datos] No hay items en checkoutStore, no se puede avanzar a pago");
         return;
       }
@@ -227,7 +243,7 @@ function DatosPageContent() {
             is_default: addresses.length === 0, // Primera dirección = default
           };
 
-          await fetch("/api/account/addresses", {
+          const response = await fetch("/api/account/addresses", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -235,9 +251,14 @@ function DatosPageContent() {
               ...addressData,
             }),
           });
+
+          if (!response.ok) {
+            // No bloquear el flujo si falla guardar la dirección, solo loguear
+            console.warn("[onSubmit] Error al guardar dirección:", await response.text());
+          }
         } catch (err) {
-          console.warn("[onSubmit] Error al guardar dirección:", err);
           // No bloquear el flujo si falla guardar la dirección
+          console.warn("[onSubmit] Error al guardar dirección:", err);
         }
       }
 
@@ -245,6 +266,7 @@ function DatosPageContent() {
       router.push("/checkout/pago");
     } catch (err) {
       console.error("submit(datos) failed", err);
+      setSubmitError("Hubo un problema al procesar tus datos. Por favor, intenta de nuevo.");
     }
   };
 
@@ -268,6 +290,20 @@ function DatosPageContent() {
       <p className="text-gray-600 mb-6">
         Completa la información para entregar tu pedido. Solo usaremos estos datos para el envío y actualizaciones por correo.
       </p>
+
+      {/* Mensaje de error al cargar direcciones */}
+      {addressesError && (
+        <div className="rounded-md border border-yellow-200 bg-yellow-50 text-sm text-yellow-800 p-3 mb-4">
+          {addressesError}
+        </div>
+      )}
+
+      {/* Mensaje de error al enviar formulario */}
+      {submitError && (
+        <div className="rounded-md border border-red-200 bg-red-50 text-sm text-red-800 p-3 mb-4" role="alert">
+          {submitError}
+        </div>
+      )}
 
       {/* Selector de direcciones guardadas */}
       {addresses.length > 0 && emailValue && emailValue.includes("@") && (
