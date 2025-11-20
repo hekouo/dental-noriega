@@ -177,12 +177,9 @@ export default function CuentaClientPage() {
                     {loyaltyPoints.lifetimeEarned.toLocaleString()}
                   </span>
                 </div>
-                <div className="pt-3 border-t border-blue-200 space-y-2">
+                <div className="pt-3 border-t border-blue-200">
                   <p className="text-sm text-gray-600">
-                    1 punto por cada $1 MXN pagado.
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    Con {LOYALTY_MIN_POINTS_FOR_DISCOUNT.toLocaleString()} puntos obtienes {LOYALTY_DISCOUNT_PERCENT}% de descuento en un pedido.
+                    Cada $1 MXN que pagas en tus pedidos genera puntos de lealtad. Al llegar al mínimo, puedes usarlos como descuento en tu siguiente compra.
                   </p>
                   {loyaltyPoints.canApplyDiscount ? (
                     <p className="text-sm font-medium text-green-700 mt-2">

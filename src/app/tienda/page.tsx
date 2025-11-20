@@ -54,7 +54,7 @@ export default async function TiendaPage() {
         <div className="max-w-7xl mx-auto px-4">
           <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight mb-2">Tienda</h1>
           <p className="text-sm sm:text-base text-primary-100">
-            Explora todos los productos disponibles en Depósito Dental Noriega
+            Explora todos los productos disponibles en Depósito Dental Noriega y arma tus pedidos por sección o por necesidad clínica.
           </p>
         </div>
       </div>

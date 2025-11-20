@@ -6,6 +6,7 @@ import { getFeaturedItems } from "@/lib/catalog/getFeatured.server";
 import FeaturedCarousel from "@/components/FeaturedCarousel";
 import FeaturedGrid from "@/components/FeaturedGrid";
 import { buttonBase, buttonPrimary } from "@/lib/styles/button";
+import { MessageCircle } from "lucide-react";
 
 const ShoppingBagIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg
@@ -108,25 +109,28 @@ export default async function HomePage() {
       <section className="bg-gradient-to-br from-primary-600 to-primary-800 text-white py-12 sm:py-20 px-4">
         <div className="max-w-6xl mx-auto text-center">
           <h1 className="text-3xl sm:text-4xl md:text-6xl font-semibold tracking-tight mb-4 sm:mb-6">
-            Depósito Dental
+            Insumos dentales para consultorios y clínicas en México
           </h1>
           <p className="text-lg sm:text-xl md:text-2xl mb-6 sm:mb-8 text-primary-100">
-            Equipamiento e instrumental odontológico de calidad
+            Compra brackets, guantes, material de ortodoncia y consumibles con atención personalizada por WhatsApp, envíos confiables y un sistema de puntos que premia cada compra.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-4 sm:mb-6">
             <Link
-              href={ROUTES.destacados()}
+              href={ROUTES.tienda()}
               className={`${buttonBase} rounded-lg bg-white text-primary-600 hover:bg-gray-100 text-lg px-8 py-3`}
             >
-              <span>Ver Productos Destacados</span>
+              <span>Ver tienda</span>
             </Link>
             <Link
-              href={ROUTES.catalogIndex()}
+              href={ROUTES.destacados()}
               className={`${buttonBase} rounded-lg bg-primary-700 text-white hover:bg-primary-800 text-lg px-8 py-3`}
             >
-              <span>Explorar Catálogo</span>
+              <span>Ver productos destacados</span>
             </Link>
           </div>
+          <p className="text-sm sm:text-base text-primary-100 max-w-2xl mx-auto">
+            Enviamos a todo México y te ayudamos a elegir el material correcto según tu práctica y tu presupuesto.
+          </p>
         </div>
       </section>
 
@@ -143,43 +147,57 @@ export default async function HomePage() {
         <FeaturedGrid items={items} />
       </section>
 
-      {/* Features */}
+      {/* ¿Por qué comprar con Depósito Dental Noriega? */}
       <section className="py-16 px-4 bg-gray-50">
         <div className="max-w-6xl mx-auto">
-          <div className="grid md:grid-cols-4 gap-8">
-            <div className="text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-100 text-primary-600 rounded-full mb-4">
-                <ShoppingBagIcon width={32} height={32} />
+          <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-center mb-8 text-gray-900">
+            ¿Por qué comprar con Depósito Dental Noriega?
+          </h2>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="bg-white rounded-lg p-6 shadow-sm">
+              <div className="inline-flex items-center justify-center w-12 h-12 bg-primary-100 text-primary-600 rounded-full mb-4">
+                <ShoppingBagIcon width={24} height={24} />
               </div>
-              <h3 className="font-semibold mb-2">Compra Fácil</h3>
+              <h3 className="font-semibold mb-2 text-gray-900">Enfoque en consultorios y clínicas</h3>
               <p className="text-gray-600 text-sm">
-                Carrito persistente y checkout rápido
+                Productos pensados para odontólogos, ortodoncistas y clínicas que compran de forma recurrente.
               </p>
             </div>
-            <div className="text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-100 text-primary-600 rounded-full mb-4">
-                <PackageIcon width={32} height={32} />
+            <div className="bg-white rounded-lg p-6 shadow-sm">
+              <div className="inline-flex items-center justify-center w-12 h-12 bg-primary-100 text-primary-600 rounded-full mb-4">
+                <MessageCircle className="w-6 h-6" />
               </div>
-              <h3 className="font-semibold mb-2">Entrega o Recogida</h3>
+              <h3 className="font-semibold mb-2 text-gray-900">Atención directa por WhatsApp</h3>
               <p className="text-gray-600 text-sm">
-                Elige la opción que más te convenga
+                Te ayudamos a resolver dudas de códigos, medidas, compatibilidad y existencias antes de comprar.
               </p>
             </div>
-            <div className="text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-100 text-primary-600 rounded-full mb-4">
-                <AwardIcon width={32} height={32} />
+            <div className="bg-white rounded-lg p-6 shadow-sm">
+              <div className="inline-flex items-center justify-center w-12 h-12 bg-primary-100 text-primary-600 rounded-full mb-4">
+                <TruckIcon width={24} height={24} />
               </div>
-              <h3 className="font-semibold mb-2">Programa de Puntos</h3>
+              <h3 className="font-semibold mb-2 text-gray-900">Envíos a todo México</h3>
               <p className="text-gray-600 text-sm">
-                Gana puntos en cada compra
+                Trabajamos con paqueterías confiables y te compartimos tu guía para seguir el pedido en todo momento.
               </p>
             </div>
-            <div className="text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-100 text-primary-600 rounded-full mb-4">
-                <TruckIcon width={32} height={32} />
+            <div className="bg-white rounded-lg p-6 shadow-sm">
+              <div className="inline-flex items-center justify-center w-12 h-12 bg-primary-100 text-primary-600 rounded-full mb-4">
+                <AwardIcon width={24} height={24} />
               </div>
-              <h3 className="font-semibold mb-2">Envío Seguro</h3>
-              <p className="text-gray-600 text-sm">Seguimiento de tu pedido</p>
+              <h3 className="font-semibold mb-2 text-gray-900">Sistema de puntos de lealtad</h3>
+              <p className="text-gray-600 text-sm">
+                Cada compra acumula puntos que puedes usar como descuento en pedidos futuros.
+              </p>
+            </div>
+            <div className="bg-white rounded-lg p-6 shadow-sm">
+              <div className="inline-flex items-center justify-center w-12 h-12 bg-primary-100 text-primary-600 rounded-full mb-4">
+                <PackageIcon width={24} height={24} />
+              </div>
+              <h3 className="font-semibold mb-2 text-gray-900">Catálogo claro y precios en MXN</h3>
+              <p className="text-gray-600 text-sm">
+                Ves el precio final en pesos mexicanos, sin sorpresas ni conversiones.
+              </p>
             </div>
           </div>
         </div>
@@ -188,17 +206,14 @@ export default async function HomePage() {
       {/* CTA Section */}
       <section className="py-16 px-4">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl font-bold mb-4">
-            ¿Listo para equipar tu consultorio?
-          </h2>
-          <p className="text-gray-600 mb-8">
-            Crea tu cuenta y comienza a ganar puntos con cada compra
+          <p className="text-lg sm:text-xl text-gray-700 mb-6">
+            Insumos dentales confiables, entregados a todo México.
           </p>
           <Link
-            href={ROUTES.cuenta()}
+            href={ROUTES.tienda()}
             className={`${buttonPrimary} text-lg px-8 py-3`}
           >
-            <span>Crear Cuenta</span>
+            <span>Ver tienda</span>
           </Link>
         </div>
       </section>
