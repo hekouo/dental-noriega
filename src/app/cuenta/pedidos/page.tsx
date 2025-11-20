@@ -243,11 +243,11 @@ export default function PedidosPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 py-12">
-        <h1 className="text-3xl font-bold mb-8">Mis Pedidos</h1>
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight mb-6 sm:mb-8 text-gray-900">Mis Pedidos</h1>
 
         {/* Formulario de búsqueda */}
-        <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg shadow mb-8">
+        <form onSubmit={handleSubmit} className="bg-white p-4 sm:p-6 rounded-lg shadow mb-8">
           <div className="space-y-4">
             <div>
               <p className="text-sm text-gray-600 mb-3">
@@ -321,8 +321,8 @@ export default function PedidosPage() {
 
         {/* Panel de puntos de lealtad */}
         {email.trim() && isValidEmail(email) && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">
-            <h2 className="text-xl font-semibold mb-4">Tus puntos</h2>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 sm:p-6 mb-8">
+            <h2 className="text-lg sm:text-xl font-semibold tracking-tight mb-4 text-gray-900">Tus puntos</h2>
             {loading ? (
               <p className="text-gray-600">Cargando puntos...</p>
             ) : loyaltyPoints !== null ? (
@@ -364,8 +364,8 @@ export default function PedidosPage() {
         {/* Lista de órdenes */}
         {orders && orders.length > 0 && (
           <div className="bg-white rounded-lg shadow overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-xl font-semibold">
+            <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-gray-900">
                 {orders.length} pedido{orders.length !== 1 ? "s" : ""} encontrado
                 {orders.length !== 1 ? "s" : ""}
               </h2>
@@ -376,7 +376,7 @@ export default function PedidosPage() {
                 return (
                   <div
                     key={order.id}
-                    className={`px-6 py-4 transition-colors ${
+                    className={`px-4 sm:px-6 py-4 transition-colors ${
                       isSelected
                         ? "bg-blue-50 border-l-4 border-blue-500"
                         : "hover:bg-gray-50"
@@ -490,11 +490,11 @@ export default function PedidosPage() {
         {/* Detalle de orden */}
         {orderDetail && (
           <div ref={detailRef} className="bg-white rounded-lg shadow overflow-hidden mt-8">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-xl font-semibold">Detalle del Pedido</h2>
+            <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-gray-900">Detalle del Pedido</h2>
             </div>
 
-            <div className="px-6 py-4 space-y-4">
+            <div className="px-4 sm:px-6 py-4 space-y-4">
               {/* Información básica */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>

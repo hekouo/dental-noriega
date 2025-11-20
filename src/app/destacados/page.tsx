@@ -37,11 +37,11 @@ export default async function DestacadosPage() {
   if (items.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 py-12">
-          <h1 className="text-3xl font-bold mb-2 text-gray-900">
+        <div className="max-w-7xl mx-auto px-4 py-8 sm:py-12">
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight mb-2 text-gray-900">
             Productos destacados
           </h1>
-          <p className="text-gray-600 mb-8">
+          <p className="text-sm text-gray-600 mb-8">
             Productos recomendados que suelen interesar a nuestros clientes
           </p>
           <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
@@ -75,11 +75,11 @@ export default async function DestacadosPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 py-12">
-        <h1 className="text-3xl font-bold mb-2 text-gray-900">
+      <div className="max-w-7xl mx-auto px-4 py-8 sm:py-12">
+        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight mb-2 text-gray-900">
           Productos destacados
         </h1>
-        <p className="text-gray-600 mb-8">
+        <p className="text-sm text-gray-600 mb-8">
           Productos recomendados que suelen interesar a nuestros clientes
         </p>
         <FeaturedGrid items={items} />

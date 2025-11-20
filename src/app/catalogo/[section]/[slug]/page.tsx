@@ -168,8 +168,8 @@ export default async function ProductDetailPage({ params }: Props) {
           </div>
         </div>
 
-        <div className="max-w-6xl mx-auto px-4 py-8">
-          <div className="grid lg:grid-cols-2 gap-8">
+        <div className="max-w-6xl mx-auto px-4 py-6 sm:py-8">
+          <div className="grid lg:grid-cols-2 gap-6 sm:gap-8">
             {/* Imagen */}
             <div className="space-y-4">
               <div className="relative w-full aspect-square bg-white rounded-lg overflow-hidden shadow-sm">
@@ -186,12 +186,12 @@ export default async function ProductDetailPage({ params }: Props) {
             </div>
 
             {/* Información del producto */}
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-gray-900 mb-2">
                   {product.title}
                 </h1>
-                <p className="text-lg text-gray-600 capitalize">
+                <p className="text-base sm:text-lg text-gray-600 capitalize">
                   {product.section.replace(/-/g, " ")}
                 </p>
               </div>

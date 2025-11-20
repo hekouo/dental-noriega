@@ -785,19 +785,20 @@ export default function GraciasContent() {
   };
 
   return (
-    <main className="max-w-3xl mx-auto px-4 py-10 space-y-6">
+    <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-6">
       <CheckoutStepper current="success" />
 
       {/* Hero Card */}
       <div className="mb-8 text-center">
         {/* Check icon */}
         <div className="flex justify-center mb-4">
-          <div className="w-20 h-20 rounded-full bg-primary-600 flex items-center justify-center shadow-lg">
+          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-primary-600 flex items-center justify-center shadow-lg">
             <svg
-              className="w-12 h-12 text-white"
+              className="w-10 h-10 sm:w-12 sm:h-12 text-white"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
+              aria-hidden="true"
             >
               <path
                 strokeLinecap="round"
@@ -810,7 +811,7 @@ export default function GraciasContent() {
         </div>
 
         {/* Título */}
-        <h1 className="text-3xl font-bold mb-3 text-gray-900">
+        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight mb-3 text-gray-900">
           ¡Gracias por tu compra!
         </h1>
 
