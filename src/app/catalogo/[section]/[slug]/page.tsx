@@ -7,7 +7,6 @@ import ProductActions from "@/components/product/ProductActions.client";
 import ProductViewTracker from "@/components/ProductViewTracker.client";
 import { ROUTES } from "@/lib/routes";
 import Link from "next/link";
-import { Package, Truck, Shield } from "lucide-react";
 import PdpRelatedSection from "./PdpRelatedSection";
 
 export const dynamic = "force-dynamic";
@@ -191,7 +190,7 @@ export default async function ProductDetailPage({ params }: Props) {
                 </p>
               </div>
 
-              {/* Precio */}
+              {/* Precio y disponibilidad */}
               <div className="space-y-2">
                 <div className="text-4xl font-bold text-primary-600">
                   {price}
@@ -206,6 +205,11 @@ export default async function ProductDetailPage({ params }: Props) {
                   >
                     {!soldOut ? "En stock" : "Agotado"}
                   </span>
+                  {product.in_stock && (
+                    <span className="text-sm text-gray-600">
+                      Lista para envío inmediato
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -222,37 +226,24 @@ export default async function ProductDetailPage({ params }: Props) {
                   is_active: product.is_active,
                 }}
               />
-
-              {/* Características */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-6 border-t">
-                <div className="flex items-center space-x-3">
-                  <Package className="h-5 w-5 text-primary-600" />
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">Envío</p>
-                    <p className="text-xs text-gray-600">
-                      Gratis en pedidos +$500
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <Truck className="h-5 w-5 text-primary-600" />
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">Entrega</p>
-                    <p className="text-xs text-gray-600">1-3 días hábiles</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <Shield className="h-5 w-5 text-primary-600" />
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">
-                      Garantía
-                    </p>
-                    <p className="text-xs text-gray-600">30 días</p>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
+
+          {/* Descripción del producto */}
+          {product.description && (
+            <section className="mt-12 bg-white border border-gray-200 rounded-2xl shadow-sm p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-3">
+                Descripción del producto
+              </h2>
+              <div className="prose prose-sm max-w-none text-gray-700">
+                {product.description.split("\n").map((paragraph, idx) => (
+                  <p key={idx} className="mb-3 last:mb-0">
+                    {paragraph.trim()}
+                  </p>
+                ))}
+              </div>
+            </section>
+          )}
 
           {/* Productos relacionados */}
           <PdpRelatedSection

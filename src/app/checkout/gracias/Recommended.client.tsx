@@ -2,7 +2,6 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import Link from "next/link";
 import { getWithTTL, KEYS } from "@/lib/utils/persist";
 import FeaturedGrid from "@/components/FeaturedGrid";
 import type { FeaturedItem } from "@/lib/catalog/getFeatured.server";
@@ -143,56 +142,45 @@ export default function RecommendedClient() {
 
   if (loading) {
     return (
-      <section className="mt-12">
-        <h2 className="text-xl font-semibold mb-4">
-          También te puede interesar
-        </h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <section className="mt-12 space-y-4">
+        <div>
+          <h2 className="text-2xl font-semibold text-gray-900">
+            También te puede interesar
+          </h2>
+          <p className="text-sm text-gray-600 mt-1">
+            Te dejamos algunos productos que combinan bien con tu compra.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <div
               key={i}
-              className="rounded-2xl border p-3 animate-pulse bg-gray-100 h-64"
+              className="rounded-2xl border border-gray-200 p-4 animate-pulse bg-gray-100 h-52"
             />
           ))}
         </div>
-        <p className="text-sm text-gray-600 mt-4 text-center">
-          Si tienes dudas sobre cualquier producto, escríbenos por WhatsApp desde la burbuja en la esquina.
+        <p className="text-sm text-gray-500 text-center">
+          Cargando recomendaciones…
         </p>
       </section>
     );
   }
 
   if (error || products.length === 0) {
-    return (
-      <section className="mt-12">
-        <h2 className="text-xl font-semibold mb-4">
-          También te puede interesar
-        </h2>
-        <div className="text-center py-8 text-gray-500">
-          <p className="mb-4">{error || "Sin recomendados disponibles"}</p>
-          <div className="flex gap-3 justify-center">
-            <Link href="/destacados" className="btn btn-primary">
-              Ver destacados
-            </Link>
-            <Link href="/buscar" className="btn">
-              Buscar productos
-            </Link>
-          </div>
-        </div>
-        <p className="text-sm text-gray-600 mt-4 text-center">
-          Si tienes dudas sobre cualquier producto, escríbenos por WhatsApp desde la burbuja en la esquina.
-        </p>
-      </section>
-    );
+    return null;
   }
 
   return (
-    <section className="mt-12">
-      <h2 className="text-xl font-semibold mb-4">También te puede interesar</h2>
+    <section className="mt-12 space-y-4">
+      <div>
+        <h2 className="text-2xl font-semibold text-gray-900">
+          También te puede interesar
+        </h2>
+        <p className="text-sm text-gray-600 mt-1">
+          Te dejamos algunos productos que combinan bien con tu compra.
+        </p>
+      </div>
       <FeaturedGrid items={products} hideSoldOutLabel={true} />
-      <p className="text-sm text-gray-600 mt-4 text-center">
-        Si tienes dudas sobre cualquier producto, escríbenos por WhatsApp desde la burbuja en la esquina.
-      </p>
     </section>
   );
 }
