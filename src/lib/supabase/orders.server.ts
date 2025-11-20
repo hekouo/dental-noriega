@@ -18,6 +18,9 @@ export type OrderSummary = {
     discount_cents?: number;
     contact_name?: string;
     contact_email?: string;
+    loyalty_points_earned?: number | null;
+    loyalty_points_spent?: number | null;
+    loyalty_points_balance_after?: number | null;
   } | null;
 };
 
