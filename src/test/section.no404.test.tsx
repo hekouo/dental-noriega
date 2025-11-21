@@ -3,13 +3,9 @@ import { describe, it, expect, vi } from "vitest";
 import { render } from "@testing-library/react";
 import CatalogoSectionPage from "@/app/catalogo/[section]/page";
 
-// Mock de las funciones de Supabase
-vi.mock("@/lib/supabase/catalog", () => ({
-  listBySection: vi.fn(),
-}));
-
-vi.mock("@/lib/catalog/getProductsBySectionFromView.server", () => ({
-  getProductsBySectionFromView: vi.fn(),
+// Mock de las funciones de catálogo
+vi.mock("@/lib/catalog/getBySection.server", () => ({
+  getBySection: vi.fn(),
 }));
 
 vi.mock("@/lib/utils/currency", () => ({
@@ -38,16 +34,18 @@ vi.mock("@/components/CatalogCardControls", () => ({
 
 describe("Section page no-404", () => {
   it("renders empty state when section has no products", async () => {
-    const { listBySection } = await import("@/lib/supabase/catalog");
-    const { getProductsBySectionFromView } = await import(
-      "@/lib/catalog/getProductsBySectionFromView.server"
-    );
-
-    vi.mocked(listBySection).mockResolvedValue([]);
-    vi.mocked(getProductsBySectionFromView).mockResolvedValue([]);
+    const { getBySection } = await import("@/lib/catalog/getBySection.server");
+    
+    vi.mocked(getBySection).mockResolvedValue({
+      items: [],
+      page: 1,
+      pageSize: 24,
+      hasNextPage: false,
+    });
 
     const result = await CatalogoSectionPage({
       params: { section: "test-section" },
+      searchParams: {},
     });
     const html = render(result as React.ReactElement);
 
@@ -59,6 +57,7 @@ describe("Section page no-404", () => {
   it("renders empty state when section is invalid", async () => {
     const result = await CatalogoSectionPage({
       params: { section: "" },
+      searchParams: {},
     });
     const html = render(result as React.ReactElement);
 
@@ -66,11 +65,12 @@ describe("Section page no-404", () => {
   });
 
   it("does not crash on error", async () => {
-    const { listBySection } = await import("@/lib/supabase/catalog");
-    vi.mocked(listBySection).mockRejectedValue(new Error("DB error"));
+    const { getBySection } = await import("@/lib/catalog/getBySection.server");
+    vi.mocked(getBySection).mockRejectedValue(new Error("DB error"));
 
     const result = await CatalogoSectionPage({
       params: { section: "test-section" },
+      searchParams: {},
     });
 
     // Debe renderizar sin crashear
