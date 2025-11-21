@@ -108,11 +108,11 @@ export default async function HomePage() {
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-primary-600 to-primary-800 text-white py-12 sm:py-20 px-4">
         <div className="max-w-6xl mx-auto text-center">
-          <h1 className="text-3xl sm:text-4xl md:text-6xl font-semibold tracking-tight mb-4 sm:mb-6">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight mb-4 sm:mb-6 text-white text-center">
             Insumos dentales para consultorios y clínicas en México
           </h1>
           <p className="text-lg sm:text-xl md:text-2xl mb-6 sm:mb-8 text-primary-100">
-            Compra brackets, guantes, material de ortodoncia y consumibles con atención personalizada por WhatsApp, envíos confiables y un sistema de puntos que premia cada compra.
+            Somos una tienda familiar en México. Compra brackets, guantes, material de ortodoncia y consumibles con atención personalizada por WhatsApp, envíos confiables y un sistema de puntos que premia cada compra.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-4 sm:mb-6">
             <Link
@@ -129,7 +129,7 @@ export default async function HomePage() {
             </Link>
           </div>
           <p className="text-sm sm:text-base text-primary-100 max-w-2xl mx-auto">
-            Enviamos a todo México y te ayudamos a elegir el material correcto según tu práctica y tu presupuesto.
+            Enviamos a todo México. En pedidos desde $2,000 MXN en productos, el envío es gratis. Te ayudamos a elegir el material correcto según tu práctica y tu presupuesto.
           </p>
         </div>
       </section>

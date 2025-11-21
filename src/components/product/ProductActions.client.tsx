@@ -190,10 +190,16 @@ export default function ProductActions({ product }: Props) {
           </a>
         </div>
 
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-2 text-sm text-gray-600">
-          <p className="text-center">Envíos a todo México.</p>
-          <p className="text-center">Asesoría por WhatsApp antes y después de tu compra.</p>
-          <p className="text-center">Pagos seguros con tarjeta en modo prueba.</p>
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-2">
+          <p className="text-sm text-gray-700 text-center">
+            Envíos a todo México. En pedidos desde $2,000 MXN en productos, el envío es gratis.
+          </p>
+          <p className="text-sm text-gray-700 text-center">
+            Tienda familiar con atención por WhatsApp antes y después de tu compra.
+          </p>
+          <p className="text-sm text-gray-700 text-center">
+            Pagos seguros con tarjeta en modo prueba para tus pruebas de compra.
+          </p>
         </div>
       </div>
     </div>
