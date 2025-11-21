@@ -416,11 +416,16 @@ export default function PedidosPage() {
                               });
                             }
                             
-                            if (shippingCostCents !== undefined && shippingCostCents !== null && shippingCostCents > 0) {
-                              return `${method} · ${formatMXNFromCents(shippingCostCents)}`;
+                            if (shippingCostCents !== undefined && shippingCostCents !== null) {
+                              if (shippingCostCents > 0) {
+                                return `${method} · ${formatMXNFromCents(shippingCostCents)}`;
+                              } else {
+                                // Envío gratis (subtotal >= $2,000 MXN)
+                                return `${method} · $0.00 (envío gratis)`;
+                              }
                             }
                             
-                            // Para "Recoger en tienda" con costo 0, solo mostrar el método
+                            // Si no hay información de costo, solo mostrar el método
                             return method;
                           })()}
                         </p>
