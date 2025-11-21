@@ -28,6 +28,7 @@ import {
   LOYALTY_MIN_POINTS_FOR_DISCOUNT,
   LOYALTY_DISCOUNT_PERCENT,
 } from "@/lib/loyalty/config";
+import { applyFreeShippingIfEligible } from "@/lib/shipping/freeShipping";
 
 type FormValues = {
   paymentMethod: string;
@@ -221,7 +222,22 @@ export default function PagoClient() {
 
   const selectedShippingMethod = watch("shippingMethod") as ShippingMethod;
   const selectedPaymentMethod = watch("paymentMethod");
-  const shippingCost = shippingData.prices[selectedShippingMethod] || 0;
+  const rawShippingCost = shippingData.prices[selectedShippingMethod] || 0;
+  
+  // Calcular subtotal de productos en centavos para aplicar envío gratis
+  const productsSubtotalCents = useMemo(() => {
+    return getSelectedSubtotalCents(checkoutItems);
+  }, [checkoutItems]);
+  
+  // Aplicar envío gratis si el subtotal es >= $2,000 MXN
+  const shippingCost = useMemo(() => {
+    const rawShippingCents = Math.round(rawShippingCost * 100);
+    const finalShippingCents = applyFreeShippingIfEligible({
+      productsSubtotalCents,
+      shippingCostCents: rawShippingCents,
+    });
+    return finalShippingCents / 100; // Convertir de vuelta a MXN para cálculos
+  }, [rawShippingCost, productsSubtotalCents]);
 
   // Calcular descuento de puntos si está aplicado
   const loyaltyDiscountCents = useMemo(() => {
