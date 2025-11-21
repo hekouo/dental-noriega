@@ -222,15 +222,16 @@ function CartDrawer({ onClose }: { onClose: () => void }) {
 }
 
 // Componente condicional que solo se monta si hay items o tras interacción
+// Solo se muestra si el carrito está vacío (si tiene items, se muestra CartSticky)
 export default function CartBubble() {
   const count = useCartStore(selectCartCount);
   const [open, setOpen] = useState(false);
   const [shouldMount, setShouldMount] = useState(false);
 
   useEffect(() => {
-    // Si hay items, montar inmediatamente
+    // Si hay items, NO montar este componente (CartSticky se encargará)
     if (count > 0) {
-      setShouldMount(true);
+      setShouldMount(false);
       return;
     }
 
@@ -270,7 +271,8 @@ export default function CartBubble() {
     };
   }, [count]);
 
-  if (!shouldMount) return null;
+  // No mostrar si hay items (CartSticky se encargará)
+  if (count > 0 || !shouldMount) return null;
 
   return (
     <>
@@ -282,11 +284,6 @@ export default function CartBubble() {
           type="button"
         >
           <CartIcon width={24} height={24} />
-          {count > 0 && (
-            <span className="absolute -top-1 -right-1 text-xs bg-white text-primary-700 font-bold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center shadow">
-              {count}
-            </span>
-          )}
         </button>
       </FAB>
 
