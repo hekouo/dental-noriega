@@ -1,24 +1,38 @@
-Este PR agrega una página informativa "Cómo comprar" y enlaces de navegación en el header y footer.
+Este PR implementa ordenamiento en el catálogo y búsqueda, preservando la paginación existente.
 
-### Cambios principales
+### Opciones de ordenamiento
 
-- **Nueva página `/como-comprar`:**
-  - Guía completa sobre cómo comprar en Depósito Dental Noriega
-  - Secciones: Quiénes somos, Cómo comprar, Envíos y envío gratis, Atención por WhatsApp, Puntos de lealtad, Pagos, Contacto
-  - Usa constantes existentes (`FREE_SHIPPING_THRESHOLD_MXN`, `LOYALTY_*`) para información precisa
-  - Incluye botones de contacto por WhatsApp usando helpers existentes
-  - Metadata SEO optimizada
+- **`relevance`** (por defecto): Orden por fecha de creación (más recientes primero)
+- **`price_asc`**: Precio de menor a mayor (columna `price_cents`)
+- **`price_desc`**: Precio de mayor a menor (columna `price_cents`)
+- **`name_asc`**: Nombre alfabético A-Z (columna `title`)
 
-- **Enlaces de navegación:**
-  - Agregado "Cómo comprar" en el header principal (después de "Buscar")
-  - Agregado "Cómo comprar" en la sección "Información" del footer
+### Rutas afectadas
+
+- `/catalogo/[section]`: Agregado `<select>` de ordenamiento arriba del grid
+- `/buscar`: Agregado `<select>` de ordenamiento junto a los resultados
+
+### Preservación de parámetros
+
+- Al cambiar de página, se preserva `sort` en la URL
+- En `/buscar`, se preservan `q`, `page` y `sort` simultáneamente
+- Al cambiar el orden, `page` se resetea a `1` automáticamente
+
+### Archivos modificados
+
+- `src/lib/catalog/config.ts`: Agregado tipo `CatalogSortOption` y helper `normalizeSortParam`
+- `src/lib/catalog/getBySection.server.ts`: Acepta `sort` y aplica `.order()` según opción
+- `src/app/api/products/search/route.ts`: Lee `sort` de query params y aplica ordenamiento
+- `src/components/catalog/SortSelect.client.tsx`: Nuevo componente client para UI de ordenamiento
+- `src/app/catalogo/[section]/page.tsx`: Integra `SortSelect` y pasa `sort` a `getBySection`
+- `src/app/buscar/page.tsx`: Integra `SortSelect` y pasa `sort` a API
+- `src/components/catalog/Pagination.tsx`: Ya soportaba `extraQuery`, ahora recibe `sort`
 
 ### No se tocó
 
-- Supabase (ninguna tabla, query o configuración)
-- Stripe (ninguna configuración ni lógica de pagos)
-- Lógica de negocio (carrito, checkout, puntos, envíos)
-- Solo contenido estático y navegación
+- Supabase Dashboard (solo queries con `.order()` en código)
+- Lógica de puntos, checkout, Stripe
+- Paginación existente (solo se preserva `sort` en URLs)
 
 ### QA técnico
 

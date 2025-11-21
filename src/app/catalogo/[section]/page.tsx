@@ -5,7 +5,13 @@ import { getBySection } from "@/lib/catalog/getBySection.server";
 import { ROUTES } from "@/lib/routes";
 import ProductCard from "@/components/catalog/ProductCard";
 import Pagination from "@/components/catalog/Pagination";
-import { parsePage } from "@/lib/catalog/config";
+import { parsePage, normalizeSortParam } from "@/lib/catalog/config";
+import dynamicImport from "next/dynamic";
+
+const SortSelect = dynamicImport(
+  () => import("@/components/catalog/SortSelect.client"),
+  { ssr: false },
+);
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -13,7 +19,7 @@ export const fetchCache = "force-no-store";
 
 type Props = {
   params: { section: string };
-  searchParams: { page?: string };
+  searchParams: { page?: string; sort?: string };
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -26,7 +32,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // Intentar obtener productos de la sección (solo primera página para metadata)
   let result: Awaited<ReturnType<typeof getBySection>> | null = null;
   try {
-    result = await getBySection(section, 1);
+    result = await getBySection(section, 1, "relevance");
   } catch {
     // Silenciar errores en build - usar fallback
   }
@@ -75,6 +81,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function CatalogoSectionPage({ params, searchParams }: Props) {
   const section = decodeURIComponent(params.section ?? "").trim();
   const page = parsePage(searchParams.page);
+  const sort = normalizeSortParam(searchParams.sort);
   
   if (!section) {
     return (
@@ -99,7 +106,7 @@ export default async function CatalogoSectionPage({ params, searchParams }: Prop
   let errorOccurred = false;
 
   try {
-    result = await getBySection(section, page);
+    result = await getBySection(section, page, sort);
   } catch (error) {
     if (process.env.NODE_ENV !== "production") {
       console.error("[catalogo/section] Error:", error);
@@ -175,6 +182,14 @@ export default async function CatalogoSectionPage({ params, searchParams }: Prop
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-12">
+        {/* Control de ordenamiento */}
+        <div className="mb-6 flex justify-end">
+          <SortSelect
+            currentSort={sort}
+            basePath={ROUTES.section(section)}
+          />
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {products.map((product, idx) => {
             // Usar ProductCard canónico
@@ -203,6 +218,7 @@ export default async function CatalogoSectionPage({ params, searchParams }: Prop
             page={result.page}
             hasNextPage={result.hasNextPage}
             basePath={ROUTES.section(section)}
+            extraQuery={sort !== "relevance" ? { sort } : {}}
           />
         )}
       </div>
