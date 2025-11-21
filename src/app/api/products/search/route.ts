@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { unstable_noStore as noStore } from "next/cache";
 import { createClient } from "@/lib/supabase/public";
 import { mapDbToCatalogItem } from "@/lib/catalog/mapDbToProduct";
+import { CATALOG_PAGE_SIZE, calculateOffset, hasNextPage as calculateHasNextPage } from "@/lib/catalog/config";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -19,6 +20,7 @@ type SearchResponse = {
   total: number;
   page: number;
   perPage: number;
+  hasNextPage: boolean;
 };
 
 export async function GET(req: Request) {
@@ -27,23 +29,28 @@ export async function GET(req: Request) {
   const qRaw = url.searchParams.get("q") || "";
   const q = qRaw.trim().toLowerCase();
   const page = Math.max(1, parseInt(url.searchParams.get("page") || "1", 10));
-  const perPage = 20;
+  const perPage = CATALOG_PAGE_SIZE;
 
   if (!q) {
-    return NextResponse.json({ items: [], total: 0, page: 1, perPage });
+    return NextResponse.json({ items: [], total: 0, page: 1, perPage, hasNextPage: false });
   }
 
   try {
     const sb = createClient();
     
+    const offset = calculateOffset(page, perPage);
+    
     // Buscar en api_catalog_with_images con ilike sobre title, product_slug y section
     // Usar un OR en una sola cadena .or() para Supabase
-    const { data, error } = await sb
+    // Aplicar paginación directamente en Supabase con .range()
+    const { data, error, count } = await sb
       .from("api_catalog_with_images")
-      .select("*")
+      .select("*", { count: "exact" })
       .or(`title.ilike.%${q}%,product_slug.ilike.%${q}%,section.ilike.%${q}%`)
+      .eq("is_active", true)
+      .eq("in_stock", true)
       .order("created_at", { ascending: false })
-      .limit(200);
+      .range(offset, offset + perPage - 1);
 
     if (error) {
       console.error("[search] Supabase error:", error);
@@ -53,6 +60,7 @@ export async function GET(req: Request) {
           total: 0,
           page: 1,
           perPage,
+          hasNextPage: false,
         },
         { status: 500 },
       );
@@ -61,12 +69,7 @@ export async function GET(req: Request) {
     // Mapear resultados usando el adaptador
     const mapped = (data ?? []).map(mapDbToCatalogItem);
 
-    // Filtrar por is_active e in_stock (si es necesario)
-    const filtered = mapped.filter((item) => item.is_active && item.in_stock);
-
-    const total = filtered.length;
-    const start = (page - 1) * perPage;
-    const items = filtered.slice(start, start + perPage).map((it) => ({
+    const items = mapped.map((it) => ({
       id: it.id,
       product_slug: it.slug,
       section: it.section,
@@ -75,7 +78,10 @@ export async function GET(req: Request) {
       image_url: it.image_url ?? null,
     }));
 
-    return NextResponse.json({ items, total, page, perPage });
+    const total = count ?? items.length;
+    const calculatedHasNextPage = calculateHasNextPage(items.length, perPage);
+
+    return NextResponse.json({ items, total, page, perPage, hasNextPage: calculatedHasNextPage });
   } catch (error) {
     console.error("[search] Error:", error);
     return NextResponse.json<SearchResponse>(
@@ -84,6 +90,7 @@ export async function GET(req: Request) {
         total: 0,
         page: 1,
         perPage,
+        hasNextPage: false,
       },
       { status: 500 },
     );

@@ -4,12 +4,17 @@ import type { Metadata } from "next";
 import { getBySection } from "@/lib/catalog/getBySection.server";
 import { ROUTES } from "@/lib/routes";
 import ProductCard from "@/components/catalog/ProductCard";
+import Pagination from "@/components/catalog/Pagination";
+import { parsePage } from "@/lib/catalog/config";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
-type Props = { params: { section: string } };
+type Props = {
+  params: { section: string };
+  searchParams: { page?: string };
+};
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const siteName =
@@ -18,13 +23,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     process.env.NEXT_PUBLIC_SITE_URL ?? "https://dental-noriega.vercel.app";
   const section = decodeURIComponent(params.section ?? "").trim();
 
-  // Intentar obtener productos de la sección
-  let items: Awaited<ReturnType<typeof getBySection>> = [];
+  // Intentar obtener productos de la sección (solo primera página para metadata)
+  let result: Awaited<ReturnType<typeof getBySection>> | null = null;
   try {
-    items = await getBySection(section);
+    result = await getBySection(section, 1);
   } catch {
     // Silenciar errores en build - usar fallback
   }
+  
+  const items = result?.items ?? [];
 
   const sectionName = section
     .replace(/-/g, " ")
@@ -65,8 +72,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function CatalogoSectionPage({ params }: Props) {
+export default async function CatalogoSectionPage({ params, searchParams }: Props) {
   const section = decodeURIComponent(params.section ?? "").trim();
+  const page = parsePage(searchParams.page);
+  
   if (!section) {
     return (
       <div className="p-6">
@@ -86,17 +95,19 @@ export default async function CatalogoSectionPage({ params }: Props) {
     );
   }
 
-  let products: Awaited<ReturnType<typeof getBySection>> = [];
+  let result: Awaited<ReturnType<typeof getBySection>> | null = null;
   let errorOccurred = false;
 
   try {
-    products = await getBySection(section);
+    result = await getBySection(section, page);
   } catch (error) {
     if (process.env.NODE_ENV !== "production") {
       console.error("[catalogo/section] Error:", error);
     }
     errorOccurred = true;
   }
+  
+  const products = result?.items ?? [];
 
   // Si no hay productos, mostrar mensaje
   if (products.length === 0 && !errorOccurred) {
@@ -156,9 +167,9 @@ export default async function CatalogoSectionPage({ params }: Props) {
           </Link>
           <h1 className="text-4xl font-bold mb-2">{sectionName}</h1>
           <p className="text-primary-100">
-            {products.length} producto
-            {products.length !== 1 ? "s" : ""} disponible
-            {products.length !== 1 ? "s" : ""}
+            {result && page > 1
+              ? `Página ${page}`
+              : `${products.length} producto${products.length !== 1 ? "s" : ""} disponible${products.length !== 1 ? "s" : ""}`}
           </p>
         </div>
       </div>
@@ -185,6 +196,15 @@ export default async function CatalogoSectionPage({ params }: Props) {
             );
           })}
         </div>
+        
+        {/* Paginación */}
+        {result && (
+          <Pagination
+            page={result.page}
+            hasNextPage={result.hasNextPage}
+            basePath={ROUTES.section(section)}
+          />
+        )}
       </div>
     </div>
   );

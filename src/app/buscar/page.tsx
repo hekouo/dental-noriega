@@ -6,6 +6,8 @@ import dynamicImport from "next/dynamic";
 import SearchResultCard from "@/components/SearchResultCard";
 import { ROUTES } from "@/lib/routes";
 import SearchTracker from "@/components/SearchTracker.client";
+import Pagination from "@/components/catalog/Pagination";
+import { CATALOG_PAGE_SIZE, parsePage } from "@/lib/catalog/config";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -37,7 +39,7 @@ type Props = {
 export default async function BuscarPage({ searchParams }: Props) {
   const qRaw = searchParams.q ?? "";
   const q = qRaw.trim();
-  const page = Math.max(1, parseInt(searchParams.page ?? "1", 10));
+  const page = parsePage(searchParams.page);
 
   if (!q) {
     return (
@@ -72,9 +74,9 @@ export default async function BuscarPage({ searchParams }: Props) {
 
   const data = res.ok
     ? await res.json()
-    : { items: [], total: 0, page, perPage: 20 };
+    : { items: [], total: 0, page, perPage: CATALOG_PAGE_SIZE, hasNextPage: false };
 
-  const { items, total, perPage } = data as {
+  const { items, total, perPage, hasNextPage } = data as {
     items: Array<{
       id: string;
       section: string;
@@ -86,9 +88,11 @@ export default async function BuscarPage({ searchParams }: Props) {
     total: number;
     page: number;
     perPage: number;
+    hasNextPage?: boolean;
   };
 
-  const totalPages = Math.ceil(total / perPage);
+  // Calcular hasNextPage si no viene en la respuesta
+  const calculatedHasNextPage = hasNextPage ?? items.length === perPage;
 
   return (
     <section className="space-y-6" role="search">
@@ -166,31 +170,12 @@ export default async function BuscarPage({ searchParams }: Props) {
           </div>
 
           {/* Paginación */}
-          {totalPages > 1 && (
-            <div className="flex flex-wrap justify-center items-center gap-3 pt-6 border-t border-gray-200">
-              {page > 1 && (
-                <Link
-                  href={`/buscar?q=${encodeURIComponent(q)}&page=${page - 1}`}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
-                  aria-label="Página anterior"
-                >
-                  ← Anterior
-                </Link>
-              )}
-              <span className="px-4 py-2 text-gray-600 text-sm">
-                Página {page} de {totalPages}
-              </span>
-              {page < totalPages && (
-                <Link
-                  href={`/buscar?q=${encodeURIComponent(q)}&page=${page + 1}`}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
-                  aria-label="Página siguiente"
-                >
-                  Siguiente →
-                </Link>
-              )}
-            </div>
-          )}
+          <Pagination
+            page={page}
+            hasNextPage={calculatedHasNextPage}
+            basePath={ROUTES.buscar()}
+            extraQuery={{ q }}
+          />
         </>
       )}
     </section>

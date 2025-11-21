@@ -25,6 +25,7 @@ describe("CatalogoSectionPage empty state", () => {
 
     const Page = await CatalogoSectionPage({
       params: { section: "test-section" },
+      searchParams: {},
     });
 
     // Verificar que la función retorna un elemento React válido
@@ -39,6 +40,7 @@ describe("CatalogoSectionPage empty state", () => {
 
     const Page = await CatalogoSectionPage({
       params: { section: "" },
+      searchParams: {},
     });
 
     expect(Page).toBeTruthy();
