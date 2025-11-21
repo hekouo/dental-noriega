@@ -945,7 +945,9 @@ export default function PagoClient() {
             <span>
               {selectedShippingMethod === "pickup"
                 ? "$0.00"
-                : formatMXNMoney(shippingCost)}
+                : shippingCost > 0
+                  ? formatMXNMoney(shippingCost)
+                  : "$0.00 (envío gratis)"}
             </span>
           </div>
           {discount && discountScope && (
@@ -1067,12 +1069,14 @@ export default function PagoClient() {
                 <span>Subtotal:</span>
                 <span>{formatMXNMoney(subtotal)}</span>
               </div>
-              {shippingCost > 0 && (
-                <div className="flex justify-between">
-                  <span>Envío:</span>
-                  <span>{formatMXNMoney(shippingCost)}</span>
-                </div>
-              )}
+              <div className="flex justify-between">
+                <span>Envío:</span>
+                <span>
+                  {shippingCost > 0
+                    ? formatMXNMoney(shippingCost)
+                    : "$0.00 (envío gratis)"}
+                </span>
+              </div>
               {discount && (
                 <div className="flex justify-between text-green-600">
                   <span>Descuento:</span>
