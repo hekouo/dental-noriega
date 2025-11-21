@@ -169,6 +169,13 @@ export default function RootLayout({
               >
                 <span>Buscar</span>
               </Link>
+              <Link
+                href="/como-comprar"
+                className="min-h-[44px] flex items-center hover:text-primary-600 transition-colors"
+                aria-label="Cómo comprar"
+              >
+                <span>Cómo comprar</span>
+              </Link>
 
               {/* Menú de cuenta con muela 3D */}
               <ToothAccountMenu />
