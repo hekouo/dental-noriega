@@ -66,3 +66,49 @@ export function normalizeSortParam(
   return "relevance";
 }
 
+/**
+ * Opciones de rango de precio disponibles para filtros
+ */
+export type PriceRangeKey = "all" | "lt_500" | "500_1000" | "gt_1000";
+
+/**
+ * Normaliza el parámetro de rango de precio desde la URL
+ * @param priceRangeParam Valor del query param 'priceRange' (string, null o undefined)
+ * @returns Opción de rango válida, usando 'all' como fallback
+ */
+export function normalizePriceRangeParam(
+  priceRangeParam: string | null | undefined,
+): PriceRangeKey {
+  if (!priceRangeParam) return "all";
+  
+  const validOptions: PriceRangeKey[] = ["all", "lt_500", "500_1000", "gt_1000"];
+  
+  if (validOptions.includes(priceRangeParam as PriceRangeKey)) {
+    return priceRangeParam as PriceRangeKey;
+  }
+  
+  return "all";
+}
+
+/**
+ * Mapea un PriceRangeKey a un objeto con minCents y/o maxCents para filtros
+ * @param priceRange Clave del rango de precio
+ * @returns Objeto con minCents y/o maxCents, o null si es "all"
+ */
+export function getPriceRangeBounds(priceRange: PriceRangeKey): {
+  minCents?: number;
+  maxCents?: number;
+} | null {
+  switch (priceRange) {
+    case "lt_500":
+      return { maxCents: 49999 }; // < $500 (499.99)
+    case "500_1000":
+      return { minCents: 50000, maxCents: 100000 }; // $500 - $1,000
+    case "gt_1000":
+      return { minCents: 100001 }; // > $1,000
+    case "all":
+    default:
+      return null;
+  }
+}
+
