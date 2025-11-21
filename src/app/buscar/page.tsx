@@ -7,7 +7,7 @@ import SearchResultCard from "@/components/SearchResultCard";
 import { ROUTES } from "@/lib/routes";
 import SearchTracker from "@/components/SearchTracker.client";
 import Pagination from "@/components/catalog/Pagination";
-import { CATALOG_PAGE_SIZE, parsePage } from "@/lib/catalog/config";
+import { CATALOG_PAGE_SIZE, parsePage, normalizeSortParam } from "@/lib/catalog/config";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -32,14 +32,20 @@ const SearchInput = dynamicImport(
   },
 );
 
+const SortSelect = dynamicImport(
+  () => import("@/components/catalog/SortSelect.client"),
+  { ssr: false },
+);
+
 type Props = {
-  searchParams: { q?: string; page?: string };
+  searchParams: { q?: string; page?: string; sort?: string };
 };
 
 export default async function BuscarPage({ searchParams }: Props) {
   const qRaw = searchParams.q ?? "";
   const q = qRaw.trim();
   const page = parsePage(searchParams.page);
+  const sort = normalizeSortParam(searchParams.sort);
 
   if (!q) {
     return (
@@ -65,8 +71,8 @@ export default async function BuscarPage({ searchParams }: Props) {
 
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? "";
   const apiUrl = base
-    ? `${base}/api/products/search?q=${encodeURIComponent(q)}&page=${page}`
-    : `/api/products/search?q=${encodeURIComponent(q)}&page=${page}`;
+    ? `${base}/api/products/search?q=${encodeURIComponent(q)}&page=${page}&sort=${sort}`
+    : `/api/products/search?q=${encodeURIComponent(q)}&page=${page}&sort=${sort}`;
 
   const res = await fetch(apiUrl, {
     cache: "no-store",
@@ -110,15 +116,22 @@ export default async function BuscarPage({ searchParams }: Props) {
       </div>
 
       {items.length > 0 && (
-        <div className="mb-6">
-          <p className="text-gray-700">
-            {total} resultado{total !== 1 ? "s" : ""} para{" "}
-            <strong className="text-gray-900">"{q}"</strong>
-            {page > 1 && (
-              <span className="text-gray-500 text-sm"> (página {page})</span>
-            )}
-          </p>
-        </div>
+        <>
+          <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <p className="text-gray-700">
+              {total} resultado{total !== 1 ? "s" : ""} para{" "}
+              <strong className="text-gray-900">"{q}"</strong>
+              {page > 1 && (
+                <span className="text-gray-500 text-sm"> (página {page})</span>
+              )}
+            </p>
+            <SortSelect
+              currentSort={sort}
+              basePath={ROUTES.buscar()}
+              preserveParams={{ q }}
+            />
+          </div>
+        </>
       )}
 
       {items.length === 0 && (
@@ -174,7 +187,10 @@ export default async function BuscarPage({ searchParams }: Props) {
             page={page}
             hasNextPage={calculatedHasNextPage}
             basePath={ROUTES.buscar()}
-            extraQuery={{ q }}
+            extraQuery={{
+              q,
+              ...(sort !== "relevance" ? { sort } : {}),
+            }}
           />
         </>
       )}

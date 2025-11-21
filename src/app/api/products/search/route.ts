@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { unstable_noStore as noStore } from "next/cache";
 import { createClient } from "@/lib/supabase/public";
 import { mapDbToCatalogItem } from "@/lib/catalog/mapDbToProduct";
-import { CATALOG_PAGE_SIZE, calculateOffset, hasNextPage as calculateHasNextPage } from "@/lib/catalog/config";
+import { CATALOG_PAGE_SIZE, calculateOffset, hasNextPage as calculateHasNextPage, normalizeSortParam } from "@/lib/catalog/config";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -29,6 +29,7 @@ export async function GET(req: Request) {
   const qRaw = url.searchParams.get("q") || "";
   const q = qRaw.trim().toLowerCase();
   const page = Math.max(1, parseInt(url.searchParams.get("page") || "1", 10));
+  const sort = normalizeSortParam(url.searchParams.get("sort"));
   const perPage = CATALOG_PAGE_SIZE;
 
   if (!q) {
@@ -43,14 +44,32 @@ export async function GET(req: Request) {
     // Buscar en api_catalog_with_images con ilike sobre title, product_slug y section
     // Usar un OR en una sola cadena .or() para Supabase
     // Aplicar paginación directamente en Supabase con .range()
-    const { data, error, count } = await sb
+    let query = sb
       .from("api_catalog_with_images")
       .select("*", { count: "exact" })
       .or(`title.ilike.%${q}%,product_slug.ilike.%${q}%,section.ilike.%${q}%`)
       .eq("is_active", true)
-      .eq("in_stock", true)
-      .order("created_at", { ascending: false })
-      .range(offset, offset + perPage - 1);
+      .eq("in_stock", true);
+
+    // Aplicar ordenamiento según la opción seleccionada
+    switch (sort) {
+      case "price_asc":
+        query = query.order("price_cents", { ascending: true });
+        break;
+      case "price_desc":
+        query = query.order("price_cents", { ascending: false });
+        break;
+      case "name_asc":
+        query = query.order("title", { ascending: true });
+        break;
+      case "relevance":
+      default:
+        // Orden por defecto (más recientes primero)
+        query = query.order("created_at", { ascending: false });
+        break;
+    }
+
+    const { data, error, count } = await query.range(offset, offset + perPage - 1);
 
     if (error) {
       console.error("[search] Supabase error:", error);
