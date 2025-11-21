@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import FeaturedGrid from "@/components/FeaturedGrid";
 import { getFeaturedItems } from "@/lib/catalog/getFeatured.server";
+import { ROUTES } from "@/lib/routes";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -20,18 +21,18 @@ export const metadata: Metadata = {
 };
 
 const categories = [
-  { title: "Consumibles y Profilaxis", href: "/tienda/consumibles" },
-  { title: "Equipos", href: "/tienda/equipos" },
-  { title: "Instrumental Clínico", href: "/tienda/instrumental-clinico" },
-  { title: "Instrumental Ortodoncia", href: "/tienda/instrumental-ortodoncia" },
+  { title: "Consumibles y Profilaxis", sectionSlug: "consumibles-y-profilaxis" },
+  { title: "Equipos", sectionSlug: "equipos" },
+  { title: "Instrumental Clínico", sectionSlug: "instrumental-clinico" },
+  { title: "Instrumental Ortodoncia", sectionSlug: "instrumental-ortodoncia" },
   {
     title: "Ortodoncia: Brackets y Tubos",
-    href: "/tienda/ortodoncia-brackets",
+    sectionSlug: "ortodoncia-brackets-y-tubos",
   },
-  { title: "Ortodoncia: Arcos y Resortes", href: "/tienda/ortodoncia-arcos" },
+  { title: "Ortodoncia: Arcos y Resortes", sectionSlug: "ortodoncia-arcos-y-resortes" },
   {
     title: "Ortodoncia: Accesorios y Retenedores",
-    href: "/tienda/ortodoncia-accesorios",
+    sectionSlug: "ortodoncia-accesorios-y-retenedores",
   },
 ];
 
@@ -82,8 +83,8 @@ export default async function TiendaPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {categories.map((category) => (
               <Link
-                key={category.href}
-                href={category.href}
+                key={category.sectionSlug}
+                href={ROUTES.section(category.sectionSlug)}
                 className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow p-8 text-center"
                 aria-label={`Ver productos de ${category.title}`}
               >
