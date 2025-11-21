@@ -6,6 +6,7 @@ import QuantityInput from "@/components/cart/QuantityInput";
 import { useCartStore } from "@/lib/store/cartStore";
 import { useCheckoutStore, selectIsCheckoutDataComplete } from "@/lib/store/checkoutStore";
 import { mxnFromCents, formatMXNFromCents } from "@/lib/utils/currency";
+import { Truck, MessageCircle, ShieldCheck } from "lucide-react";
 
 type Product = {
   id: string;
@@ -190,16 +191,33 @@ export default function ProductActions({ product }: Props) {
           </a>
         </div>
 
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-2">
-          <p className="text-sm text-gray-700 text-center">
-            Envíos a todo México. En pedidos desde $2,000 MXN en productos, el envío es gratis.
-          </p>
-          <p className="text-sm text-gray-700 text-center">
-            Tienda familiar con atención por WhatsApp antes y después de tu compra.
-          </p>
-          <p className="text-sm text-gray-700 text-center">
-            Pagos seguros con tarjeta en modo prueba para tus pruebas de compra.
-          </p>
+        <div className="mt-4 rounded-xl border border-gray-200 bg-white/60 p-4 sm:p-5">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 flex-shrink-0 rounded-full bg-blue-50 p-2 text-blue-600" aria-hidden="true">
+                <Truck className="h-4 w-4" />
+              </div>
+              <p className="text-xs sm:text-sm text-gray-700">
+                Envíos a todo México. En pedidos desde $2,000 MXN en productos, el envío es gratis.
+              </p>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 flex-shrink-0 rounded-full bg-green-50 p-2 text-green-600" aria-hidden="true">
+                <MessageCircle className="h-4 w-4" />
+              </div>
+              <p className="text-xs sm:text-sm text-gray-700">
+                Tienda familiar con atención por WhatsApp antes y después de tu compra.
+              </p>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 flex-shrink-0 rounded-full bg-emerald-50 p-2 text-emerald-600" aria-hidden="true">
+                <ShieldCheck className="h-4 w-4" />
+              </div>
+              <p className="text-xs sm:text-sm text-gray-700">
+                Pagos seguros con tarjeta en modo prueba para tus pruebas de compra.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
