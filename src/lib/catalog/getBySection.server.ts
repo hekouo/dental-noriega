@@ -2,7 +2,13 @@ import "server-only";
 import { unstable_noStore as noStore } from "next/cache";
 import { createClient } from "@/lib/supabase/public";
 import { mapDbToCatalogItem } from "./mapDbToProduct";
-import { CATALOG_PAGE_SIZE, calculateOffset, type CatalogSortOption } from "./config";
+import {
+  CATALOG_PAGE_SIZE,
+  calculateOffset,
+  type CatalogSortOption,
+  type PriceRangeKey,
+  getPriceRangeBounds,
+} from "./config";
 
 export type GetBySectionResult = {
   items: ReturnType<typeof mapDbToCatalogItem>[];
@@ -15,6 +21,8 @@ export async function getBySection(
   section: string,
   page: number = 1,
   sort: CatalogSortOption = "relevance",
+  inStockOnly: boolean = false,
+  priceRange: PriceRangeKey = "all",
 ): Promise<GetBySectionResult> {
   noStore();
   const sb = createClient();
@@ -26,6 +34,22 @@ export async function getBySection(
     .from("api_catalog_with_images")
     .select("*")
     .eq("section", section);
+
+  // Aplicar filtro de stock
+  if (inStockOnly) {
+    query = query.eq("in_stock", true);
+  }
+
+  // Aplicar filtro de rango de precio
+  const priceBounds = getPriceRangeBounds(priceRange);
+  if (priceBounds) {
+    if (priceBounds.minCents !== undefined) {
+      query = query.gte("price_cents", priceBounds.minCents);
+    }
+    if (priceBounds.maxCents !== undefined) {
+      query = query.lte("price_cents", priceBounds.maxCents);
+    }
+  }
 
   // Aplicar ordenamiento según la opción seleccionada
   switch (sort) {

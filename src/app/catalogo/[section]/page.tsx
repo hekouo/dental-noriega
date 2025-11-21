@@ -5,11 +5,20 @@ import { getBySection } from "@/lib/catalog/getBySection.server";
 import { ROUTES } from "@/lib/routes";
 import ProductCard from "@/components/catalog/ProductCard";
 import Pagination from "@/components/catalog/Pagination";
-import { parsePage, normalizeSortParam } from "@/lib/catalog/config";
+import {
+  parsePage,
+  normalizeSortParam,
+  normalizePriceRangeParam,
+} from "@/lib/catalog/config";
 import dynamicImport from "next/dynamic";
 
 const SortSelect = dynamicImport(
   () => import("@/components/catalog/SortSelect.client"),
+  { ssr: false },
+);
+
+const FiltersSelect = dynamicImport(
+  () => import("@/components/catalog/FiltersSelect.client"),
   { ssr: false },
 );
 
@@ -19,7 +28,12 @@ export const fetchCache = "force-no-store";
 
 type Props = {
   params: { section: string };
-  searchParams: { page?: string; sort?: string };
+  searchParams: {
+    page?: string;
+    sort?: string;
+    inStock?: string;
+    priceRange?: string;
+  };
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -32,7 +46,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // Intentar obtener productos de la sección (solo primera página para metadata)
   let result: Awaited<ReturnType<typeof getBySection>> | null = null;
   try {
-    result = await getBySection(section, 1, "relevance");
+    result = await getBySection(section, 1, "relevance", false, "all");
   } catch {
     // Silenciar errores en build - usar fallback
   }
@@ -82,6 +96,8 @@ export default async function CatalogoSectionPage({ params, searchParams }: Prop
   const section = decodeURIComponent(params.section ?? "").trim();
   const page = parsePage(searchParams.page);
   const sort = normalizeSortParam(searchParams.sort);
+  const inStockOnly = searchParams.inStock === "true";
+  const priceRange = normalizePriceRangeParam(searchParams.priceRange);
   
   if (!section) {
     return (
@@ -106,7 +122,7 @@ export default async function CatalogoSectionPage({ params, searchParams }: Prop
   let errorOccurred = false;
 
   try {
-    result = await getBySection(section, page, sort);
+    result = await getBySection(section, page, sort, inStockOnly, priceRange);
   } catch (error) {
     if (process.env.NODE_ENV !== "production") {
       console.error("[catalogo/section] Error:", error);
@@ -182,12 +198,24 @@ export default async function CatalogoSectionPage({ params, searchParams }: Prop
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-12">
-        {/* Control de ordenamiento */}
-        <div className="mb-6 flex justify-end">
-          <SortSelect
-            currentSort={sort}
+        {/* Controles de filtros y ordenamiento */}
+        <div className="mb-6 flex flex-col gap-4">
+          <FiltersSelect
+            inStockOnly={inStockOnly}
+            priceRange={priceRange}
             basePath={ROUTES.section(section)}
+            preserveParams={sort !== "relevance" ? { sort } : {}}
           />
+          <div className="flex justify-end">
+            <SortSelect
+              currentSort={sort}
+              basePath={ROUTES.section(section)}
+              preserveParams={{
+                ...(inStockOnly ? { inStock: "true" } : {}),
+                ...(priceRange !== "all" ? { priceRange } : {}),
+              }}
+            />
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -218,7 +246,11 @@ export default async function CatalogoSectionPage({ params, searchParams }: Prop
             page={result.page}
             hasNextPage={result.hasNextPage}
             basePath={ROUTES.section(section)}
-            extraQuery={sort !== "relevance" ? { sort } : {}}
+            extraQuery={{
+              ...(sort !== "relevance" ? { sort } : {}),
+              ...(inStockOnly ? { inStock: "true" } : {}),
+              ...(priceRange !== "all" ? { priceRange } : {}),
+            }}
           />
         )}
       </div>

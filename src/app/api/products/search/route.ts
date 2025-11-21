@@ -3,7 +3,14 @@ import { NextResponse } from "next/server";
 import { unstable_noStore as noStore } from "next/cache";
 import { createClient } from "@/lib/supabase/public";
 import { mapDbToCatalogItem } from "@/lib/catalog/mapDbToProduct";
-import { CATALOG_PAGE_SIZE, calculateOffset, hasNextPage as calculateHasNextPage, normalizeSortParam } from "@/lib/catalog/config";
+import {
+  CATALOG_PAGE_SIZE,
+  calculateOffset,
+  hasNextPage as calculateHasNextPage,
+  normalizeSortParam,
+  normalizePriceRangeParam,
+  getPriceRangeBounds,
+} from "@/lib/catalog/config";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -30,6 +37,8 @@ export async function GET(req: Request) {
   const q = qRaw.trim().toLowerCase();
   const page = Math.max(1, parseInt(url.searchParams.get("page") || "1", 10));
   const sort = normalizeSortParam(url.searchParams.get("sort"));
+  const inStockOnly = url.searchParams.get("inStock") === "true";
+  const priceRange = normalizePriceRangeParam(url.searchParams.get("priceRange"));
   const perPage = CATALOG_PAGE_SIZE;
 
   if (!q) {
@@ -48,8 +57,23 @@ export async function GET(req: Request) {
       .from("api_catalog_with_images")
       .select("*", { count: "exact" })
       .or(`title.ilike.%${q}%,product_slug.ilike.%${q}%,section.ilike.%${q}%`)
-      .eq("is_active", true)
-      .eq("in_stock", true);
+      .eq("is_active", true);
+
+    // Aplicar filtro de stock (si inStockOnly, solo productos en stock; si no, ya no filtramos por in_stock)
+    if (inStockOnly) {
+      query = query.eq("in_stock", true);
+    }
+
+    // Aplicar filtro de rango de precio
+    const priceBounds = getPriceRangeBounds(priceRange);
+    if (priceBounds) {
+      if (priceBounds.minCents !== undefined) {
+        query = query.gte("price_cents", priceBounds.minCents);
+      }
+      if (priceBounds.maxCents !== undefined) {
+        query = query.lte("price_cents", priceBounds.maxCents);
+      }
+    }
 
     // Aplicar ordenamiento según la opción seleccionada
     switch (sort) {

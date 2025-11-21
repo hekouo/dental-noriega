@@ -7,7 +7,12 @@ import SearchResultCard from "@/components/SearchResultCard";
 import { ROUTES } from "@/lib/routes";
 import SearchTracker from "@/components/SearchTracker.client";
 import Pagination from "@/components/catalog/Pagination";
-import { CATALOG_PAGE_SIZE, parsePage, normalizeSortParam } from "@/lib/catalog/config";
+import {
+  CATALOG_PAGE_SIZE,
+  parsePage,
+  normalizeSortParam,
+  normalizePriceRangeParam,
+} from "@/lib/catalog/config";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -37,8 +42,19 @@ const SortSelect = dynamicImport(
   { ssr: false },
 );
 
+const FiltersSelect = dynamicImport(
+  () => import("@/components/catalog/FiltersSelect.client"),
+  { ssr: false },
+);
+
 type Props = {
-  searchParams: { q?: string; page?: string; sort?: string };
+  searchParams: {
+    q?: string;
+    page?: string;
+    sort?: string;
+    inStock?: string;
+    priceRange?: string;
+  };
 };
 
 export default async function BuscarPage({ searchParams }: Props) {
@@ -46,6 +62,8 @@ export default async function BuscarPage({ searchParams }: Props) {
   const q = qRaw.trim();
   const page = parsePage(searchParams.page);
   const sort = normalizeSortParam(searchParams.sort);
+  const inStockOnly = searchParams.inStock === "true";
+  const priceRange = normalizePriceRangeParam(searchParams.priceRange);
 
   if (!q) {
     return (
@@ -70,9 +88,21 @@ export default async function BuscarPage({ searchParams }: Props) {
   }
 
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? "";
+  const queryParams = new URLSearchParams();
+  queryParams.set("q", q);
+  queryParams.set("page", page.toString());
+  if (sort !== "relevance") {
+    queryParams.set("sort", sort);
+  }
+  if (inStockOnly) {
+    queryParams.set("inStock", "true");
+  }
+  if (priceRange !== "all") {
+    queryParams.set("priceRange", priceRange);
+  }
   const apiUrl = base
-    ? `${base}/api/products/search?q=${encodeURIComponent(q)}&page=${page}&sort=${sort}`
-    : `/api/products/search?q=${encodeURIComponent(q)}&page=${page}&sort=${sort}`;
+    ? `${base}/api/products/search?${queryParams.toString()}`
+    : `/api/products/search?${queryParams.toString()}`;
 
   const res = await fetch(apiUrl, {
     cache: "no-store",
@@ -117,7 +147,7 @@ export default async function BuscarPage({ searchParams }: Props) {
 
       {items.length > 0 && (
         <>
-          <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="mb-6 space-y-4">
             <p className="text-gray-700">
               {total} resultado{total !== 1 ? "s" : ""} para{" "}
               <strong className="text-gray-900">"{q}"</strong>
@@ -125,11 +155,28 @@ export default async function BuscarPage({ searchParams }: Props) {
                 <span className="text-gray-500 text-sm"> (página {page})</span>
               )}
             </p>
-            <SortSelect
-              currentSort={sort}
-              basePath={ROUTES.buscar()}
-              preserveParams={{ q }}
-            />
+            <div className="flex flex-col gap-4">
+              <FiltersSelect
+                inStockOnly={inStockOnly}
+                priceRange={priceRange}
+                basePath={ROUTES.buscar()}
+                preserveParams={{
+                  q,
+                  ...(sort !== "relevance" ? { sort } : {}),
+                }}
+              />
+              <div className="flex justify-end">
+                <SortSelect
+                  currentSort={sort}
+                  basePath={ROUTES.buscar()}
+                  preserveParams={{
+                    q,
+                    ...(inStockOnly ? { inStock: "true" } : {}),
+                    ...(priceRange !== "all" ? { priceRange } : {}),
+                  }}
+                />
+              </div>
+            </div>
           </div>
         </>
       )}
@@ -190,6 +237,8 @@ export default async function BuscarPage({ searchParams }: Props) {
             extraQuery={{
               q,
               ...(sort !== "relevance" ? { sort } : {}),
+              ...(inStockOnly ? { inStock: "true" } : {}),
+              ...(priceRange !== "all" ? { priceRange } : {}),
             }}
           />
         </>
