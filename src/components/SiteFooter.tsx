@@ -55,6 +55,14 @@ export default function SiteFooter() {
           <ul className="space-y-1">
             <li>
               <Link
+                href="/como-comprar"
+                className="hover:text-primary-600 hover:underline transition-colors"
+              >
+                Cómo comprar
+              </Link>
+            </li>
+            <li>
+              <Link
                 href="/envios"
                 className="hover:text-primary-600 hover:underline transition-colors"
               >
