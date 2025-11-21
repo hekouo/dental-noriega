@@ -112,7 +112,7 @@ export default async function HomePage() {
             Insumos dentales para consultorios y clínicas en México
           </h1>
           <p className="text-lg sm:text-xl md:text-2xl mb-6 sm:mb-8 text-primary-100">
-            Somos una tienda familiar en México. Compra brackets, guantes, material de ortodoncia y consumibles con atención personalizada por WhatsApp, envíos confiables y un sistema de puntos que premia cada compra.
+            Tienda familiar de insumos dentales con envío a todo México y atención por WhatsApp.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-4 sm:mb-6">
             <Link
@@ -129,7 +129,7 @@ export default async function HomePage() {
             </Link>
           </div>
           <p className="text-sm sm:text-base text-primary-100 max-w-2xl mx-auto">
-            Enviamos a todo México. En pedidos desde $2,000 MXN en productos, el envío es gratis. Te ayudamos a elegir el material correcto según tu práctica y tu presupuesto.
+            Envío gratis desde $2,000 MXN en productos.
           </p>
         </div>
       </section>
