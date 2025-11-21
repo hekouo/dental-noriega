@@ -112,3 +112,22 @@ export function getPriceRangeBounds(priceRange: PriceRangeKey): {
   }
 }
 
+/**
+ * Obtiene el label de texto para un rango de precio
+ * @param key Clave del rango de precio
+ * @returns Label legible para mostrar en UI
+ */
+export function getPriceRangeLabel(key: PriceRangeKey): string {
+  switch (key) {
+    case "lt_500":
+      return "Menos de $500";
+    case "500_1000":
+      return "$500 a $1,000";
+    case "gt_1000":
+      return "Más de $1,000";
+    case "all":
+    default:
+      return "Todos los precios";
+  }
+}
+
