@@ -9,6 +9,8 @@ import { useCartStore } from "@/lib/store/cartStore";
 import { formatMXN, mxnFromCents } from "@/lib/utils/currency";
 import { normalizePrice, hasPurchasablePrice } from "@/lib/catalog/model";
 import { getWhatsAppHref } from "@/lib/whatsapp";
+import { FREE_SHIPPING_THRESHOLD_MXN } from "@/lib/shipping/freeShipping";
+import { LOYALTY_POINTS_PER_MXN } from "@/lib/loyalty/config";
 
 /**
  * Props unificadas para ProductCard
@@ -188,11 +190,33 @@ export default function ProductCard({
         {price !== null ? formatMXN(price) : "Consultar precio"}
       </div>
 
-      {/* Estado de stock */}
-      {soldOut && (
-        <span className="mt-1 inline-block rounded bg-red-100 px-2 py-0.5 text-[11px] text-red-700">
-          Agotado
+      {/* Estado de stock - Badge mejorado */}
+      {in_stock !== null && in_stock !== undefined && (
+        <span
+          className={`mt-1 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+            in_stock
+              ? "bg-emerald-50 text-emerald-700"
+              : "bg-red-50 text-red-700"
+          }`}
+        >
+          {in_stock ? "En stock" : "Agotado"}
         </span>
+      )}
+
+      {/* Texto de envío gratis */}
+      {price !== null && (
+        <p className="mt-1 text-[11px] text-gray-500">
+          Envío gratis desde ${FREE_SHIPPING_THRESHOLD_MXN.toLocaleString("es-MX")} MXN en productos.
+        </p>
+      )}
+
+      {/* Puntos estimados */}
+      {price !== null && (
+        <p className="mt-0.5 text-[11px] text-amber-700">
+          Acumulas aprox.{" "}
+          {Math.floor(price * LOYALTY_POINTS_PER_MXN).toLocaleString("es-MX")}{" "}
+          puntos con este producto.
+        </p>
       )}
 
       {/* Controles: cantidad y agregar al carrito */}

@@ -8,6 +8,8 @@ import ProductViewTracker from "@/components/ProductViewTracker.client";
 import { ROUTES } from "@/lib/routes";
 import Link from "next/link";
 import PdpRelatedSection from "./PdpRelatedSection";
+import { FREE_SHIPPING_THRESHOLD_MXN } from "@/lib/shipping/freeShipping";
+import { LOYALTY_POINTS_PER_MXN } from "@/lib/loyalty/config";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -201,20 +203,38 @@ export default async function ProductDetailPage({ params }: Props) {
                 <div className="text-4xl font-bold text-primary-600">
                   {price}
                 </div>
-                <div className="flex items-center space-x-2">
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      !soldOut
-                        ? "bg-green-100 text-green-800"
-                        : "bg-red-100 text-red-800"
-                    }`}
-                  >
-                    {!soldOut ? "En stock" : "Agotado"}
-                  </span>
+                <div className="flex items-center space-x-2 flex-wrap gap-2">
+                  {/* Badge de stock mejorado */}
+                  {product.in_stock !== null &&
+                    product.in_stock !== undefined && (
+                      <span
+                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                          product.in_stock
+                            ? "bg-emerald-50 text-emerald-700"
+                            : "bg-red-50 text-red-700"
+                        }`}
+                      >
+                        {product.in_stock ? "En stock" : "Agotado"}
+                      </span>
+                    )}
                   {product.in_stock && (
                     <span className="text-sm text-gray-600">
                       Lista para envío inmediato
                     </span>
+                  )}
+                </div>
+
+                {/* Información de envío gratis y puntos */}
+                <div className="space-y-1 pt-2">
+                  <p className="text-sm text-gray-500">
+                    Envío gratis desde ${FREE_SHIPPING_THRESHOLD_MXN.toLocaleString("es-MX")} MXN en productos.
+                  </p>
+                  {product.price > 0 && (
+                    <p className="text-sm text-amber-700">
+                      Acumulas aprox.{" "}
+                      {Math.floor(product.price * LOYALTY_POINTS_PER_MXN).toLocaleString("es-MX")}{" "}
+                      puntos con este producto.
+                    </p>
                   )}
                 </div>
               </div>
