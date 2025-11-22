@@ -69,11 +69,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const sb = createClient();
     
     // Obtener todos los productos activos de la vista canónica
-    // La vista api_catalog_with_images tiene: id, section, product_slug, title, price_cents, image_url, in_stock, active
+    // La vista api_catalog_with_images tiene: id, section, product_slug, title, price_cents, image_url, in_stock, is_active
     const { data: products, error } = await sb
       .from("api_catalog_with_images")
       .select("section, product_slug")
-      .eq("active", true)
+      .eq("is_active", true)
       .not("section", "is", null)
       .not("product_slug", "is", null);
 
