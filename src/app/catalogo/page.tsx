@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { listSectionsFromCatalog } from "@/lib/supabase/catalog";
 import { getSectionsFromCatalogView } from "@/lib/catalog/getSectionsFromCatalogView.server";
 import { ROUTES } from "@/lib/routes";
+import Breadcrumbs from "@/components/navigation/Breadcrumbs";
 // Package icon replaced with inline SVG to reduce bundle size
 
 export const dynamic = "force-dynamic";
@@ -35,6 +36,13 @@ export default async function CatalogoIndexPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="bg-gradient-to-r from-primary-600 to-primary-800 text-white py-12">
         <div className="max-w-7xl mx-auto px-4">
+          <Breadcrumbs
+            items={[
+              { href: ROUTES.home(), label: "Inicio" },
+              { label: "Catálogo" },
+            ]}
+            className="mb-4"
+          />
           <h1 className="text-4xl font-bold mb-2">Catálogo Completo</h1>
           <p className="text-primary-100">
             Explora todas nuestras categorías de productos
