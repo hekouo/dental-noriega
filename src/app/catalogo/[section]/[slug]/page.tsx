@@ -6,10 +6,10 @@ import ImageWithFallback from "@/components/ui/ImageWithFallback";
 import ProductActions from "@/components/product/ProductActions.client";
 import ProductViewTracker from "@/components/ProductViewTracker.client";
 import { ROUTES } from "@/lib/routes";
-import Link from "next/link";
 import PdpRelatedSection from "./PdpRelatedSection";
 import { FREE_SHIPPING_THRESHOLD_MXN } from "@/lib/shipping/freeShipping";
 import { LOYALTY_POINTS_PER_MXN } from "@/lib/loyalty/config";
+import Breadcrumbs from "@/components/navigation/Breadcrumbs";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -144,29 +144,19 @@ export default async function ProductDetailPage({ params }: Props) {
         {/* Breadcrumb */}
         <div className="bg-white border-b">
           <div className="max-w-6xl mx-auto px-4 py-3">
-            <nav className="flex items-center space-x-2 text-sm text-gray-600">
-              <Link href={ROUTES.home()} className="hover:text-primary-600">
-                Inicio
-              </Link>
-              <span>/</span>
-              <Link
-                href={ROUTES.catalogIndex()}
-                className="hover:text-primary-600"
-              >
-                Catálogo
-              </Link>
-              <span>/</span>
-              <Link
-                href={`/catalogo/${product.section}`}
-                className="hover:text-primary-600"
-              >
-                {product.section
-                  .replace(/-/g, " ")
-                  .replace(/\b\w/g, (l: string) => l.toUpperCase())}
-              </Link>
-              <span>/</span>
-              <span className="text-gray-900 font-medium">{product.title}</span>
-            </nav>
+            <Breadcrumbs
+              items={[
+                { href: ROUTES.home(), label: "Inicio" },
+                { href: ROUTES.catalogIndex(), label: "Catálogo" },
+                {
+                  href: ROUTES.section(product.section),
+                  label: product.section
+                    .replace(/-/g, " ")
+                    .replace(/\b\w/g, (l: string) => l.toUpperCase()),
+                },
+                { label: product.title },
+              ]}
+            />
           </div>
         </div>
 

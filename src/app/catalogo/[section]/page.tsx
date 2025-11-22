@@ -11,6 +11,7 @@ import {
   normalizePriceRangeParam,
 } from "@/lib/catalog/config";
 import dynamicImport from "next/dynamic";
+import Breadcrumbs from "@/components/navigation/Breadcrumbs";
 
 const SortSelect = dynamicImport(
   () => import("@/components/catalog/SortSelect.client"),
@@ -182,12 +183,14 @@ export default async function CatalogoSectionPage({ params, searchParams }: Prop
     <div className="min-h-screen bg-gray-50">
       <div className="bg-gradient-to-r from-primary-600 to-primary-800 text-white py-12">
         <div className="max-w-7xl mx-auto px-4">
-          <Link
-            href={ROUTES.catalogIndex()}
-            className="text-primary-100 hover:text-white mb-2 inline-block"
-          >
-            <span>← Volver al catálogo</span>
-          </Link>
+          <Breadcrumbs
+            items={[
+              { href: ROUTES.home(), label: "Inicio" },
+              { href: ROUTES.catalogIndex(), label: "Catálogo" },
+              { label: sectionName },
+            ]}
+            className="mb-4"
+          />
           <h1 className="text-4xl font-bold mb-2">{sectionName}</h1>
           <p className="text-primary-100">
             {result && page > 1
