@@ -734,7 +734,27 @@ function DatosPageContent() {
               className="mt-1 h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
             />
             <label htmlFor="aceptaAviso" className="ml-2 text-sm text-gray-700">
-              Acepto el contrato de compra y el aviso de privacidad *
+              Acepto el{" "}
+              <Link
+                href="/contrato-de-compra"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-2 text-blue-600 hover:text-blue-700 transition-colors"
+                onClick={(e) => e.stopPropagation()}
+              >
+                contrato de compra
+              </Link>{" "}
+              y el{" "}
+              <Link
+                href="/aviso-de-privacidad"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-2 text-blue-600 hover:text-blue-700 transition-colors"
+                onClick={(e) => e.stopPropagation()}
+              >
+                aviso de privacidad
+              </Link>{" "}
+              *
             </label>
           </div>
           <p id="aceptaAviso-help" className="text-xs text-gray-500 ml-6">

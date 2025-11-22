@@ -79,10 +79,18 @@ export default function SiteFooter() {
             </li>
             <li>
               <Link
-                href="/aviso-privacidad"
+                href="/aviso-de-privacidad"
                 className="hover:text-primary-600 hover:underline transition-colors"
               >
                 Aviso de privacidad
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/contrato-de-compra"
+                className="hover:text-primary-600 hover:underline transition-colors"
+              >
+                Contrato de compra
               </Link>
             </li>
             <li>
