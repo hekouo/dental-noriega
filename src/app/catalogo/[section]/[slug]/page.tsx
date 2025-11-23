@@ -5,6 +5,8 @@ import { getProduct } from "@/lib/catalog/getProduct.server";
 import ImageWithFallback from "@/components/ui/ImageWithFallback";
 import ProductActions from "@/components/product/ProductActions.client";
 import ProductViewTracker from "@/components/ProductViewTracker.client";
+import RecentlyViewedTracker from "@/components/catalog/RecentlyViewedTracker.client";
+import RecentlyViewed from "@/components/catalog/RecentlyViewed.client";
 import { ROUTES } from "@/lib/routes";
 import PdpRelatedSection from "./PdpRelatedSection";
 import { FREE_SHIPPING_THRESHOLD_MXN } from "@/lib/shipping/freeShipping";
@@ -141,6 +143,19 @@ export default async function ProductDetailPage({ params }: Props) {
           priceCents={Math.round(product.price * 100)}
         />
 
+        {/* Registrar producto como visto recientemente */}
+        <RecentlyViewedTracker
+          product={{
+            id: product.id,
+            section: product.section,
+            slug: product.slug,
+            title: product.title,
+            priceCents: Math.round(product.price * 100),
+            image_url: product.image_url ?? null,
+            inStock: product.in_stock ?? null,
+          }}
+        />
+
         {/* Breadcrumb */}
         <div className="bg-white border-b">
           <div className="max-w-6xl mx-auto px-4 py-3">
@@ -266,6 +281,9 @@ export default async function ProductDetailPage({ params }: Props) {
             section={product.section}
             currentProductId={product.id}
           />
+
+          {/* Productos vistos recientemente */}
+          <RecentlyViewed />
         </div>
       </div>
     );
