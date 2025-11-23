@@ -82,6 +82,7 @@ export async function GET(
     }
 
     // Filtrar en memoria: activos y en stock
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Supabase row type is dynamic
     const products = (data ?? []).map((r: any) => mapDbToCatalogItem(r));
     const filteredProducts = products.filter(
       (p) => p.is_active && p.in_stock,

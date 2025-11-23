@@ -62,7 +62,9 @@ export async function getFeaturedProducts(): Promise<CatalogItem[]> {
         price_cents: item.price_cents,
         image_url: item.image_url,
         in_stock: item.in_stock,
-        is_active: (item as any).active ?? true,
+        // La vista puede tener 'active' o 'is_active'
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Vista dinámica de Supabase
+        is_active: (item as any).active ?? (item as any).is_active ?? true,
       } satisfies CatalogItem;
     });
   } catch (error) {
@@ -183,7 +185,9 @@ export async function listBySection(
         price_cents: item.price_cents,
         image_url: item.image_url,
         in_stock: item.in_stock,
-        is_active: (item as any).active ?? true,
+        // La vista puede tener 'active' o 'is_active'
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Vista dinámica de Supabase
+        is_active: (item as any).active ?? (item as any).is_active ?? true,
       } satisfies CatalogItem;
     });
   } catch (error) {

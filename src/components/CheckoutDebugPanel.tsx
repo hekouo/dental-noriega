@@ -4,7 +4,6 @@ import { Suspense } from "react";
 import { useFormContext } from "react-hook-form";
 import { useSearchParams } from "next/navigation";
 import { useCheckoutStore } from "@/lib/store/checkoutStore";
-import { useCartStore } from "@/lib/store/cartStore";
 
 function CheckoutDebugPanelContent() {
   // Hooks siempre se llaman primero, antes de cualquier early return

@@ -6,7 +6,6 @@ import {
   updateAddress,
   deleteAddress,
   setDefaultAddress,
-  type AccountAddress,
 } from "@/lib/supabase/addresses.server";
 
 // Schema de validación para crear/actualizar dirección

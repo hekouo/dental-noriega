@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useState, useTransition } from "react";
 import type { AccountAddress } from "@/lib/supabase/addresses.server";
 import { isValidEmail } from "@/lib/validation/email";
 
@@ -465,7 +465,11 @@ export default function DireccionesClient() {
               disabled={isPending}
               className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isPending ? "Guardando..." : editingId ? "Actualizar" : "Guardar"}
+              {(() => {
+                if (isPending) return "Guardando...";
+                if (editingId) return "Actualizar";
+                return "Guardar";
+              })()}
             </button>
             {editingId && (
               <button

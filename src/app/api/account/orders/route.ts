@@ -14,7 +14,8 @@ const OrdersRequestSchema = z.object({
   orderId: z.string().uuid().optional(),
 });
 
-type OrdersRequest = z.infer<typeof OrdersRequestSchema>;
+// Type export for potential future use
+export type OrdersRequest = z.infer<typeof OrdersRequestSchema>;
 
 export async function POST(req: NextRequest) {
   noStore();

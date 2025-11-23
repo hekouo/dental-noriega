@@ -27,8 +27,6 @@ const SaveOrderRequestSchema = z.object({
   metadata: z.record(z.unknown()).optional(),
 });
 
-type SaveOrderRequest = z.infer<typeof SaveOrderRequestSchema>;
-
 // TODO: Refactor this function to reduce cognitive complexity. Rule temporarily disabled to keep CI passing.
 // eslint-disable-next-line sonarjs/cognitive-complexity
 export async function POST(req: NextRequest) {
@@ -107,9 +105,18 @@ export async function POST(req: NextRequest) {
     const metadataFromPayload = orderData.metadata || {};
     
     // Extraer valores del metadata recibido o calcularlos
-    const subtotalCents = typeof metadataFromPayload.subtotal_cents === "number"
-      ? metadataFromPayload.subtotal_cents
-      : orderData.total_cents - (typeof metadataFromPayload.shipping_cost_cents === "number" ? metadataFromPayload.shipping_cost_cents : 0) + (typeof metadataFromPayload.discount_cents === "number" ? metadataFromPayload.discount_cents : 0);
+    let subtotalCents: number;
+    if (typeof metadataFromPayload.subtotal_cents === "number") {
+      subtotalCents = metadataFromPayload.subtotal_cents;
+    } else {
+      const shippingCost = typeof metadataFromPayload.shipping_cost_cents === "number"
+        ? metadataFromPayload.shipping_cost_cents
+        : 0;
+      const discountCents = typeof metadataFromPayload.discount_cents === "number"
+        ? metadataFromPayload.discount_cents
+        : 0;
+      subtotalCents = orderData.total_cents - shippingCost + discountCents;
+    }
     
     // Obtener shipping_cost_cents del payload o del metadata existente de la orden
     let shippingCostCents = typeof metadataFromPayload.shipping_cost_cents === "number"

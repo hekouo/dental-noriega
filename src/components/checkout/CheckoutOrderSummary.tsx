@@ -74,12 +74,14 @@ export default function CheckoutOrderSummary({
         <div className="space-y-3">
           {selectedItems.map((item) => {
             const qty = item.qty ?? 1;
-            const priceCents =
-              typeof item.price_cents === "number"
-                ? item.price_cents
-                : typeof item.price === "number"
-                  ? Math.round(item.price * 100)
-                  : 0;
+            let priceCents: number;
+            if (typeof item.price_cents === "number") {
+              priceCents = item.price_cents;
+            } else if (typeof item.price === "number") {
+              priceCents = Math.round(item.price * 100);
+            } else {
+              priceCents = 0;
+            }
             const lineTotalCents = priceCents * qty;
 
             return (

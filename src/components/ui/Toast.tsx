@@ -34,12 +34,14 @@ export default function Toast({
     setTimeout(() => onClose?.(), 300);
   };
 
-  const bgColor =
-    type === "error"
-      ? "bg-red-50 border-red-200 text-red-800"
-      : type === "success"
-        ? "bg-green-50 border-green-200 text-green-800"
-        : "bg-blue-50 border-blue-200 text-blue-800";
+  let bgColor: string;
+  if (type === "error") {
+    bgColor = "bg-red-50 border-red-200 text-red-800";
+  } else if (type === "success") {
+    bgColor = "bg-green-50 border-green-200 text-green-800";
+  } else {
+    bgColor = "bg-blue-50 border-blue-200 text-blue-800";
+  }
 
   return (
     <div

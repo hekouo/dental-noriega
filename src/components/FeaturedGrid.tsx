@@ -26,10 +26,10 @@ function toProductCardProps(
 }
 
 export default function FeaturedGrid({ 
-  items, 
-  hideSoldOutLabel = false 
+  items,
+  hideSoldOutLabel: _hideSoldOutLabel = false
 }: { 
-  items: FeaturedItem[]; 
+  items: FeaturedItem[];
   hideSoldOutLabel?: boolean;
 }) {
   if (!items?.length) return null;

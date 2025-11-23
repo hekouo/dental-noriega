@@ -2,9 +2,8 @@
 "use client";
 
 import React, { useEffect, useCallback } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { ROUTES } from "@/lib/routes";
 
 // TODO: Refactor this component to reduce cognitive complexity. Rule temporarily disabled to keep CI passing.
 // eslint-disable-next-line sonarjs/cognitive-complexity
