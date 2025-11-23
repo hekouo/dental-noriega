@@ -8,10 +8,15 @@ import ProductViewTracker from "@/components/ProductViewTracker.client";
 import RecentlyViewedTracker from "@/components/catalog/RecentlyViewedTracker.client";
 import RecentlyViewed from "@/components/catalog/RecentlyViewed.client";
 import { ROUTES } from "@/lib/routes";
+import { SITE } from "@/lib/site";
 import PdpRelatedSection from "./PdpRelatedSection";
 import { FREE_SHIPPING_THRESHOLD_MXN } from "@/lib/shipping/freeShipping";
 import { LOYALTY_POINTS_PER_MXN } from "@/lib/loyalty/config";
 import Breadcrumbs from "@/components/navigation/Breadcrumbs";
+import {
+  getBreadcrumbsJsonLd,
+  getProductJsonLd,
+} from "@/lib/seo/schema";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -103,38 +108,44 @@ export default async function ProductDetailPage({ params }: Props) {
     style: "currency",
     currency: "MXN",
   }).format(product.price);
-  const base =
-    process.env.NEXT_PUBLIC_SITE_URL ?? "https://dental-noriega.vercel.app";
-  const canonicalUrl = `${base}/catalogo/${product.section}/${product.slug}`;
-  const soldOut = !product.in_stock || !product.is_active;
+  const productUrl = `${SITE.url}${ROUTES.product(product.section, product.slug)}`;
 
-    // JSON-LD Product schema
-    const jsonLd = {
-      "@context": "https://schema.org",
-      "@type": "Product",
-      name: product.title,
-      description:
-        product.description ?? `${product.title} en Depósito Dental Noriega`,
-      image: image_url ? [image_url] : [],
-      url: canonicalUrl,
-      offers: {
-        "@type": "Offer",
-        price: product.price > 0 ? product.price.toFixed(2) : "0",
-        priceCurrency: "MXN",
-        availability: !soldOut && product.price > 0
-          ? "https://schema.org/InStock"
-          : "https://schema.org/OutOfStock",
-        url: canonicalUrl,
-      },
-    };
+  // Formatear sección para breadcrumbs y schema
+  const sectionLabel = product.section
+    .replace(/-/g, " ")
+    .replace(/\b\w/g, (l: string) => l.toUpperCase());
 
-    return (
-      <div className="min-h-screen bg-gray-50">
-        {/* JSON-LD Product schema */}
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-        />
+  // Breadcrumbs JSON-LD
+  const breadcrumbsJsonLd = getBreadcrumbsJsonLd([
+    { name: "Inicio", url: SITE.url },
+    { name: "Catálogo", url: `${SITE.url}${ROUTES.catalogIndex()}` },
+    { name: sectionLabel, url: `${SITE.url}${ROUTES.section(product.section)}` },
+    { name: product.title },
+  ]);
+
+  // Product JSON-LD
+  const productJsonLd = getProductJsonLd({
+    id: product.id,
+    name: product.title,
+    description: product.description ?? null,
+    sectionName: sectionLabel,
+    url: productUrl,
+    image_url: image_url ?? null,
+    priceCents: product.price > 0 ? Math.round(product.price * 100) : null,
+    currency: "MXN",
+    inStock: product.in_stock,
+  });
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Structured Data: Breadcrumbs + Product */}
+      <script
+        type="application/ld+json"
+        suppressHydrationWarning
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify([breadcrumbsJsonLd, productJsonLd]),
+        }}
+      />
 
         {/* Analítica: view_item */}
         <ProductViewTracker
@@ -165,9 +176,7 @@ export default async function ProductDetailPage({ params }: Props) {
                 { href: ROUTES.catalogIndex(), label: "Catálogo" },
                 {
                   href: ROUTES.section(product.section),
-                  label: product.section
-                    .replace(/-/g, " ")
-                    .replace(/\b\w/g, (l: string) => l.toUpperCase()),
+                  label: sectionLabel,
                 },
                 { label: product.title },
               ]}
