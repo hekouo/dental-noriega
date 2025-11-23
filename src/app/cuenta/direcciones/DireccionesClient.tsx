@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useState, useTransition } from "react";
 import type { AccountAddress } from "@/lib/supabase/addresses.server";
 import { isValidEmail } from "@/lib/validation/email";
 

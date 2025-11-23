@@ -27,8 +27,6 @@ const SaveOrderRequestSchema = z.object({
   metadata: z.record(z.unknown()).optional(),
 });
 
-type SaveOrderRequest = z.infer<typeof SaveOrderRequestSchema>;
-
 // TODO: Refactor this function to reduce cognitive complexity. Rule temporarily disabled to keep CI passing.
 // eslint-disable-next-line sonarjs/cognitive-complexity
 export async function POST(req: NextRequest) {

@@ -69,7 +69,7 @@ export default function CuentaClientPage() {
             setLoyaltyLoading(false);
           }
         }
-      } catch (err) {
+      } catch {
         // Ignorar errores de autenticación
       }
     };

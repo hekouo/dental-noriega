@@ -36,16 +36,6 @@ const categories = [
   },
 ];
 
-/**
- * Verifica si las variables de entorno de Supabase están presentes
- */
-function hasSupabaseEnvs(): boolean {
-  return !!(
-    process.env.NEXT_PUBLIC_SUPABASE_URL &&
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
-}
-
 export default async function TiendaPage() {
   const featured = await getFeaturedItems();
 

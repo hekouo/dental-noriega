@@ -3,10 +3,6 @@
 import { useState, useRef, useEffect } from "react";
 import { formatMXNFromCents } from "@/lib/utils/currency";
 import { isValidEmail } from "@/lib/validation/email";
-import {
-  LOYALTY_MIN_POINTS_FOR_DISCOUNT,
-  LOYALTY_DISCOUNT_PERCENT,
-} from "@/lib/loyalty/config";
 import type {
   OrderSummary,
   OrderDetail,

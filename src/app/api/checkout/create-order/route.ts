@@ -36,8 +36,6 @@ const CreateOrderRequestSchema = z.object({
   }).optional(),
 });
 
-type CreateOrderRequest = z.infer<typeof CreateOrderRequestSchema>;
-
 // TODO: Refactor this function to reduce cognitive complexity. Rule temporarily disabled to keep CI passing.
 // eslint-disable-next-line sonarjs/cognitive-complexity
 export async function POST(req: NextRequest) {

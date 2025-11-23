@@ -1,0 +1,245 @@
+
+> deposito-dental-nextjs@0.1.0 lint C:\deposito dental noriega\project
+> eslint .
+
+
+C:\deposito dental noriega\project\src\app\api\account\addresses\route.ts
+  9:8  warning  'AccountAddress' is defined but never used     @typescript-eslint/no-unused-vars
+  9:8  warning  Remove this unused import of 'AccountAddress'  sonarjs/unused-import
+
+C:\deposito dental noriega\project\src\app\api\account\orders\route.ts
+  17:6  warning  'OrdersRequest' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\deposito dental noriega\project\src\app\api\checkout\create-order\route.ts
+  39:6  warning  'CreateOrderRequest' is defined but never used       @typescript-eslint/no-unused-vars
+  41:4  warning  Complete the task associated to this "TODO" comment  sonarjs/todo-tag
+
+C:\deposito dental noriega\project\src\app\api\checkout\order-status\route.ts
+  45:5   warning  Handle this exception or don't catch it at all  sonarjs/no-ignored-exceptions
+  45:12  warning  'err' is defined but never used                 @typescript-eslint/no-unused-vars
+
+C:\deposito dental noriega\project\src\app\api\checkout\save-order\route.ts
+   30:6    warning  'SaveOrderRequest' is defined but never used                         @typescript-eslint/no-unused-vars
+   32:4    warning  Complete the task associated to this "TODO" comment                  sonarjs/todo-tag
+  112:34   warning  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+  112:144  warning  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+  242:67   warning  Complete the task associated to this "TODO" comment                  sonarjs/todo-tag
+  388:67   warning  Complete the task associated to this "TODO" comment                  sonarjs/todo-tag
+
+C:\deposito dental noriega\project\src\app\api\checkout\update-order-status\route.ts
+  31:65  warning  Complete the task associated to this "TODO" comment  sonarjs/todo-tag
+
+C:\deposito dental noriega\project\src\app\api\debug\section\[section]\route.ts
+  85:43  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\deposito dental noriega\project\src\app\api\stripe\create-payment-intent\route.ts
+  16:6  warning  'CreatePaymentIntentRequest' is defined but never used  @typescript-eslint/no-unused-vars
+  29:4  warning  Complete the task associated to this "TODO" comment     sonarjs/todo-tag
+
+C:\deposito dental noriega\project\src\app\api\stripe\webhook\route.ts
+  20:23  warning  Refactor this function to reduce its Cognitive Complexity from 37 to the 15 allowed  sonarjs/cognitive-complexity
+  88:69  warning  Complete the task associated to this "TODO" comment                                  sonarjs/todo-tag
+
+C:\deposito dental noriega\project\src\app\aviso-de-privacidad\page.tsx
+  5:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\deposito dental noriega\project\src\app\aviso-privacidad\page.tsx
+  6:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\deposito dental noriega\project\src\app\buscar\page.tsx
+   21:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+  225:24  warning  Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+
+C:\deposito dental noriega\project\src\app\catalogo\[section]\[slug]\page.tsx
+  22:23  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\deposito dental noriega\project\src\app\catalogo\[section]\page.tsx
+   40:23  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+   96:31  warning  Refactor this function to reduce its Cognitive Complexity from 20 to the 15 allowed                                             sonarjs/cognitive-complexity
+  198:47  warning  Extract this nested ternary operation into an independent statement                                                             sonarjs/no-nested-conditional
+  198:93  warning  Extract this nested ternary operation into an independent statement                                                             sonarjs/no-nested-conditional
+
+C:\deposito dental noriega\project\src\app\catalogo\page.tsx
+  14:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\deposito dental noriega\project\src\app\checkout\datos\page.tsx
+  8:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\deposito dental noriega\project\src\app\checkout\gracias\GraciasContent.tsx
+   30:4   warning  Complete the task associated to this "TODO" comment                                                                   sonarjs/todo-tag
+   54:6   warning  Complete the task associated to this "TODO" comment                                                                   sonarjs/todo-tag
+  126:6   warning  Complete the task associated to this "TODO" comment                                                                   sonarjs/todo-tag
+  299:12  warning  Complete the task associated to this "TODO" comment                                                                   sonarjs/todo-tag
+  331:48  warning  Refactor this code to not nest functions more than 4 levels deep                                                      sonarjs/no-nested-functions
+  351:26  warning  Refactor this code to not nest functions more than 4 levels deep                                                      sonarjs/no-nested-functions
+  436:27  warning  Refactor this code to not nest functions more than 4 levels deep                                                      sonarjs/no-nested-functions
+  455:6   warning  Complete the task associated to this "TODO" comment                                                                   sonarjs/todo-tag
+  478:8   warning  Complete the task associated to this "TODO" comment                                                                   sonarjs/todo-tag
+  595:9   warning  Handle this exception or don't catch it at all                                                                        sonarjs/no-ignored-exceptions
+  595:16  warning  'err' is defined but never used                                                                                       @typescript-eslint/no-unused-vars
+  620:6   warning  React Hook useEffect has a missing dependency: 'resetAfterSuccess'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  675:38  warning  Refactor this function to reduce its Cognitive Complexity from 24 to the 15 allowed                                   sonarjs/cognitive-complexity
+
+C:\deposito dental noriega\project\src\app\checkout\gracias\page.tsx
+  8:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\deposito dental noriega\project\src\app\checkout\pago\GuardsClient.tsx
+  87:9  warning  Complete the task associated to this "TODO" comment  sonarjs/todo-tag
+
+C:\deposito dental noriega\project\src\app\checkout\pago\PagoClient.tsx
+    55:25  warning  Refactor this function to reduce its Cognitive Complexity from 37 to the 15 allowed  sonarjs/cognitive-complexity
+   374:6   warning  Complete the task associated to this "TODO" comment                                  sonarjs/todo-tag
+   398:15  warning  Extract this nested ternary operation into an independent statement                  sonarjs/no-nested-conditional
+   456:17  warning  Extract this nested ternary operation into an independent statement                  sonarjs/no-nested-conditional
+   545:17  warning  Extract this nested ternary operation into an independent statement                  sonarjs/no-nested-conditional
+   581:6   warning  Complete the task associated to this "TODO" comment                                  sonarjs/todo-tag
+   606:17  warning  Extract this nested ternary operation into an independent statement                  sonarjs/no-nested-conditional
+   938:19  warning  Extract this nested ternary operation into an independent statement                  sonarjs/no-nested-conditional
+   940:21  warning  Extract this nested ternary operation into an independent statement                  sonarjs/no-nested-conditional
+   948:19  warning  Extract this nested ternary operation into an independent statement                  sonarjs/no-nested-conditional
+   994:19  warning  Extract this nested ternary operation into an independent statement                  sonarjs/no-nested-conditional
+  1226:19  warning  Extract this nested ternary operation into an independent statement                  sonarjs/no-nested-conditional
+  1227:21  warning  Extract this nested ternary operation into an independent statement                  sonarjs/no-nested-conditional
+
+C:\deposito dental noriega\project\src\app\checkout\pago\page.tsx
+  9:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\deposito dental noriega\project\src\app\como-comprar\page.tsx
+  12:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\deposito dental noriega\project\src\app\contrato-de-compra\page.tsx
+  5:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\deposito dental noriega\project\src\app\cuenta\ClientPage.tsx
+   72:9   warning  Handle this exception or don't catch it at all                       sonarjs/no-ignored-exceptions
+   72:16  warning  'err' is defined but never used                                      @typescript-eslint/no-unused-vars
+  166:17  warning  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+
+C:\deposito dental noriega\project\src\app\cuenta\direcciones\DireccionesClient.tsx
+    3:20  warning  'useEffect' is defined but never used                                @typescript-eslint/no-unused-vars
+    3:20  warning  Remove this unused import of 'useEffect'                             sonarjs/unused-import
+  227:24  warning  Refactor this code to not nest functions more than 4 levels deep     sonarjs/no-nested-functions
+  468:45  warning  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+
+C:\deposito dental noriega\project\src\app\cuenta\direcciones\page.tsx
+  4:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\deposito dental noriega\project\src\app\cuenta\metodos\page.tsx
+  5:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\deposito dental noriega\project\src\app\cuenta\page.tsx
+  8:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\deposito dental noriega\project\src\app\cuenta\pedidos\layout.tsx
+  3:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\deposito dental noriega\project\src\app\cuenta\pedidos\page.tsx
+    7:3   warning  'LOYALTY_MIN_POINTS_FOR_DISCOUNT' is defined but never used          @typescript-eslint/no-unused-vars
+    7:3   warning  Remove this unused import of 'LOYALTY_MIN_POINTS_FOR_DISCOUNT'       sonarjs/unused-import
+    8:3   warning  'LOYALTY_DISCOUNT_PERCENT' is defined but never used                 @typescript-eslint/no-unused-vars
+    8:3   warning  Remove this unused import of 'LOYALTY_DISCOUNT_PERCENT'              sonarjs/unused-import
+  328:17  warning  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+  353:17  warning  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+  392:33  warning  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+  446:33  warning  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+  448:35  warning  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+  516:27  warning  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+
+C:\deposito dental noriega\project\src\app\destacados\page.tsx
+  11:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\deposito dental noriega\project\src\app\error.tsx
+   5:10  warning  'useRouter' is defined but never used                @typescript-eslint/no-unused-vars
+   5:10  warning  Remove this unused import of 'useRouter'             sonarjs/unused-import
+   7:10  warning  'ROUTES' is defined but never used                   @typescript-eslint/no-unused-vars
+   7:10  warning  Remove this unused import of 'ROUTES'                sonarjs/unused-import
+   9:4   warning  Complete the task associated to this "TODO" comment  sonarjs/todo-tag
+  25:6   warning  Complete the task associated to this "TODO" comment  sonarjs/todo-tag
+  48:6   warning  Complete the task associated to this "TODO" comment  sonarjs/todo-tag
+
+C:\deposito dental noriega\project\src\app\icon.tsx
+  4:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\deposito dental noriega\project\src\app\page.tsx
+   4:10  warning  'getFeatured' is defined but never used                                                                                         @typescript-eslint/no-unused-vars
+   4:10  warning  Remove this unused import of 'getFeatured'                                                                                      sonarjs/unused-import
+  91:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\deposito dental noriega\project\src\app\terminos-condiciones\page.tsx
+  5:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\deposito dental noriega\project\src\app\tienda\page.tsx
+  11:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+  42:10  warning  'hasSupabaseEnvs' is defined but never used                                                                                     @typescript-eslint/no-unused-vars
+
+C:\deposito dental noriega\project\src\components\CartBubble.tsx
+  256:28  warning  Refactor this code to not nest functions more than 4 levels deep  sonarjs/no-nested-functions
+
+C:\deposito dental noriega\project\src\components\CheckoutDebugPanel.tsx
+  7:10  warning  'useCartStore' is defined but never used     @typescript-eslint/no-unused-vars
+  7:10  warning  Remove this unused import of 'useCartStore'  sonarjs/unused-import
+
+C:\deposito dental noriega\project\src\components\FeaturedGrid.tsx
+  30:3  warning  'hideSoldOutLabel' is assigned a value but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+
+C:\deposito dental noriega\project\src\components\ToothAccountMenu.tsx
+  26:51  warning  Refactor this code to not nest functions more than 4 levels deep  sonarjs/no-nested-functions
+
+C:\deposito dental noriega\project\src\components\catalog\ProductCard.tsx
+   59:3   warning  'description' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+  143:19  warning  Found non-literal argument to RegExp Constructor                               security/detect-non-literal-regexp
+
+C:\deposito dental noriega\project\src\components\checkout\CheckoutOrderSummary.tsx
+  80:19  warning  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+
+C:\deposito dental noriega\project\src\components\checkout\StripePaymentForm.tsx
+  45:6   warning  Complete the task associated to this "TODO" comment                  sonarjs/todo-tag
+  85:61  warning  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+
+C:\deposito dental noriega\project\src\components\ui\Toast.tsx
+  40:9  warning  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+
+C:\deposito dental noriega\project\src\lib\cart\migrateToSupabase.ts
+  10:23  warning  Refactor this function to reduce its Cognitive Complexity from 16 to the 15 allowed  sonarjs/cognitive-complexity
+
+C:\deposito dental noriega\project\src\lib\catalog\getProductsBySectionFromView.server.ts
+  52:28  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\deposito dental noriega\project\src\lib\checkout\selection.ts
+  28:11  warning  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+
+C:\deposito dental noriega\project\src\lib\loyalty\points.server.ts
+  82:23  warning  Refactor this function to reduce its Cognitive Complexity from 26 to the 15 allowed  sonarjs/cognitive-complexity
+
+C:\deposito dental noriega\project\src\lib\loyalty\processOrder.server.ts
+  70:23  warning  Refactor this function to reduce its Cognitive Complexity from 38 to the 15 allowed  sonarjs/cognitive-complexity
+
+C:\deposito dental noriega\project\src\lib\orders\ref.ts
+  11:18  warning  Make sure that using this pseudorandom number generator is safe here  sonarjs/pseudo-random
+
+C:\deposito dental noriega\project\src\lib\store\cartStore.ts
+  63:10  warning  'rehydrateCart' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\deposito dental noriega\project\src\lib\store\checkoutStore.ts
+  133:17  warning  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+  181:15  warning  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+
+C:\deposito dental noriega\project\src\lib\supabase\catalog.ts
+   65:29  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  108:27  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  186:29  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\deposito dental noriega\project\src\test\featured.home.test.ts
+  11:25  warning  Refactor this code to not nest functions more than 4 levels deep  sonarjs/no-nested-functions
+
+C:\deposito dental noriega\project\src\test\gracias.recos.test.tsx
+  14:33  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\deposito dental noriega\project\src\test\pdp.resolve.test.ts
+  10:22  warning  Refactor this code to not nest functions more than 4 levels deep  sonarjs/no-nested-functions
+
+C:\deposito dental noriega\project\vitest.setup.ts
+  9:20  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+Ô£û 124 problems (0 errors, 124 warnings)
+
