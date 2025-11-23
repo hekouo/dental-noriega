@@ -11,6 +11,7 @@ import { normalizePrice, hasPurchasablePrice } from "@/lib/catalog/model";
 import { getWhatsAppHref } from "@/lib/whatsapp";
 import { FREE_SHIPPING_THRESHOLD_MXN } from "@/lib/shipping/freeShipping";
 import { LOYALTY_POINTS_PER_MXN } from "@/lib/loyalty/config";
+import { trackAddToCart, trackWhatsappClick } from "@/lib/analytics/events";
 
 /**
  * Props unificadas para ProductCard
@@ -106,23 +107,15 @@ export default function ProductCard({
     });
 
     // Analytics: add_to_cart
-    if (typeof window !== "undefined" && window.dataLayer) {
-      window.dataLayer.push({
-        event: "add_to_cart",
-        ecommerce: {
-          currency: "MXN",
-          value: price * qty,
-          items: [
-            {
-              item_id: id,
-              item_name: title,
-              price,
-              quantity: qty,
-            },
-          ],
-        },
-      });
-    }
+    trackAddToCart({
+      productId: id,
+      section,
+      slug: product_slug,
+      title,
+      priceCents: priceCents > 0 ? priceCents : null,
+      quantity: qty,
+      source: "card",
+    });
 
     setTimeout(() => {
       busyRef.current = false;
@@ -273,6 +266,15 @@ export default function ProductCard({
             href={waHref}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() => {
+              trackWhatsappClick({
+                context: "pdp",
+                productId: id,
+                section,
+                slug: product_slug,
+                title,
+              });
+            }}
             className="text-sm underline text-muted-foreground hover:text-primary-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 rounded"
             aria-label={`Consultar ${title} por WhatsApp`}
           >

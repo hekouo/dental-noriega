@@ -8,6 +8,7 @@ import { useCheckoutStore, selectIsCheckoutDataComplete } from "@/lib/store/chec
 import { mxnFromCents, formatMXNFromCents } from "@/lib/utils/currency";
 import { Truck, MessageCircle, ShieldCheck } from "lucide-react";
 import { getWhatsAppProductUrl } from "@/lib/whatsapp/config";
+import { trackAddToCart, trackWhatsappClick } from "@/lib/analytics/events";
 
 type Product = {
   id: string;
@@ -55,24 +56,16 @@ export default function ProductActions({ product }: Props) {
     setTimeout(() => (busyRef.current = false), 250);
     console.info("✅ Agregado al carrito:", product.title, "x", qty);
 
-    // Analítica: add_to_cart
-    if (typeof window !== "undefined" && window.dataLayer) {
-      window.dataLayer.push({
-        event: "add_to_cart",
-        ecommerce: {
-          currency: "MXN",
-          value: price * qty,
-          items: [
-            {
-              item_id: product.id,
-              item_name: product.title,
-              price,
-              quantity: qty,
-            },
-          ],
-        },
-      });
-    }
+    // Analytics: add_to_cart
+    trackAddToCart({
+      productId: product.id,
+      section: product.section,
+      slug: product.product_slug,
+      title: product.title,
+      priceCents: product.price_cents,
+      quantity: qty,
+      source: "pdp",
+    });
   }
 
   function handleBuyNow() {
@@ -194,6 +187,15 @@ export default function ProductActions({ product }: Props) {
               href={whatsappUrl}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => {
+                trackWhatsappClick({
+                  context: "pdp",
+                  productId: product.id,
+                  section: product.section,
+                  slug: product.product_slug,
+                  title: product.title,
+                });
+              }}
               className="w-full bg-green-500 text-white px-6 py-3 rounded-md hover:bg-green-600 transition-colors font-semibold flex items-center justify-center gap-2"
             >
               <MessageCircle className="w-5 h-5" />

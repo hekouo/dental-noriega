@@ -12,6 +12,7 @@ import DebugLastOrder from "@/components/DebugLastOrder";
 import { useCartStore } from "@/lib/store/cartStore";
 import { useCheckoutStore } from "@/lib/store/checkoutStore";
 import { loadStripe } from "@stripe/stripe-js";
+import { trackPurchase } from "@/lib/analytics/events";
 
 type LastOrder = {
   orderRef: string;
@@ -44,6 +45,7 @@ export default function GraciasContent() {
   const clearCart = useCartStore((s) => s.clearCart);
   const clearSelection = useCheckoutStore((s) => s.clearSelection);
   const resetAfterSuccess = useCheckoutStore((s) => s.resetAfterSuccess);
+  const hasTrackedRef = React.useRef(false);
 
   // Marcar como montado solo en cliente
   useEffect(() => {
@@ -663,6 +665,35 @@ export default function GraciasContent() {
   const displayTotal = totalFromStorage ?? total;
   const displayItems = orderDataFromStorage?.items || [];
   const displayStatus = orderStatus || orderDataFromStorage?.status || null;
+
+  // Track purchase cuando la orden está pagada (solo una vez)
+  useEffect(() => {
+    if (!displayStatus || displayStatus !== "paid" || hasTrackedRef.current) return;
+    if (!orderRef) return;
+
+    hasTrackedRef.current = true;
+
+    const totalCents = orderDataFromStorage?.total_cents ?? 0;
+    const orderData = orderDataFromStorage as {
+      email?: string;
+      metadata?: {
+        contact_email?: string;
+        loyalty_points_earned?: number;
+        loyalty_points_spent?: number;
+      };
+    } | null;
+    const email = orderData?.metadata?.contact_email ?? orderData?.email ?? null;
+    const pointsEarned = orderData?.metadata?.loyalty_points_earned ?? null;
+    const pointsSpent = orderData?.metadata?.loyalty_points_spent ?? null;
+
+    trackPurchase({
+      orderId: orderRef,
+      totalCents,
+      email: typeof email === "string" ? email : null,
+      pointsEarned: typeof pointsEarned === "number" ? pointsEarned : null,
+      pointsSpent: typeof pointsSpent === "number" ? pointsSpent : null,
+    });
+  }, [displayStatus, orderRef, orderDataFromStorage]);
   
   // Estado para puntos de lealtad
   const [loyaltyInfo, setLoyaltyInfo] = useState<{

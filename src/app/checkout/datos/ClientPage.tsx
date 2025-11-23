@@ -11,7 +11,7 @@ import { datosSchema, type DatosForm, MX_STATES } from "@/lib/checkout/schemas";
 import CheckoutStepper from "@/components/checkout/CheckoutStepper";
 import CheckoutDebugPanel from "@/components/CheckoutDebugPanel";
 import Link from "next/link";
-import { track } from "@/lib/analytics";
+import { trackBeginCheckout } from "@/lib/analytics/events";
 import { formatMXN as formatMXNMoney } from "@/lib/utils/money";
 import { getSelectedItems } from "@/lib/checkout/selection";
 import type { AccountAddress } from "@/lib/supabase/addresses.server";
@@ -72,8 +72,18 @@ function DatosPageContent() {
 
   // Analytics: begin_checkout al entrar a la página
   useEffect(() => {
-    track("begin_checkout");
-  }, []);
+    const selectedItems = getSelectedItems(checkoutItems);
+    const subtotalCents = selectedItems.reduce((sum, item) => {
+      const priceCents = typeof item.price_cents === "number" ? item.price_cents : typeof item.price === "number" ? Math.round(item.price * 100) : 0;
+      return sum + priceCents * (item.qty || 1);
+    }, 0);
+    
+    trackBeginCheckout({
+      source: "checkout-datos",
+      cartItemsCount: selectedItems.length,
+      subtotalCents: subtotalCents > 0 ? subtotalCents : undefined,
+    });
+  }, [checkoutItems]);
 
   // Cargar direcciones cuando el email cambia (solo si es válido)
   const emailValue = watch("email");
