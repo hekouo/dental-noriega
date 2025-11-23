@@ -5,6 +5,23 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import type { CatalogItem } from "./model";
 
 /**
+ * Tipo para los datos que vienen de la vista api_catalog_with_images
+ */
+type ApiCatalogRow = {
+  id: string | number;
+  product_slug: string | null;
+  section: string | null;
+  title: string | null;
+  description?: string | null;
+  price_cents?: number | null;
+  currency?: string | null;
+  image_url?: string | null;
+  in_stock?: boolean | null;
+  is_active?: boolean | null;
+  active?: boolean | null;
+};
+
+/**
  * Verifica si las variables de entorno de Supabase están presentes
  */
 function hasSupabaseEnvs(): boolean {
@@ -49,7 +66,7 @@ export async function getProductsBySectionFromView(
       return [];
     }
 
-    return data.map((item: any) => ({
+    return data.map((item: ApiCatalogRow) => ({
       id: String(item.id),
       product_slug: String(item.product_slug ?? ""),
       section: String(item.section),

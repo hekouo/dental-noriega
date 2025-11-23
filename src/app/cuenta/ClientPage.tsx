@@ -69,8 +69,11 @@ export default function CuentaClientPage() {
             setLoyaltyLoading(false);
           }
         }
-      } catch {
+      } catch (authError) {
         // Ignorar errores de autenticación
+        if (process.env.NODE_ENV === "development") {
+          console.debug("[CuentaClientPage] Error de autenticación ignorado:", authError);
+        }
       }
     };
 

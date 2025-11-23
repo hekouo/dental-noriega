@@ -592,8 +592,11 @@ export default function GraciasContent() {
             setIsCheckingPayment(false);
           }
         }
-      } catch (err) {
+      } catch (error) {
         // Si hay error, esperar y reintentar una vez más
+        if (process.env.NODE_ENV === "development") {
+          console.debug("[GraciasContent] Error al verificar estado:", error);
+        }
         if (!ignore && pollCount < maxPolls) {
           pollCount++;
           timeoutId = setTimeout(() => {

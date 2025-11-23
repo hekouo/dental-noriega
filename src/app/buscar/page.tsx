@@ -212,18 +212,16 @@ export default async function BuscarPage({ searchParams }: Props) {
             {items.map((it) => (
               <SearchResultCard
                 key={it.id}
-                item={
-                  {
-                    id: it.id,
-                    section: it.section,
-                    product_slug: it.product_slug,
-                    title: it.title,
-                    price_cents: Math.round(it.price * 100),
-                    image_url: it.image_url,
-                    in_stock: true, // Los resultados ya están filtrados por is_active e in_stock
-                    is_active: true,
-                  } as any
-                }
+                item={{
+                  id: it.id,
+                  section: it.section,
+                  product_slug: it.product_slug,
+                  title: it.title,
+                  price_cents: Math.round(it.price * 100),
+                  image_url: it.image_url,
+                  in_stock: true, // Los resultados ya están filtrados por is_active e in_stock
+                  is_active: true,
+                }}
                 highlightQuery={q}
               />
             ))}

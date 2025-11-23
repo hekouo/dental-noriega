@@ -42,7 +42,8 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({ status: data?.status || "pending" });
-  } catch {
+  } catch (error) {
+    console.error("[order-status] Error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

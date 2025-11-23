@@ -13,6 +13,9 @@ const CreatePaymentIntentRequestSchema = z.object({
   total_cents: z.number().int().positive().optional(),
 });
 
+// Type export for potential future use
+export type CreatePaymentIntentRequest = z.infer<typeof CreatePaymentIntentRequestSchema>;
+
 // Verificar que STRIPE_SECRET_KEY existe
 if (!process.env.STRIPE_SECRET_KEY) {
   console.error("[create-payment-intent] STRIPE_SECRET_KEY no está configurado");

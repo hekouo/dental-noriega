@@ -82,7 +82,14 @@ function InnerForm({
       
       // Guardar información completa de la orden en localStorage después de pago exitoso
       if (pi?.status === "succeeded" || pi?.status === "processing" || pi?.status === "requires_capture") {
-        const status = pi.status === "succeeded" ? "paid" : pi.status === "processing" ? "processing" : "requires_capture";
+        let status: string;
+        if (pi.status === "succeeded") {
+          status = "paid";
+        } else if (pi.status === "processing") {
+          status = "processing";
+        } else {
+          status = "requires_capture";
+        }
         
         // Guardar objeto completo en localStorage para /checkout/gracias
         if (typeof window !== "undefined") {

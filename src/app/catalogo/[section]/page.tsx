@@ -193,9 +193,15 @@ export default async function CatalogoSectionPage({ params, searchParams }: Prop
           />
           <h1 className="text-4xl font-bold mb-2">{sectionName}</h1>
           <p className="text-primary-100">
-            {result && page > 1
-              ? `Página ${page}`
-              : `${products.length} producto${products.length !== 1 ? "s" : ""} disponible${products.length !== 1 ? "s" : ""}`}
+            {(() => {
+              if (result && page > 1) {
+                return `Página ${page}`;
+              }
+              const productCount = products.length;
+              const productText = productCount !== 1 ? "productos" : "producto";
+              const availableText = productCount !== 1 ? "disponibles" : "disponible";
+              return `${productCount} ${productText} ${availableText}`;
+            })()}
           </p>
         </div>
       </div>
