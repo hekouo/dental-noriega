@@ -8,6 +8,7 @@ import {
   LOYALTY_MIN_POINTS_FOR_DISCOUNT,
   LOYALTY_DISCOUNT_PERCENT,
 } from "@/lib/loyalty/config";
+import { getComoComprarFaqJsonLd } from "@/lib/seo/schema";
 
 export const metadata: Metadata = {
   title: "Cómo comprar | Depósito Dental Noriega",
@@ -26,6 +27,14 @@ export default function ComoComprarPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12">
+      {/* Structured Data: FAQPage */}
+      <script
+        type="application/ld+json"
+        suppressHydrationWarning
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(getComoComprarFaqJsonLd()),
+        }}
+      />
       <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-gray-900 mb-4">
         Insumos dentales para consultorios y clínicas en México
       </h1>

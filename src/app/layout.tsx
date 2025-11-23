@@ -25,6 +25,10 @@ const ToothAccountMenu = dynamic(
 );
 import { ROUTES } from "@/lib/routes";
 import BrandMark from "@/components/BrandMark";
+import {
+  getOrganizationJsonLd,
+  getWebsiteJsonLd,
+} from "@/lib/seo/schema";
 const NavbarSearch = dynamic(() => import("@/components/NavbarSearch"), {
   ssr: false,
 });
@@ -131,6 +135,17 @@ export default function RootLayout({
       <body
         className={`${inter.className} min-h-screen bg-white text-gray-900 flex flex-col`}
       >
+        {/* Structured Data: Organization + Website */}
+        <script
+          type="application/ld+json"
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify([
+              getOrganizationJsonLd(),
+              getWebsiteJsonLd(),
+            ]),
+          }}
+        />
         <CheckoutDevGuard />
         <header className="border-b bg-white sticky top-0 z-40">
           <nav className="max-w-6xl mx-auto flex items-center justify-between p-4 gap-4">
