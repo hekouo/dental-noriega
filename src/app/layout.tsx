@@ -4,6 +4,7 @@ import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { Inter } from "next/font/google";
+import Script from "next/script";
 import dynamic from "next/dynamic";
 const WhatsappBubble = dynamic(() => import("@/components/WhatsappBubble"), {
   ssr: false,
@@ -52,6 +53,12 @@ const FinalThanks = dynamic(() => import("@/components/FinalThanks"), {
 const WarmupTrigger = dynamic(() => import("@/components/dev/WarmupTrigger"), {
   ssr: false,
 });
+const AnalyticsGa4Bridge = dynamic(
+  () => import("@/lib/analytics/ga4Bridge.client").then((m) => ({ default: m.AnalyticsGa4Bridge })),
+  {
+    ssr: false,
+  },
+);
 
 const inter = Inter({ subsets: ["latin"], display: "swap" });
 
@@ -131,6 +138,29 @@ export default function RootLayout({
         {supabaseOrigin ? (
           <link rel="preconnect" href={supabaseOrigin} crossOrigin="" />
         ) : null}
+        {/* Google Analytics 4 */}
+        {process.env.NEXT_PUBLIC_GA4_MEASUREMENT_ID && (
+          <>
+            <Script
+              src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA4_MEASUREMENT_ID}`}
+              strategy="afterInteractive"
+            />
+            <Script
+              id="gtag-init"
+              strategy="afterInteractive"
+              dangerouslySetInnerHTML={{
+                __html: `
+                  window.dataLayer = window.dataLayer || [];
+                  function gtag(){dataLayer.push(arguments);}
+                  gtag('js', new Date());
+                  gtag('config', '${process.env.NEXT_PUBLIC_GA4_MEASUREMENT_ID}', {
+                    send_page_view: true
+                  });
+                `,
+              }}
+            />
+          </>
+        )}
       </head>
       <body
         className={`${inter.className} min-h-screen bg-white text-gray-900 flex flex-col`}
@@ -222,6 +252,9 @@ export default function RootLayout({
 
         {/* Footer */}
         <SiteFooter />
+
+        {/* Analytics GA4 Bridge */}
+        <AnalyticsGa4Bridge />
 
         {/* Drawer global */}
         {/* ConsultarDrawer removido */}
