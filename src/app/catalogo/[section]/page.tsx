@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { getBySection } from "@/lib/catalog/getBySection.server";
 import { ROUTES } from "@/lib/routes";
+import { SITE } from "@/lib/site";
 import ProductCard from "@/components/catalog/ProductCard";
 import Pagination from "@/components/catalog/Pagination";
 import {
@@ -38,10 +39,6 @@ type Props = {
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const siteName =
-    process.env.NEXT_PUBLIC_SITE_NAME ?? "Depósito Dental Noriega";
-  const base =
-    process.env.NEXT_PUBLIC_SITE_URL ?? "https://dental-noriega.vercel.app";
   const section = decodeURIComponent(params.section ?? "").trim();
 
   // Intentar obtener productos de la sección (solo primera página para metadata)
@@ -58,37 +55,44 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .replace(/-/g, " ")
     .replace(/\b\w/g, (l) => l.toUpperCase());
 
-  const title = `${sectionName} | ${siteName}`;
-  const description = `Explora ${sectionName} en ${siteName}.`;
-  const image = items?.[0]?.image_url ?? "/og/cover.jpg";
-  const url = `${base}/catalogo/${section}`;
+  const title = `${sectionName} | ${SITE.name}`;
+  const description = `Explora ${sectionName} en ${SITE.name}. Productos dentales de calidad para consultorios y clínicas.`;
+
+  // Usar imagen del primer producto si existe, sino OG por defecto
+  const og_image_url = items?.[0]?.image_url
+    ? new URL(items[0].image_url, SITE.url).toString()
+    : `${SITE.url}${SITE.socialImage}`;
+
+  // URL absoluta de la sección
+  const sectionUrl = new URL(ROUTES.section(section), SITE.url).toString();
 
   return {
     title,
     description,
     openGraph: {
       type: "website",
-      url,
-      siteName,
+      url: sectionUrl,
+      siteName: SITE.name,
       title,
       description,
       images: [
         {
-          url: image,
+          url: og_image_url,
           width: 1200,
           height: 630,
           alt: sectionName,
         },
       ],
+      locale: "es_MX",
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: [image],
+      images: [og_image_url],
     },
     alternates: {
-      canonical: url,
+      canonical: sectionUrl,
     },
   };
 }

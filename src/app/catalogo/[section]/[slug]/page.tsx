@@ -27,10 +27,6 @@ type Props = {
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const siteName =
-    process.env.NEXT_PUBLIC_SITE_NAME ?? "Depósito Dental Noriega";
-  const base =
-    process.env.NEXT_PUBLIC_SITE_URL ?? "https://dental-noriega.vercel.app";
   const section = decodeURIComponent(params.section ?? "");
   const slug = decodeURIComponent(params.slug ?? "");
 
@@ -43,7 +39,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   if (!product) {
-    const title = `Producto no disponible | ${siteName}`;
+    const title = `Producto no disponible | ${SITE.name}`;
     return {
       title,
       description: "Producto no disponible.",
@@ -56,39 +52,49 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .replace(/-/g, " ")
     .replace(/\b\w/g, (l: string) => l.toUpperCase());
 
-  const title = `${product.title} | ${sectionFormatted} | ${siteName}`;
+  const title = `${product.title} | ${sectionFormatted} | ${SITE.name}`;
   const description =
-    product.description?.slice(0, 150) ??
-    `${product.title} - ${sectionFormatted}. Disponible en ${siteName}.`;
-  const image = product.image_url ?? "/og-default.jpg";
-  const url = `${base}/catalogo/${product.section}/${product.slug}`;
+    product.description?.trim()?.slice(0, 160) ??
+    `Compra ${product.title} en ${SITE.name}. Productos para odontólogos y clínicas en México.`;
+
+  // URL absoluta de la imagen del producto o fallback a OG por defecto
+  const og_image_url = product.image_url
+    ? new URL(product.image_url, SITE.url).toString()
+    : `${SITE.url}${SITE.socialImage}`;
+
+  // URL absoluta de la página del producto
+  const productUrl = new URL(
+    ROUTES.product(product.section, product.slug),
+    SITE.url,
+  ).toString();
 
   return {
     title,
     description,
     openGraph: {
       type: "website",
-      url,
-      siteName,
+      url: productUrl,
+      siteName: SITE.name,
       title,
       description,
       images: [
         {
-          url: image,
+          url: og_image_url,
           width: 1200,
           height: 630,
           alt: product.title,
         },
       ],
+      locale: "es_MX",
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: [image],
+      images: [og_image_url],
     },
     alternates: {
-      canonical: url,
+      canonical: productUrl,
     },
   };
 }
