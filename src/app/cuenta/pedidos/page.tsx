@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { formatMXNFromCents } from "@/lib/utils/currency";
 import { isValidEmail } from "@/lib/validation/email";
+import { getBrowserSupabase } from "@/lib/supabase/client";
 import type {
   OrderSummary,
   OrderDetail,
@@ -24,6 +25,77 @@ export default function PedidosPage() {
     canApplyDiscount: boolean;
   } | null>(null);
   const [loyaltyError, setLoyaltyError] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+
+  // Cargar email del usuario autenticado al montar
+  useEffect(() => {
+    const loadUserEmail = async () => {
+      const s = getBrowserSupabase();
+      if (!s) return;
+
+      try {
+        const { data: { user } } = await s.auth.getUser();
+        if (user?.email && isValidEmail(user.email)) {
+          setUserEmail(user.email);
+          setEmail(user.email); // Pre-llenar el email
+          setIsAuthenticated(true);
+          // Cargar órdenes automáticamente si el usuario está autenticado
+          handleAutoLoad(user.email);
+        }
+      } catch (err) {
+        // Ignorar errores de autenticación
+        if (process.env.NODE_ENV === "development") {
+          console.debug("[PedidosPage] Error de autenticación ignorado:", err);
+        }
+      }
+    };
+
+    loadUserEmail();
+  }, []);
+
+  // Función para cargar órdenes automáticamente cuando el usuario está autenticado
+  const handleAutoLoad = async (userEmail: string) => {
+    setLoading(true);
+    setError(null);
+    setOrders(null);
+    setOrderDetail(null);
+
+    try {
+      const [ordersResponse, loyaltyResponse] = await Promise.all([
+        fetch("/api/account/orders", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: userEmail,
+          }),
+        }),
+        fetch(`/api/account/loyalty?email=${encodeURIComponent(userEmail)}`),
+      ]);
+
+      const ordersData = await ordersResponse.json();
+      const loyaltyData = await loyaltyResponse.json();
+
+      if (ordersResponse.ok && ordersData.orders) {
+        setOrders(ordersData.orders);
+      }
+
+      if (loyaltyResponse.ok && loyaltyData) {
+        setLoyaltyPoints({
+          pointsBalance: loyaltyData.pointsBalance || 0,
+          lifetimeEarned: loyaltyData.lifetimeEarned || 0,
+          canApplyDiscount: loyaltyData.canApplyDiscount || false,
+        });
+        setLoyaltyError(null);
+      }
+    } catch (err) {
+      console.error("[PedidosPage] Error al cargar órdenes automáticamente:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -247,24 +319,32 @@ export default function PedidosPage() {
           <div className="space-y-4">
             <div>
               <p className="text-sm text-gray-600 mb-3">
-                Ingresa el correo con el que realizaste tu compra para ver el historial de pedidos.
+                {isAuthenticated
+                  ? "Tus pedidos se cargan automáticamente. Puedes buscar por otro email si lo necesitas."
+                  : "Ingresa el correo con el que realizaste tu compra para ver el historial de pedidos."}
               </p>
               <label
                 htmlFor="email"
                 className="block text-sm font-medium text-gray-700 mb-2"
               >
-                Email *
+                Email {isAuthenticated ? "(opcional)" : "*"}
               </label>
               <input
                 id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                required
+                required={!isAuthenticated}
                 placeholder="tu@email.com"
                 autoComplete="email"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                disabled={isAuthenticated && !!userEmail}
               />
+              {isAuthenticated && userEmail && (
+                <p className="mt-1 text-sm text-gray-500">
+                  Estás autenticado como: <strong>{userEmail}</strong>
+                </p>
+              )}
             </div>
 
             <div>
@@ -290,10 +370,10 @@ export default function PedidosPage() {
 
             <button
               type="submit"
-              disabled={loading || !email.trim()}
+              disabled={loading || (!isAuthenticated && !email.trim())}
               className="w-full px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold"
             >
-              {loading ? "Buscando..." : "Buscar pedidos"}
+              {loading ? "Buscando..." : isAuthenticated && userEmail ? "Buscar por otro email" : "Buscar pedidos"}
             </button>
           </div>
         </form>

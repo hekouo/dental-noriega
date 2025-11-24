@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { createActionSupabase } from "@/lib/supabase/server-actions";
 
 type OrderItem = {
   product_id?: string;
@@ -115,6 +116,18 @@ export async function POST(req: NextRequest) {
           },
         });
 
+        // Intentar obtener user_id de la sesión (si el usuario está autenticado)
+        let user_id: string | null = null;
+        try {
+          const authSupabase = createActionSupabase();
+          const {
+            data: { user },
+          } = await authSupabase.auth.getUser();
+          user_id = user?.id ?? null;
+        } catch {
+          // Si no hay sesión, continuar como guest (user_id = null)
+        }
+
         const { generateOrderRef } = await import("@/lib/orders/ref");
         const orderRef = generateOrderRef();
 
@@ -133,6 +146,7 @@ export async function POST(req: NextRequest) {
         const { data: order, error: orderError } = await supabase
           .from("orders")
           .insert({
+            user_id: user_id, // Ligar orden a usuario si está autenticado
             fulfillment_method: fulfillmentMethod,
             pickup_location: pickupLocation,
             contact_name: orderData.datos.nombre,

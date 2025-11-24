@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { unstable_noStore as noStore } from "next/cache";
 import { z } from "zod";
+import { createActionSupabase } from "@/lib/supabase/server-actions";
 import {
   getOrdersByEmail,
   getOrderWithItems,
@@ -45,15 +46,28 @@ export async function POST(req: NextRequest) {
     const { email, orderId } = validationResult.data;
     const normalizedEmail = email.trim().toLowerCase();
 
+    // Intentar obtener user_id de la sesión (si el usuario está autenticado)
+    let userId: string | null = null;
+    try {
+      const authSupabase = createActionSupabase();
+      const {
+        data: { user },
+      } = await authSupabase.auth.getUser();
+      userId = user?.id ?? null;
+    } catch {
+      // Si no hay sesión, continuar como guest (userId = null, buscar por email)
+    }
+
     // Si viene orderId, devolver detalle de una orden
     if (orderId) {
       try {
-        const order = await getOrderWithItems(orderId, normalizedEmail);
+        const order = await getOrderWithItems(orderId, normalizedEmail, userId);
 
         // Log temporal para debugging
         if (process.env.NODE_ENV === "development") {
           console.log("[api/account/orders] getOrderWithItems result:", {
             orderId,
+            userId,
             email: normalizedEmail,
             found: !!order,
             itemsCount: order?.items?.length || 0,
@@ -62,7 +76,7 @@ export async function POST(req: NextRequest) {
 
         if (!order) {
           return NextResponse.json(
-            { error: "Orden no encontrada o no pertenece a este email" },
+            { error: "Orden no encontrada o no pertenece a tu cuenta" },
             { status: 404 },
           );
         }
@@ -79,11 +93,15 @@ export async function POST(req: NextRequest) {
 
     // Si no viene orderId, devolver lista de órdenes
     try {
-      const orders = await getOrdersByEmail(normalizedEmail, { limit: 20 });
+      const orders = await getOrdersByEmail(normalizedEmail, { 
+        limit: 20,
+        userId: userId, // Pasar userId si está disponible
+      });
 
       // Log temporal para debugging
       if (process.env.NODE_ENV === "development") {
         console.log("[api/account/orders] Respuesta:", {
+          userId,
           email: normalizedEmail,
           ordersCount: orders.length,
         });
