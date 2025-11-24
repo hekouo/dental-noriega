@@ -45,6 +45,38 @@ if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
   });
 }
 
+// Security headers para todas las rutas
+const SECURITY_HEADERS = [
+  {
+    key: "Strict-Transport-Security",
+    value: "max-age=63072000; includeSubDomains; preload",
+  },
+  {
+    key: "X-Frame-Options",
+    value: "DENY",
+  },
+  {
+    key: "X-Content-Type-Options",
+    value: "nosniff",
+  },
+  {
+    key: "Referrer-Policy",
+    value: "strict-origin-when-cross-origin",
+  },
+  {
+    key: "Permissions-Policy",
+    value: "camera=(), microphone=(), geolocation=(), interest-cohort=()",
+  },
+  {
+    key: "Cross-Origin-Opener-Policy",
+    value: "same-origin",
+  },
+  {
+    key: "Cross-Origin-Resource-Policy",
+    value: "same-site",
+  },
+];
+
 const nextConfig = {
   images: {
     formats: ["image/avif", "image/webp"],
@@ -79,6 +111,11 @@ const nextConfig = {
             value: "public, max-age=0, s-maxage=60, stale-while-revalidate=300",
           },
         ],
+      },
+      // Security headers para todas las rutas
+      {
+        source: "/(.*)",
+        headers: SECURITY_HEADERS,
       },
     ];
   },
