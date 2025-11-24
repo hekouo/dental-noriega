@@ -1,6 +1,5 @@
 "use client";
 import { useState, useEffect } from "react";
-import { User2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCartStore, selectCartCount } from "@/lib/store/cartStore";
@@ -10,7 +9,6 @@ import type { User } from "@supabase/supabase-js";
 export function ToothAccountMenu() {
   const qty = useCartStore(selectCartCount);
   const [open, setOpen] = useState(false);
-  const [toothOk, setToothOk] = useState(true);
   const [user, setUser] = useState<User | null>(null);
   const router = useRouter();
 
@@ -68,48 +66,30 @@ export function ToothAccountMenu() {
         </button>
       )}
 
-      {/* Botón principal: muela o fallback persona */}
-      <button
-        aria-label={user ? "Mi cuenta" : "Iniciar sesión"}
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-        className="relative h-10 w-10 rounded-full
-                   bg-gradient-to-b from-white to-neutral-200
-                   shadow-[inset_0_2px_6px_rgba(255,255,255,0.9),0_8px_18px_rgba(0,0,0,0.20)]
-                   ring-1 ring-neutral-300 hover:ring-neutral-400 active:translate-y-[1px] transition
-                   focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
-      >
-        {toothOk ? (
-          <svg
-            viewBox="0 0 128 128"
-            className="absolute inset-0 m-auto h-7 w-7 text-neutral-700"
-            onError={() => setToothOk(false)}
-          >
-            {/* Corona con "raíces", proporciones reales de molar */}
-            <defs>
-              <radialGradient id="toothShade" cx="50%" cy="35%" r="70%">
-                <stop offset="0%" stopColor="#ffffff" />
-                <stop offset="60%" stopColor="#eaeaea" />
-                <stop offset="100%" stopColor="#d9d9d9" />
-              </radialGradient>
-            </defs>
-            <path
-              fill="url(#toothShade)"
-              d="M64 10c24 0 46 14 46 36 0 18-10 32-22 38-5 2.5-8.5 20-14 34-5.5-14-9-31.5-14-34C48 78 34 64 34 46 34 24 50 10 64 10z"
-            />
-            {/* Hendidura central */}
-            <path
-              d="M64 22c10 0 18 6 18 14 0 6-4 10-9 12"
-              stroke="#c7c7c7"
-              strokeWidth="3"
-              fill="none"
-              strokeLinecap="round"
-            />
-          </svg>
-        ) : (
-          <User2 className="absolute inset-0 m-auto h-6 w-6 text-neutral-700" />
-        )}
-      </button>
+      {/* Botón principal: avatar o "Iniciar sesión" */}
+      {user ? (
+        <button
+          aria-label="Mi cuenta"
+          aria-expanded={open}
+          onClick={() => setOpen((v) => !v)}
+          className="flex items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded-lg px-2 py-1 hover:bg-gray-50 transition"
+        >
+          <div className="h-9 w-9 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-semibold shadow-sm">
+            {user.email?.[0]?.toUpperCase() || user.user_metadata?.full_name?.[0]?.toUpperCase() || "U"}
+          </div>
+          <span className="hidden sm:inline-block ml-2 text-sm font-medium text-gray-700">
+            Cuenta
+          </span>
+        </button>
+      ) : (
+        <Link
+          href="/cuenta"
+          className="inline-flex items-center rounded-full border border-blue-500 text-blue-600 px-3 py-1.5 text-sm font-medium hover:bg-blue-50 transition"
+          aria-label="Iniciar sesión"
+        >
+          Iniciar sesión
+        </Link>
+      )}
 
       {/* Dropdown */}
       {open && (
@@ -121,12 +101,12 @@ export function ToothAccountMenu() {
           {user ? (
             <>
               <Link
-                href="/cuenta"
+                href="/cuenta/perfil"
                 className="block rounded-xl px-3 py-2 hover:bg-neutral-50 transition-colors"
                 onClick={() => setOpen(false)}
                 role="menuitem"
               >
-                Mi cuenta
+                Mi perfil
               </Link>
               <Link
                 href="/cuenta/pedidos"
