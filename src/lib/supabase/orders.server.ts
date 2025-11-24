@@ -58,34 +58,51 @@ function createServiceRoleSupabase() {
 }
 
 /**
- * Obtiene las órdenes de un email específico
- * @param email - Email del usuario
+ * Obtiene las órdenes de un usuario
+ * @param userId - ID del usuario (opcional, prioridad si está presente)
+ * @param email - Email del usuario (fallback si no hay userId)
  * @param options - Opciones de consulta (limit por defecto 10)
  * @returns Lista de órdenes resumidas (sin items)
+ * 
+ * FLUJO ACTUAL:
+ * - Si hay userId: busca por user_id (órdenes de usuarios autenticados)
+ * - Si no hay userId pero hay email: busca por contact_email (guest checkout)
+ * - Mantiene compatibilidad con pedidos históricos por email
  */
 export async function getOrdersByEmail(
   email: string,
-  options?: { limit?: number },
+  options?: { limit?: number; userId?: string | null },
 ): Promise<OrderSummary[]> {
   const supabase = createServiceRoleSupabase();
   const limit = options?.limit ?? 10;
   const normalizedEmail = email.trim().toLowerCase();
+  const userId = options?.userId;
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("orders")
-    .select("id, created_at, status, email, total_cents, metadata")
-    .eq("email", normalizedEmail)
+    .select("id, created_at, status, contact_email, total_cents, metadata, user_id");
+
+  // Prioridad: buscar por user_id si está disponible (usuarios autenticados)
+  if (userId) {
+    query = query.eq("user_id", userId);
+  } else {
+    // Fallback: buscar por contact_email (guest checkout o pedidos históricos)
+    query = query.eq("contact_email", normalizedEmail);
+  }
+
+  const { data, error } = await query
     .order("created_at", { ascending: false })
     .limit(limit);
 
   if (error) {
-    console.error("[getOrdersByEmail] Error:", { email: normalizedEmail, error });
+    console.error("[getOrdersByEmail] Error:", { userId, email: normalizedEmail, error });
     throw new Error(`Error al obtener órdenes: ${error.message}`);
   }
 
-  // Log temporal para debugging - incluir metadata completo para inspeccionar shipping_cost_cents
+  // Log temporal para debugging
   if (process.env.NODE_ENV === "development" && data && data.length > 0) {
     console.log("[getOrdersByEmail] Resultado completo (primer pedido):", {
+      userId,
       email: normalizedEmail,
       count: data.length,
       firstOrder: {
@@ -104,36 +121,50 @@ export async function getOrdersByEmail(
     id: order.id,
     created_at: order.created_at,
     status: order.status,
-    email: order.email,
+    email: order.contact_email || normalizedEmail, // Usar contact_email o el email proporcionado
     total_cents: order.total_cents,
     metadata: (order.metadata as OrderSummary["metadata"]) || null,
   }));
 }
 
 /**
- * Obtiene una orden específica con sus items, verificando que pertenezca al email
+ * Obtiene una orden específica con sus items, verificando que pertenezca al usuario o email
  * @param orderId - ID de la orden
  * @param email - Email del usuario (para verificación de seguridad)
- * @returns Orden completa con items, o null si no existe o no pertenece al email
+ * @param userId - ID del usuario (opcional, prioridad si está presente)
+ * @returns Orden completa con items, o null si no existe o no pertenece al usuario/email
+ * 
+ * FLUJO ACTUAL:
+ * - Si hay userId: verifica que la orden pertenezca al user_id
+ * - Si no hay userId pero hay email: verifica que la orden pertenezca al contact_email
+ * - Mantiene compatibilidad con pedidos históricos por email
  */
 export async function getOrderWithItems(
   orderId: string,
   email: string,
+  userId?: string | null,
 ): Promise<OrderDetail | null> {
   const supabase = createServiceRoleSupabase();
   const normalizedEmail = email.trim().toLowerCase();
 
-  // Verificar que la orden existe y pertenece al email en una sola query
-  const { data: orderData, error: orderError } = await supabase
+  let query = supabase
     .from("orders")
-    .select("id, created_at, status, email, total_cents, metadata")
-    .eq("id", orderId)
-    .eq("email", normalizedEmail)
-    .single();
+    .select("id, created_at, status, contact_email, total_cents, metadata, user_id")
+    .eq("id", orderId);
+
+  // Prioridad: verificar por user_id si está disponible
+  if (userId) {
+    query = query.eq("user_id", userId);
+  } else {
+    // Fallback: verificar por contact_email
+    query = query.eq("contact_email", normalizedEmail);
+  }
+
+  const { data: orderData, error: orderError } = await query.single();
 
   if (orderError || !orderData) {
     console.warn(
-      `[getOrderWithItems] Orden ${orderId} no encontrada o no pertenece a ${normalizedEmail}`,
+      `[getOrderWithItems] Orden ${orderId} no encontrada o no pertenece a ${userId ? `user_id ${userId}` : `email ${normalizedEmail}`}`,
       { error: orderError },
     );
     return null;
@@ -153,7 +184,7 @@ export async function getOrderWithItems(
       id: orderData.id,
       created_at: orderData.created_at,
       status: orderData.status,
-      email: orderData.email,
+      email: orderData.contact_email || normalizedEmail, // Usar contact_email o el email proporcionado
       total_cents: orderData.total_cents,
       metadata: (orderData.metadata as OrderSummary["metadata"]) || null,
       items: [],
@@ -173,7 +204,7 @@ export async function getOrderWithItems(
     id: orderData.id,
     created_at: orderData.created_at,
     status: orderData.status,
-    email: orderData.email,
+    email: orderData.contact_email || normalizedEmail, // Usar contact_email o el email proporcionado
     total_cents: orderData.total_cents,
     metadata: (orderData.metadata as OrderSummary["metadata"]) || null,
     items: (itemsData || []).map((item) => ({
