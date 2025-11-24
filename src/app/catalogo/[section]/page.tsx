@@ -12,6 +12,8 @@ import {
   normalizePriceRangeParam,
 } from "@/lib/catalog/config";
 import dynamicImport from "next/dynamic";
+import { Package } from "lucide-react";
+import { getWhatsAppUrl } from "@/lib/whatsapp/config";
 import Breadcrumbs from "@/components/navigation/Breadcrumbs";
 
 const SortSelect = dynamicImport(
@@ -137,22 +139,72 @@ export default async function CatalogoSectionPage({ params, searchParams }: Prop
   
   const products = result?.items ?? [];
 
-  // Si no hay productos, mostrar mensaje
+  // Si no hay productos, mostrar mensaje mejorado
   if (products.length === 0 && !errorOccurred) {
+    const sectionName = params.section
+      .replace(/-/g, " ")
+      .replace(/\b\w/g, (l) => l.toUpperCase());
+    
+    const whatsappUrl = getWhatsAppUrl(`Hola, busco productos en la sección "${sectionName}" en Depósito Dental Noriega.`);
+
     return (
-      <div className="p-6">
-        <h1 className="text-xl font-semibold">Sin productos en esta sección</h1>
-        <p className="text-sm opacity-70 mt-1">
-          Prueba en{" "}
-          <Link href="/destacados" className="underline">
-            Destacados
-          </Link>{" "}
-          o{" "}
-          <Link href="/buscar" className="underline">
-            buscar
-          </Link>
-          .
-        </p>
+      <div className="min-h-screen bg-gray-50">
+        <div className="bg-gradient-to-r from-primary-600 to-primary-800 text-white py-12">
+          <div className="max-w-7xl mx-auto px-4">
+            <Breadcrumbs
+              items={[
+                { href: ROUTES.home(), label: "Inicio" },
+                { href: ROUTES.catalogIndex(), label: "Catálogo" },
+                { label: sectionName },
+              ]}
+              className="mb-4"
+            />
+            <h1 className="text-4xl font-bold mb-2">{sectionName}</h1>
+            <p className="text-primary-100">
+              Por ahora no hay productos en esta sección
+            </p>
+          </div>
+        </div>
+
+        <div className="max-w-3xl mx-auto px-4 py-12">
+          <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
+            <div className="w-16 h-16 mx-auto rounded-full bg-gray-100 flex items-center justify-center mb-4">
+              <Package className="w-8 h-8 text-gray-400" aria-hidden="true" />
+            </div>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">
+              Por ahora no hay productos en esta sección
+            </h2>
+            <p className="text-sm text-gray-600 mb-6">
+              Puedes revisar otras categorías o escribirnos por WhatsApp para conseguirte el producto.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Link
+                href={ROUTES.catalogIndex()}
+                className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+              >
+                Ver todas las secciones del catálogo
+              </Link>
+              <Link
+                href={ROUTES.destacados()}
+                className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+              >
+                Ir a destacados
+              </Link>
+            </div>
+            {whatsappUrl && (
+              <div className="mt-4">
+                <Link
+                  href={whatsappUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block px-6 py-3 border border-green-500 text-green-700 rounded-lg hover:bg-green-50 transition-colors font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2"
+                >
+                  Hablar por WhatsApp
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     );
   }

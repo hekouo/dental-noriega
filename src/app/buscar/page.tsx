@@ -3,8 +3,10 @@ import React from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
 import dynamicImport from "next/dynamic";
+import { Search } from "lucide-react";
 import SearchResultCard from "@/components/SearchResultCard";
 import { ROUTES } from "@/lib/routes";
+import { getWhatsAppUrl } from "@/lib/whatsapp/config";
 import SearchTracker from "@/components/SearchTracker.client";
 import Pagination from "@/components/catalog/Pagination";
 import {
@@ -182,26 +184,33 @@ export default async function BuscarPage({ searchParams }: Props) {
       )}
 
       {items.length === 0 && (
-        <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
-          <p className="text-gray-700 mb-2 font-medium">
-            No encontramos productos para "{q}"
-          </p>
+        <div className="bg-white rounded-lg border border-gray-200 p-8 text-center max-w-2xl mx-auto">
+          <div className="w-16 h-16 mx-auto rounded-full bg-gray-100 flex items-center justify-center mb-4">
+            <Search className="w-8 h-8 text-gray-400" aria-hidden="true" />
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            No encontramos resultados para "{q}"
+          </h2>
           <p className="text-sm text-gray-600 mb-6">
-            Intenta con otros términos, revisa la ortografía o prueba con menos palabras
+            Prueba con otro término (por ejemplo, "brackets", "guantes", "resortes") o escríbenos por WhatsApp y te ayudamos a encontrar el producto.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link
-              href={ROUTES.destacados()}
-              className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium"
+              href={ROUTES.catalogIndex()}
+              className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
             >
-              Ver productos destacados
+              Ver todo el catálogo
             </Link>
-            <Link
-              href="/tienda"
-              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
-            >
-              Ver todos los productos
-            </Link>
+            {getWhatsAppUrl(`Hola, busco productos relacionados con "${q}" en Depósito Dental Noriega.`) && (
+              <Link
+                href={getWhatsAppUrl(`Hola, busco productos relacionados con "${q}" en Depósito Dental Noriega.`)!}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-6 py-3 border border-green-500 text-green-700 rounded-lg hover:bg-green-50 transition-colors font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2"
+              >
+                Hablar por WhatsApp
+              </Link>
+            )}
           </div>
         </div>
       )}
