@@ -15,19 +15,19 @@ export async function GET(request: NextRequest) {
     if (error) {
       console.error("[auth/callback] Error exchanging code:", error);
       return NextResponse.redirect(
-        new URL("/cuenta?error=verification_failed", requestUrl.origin),
+        new URL("/cuenta?error=auth", requestUrl.origin),
       );
     }
 
-    // Si es un signup (verificación de email), redirigir con query param
-    if (type === "signup") {
+    // Si es un signup (verificación de email) o magiclink, redirigir a direcciones
+    if (type === "signup" || type === "magiclink") {
       return NextResponse.redirect(
-        new URL("/cuenta?verified=1", requestUrl.origin),
+        new URL("/cuenta/direcciones?verified=1", requestUrl.origin),
       );
     }
 
-    // Para otros tipos (recovery, etc.), redirigir a cuenta
-    return NextResponse.redirect(new URL("/cuenta", requestUrl.origin));
+    // Para otros tipos (recovery, etc.), redirigir a direcciones
+    return NextResponse.redirect(new URL("/cuenta/direcciones", requestUrl.origin));
   }
 
   // Si no hay código, redirigir a cuenta

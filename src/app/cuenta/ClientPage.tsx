@@ -112,7 +112,7 @@ export default function CuentaClientPage() {
             setError(errorMessage);
           }
         } else {
-          router.push("/cuenta/perfil");
+          router.push("/cuenta/direcciones");
         }
       } else {
         const validated = registerSchema.parse(data);

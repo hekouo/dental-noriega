@@ -37,10 +37,10 @@ export default async function PerfilPage({
   const showVerified = params.verified === "1";
 
   return (
-    <main className="max-w-xl mx-auto p-6 space-y-6">
+    <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       <header>
-        <h1 className="text-2xl font-semibold">Mi perfil</h1>
-        <p className="text-gray-600">
+        <h1 className="text-2xl font-semibold text-gray-900">Mi perfil</h1>
+        <p className="text-sm text-gray-500 mt-1">
           Gestiona tu cuenta y tus datos de contacto.
         </p>
       </header>
@@ -54,65 +54,76 @@ export default async function PerfilPage({
 
       <AccountInfoBanner showVerified={showVerified} />
 
-      <section className="rounded-xl border border-gray-200 p-6 space-y-4 bg-white">
-        <div className="space-y-3">
-          <div className="flex items-center justify-between py-2 border-b border-gray-100">
-            <span className="text-sm text-gray-500">Correo</span>
-            <span className="text-sm font-medium text-gray-900">
-              {user.email}
-            </span>
+      <div className="mt-6 bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 space-y-6">
+        <section>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            Datos de cuenta
+          </h2>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <span className="text-sm text-gray-500">Correo</span>
+              <div className="mt-1 flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-900">
+                  {user.email}
+                </span>
+                {isEmailVerified ? (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                    Verificado
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                    Pendiente de verificación
+                  </span>
+                )}
+              </div>
+            </div>
+            <div>
+              <span className="text-sm text-gray-500">Nombre</span>
+              <p className="text-sm font-medium text-gray-900 mt-1">
+                {fullName || (
+                  <span className="text-gray-400">Sin nombre todavía</span>
+                )}
+              </p>
+            </div>
+            <div>
+              <span className="text-sm text-gray-500">Teléfono</span>
+              <p className="text-sm font-medium text-gray-900 mt-1">
+                {phone || <span className="text-gray-400">No registrado</span>}
+              </p>
+            </div>
+            <div>
+              <span className="text-sm text-gray-500">ID de usuario</span>
+              <p className="font-mono text-xs text-gray-600 mt-1">{user.id}</p>
+            </div>
           </div>
-          <div className="flex items-center justify-between py-2 border-b border-gray-100">
-            <span className="text-sm text-gray-500">Nombre</span>
-            <span className="text-sm font-medium text-gray-900">
-              {fullName || "Sin nombre todavía"}
-            </span>
-          </div>
-          <div className="flex items-center justify-between py-2 border-b border-gray-100">
-            <span className="text-sm text-gray-500">Teléfono</span>
-            <span className="text-sm font-medium text-gray-900">
-              {phone || "No registrado"}
-            </span>
-          </div>
-          <div className="flex items-center justify-between py-2">
-            <span className="text-sm text-gray-500">ID de usuario</span>
-            <span className="font-mono text-xs text-gray-600">{user.id}</span>
-          </div>
-        </div>
-      </section>
+        </section>
 
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold text-gray-900">
-          Enlaces principales
-        </h2>
-        <div className="space-y-2">
-          <Link
-            href="/cuenta/pedidos"
-            className="block px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium text-gray-900"
-          >
-            Ver mis pedidos
-          </Link>
-          <Link
-            href="/cuenta/direcciones"
-            className="block px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium text-gray-900"
-          >
-            Mis direcciones
-          </Link>
-          <Link
-            href="/cuenta/puntos"
-            className="block px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium text-gray-900"
-          >
-            Mis puntos de lealtad
-          </Link>
-        </div>
-      </section>
-
-      <section className="text-sm text-gray-600">
-        <p>
-          Próximo: direcciones guardadas, pedidos y puntos. Tranquilo, Roma no
-          se codificó en un día.
-        </p>
-      </section>
+        <section>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            Accesos rápidos
+          </h2>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href="/cuenta/direcciones"
+              className="inline-flex items-center rounded-xl border border-gray-200 px-3 py-2 text-sm hover:bg-gray-50 transition text-gray-700"
+            >
+              Mis direcciones
+            </Link>
+            <Link
+              href="/cuenta/pedidos"
+              className="inline-flex items-center rounded-xl border border-gray-200 px-3 py-2 text-sm hover:bg-gray-50 transition text-gray-700"
+            >
+              Mis pedidos
+            </Link>
+            <Link
+              href="/cuenta/puntos"
+              className="inline-flex items-center rounded-xl border border-gray-200 px-3 py-2 text-sm hover:bg-gray-50 transition text-gray-700"
+            >
+              Ver puntos de lealtad
+            </Link>
+          </div>
+        </section>
+      </div>
     </main>
   );
 }

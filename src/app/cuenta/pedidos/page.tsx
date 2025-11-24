@@ -310,12 +310,18 @@ export default function PedidosPage() {
   // para asegurar que siempre estén actualizados cuando el usuario busca pedidos
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
-        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight mb-6 sm:mb-8 text-gray-900">Mis Pedidos</h1>
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <header>
+        <h1 className="text-2xl font-semibold text-gray-900">Mis pedidos</h1>
+        <p className="text-sm text-gray-500 mt-1">
+          Consulta el historial de tus pedidos y los puntos generados.
+        </p>
+      </header>
+
+      <div className="mt-6 bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 space-y-6">
 
         {/* Formulario de búsqueda */}
-        <form onSubmit={handleSubmit} className="bg-white p-4 sm:p-6 rounded-lg shadow mb-8">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-4">
             <div>
               <p className="text-sm text-gray-600 mb-3">
@@ -397,7 +403,7 @@ export default function PedidosPage() {
 
         {/* Panel de puntos de lealtad */}
         {email.trim() && isValidEmail(email) && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 sm:p-6 mb-8">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 sm:p-6">
             <h2 className="text-lg sm:text-xl font-semibold tracking-tight mb-4 text-gray-900">Tus puntos</h2>
             {loading ? (
               <p className="text-gray-600">Cargando puntos...</p>
@@ -436,7 +442,7 @@ export default function PedidosPage() {
 
         {/* Lista de órdenes */}
         {orders && orders.length > 0 && (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="overflow-hidden">
             <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-gray-900">
                 {orders.length} pedido{orders.length !== 1 ? "s" : ""} encontrado
@@ -555,19 +561,25 @@ export default function PedidosPage() {
         )}
 
         {orders && orders.length === 0 && (
-          <div className="bg-white p-8 rounded-lg shadow text-center">
-            <p className="text-gray-600 mb-2">
-              No encontramos pedidos con este correo.
+          <div className="text-center py-12">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Aún no tienes pedidos
+            </h3>
+            <p className="text-sm text-gray-500 mb-6">
+              Cuando hagas tu primera compra, podrás ver aquí el historial y los puntos generados.
             </p>
-            <p className="text-sm text-gray-500">
-              Verifica que tu email esté bien escrito o prueba con otro que hayas usado antes para comprar.
-            </p>
+            <a
+              href="/tienda"
+              className="inline-flex items-center rounded-xl bg-primary-600 text-white px-4 py-2 text-sm font-medium hover:bg-primary-700 transition"
+            >
+              Ir a la tienda
+            </a>
           </div>
         )}
 
         {/* Detalle de orden */}
         {orderDetail && (
-          <div ref={detailRef} className="bg-white rounded-lg shadow overflow-hidden mt-8">
+          <div ref={detailRef} className="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden mt-6">
             <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-gray-900">Detalle del Pedido</h2>
             </div>

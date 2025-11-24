@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { getBrowserSupabase } from "@/lib/supabase/client";
-import { Plus, Edit, Trash2 } from "lucide-react";
+import { Plus, Edit, Trash2, MapPin } from "lucide-react";
+import AccountInfoBanner from "@/components/account/AccountInfoBanner";
 
 type Address = {
   id: string;
@@ -20,10 +22,12 @@ type Address = {
 };
 
 export default function DireccionesPageClient() {
+  const searchParams = useSearchParams();
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const showVerified = searchParams?.get("verified") === "1";
 
   useEffect(() => {
     loadAddresses();
@@ -121,23 +125,27 @@ export default function DireccionesPageClient() {
 
   return (
     <AuthGuard>
-      <div className="max-w-4xl mx-auto px-4 py-12">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">Mis Direcciones</h1>
+      <AccountInfoBanner showVerified={showVerified} />
+      
+      <div className="mt-6 bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 space-y-6">
+        <div className="flex justify-between items-center">
+          <h2 className="text-lg font-semibold text-gray-900">
+            Mis direcciones guardadas
+          </h2>
           <button
             onClick={() => setShowForm(!showForm)}
-            className="btn btn-primary flex items-center gap-2"
+            className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm hover:bg-gray-50 transition text-gray-700"
           >
-            <Plus size={20} />
-            Nueva Dirección
+            <Plus size={16} />
+            Agregar dirección
           </button>
         </div>
 
         {showForm && (
-          <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
-            <h2 className="text-xl font-semibold mb-4">
+          <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
+            <h3 className="text-lg font-semibold mb-4 text-gray-900">
               {editingId ? "Editar Dirección" : "Nueva Dirección"}
-            </h2>
+            </h3>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="label">
@@ -219,54 +227,73 @@ export default function DireccionesPageClient() {
           </div>
         )}
 
-        <div className="grid gap-4">
-          {addresses.map((address) => (
-            <div
-              key={address.id}
-              className="bg-white rounded-lg shadow p-6 relative"
-            >
-              {address.is_default && (
-                <span className="absolute top-4 right-4 bg-primary-100 text-primary-600 text-xs px-2 py-1 rounded">
-                  Predeterminada
-                </span>
-              )}
-              <h3 className="font-semibold text-lg mb-2">{address.label}</h3>
-              <p className="text-gray-600">
-                {address.street} {address.ext_no}
-                {address.int_no && ` Int. ${address.int_no}`}
-                <br />
-                {address.neighborhood}, {address.city}
-                <br />
-                {address.state}, C.P. {address.zip}
-              </p>
-              <div className="flex gap-2 mt-4">
-                <button
-                  onClick={() => {
-                    setEditingId(address.id);
-                    setShowForm(true);
-                  }}
-                  className="text-primary-600 hover:underline flex items-center gap-1"
-                >
-                  <Edit size={16} />
-                  Editar
-                </button>
-                <button
-                  onClick={() => handleDelete(address.id)}
-                  className="text-red-600 hover:underline flex items-center gap-1"
-                >
-                  <Trash2 size={16} />
-                  Eliminar
-                </button>
-              </div>
-            </div>
-          ))}
-
-          {addresses.length === 0 && (
-            <p className="text-gray-500 text-center py-8">
-              No tienes direcciones guardadas aún
+        {addresses.length === 0 && !showForm ? (
+          <div className="text-center py-12">
+            <MapPin className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Todavía no tienes direcciones guardadas
+            </h3>
+            <p className="text-sm text-gray-500 mb-6">
+              Guarda al menos una dirección para acelerar tus próximas compras.
             </p>
-          )}
-        </div>
+            <button
+              onClick={() => setShowForm(true)}
+              className="inline-flex items-center gap-2 rounded-xl bg-primary-600 text-white px-4 py-2 text-sm font-medium hover:bg-primary-700 transition"
+            >
+              <Plus size={16} />
+              Agregar dirección
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {addresses.map((address) => (
+              <div
+                key={address.id}
+                className="rounded-xl border border-gray-200 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <h3 className="font-semibold text-gray-900">
+                      {address.label}
+                    </h3>
+                    {address.is_default && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary-100 text-primary-600">
+                        Predeterminada
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-600">
+                    {address.street} {address.ext_no}
+                    {address.int_no && ` Int. ${address.int_no}`}
+                    <br />
+                    {address.neighborhood}, {address.city}
+                    <br />
+                    {address.state}, C.P. {address.zip}
+                  </p>
+                </div>
+                <div className="flex gap-2 mt-4 sm:mt-0 sm:ml-4">
+                  <button
+                    onClick={() => {
+                      setEditingId(address.id);
+                      setShowForm(true);
+                    }}
+                    className="text-sm text-primary-600 hover:text-primary-700 flex items-center gap-1"
+                  >
+                    <Edit size={16} />
+                    Editar
+                  </button>
+                  <button
+                    onClick={() => handleDelete(address.id)}
+                    className="text-sm text-red-600 hover:text-red-700 flex items-center gap-1"
+                  >
+                    <Trash2 size={16} />
+                    Eliminar
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </AuthGuard>
   );
