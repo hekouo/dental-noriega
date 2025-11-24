@@ -25,6 +25,7 @@ const ToothAccountMenu = dynamic(
   },
 );
 import { ROUTES } from "@/lib/routes";
+import { SITE } from "@/lib/site";
 import BrandMark from "@/components/BrandMark";
 import {
   getOrganizationJsonLd,
@@ -63,15 +64,12 @@ const AnalyticsGa4Bridge = dynamic(
 const inter = Inter({ subsets: ["latin"], display: "swap" });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL ?? "https://dental-noriega.vercel.app",
-  ),
+  metadataBase: new URL(SITE.url),
   title: {
-    default: "Depósito Dental Noriega | Insumos dentales en México",
-    template: "%s | Depósito Dental Noriega",
+    default: `${SITE.name} | Insumos dentales en México`,
+    template: `%s | ${SITE.name}`,
   },
-  description:
-    "Insumos y equipos dentales de calidad. Servicio a clínicas, consultorios y mayoristas. Envío a todo México.",
+  description: SITE.description,
   keywords: [
     "insumos dentales",
     "equipos dentales",
@@ -82,17 +80,16 @@ export const metadata: Metadata = {
   ],
   openGraph: {
     type: "website",
-    url: "/",
-    siteName: process.env.NEXT_PUBLIC_SITE_NAME ?? "Depósito Dental Noriega",
-    title: "Depósito Dental Noriega | Insumos dentales en México",
-    description:
-      "Insumos y equipos dentales de calidad. Servicio a clínicas, consultorios y mayoristas. Envío a todo México.",
+    url: SITE.url,
+    siteName: SITE.name,
+    title: `${SITE.name} | Insumos dentales en México`,
+    description: SITE.description,
     images: [
       {
-        url: "/og-default.jpg",
+        url: `${SITE.url}${SITE.socialImage}`,
         width: 1200,
         height: 630,
-        alt: "Depósito Dental Noriega",
+        alt: SITE.name,
       },
     ],
     locale: "es_MX",
@@ -100,10 +97,9 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     creator: "@dentalnoriega",
-    title: "Depósito Dental Noriega | Insumos dentales en México",
-    description:
-      "Insumos y equipos dentales de calidad. Servicio a clínicas, consultorios y mayoristas.",
-    images: ["/og-default.jpg"],
+    title: `${SITE.name} | Insumos dentales en México`,
+    description: SITE.description,
+    images: [`${SITE.url}${SITE.socialImage}`],
   },
   robots: {
     index: true,
