@@ -69,17 +69,22 @@ export default function ErrorPage({
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             Ocurrió un error inesperado
           </h1>
-          <p className="text-gray-600 mb-8">
-            Hubo un problema al cargar esta página. Por favor, intenta de nuevo.
+          <p className="text-gray-600 mb-4">
+            Algo salió mal al cargar esta página.
           </p>
+          {pathname?.includes("/checkout/gracias") && (
+            <p className="text-sm text-gray-500 mb-4">
+              Tu pedido y los pagos no se ven afectados. Si ya completaste tu compra, revisa tu correo o contacta por WhatsApp.
+            </p>
+          )}
         </div>
         <div className="flex flex-col sm:flex-row gap-3 justify-center mb-4">
           <button
             onClick={handleRetry}
             className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
-            aria-label="Intentar de nuevo"
+            aria-label="Reintentar"
           >
-            Intentar de nuevo
+            Reintentar
           </button>
           <Link
             href="/"
@@ -87,15 +92,6 @@ export default function ErrorPage({
             aria-label="Volver al inicio"
           >
             Volver al inicio
-          </Link>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <Link
-            href="/tienda"
-            className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
-            aria-label="Ir a la tienda"
-          >
-            Ir a la tienda
           </Link>
         </div>
         {/* Error digest para debugging - solo mostrar si existe */}
