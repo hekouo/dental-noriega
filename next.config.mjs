@@ -75,6 +75,20 @@ const SECURITY_HEADERS = [
     key: "Cross-Origin-Resource-Policy",
     value: "same-site",
   },
+  {
+    key: "Content-Security-Policy-Report-Only",
+    value: [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com https://js.stripe.com",
+      "connect-src 'self' https://*.supabase.co https://api.stripe.com https://www.google-analytics.com https://www.googletagmanager.com",
+      "img-src 'self' data: blob: https://*.supabase.co https://www.google-analytics.com https://www.googletagmanager.com",
+      "style-src 'self' 'unsafe-inline'",
+      "font-src 'self' data:",
+      "frame-src https://js.stripe.com https://hooks.stripe.com https://checkout.stripe.com",
+      "base-uri 'self'",
+      "form-action 'self' https://checkout.stripe.com",
+    ].join("; "),
+  },
 ];
 
 const nextConfig = {
