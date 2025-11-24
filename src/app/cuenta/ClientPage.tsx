@@ -11,6 +11,8 @@ import {
   LOYALTY_MIN_POINTS_FOR_DISCOUNT,
   LOYALTY_DISCOUNT_PERCENT,
 } from "@/lib/loyalty/config";
+import EmailVerificationBanner from "@/components/account/EmailVerificationBanner";
+import AccountInfoBanner from "@/components/account/AccountInfoBanner";
 
 export default function CuentaClientPage() {
   const searchParams = useSearchParams();
@@ -30,6 +32,7 @@ export default function CuentaClientPage() {
   } | null>(null);
   const [loyaltyLoading, setLoyaltyLoading] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [isEmailVerified, setIsEmailVerified] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (!searchParams) return;
@@ -49,6 +52,7 @@ export default function CuentaClientPage() {
         const { data: { user } } = await supabase.auth.getUser();
         if (user?.email && isValidEmail(user.email)) {
           setUserEmail(user.email);
+          setIsEmailVerified(!!user.email_confirmed_at);
           // Cargar puntos de lealtad
           setLoyaltyLoading(true);
           try {
@@ -98,7 +102,15 @@ export default function CuentaClientPage() {
         const result = await loginAction(validated);
 
         if (result?.error) {
-          setError(result.error);
+          // Traducir errores comunes de Supabase a español
+          const errorMessage = result.error;
+          if (errorMessage.includes("Invalid login") || errorMessage.includes("Invalid credentials")) {
+            setError("Correo o contraseña incorrectos.");
+          } else if (errorMessage.includes("Email not confirmed") || errorMessage.includes("email_not_confirmed")) {
+            setError("Debes confirmar tu correo antes de iniciar sesión.");
+          } else {
+            setError(errorMessage);
+          }
         } else {
           router.push("/cuenta/perfil");
         }
@@ -137,10 +149,15 @@ export default function CuentaClientPage() {
         <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-center mb-2 text-gray-900">
           {mode === "login" ? "Iniciar Sesión" : "Crear Cuenta"}
         </h1>
+        {mode === "register" && (
+          <p className="text-sm text-gray-600 text-center mb-2">
+            Crea tu cuenta para acumular puntos y ver tus pedidos anteriores.
+          </p>
+        )}
         <p className="text-sm text-gray-600 text-center mb-8">
           {mode === "login"
             ? "Ingresa a tu cuenta para continuar"
-            : "Regístrate y comienza a ganar puntos"}
+            : ""}
         </p>
 
         {error && (
@@ -153,6 +170,19 @@ export default function CuentaClientPage() {
           <div className="bg-green-50 text-green-600 p-3 rounded-lg mb-4 text-sm">
             {success}
           </div>
+        )}
+
+        {/* Banner de verificación de email */}
+        {userEmail && isEmailVerified !== null && (
+          <EmailVerificationBanner
+            email={userEmail}
+            isVerified={isEmailVerified}
+          />
+        )}
+
+        {/* Banner de correo verificado */}
+        {searchParams?.get("verified") === "1" && (
+          <AccountInfoBanner showVerified={true} />
         )}
 
         {/* Bloque de puntos de lealtad */}
@@ -279,6 +309,11 @@ export default function CuentaClientPage() {
               placeholder="tu@email.com"
               autoComplete="email"
             />
+            {mode === "login" && (
+              <p className="text-xs text-gray-500 mt-1">
+                Si no ves el correo de verificación, revisa tu carpeta de spam.
+              </p>
+            )}
           </div>
 
           <div>
@@ -320,6 +355,25 @@ export default function CuentaClientPage() {
               return "Crear Cuenta";
             })()}
           </button>
+          {mode === "register" && (
+            <p className="text-[11px] text-gray-500 mt-3 text-center">
+              Al crear tu cuenta aceptas el{" "}
+              <Link
+                href="/contrato-de-compra"
+                className="underline underline-offset-2 text-blue-600 hover:text-blue-700"
+              >
+                contrato de compra
+              </Link>{" "}
+              y el{" "}
+              <Link
+                href="/aviso-de-privacidad"
+                className="underline underline-offset-2 text-blue-600 hover:text-blue-700"
+              >
+                aviso de privacidad
+              </Link>
+              .
+            </p>
+          )}
         </form>
 
         <div className="mt-6 text-center">

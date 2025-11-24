@@ -62,8 +62,10 @@ export async function registerAction(input: unknown) {
         phone: phone ?? null,
       },
       emailRedirectTo: process.env.SITE_URL
-        ? `${process.env.SITE_URL}/cuenta/perfil`
-        : undefined,
+        ? `${process.env.SITE_URL}/auth/callback?type=signup`
+        : process.env.NEXT_PUBLIC_SITE_URL
+          ? `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback?type=signup`
+          : undefined,
     },
   });
 
