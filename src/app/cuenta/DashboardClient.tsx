@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
+import { User, ShoppingBag, CreditCard, MapPin } from "lucide-react";
 import AccountInfoBanner from "@/components/account/AccountInfoBanner";
-import type { User } from "@supabase/supabase-js";
+import type { User as SupabaseUser } from "@supabase/supabase-js";
 
 type DashboardClientProps = {
-  user: User;
+  user: SupabaseUser;
   searchParams: { verified?: string; error?: string };
 };
 
@@ -14,55 +14,12 @@ export default function DashboardClient({
   user,
   searchParams,
 }: DashboardClientProps) {
-  const [loyaltyPoints, setLoyaltyPoints] = useState<{
-    pointsBalance: number;
-    lifetimeEarned: number;
-    canApplyDiscount: boolean;
-  } | null>(null);
-  const [loyaltyLoading, setLoyaltyLoading] = useState(true);
-
-  const fullName =
-    (user.user_metadata &&
-      (user.user_metadata.full_name || user.user_metadata.fullName)) ||
-    "";
-  const phone =
-    (user.user_metadata &&
-      (user.user_metadata.phone || user.user_metadata.telefono)) ||
-    "";
-  const isEmailVerified = !!user.email_confirmed_at;
-
-  useEffect(() => {
-    const loadLoyaltyPoints = async () => {
-      if (!user.email) return;
-
-      try {
-        const response = await fetch(
-          `/api/account/loyalty?email=${encodeURIComponent(user.email)}`,
-        );
-        if (response.ok) {
-          const data = await response.json();
-          setLoyaltyPoints({
-            pointsBalance: data.pointsBalance || 0,
-            lifetimeEarned: data.lifetimeEarned || 0,
-            canApplyDiscount: data.canApplyDiscount || false,
-          });
-        }
-      } catch (err) {
-        console.error("[DashboardClient] Error al cargar puntos:", err);
-      } finally {
-        setLoyaltyLoading(false);
-      }
-    };
-
-    loadLoyaltyPoints();
-  }, [user.email]);
-
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-      <header>
-        <h1 className="text-2xl font-semibold text-gray-900">Mi cuenta</h1>
+      <header className="text-center mb-8">
+        <h1 className="text-2xl font-semibold text-gray-900">Mi Cuenta</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Gestiona tu perfil, direcciones, pedidos y puntos de lealtad.
+          Gestión de cuenta y configuración personal
         </p>
       </header>
 
@@ -78,89 +35,81 @@ export default function DashboardClient({
         </div>
       )}
 
-      <div className="mt-6 bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 space-y-6">
-        <section>
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            Resumen de cuenta
-          </h2>
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div>
-              <span className="text-sm text-gray-500">Correo</span>
-              <div className="mt-1 flex items-center gap-2">
-                <span className="text-sm font-medium text-gray-900">
-                  {user.email}
-                </span>
-                {isEmailVerified ? (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                    Verificado
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
-                    Pendiente
-                  </span>
-                )}
-              </div>
+      <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Tarjeta 1: Perfil */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 flex flex-col">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
+              <User className="h-6 w-6 text-blue-600" />
             </div>
-            <div>
-              <span className="text-sm text-gray-500">Nombre</span>
-              <p className="text-sm font-medium text-gray-900 mt-1">
-                {fullName || (
-                  <span className="text-gray-400">Sin nombre todavía</span>
-                )}
-              </p>
-            </div>
-            <div>
-              <span className="text-sm text-gray-500">Teléfono</span>
-              <p className="text-sm font-medium text-gray-900 mt-1">
-                {phone || <span className="text-gray-400">No registrado</span>}
-              </p>
-            </div>
-            <div>
-              <span className="text-sm text-gray-500">Puntos de lealtad</span>
-              <p className="text-sm font-medium text-gray-900 mt-1">
-                {loyaltyLoading ? (
-                  <span className="text-gray-400">Cargando...</span>
-                ) : (
-                  <span className="text-lg font-semibold text-primary-600">
-                    {loyaltyPoints?.pointsBalance.toLocaleString() || 0}
-                  </span>
-                )}
-              </p>
-            </div>
+            <h2 className="text-lg font-semibold text-gray-900">Perfil</h2>
           </div>
-        </section>
+          <p className="text-sm text-gray-600 mb-6 flex-1">
+            Actualiza tu información personal y preferencias
+          </p>
+          <Link
+            href="/cuenta/perfil"
+            className="inline-flex items-center justify-center rounded-xl bg-primary-600 text-white px-4 py-2 text-sm font-medium hover:bg-primary-700 transition-colors"
+          >
+            Ir a perfil
+          </Link>
+        </div>
 
-        <section>
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            Accesos rápidos
-          </h2>
-          <div className="grid sm:grid-cols-2 gap-3">
-            <Link
-              href="/cuenta/perfil"
-              className="inline-flex items-center justify-center rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium hover:bg-gray-50 transition text-gray-700"
-            >
-              Mi perfil
-            </Link>
-            <Link
-              href="/cuenta/direcciones"
-              className="inline-flex items-center justify-center rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium hover:bg-gray-50 transition text-gray-700"
-            >
-              Mis direcciones
-            </Link>
-            <Link
-              href="/cuenta/pedidos"
-              className="inline-flex items-center justify-center rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium hover:bg-gray-50 transition text-gray-700"
-            >
-              Mis pedidos
-            </Link>
-            <Link
-              href="/cuenta/puntos"
-              className="inline-flex items-center justify-center rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium hover:bg-gray-50 transition text-gray-700"
-            >
-              Ver puntos de lealtad
-            </Link>
+        {/* Tarjeta 2: Pedidos */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 flex flex-col">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
+              <ShoppingBag className="h-6 w-6 text-green-600" />
+            </div>
+            <h2 className="text-lg font-semibold text-gray-900">Pedidos</h2>
           </div>
-        </section>
+          <p className="text-sm text-gray-600 mb-6 flex-1">
+            Revisa el historial de tus compras
+          </p>
+          <Link
+            href="/cuenta/pedidos"
+            className="inline-flex items-center justify-center rounded-xl bg-primary-600 text-white px-4 py-2 text-sm font-medium hover:bg-primary-700 transition-colors"
+          >
+            Ver pedidos
+          </Link>
+        </div>
+
+        {/* Tarjeta 3: Métodos de Pago */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 flex flex-col">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center">
+              <CreditCard className="h-6 w-6 text-purple-600" />
+            </div>
+            <h2 className="text-lg font-semibold text-gray-900">
+              Métodos de Pago
+            </h2>
+          </div>
+          <p className="text-sm text-gray-600 mb-6 flex-1">
+            Gestiona tus formas de pago guardadas
+          </p>
+          <div className="inline-flex items-center justify-center rounded-xl bg-gray-100 text-gray-500 px-4 py-2 text-sm font-medium cursor-not-allowed">
+            Próximamente disponible
+          </div>
+        </div>
+
+        {/* Tarjeta 4: Direcciones */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 flex flex-col">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="h-12 w-12 rounded-full bg-orange-100 flex items-center justify-center">
+              <MapPin className="h-6 w-6 text-orange-600" />
+            </div>
+            <h2 className="text-lg font-semibold text-gray-900">Direcciones</h2>
+          </div>
+          <p className="text-sm text-gray-600 mb-6 flex-1">
+            Administra tus direcciones de envío
+          </p>
+          <Link
+            href="/cuenta/direcciones"
+            className="inline-flex items-center justify-center rounded-xl bg-primary-600 text-white px-4 py-2 text-sm font-medium hover:bg-primary-700 transition-colors"
+          >
+            Ver direcciones
+          </Link>
+        </div>
       </div>
     </div>
   );
