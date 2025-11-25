@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { getBrowserSupabase } from "@/lib/supabase/client";
 import AccountInfoBanner from "@/components/account/AccountInfoBanner";
 import type { User } from "@supabase/supabase-js";
 
