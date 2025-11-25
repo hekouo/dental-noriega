@@ -9,7 +9,7 @@ import { mxnFromCents, formatMXNFromCents } from "@/lib/utils/currency";
 import { Truck, MessageCircle, ShieldCheck } from "lucide-react";
 import { getWhatsAppProductUrl } from "@/lib/whatsapp/config";
 import { trackAddToCart, trackWhatsappClick } from "@/lib/analytics/events";
-import { launchCartConfetti } from "@/lib/ui/confetti";
+import { launchCartConfetti, launchPaymentCoins } from "@/lib/ui/confetti";
 
 type Product = {
   id: string;
@@ -115,6 +115,9 @@ export default function ProductActions({ product }: Props) {
         },
       });
     }
+
+    // Monedas al comprar ahora
+    void launchPaymentCoins();
 
     // Decidir destino según datos completos
     const checkoutState = useCheckoutStore.getState();
