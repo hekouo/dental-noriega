@@ -8,6 +8,7 @@ import type {
   OrderSummary,
   OrderDetail,
 } from "@/lib/supabase/orders.server";
+import AccountSectionHeader from "@/components/account/AccountSectionHeader";
 
 export default function PedidosPage() {
   const [email, setEmail] = useState("");
@@ -27,6 +28,7 @@ export default function PedidosPage() {
   const [loyaltyError, setLoyaltyError] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [userFullName, setUserFullName] = useState<string | null>(null);
 
   // Cargar email del usuario autenticado al montar
   useEffect(() => {
@@ -40,6 +42,10 @@ export default function PedidosPage() {
           setUserEmail(user.email);
           setEmail(user.email); // Pre-llenar el email
           setIsAuthenticated(true);
+          const metadata = user.user_metadata || {};
+          setUserFullName(
+            metadata.full_name || metadata.fullName || null,
+          );
           // Cargar órdenes automáticamente si el usuario está autenticado
           handleAutoLoad(user.email);
         }
@@ -317,6 +323,11 @@ export default function PedidosPage() {
           Consulta el historial de tus pedidos y los puntos generados.
         </p>
       </header>
+
+      <AccountSectionHeader
+        user={{ email: userEmail, fullName: userFullName }}
+        currentSection="pedidos"
+      />
 
       <div className="mt-6 bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 space-y-6">
 

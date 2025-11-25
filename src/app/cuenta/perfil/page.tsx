@@ -4,6 +4,7 @@ import Link from "next/link";
 import { createServerSupabase } from "@/lib/supabase/server-auth";
 import EmailVerificationBanner from "@/components/account/EmailVerificationBanner";
 import AccountInfoBanner from "@/components/account/AccountInfoBanner";
+import AccountSectionHeader from "@/components/account/AccountSectionHeader";
 import EditProfileForm from "./EditProfileForm";
 
 export const dynamic = "force-dynamic";
@@ -45,6 +46,11 @@ export default async function PerfilPage({
           Gestiona tu cuenta y tus datos de contacto.
         </p>
       </header>
+
+      <AccountSectionHeader
+        user={{ email: user.email, fullName }}
+        currentSection="perfil"
+      />
 
       {user.email && (
         <EmailVerificationBanner
