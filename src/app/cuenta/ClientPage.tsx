@@ -14,8 +14,18 @@ import {
 import EmailVerificationBanner from "@/components/account/EmailVerificationBanner";
 import AccountInfoBanner from "@/components/account/AccountInfoBanner";
 
-export default function CuentaClientPage() {
+type CuentaClientPageProps = {
+  searchParams?: { verified?: string; error?: string };
+};
+
+export default function CuentaClientPage({
+  searchParams: searchParamsProp,
+}: CuentaClientPageProps = {}) {
   const searchParams = useSearchParams();
+  const effectiveSearchParams = searchParamsProp || {
+    verified: searchParams?.get("verified") || undefined,
+    error: searchParams?.get("error") || undefined,
+  };
   const [mode, setMode] = useState<"login" | "register">(
     (searchParams?.get("mode") as "login" | "register") || "login"
   );
@@ -39,6 +49,10 @@ export default function CuentaClientPage() {
     const modeParam = searchParams.get("mode");
     if (modeParam === "register" || modeParam === "login") {
       setMode(modeParam);
+    }
+    const authError = searchParams.get("error");
+    if (authError === "auth") {
+      setError("No se pudo iniciar sesión. Por favor, intenta de nuevo.");
     }
   }, [searchParams]);
 
@@ -112,7 +126,7 @@ export default function CuentaClientPage() {
             setError(errorMessage);
           }
         } else {
-          router.push("/cuenta/direcciones");
+          router.push("/cuenta");
         }
       } else {
         const validated = registerSchema.parse(data);
@@ -181,7 +195,7 @@ export default function CuentaClientPage() {
         )}
 
         {/* Banner de correo verificado */}
-        {searchParams?.get("verified") === "1" && (
+        {effectiveSearchParams.verified === "1" && (
           <AccountInfoBanner showVerified={true} />
         )}
 

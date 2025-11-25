@@ -1,8 +1,8 @@
 import { Suspense } from "react";
-import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { createServerSupabase } from "@/lib/supabase/server-auth";
 import ClientPage from "./ClientPage";
+import DashboardClient from "./DashboardClient";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -20,20 +20,31 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function Page() {
+type PageProps = {
+  searchParams: Promise<{ verified?: string; error?: string }>;
+};
+
+export default async function Page({ searchParams }: PageProps) {
   const supabase = createServerSupabase();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Si el usuario ya está autenticado, redirigir a direcciones
+  const params = await searchParams;
+
+  // Si el usuario está autenticado, mostrar dashboard
   if (user) {
-    redirect("/cuenta/direcciones");
+    return (
+      <Suspense fallback={null}>
+        <DashboardClient user={user} searchParams={params} />
+      </Suspense>
+    );
   }
 
+  // Si no está autenticado, mostrar formularios de login/registro
   return (
     <Suspense fallback={null}>
-      <ClientPage />
+      <ClientPage searchParams={params} />
     </Suspense>
   );
 }

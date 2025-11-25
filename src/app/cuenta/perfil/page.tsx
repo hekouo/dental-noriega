@@ -4,6 +4,7 @@ import Link from "next/link";
 import { createServerSupabase } from "@/lib/supabase/server-auth";
 import EmailVerificationBanner from "@/components/account/EmailVerificationBanner";
 import AccountInfoBanner from "@/components/account/AccountInfoBanner";
+import EditProfileForm from "./EditProfileForm";
 
 export const dynamic = "force-dynamic";
 
@@ -96,6 +97,16 @@ export default async function PerfilPage({
               <p className="font-mono text-xs text-gray-600 mt-1">{user.id}</p>
             </div>
           </div>
+        </section>
+
+        <section>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            Editar perfil
+          </h2>
+          <EditProfileForm
+            initialFullName={fullName}
+            initialPhone={phone}
+          />
         </section>
 
         <section>
