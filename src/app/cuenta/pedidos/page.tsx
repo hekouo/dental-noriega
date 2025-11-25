@@ -40,7 +40,8 @@ export default function PedidosPage() {
         const { data: { user } } = await s.auth.getUser();
         if (user?.email && isValidEmail(user.email)) {
           setUserEmail(user.email);
-          setEmail(user.email); // Pre-llenar el email
+          // Pre-llenar el email solo si el campo está vacío
+          setEmail((prev) => prev || user.email || "");
           setIsAuthenticated(true);
           const metadata = user.user_metadata || {};
           setUserFullName(
@@ -58,6 +59,7 @@ export default function PedidosPage() {
     };
 
     loadUserEmail();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Función para cargar órdenes automáticamente cuando el usuario está autenticado
@@ -355,7 +357,6 @@ export default function PedidosPage() {
                 placeholder="tu@email.com"
                 autoComplete="email"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                disabled={isAuthenticated && !!userEmail}
               />
               {isAuthenticated && userEmail && (
                 <p className="mt-1 text-sm text-gray-500">
