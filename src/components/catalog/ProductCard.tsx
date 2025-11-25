@@ -12,6 +12,7 @@ import { getWhatsAppHref } from "@/lib/whatsapp";
 import { FREE_SHIPPING_THRESHOLD_MXN } from "@/lib/shipping/freeShipping";
 import { LOYALTY_POINTS_PER_MXN } from "@/lib/loyalty/config";
 import { trackAddToCart, trackWhatsappClick } from "@/lib/analytics/events";
+import { launchCartConfetti } from "@/lib/ui/confetti";
 
 /**
  * Props unificadas para ProductCard
@@ -116,6 +117,9 @@ export default function ProductCard({
       quantity: qty,
       source: "card",
     });
+
+    // Confeti al agregar al carrito
+    void launchCartConfetti();
 
     setTimeout(() => {
       busyRef.current = false;

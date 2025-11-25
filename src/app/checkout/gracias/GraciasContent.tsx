@@ -13,6 +13,7 @@ import { useCartStore } from "@/lib/store/cartStore";
 import { useCheckoutStore } from "@/lib/store/checkoutStore";
 import { loadStripe } from "@stripe/stripe-js";
 import { trackPurchase } from "@/lib/analytics/events";
+import { AnimatedPoints } from "@/components/ui/AnimatedPoints";
 
 type LastOrder = {
   orderRef: string;
@@ -855,11 +856,21 @@ export default function GraciasContent() {
             {loyaltyInfo.pointsEarned !== null && loyaltyInfo.pointsEarned > 0 ? (
               <>
                 <p className="text-blue-900 font-medium mb-1">
-                  Por este pedido ganaste {loyaltyInfo.pointsEarned.toLocaleString()} puntos.
+                  Por este pedido ganaste{" "}
+                  <AnimatedPoints
+                    value={loyaltyInfo.pointsEarned}
+                    className="font-semibold"
+                  />{" "}
+                  puntos.
                 </p>
                 {loyaltyInfo.pointsBalance !== null && (
                   <p className="text-blue-700 text-sm">
-                    Ahora tienes {loyaltyInfo.pointsBalance.toLocaleString()} puntos acumulados en tu cuenta.
+                    Ahora tienes{" "}
+                    <AnimatedPoints
+                      value={loyaltyInfo.pointsBalance}
+                      className="font-semibold"
+                    />{" "}
+                    puntos acumulados en tu cuenta.
                   </p>
                 )}
               </>

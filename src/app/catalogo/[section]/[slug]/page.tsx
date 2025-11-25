@@ -12,6 +12,7 @@ import { SITE } from "@/lib/site";
 import PdpRelatedSection from "./PdpRelatedSection";
 import { FREE_SHIPPING_THRESHOLD_MXN } from "@/lib/shipping/freeShipping";
 import { LOYALTY_POINTS_PER_MXN } from "@/lib/loyalty/config";
+import { AnimatedPoints } from "@/components/ui/AnimatedPoints";
 import Breadcrumbs from "@/components/navigation/Breadcrumbs";
 import {
   getBreadcrumbsJsonLd,
@@ -252,7 +253,10 @@ export default async function ProductDetailPage({ params }: Props) {
                   {product.price > 0 && (
                     <p className="text-sm text-amber-700">
                       Acumulas aprox.{" "}
-                      {Math.floor(product.price * LOYALTY_POINTS_PER_MXN).toLocaleString("es-MX")}{" "}
+                      <AnimatedPoints
+                        value={Math.floor(product.price * LOYALTY_POINTS_PER_MXN)}
+                        className="font-semibold"
+                      />{" "}
                       puntos con este producto.
                     </p>
                   )}
