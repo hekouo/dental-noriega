@@ -37,7 +37,7 @@ export default function DashboardClient({
 
       <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Tarjeta 1: Perfil */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 flex flex-col">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 flex flex-col animate-[fadeInUp_0.5s_ease-out_0ms_forwards] hover:-translate-y-1 hover:shadow-lg transition-all duration-300 ease-out">
           <div className="flex items-center gap-4 mb-4">
             <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
               <User className="h-6 w-6 text-blue-600" />
@@ -49,14 +49,14 @@ export default function DashboardClient({
           </p>
           <Link
             href="/cuenta/perfil"
-            className="inline-flex items-center justify-center rounded-xl bg-primary-600 text-white px-4 py-2 text-sm font-medium hover:bg-primary-700 transition-colors"
+            className="inline-flex items-center justify-center rounded-xl bg-primary-600 text-white px-4 py-2 text-sm font-medium hover:bg-primary-700 transition-all duration-150 hover:-translate-y-[1px] active:translate-y-0"
           >
             Ir a perfil
           </Link>
         </div>
 
         {/* Tarjeta 2: Pedidos */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 flex flex-col">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 flex flex-col animate-[fadeInUp_0.5s_ease-out_100ms_forwards] hover:-translate-y-1 hover:shadow-lg transition-all duration-300 ease-out">
           <div className="flex items-center gap-4 mb-4">
             <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
               <ShoppingBag className="h-6 w-6 text-green-600" />
@@ -68,14 +68,14 @@ export default function DashboardClient({
           </p>
           <Link
             href="/cuenta/pedidos"
-            className="inline-flex items-center justify-center rounded-xl bg-primary-600 text-white px-4 py-2 text-sm font-medium hover:bg-primary-700 transition-colors"
+            className="inline-flex items-center justify-center rounded-xl bg-primary-600 text-white px-4 py-2 text-sm font-medium hover:bg-primary-700 transition-all duration-150 hover:-translate-y-[1px] active:translate-y-0"
           >
             Ver pedidos
           </Link>
         </div>
 
         {/* Tarjeta 3: Métodos de Pago */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 flex flex-col">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 flex flex-col animate-[fadeInUp_0.5s_ease-out_200ms_forwards] hover:-translate-y-1 hover:shadow-lg transition-all duration-300 ease-out">
           <div className="flex items-center gap-4 mb-4">
             <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center">
               <CreditCard className="h-6 w-6 text-purple-600" />
@@ -93,7 +93,7 @@ export default function DashboardClient({
         </div>
 
         {/* Tarjeta 4: Direcciones */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 flex flex-col">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 flex flex-col animate-[fadeInUp_0.5s_ease-out_300ms_forwards] hover:-translate-y-1 hover:shadow-lg transition-all duration-300 ease-out">
           <div className="flex items-center gap-4 mb-4">
             <div className="h-12 w-12 rounded-full bg-orange-100 flex items-center justify-center">
               <MapPin className="h-6 w-6 text-orange-600" />
@@ -105,7 +105,7 @@ export default function DashboardClient({
           </p>
           <Link
             href="/cuenta/direcciones"
-            className="inline-flex items-center justify-center rounded-xl bg-primary-600 text-white px-4 py-2 text-sm font-medium hover:bg-primary-700 transition-colors"
+            className="inline-flex items-center justify-center rounded-xl bg-primary-600 text-white px-4 py-2 text-sm font-medium hover:bg-primary-700 transition-all duration-150 hover:-translate-y-[1px] active:translate-y-0"
           >
             Ver direcciones
           </Link>

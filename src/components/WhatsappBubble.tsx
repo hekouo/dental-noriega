@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { getWhatsAppUrl } from "@/lib/whatsapp/config";
 import FAB from "@/components/FAB";
@@ -8,13 +9,25 @@ import { trackWhatsappClick } from "@/lib/analytics/events";
 
 export default function WhatsappBubble() {
   const pathname = usePathname();
+  const [isPulsing, setIsPulsing] = useState(false);
+  const whatsappUrl = getWhatsAppUrl();
+  
+  // Animación de pulse cada 8-10 segundos
+  useEffect(() => {
+    if (!whatsappUrl) return;
+    
+    const interval = setInterval(() => {
+      setIsPulsing(true);
+      setTimeout(() => setIsPulsing(false), 1000);
+    }, 9000); // Cada 9 segundos (8-10s promedio)
+    
+    return () => clearInterval(interval);
+  }, [whatsappUrl]);
   
   // Ocultar solo en checkout
   if (pathname?.startsWith("/checkout")) {
     return null;
   }
-  
-  const whatsappUrl = getWhatsAppUrl();
   
   // No renderizar si no hay teléfono configurado
   if (!whatsappUrl) {
@@ -41,7 +54,7 @@ export default function WhatsappBubble() {
         onClick={handleClick}
         aria-label="Abrir chat de WhatsApp de Depósito Dental Noriega"
         title="Abrir WhatsApp"
-        className="h-14 w-14 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg flex items-center justify-center transition-all hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+        className={`h-14 w-14 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg flex items-center justify-center transition-all hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 ${isPulsing ? "animate-pulse-subtle" : ""}`}
         tabIndex={0}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {

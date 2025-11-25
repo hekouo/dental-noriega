@@ -37,7 +37,7 @@ export default function AccountSectionHeader({
         className="flex items-center gap-3 text-left hover:bg-slate-50 rounded-xl px-3 py-2 -mx-3 -my-2 transition"
         aria-label="Volver al panel de cuenta"
       >
-        <div className="h-12 w-12 rounded-full bg-blue-600 text-white flex items-center justify-center text-lg font-semibold mr-3 hover:scale-105 transition-transform">
+        <div className="h-12 w-12 rounded-full bg-blue-600 text-white flex items-center justify-center text-lg font-semibold mr-3 hover:scale-105 hover:ring-2 hover:ring-blue-300 transition-all duration-200">
           {initial}
         </div>
         <div className="flex flex-col">
@@ -58,10 +58,10 @@ export default function AccountSectionHeader({
               key={item.key}
               href={item.href}
               className={clsx(
-                "inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                "inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium transition-all duration-200",
                 isActive
-                  ? "border-blue-500 bg-blue-50 text-blue-700"
-                  : "border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50",
+                  ? "border-blue-500 bg-blue-50 text-blue-700 border-b-2 border-b-blue-600"
+                  : "border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900",
               )}
               aria-current={isActive ? "page" : undefined}
             >

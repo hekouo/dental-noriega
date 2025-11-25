@@ -150,7 +150,7 @@ export default function ProductCard({
   };
 
   return (
-    <div className="rounded-2xl border p-3 flex flex-col bg-white hover:shadow-md transition-shadow">
+    <div className="rounded-2xl border p-3 flex flex-col bg-white hover:shadow-lg transition-all duration-200 ease-out hover:-translate-y-1">
       {/* Imagen con link a PDP */}
       <Link href={href} prefetch={false} className="block">
         <div className="relative w-full aspect-square bg-white rounded-lg overflow-hidden">
@@ -159,7 +159,7 @@ export default function ProductCard({
             width={400}
             height={400}
             alt={title}
-            className="w-full h-full object-contain"
+            className="w-full h-full object-contain transition-transform duration-300 ease-out hover:scale-105"
             square
             priority={priority}
             sizes={sizes ?? "(min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw"}
@@ -232,7 +232,7 @@ export default function ProductCard({
                 disabled={isAdding || !canPurchase}
                 aria-busy={isAdding}
                 aria-label={`Agregar ${title} al carrito`}
-                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm bg-black text-white hover:bg-black/90 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 transition-colors"
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm bg-black text-white hover:bg-black/90 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 transition-all duration-150 hover:-translate-y-[1px] active:translate-y-0"
                 title="Agregar al carrito"
               >
                 <svg

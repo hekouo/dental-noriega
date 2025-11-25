@@ -28,6 +28,25 @@ const config = {
           DEFAULT: "#2563eb",
         },
       },
+      keyframes: {
+        "pulse-subtle": {
+          "0%, 100%": { transform: "scale(1)", opacity: "1" },
+          "50%": { transform: "scale(1.05)", opacity: "0.95" },
+        },
+        "scale-125": {
+          "0%, 100%": { transform: "scale(1)" },
+          "50%": { transform: "scale(1.25)" },
+        },
+        fadeInUp: {
+          "0%": { opacity: "0", transform: "translateY(16px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+      },
+      animation: {
+        "pulse-subtle": "pulse-subtle 1s ease-in-out infinite",
+        "scale-125": "scale-125 0.3s ease-in-out",
+        fadeInUp: "fadeInUp 0.5s ease-out forwards",
+      },
     },
   },
   plugins: [animate],
