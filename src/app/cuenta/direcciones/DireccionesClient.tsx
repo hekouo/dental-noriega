@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useEffect, useTransition } from "react";
 import type { AccountAddress } from "@/lib/supabase/addresses.server";
 import { isValidEmail } from "@/lib/validation/email";
+import { getBrowserSupabase } from "@/lib/supabase/client";
 
 type AddressFormData = {
   full_name: string;
@@ -35,6 +36,29 @@ export default function DireccionesClient() {
     country: "México",
     is_default: false,
   });
+
+  // Cargar email del usuario autenticado al montar
+  useEffect(() => {
+    const loadUserEmail = async () => {
+      const s = getBrowserSupabase();
+      if (!s) return;
+
+      try {
+        const { data: { user } } = await s.auth.getUser();
+        if (user?.email && isValidEmail(user.email)) {
+          // Pre-llenar el email solo si el campo está vacío
+          setEmail((prev) => prev || user.email || "");
+        }
+      } catch (err) {
+        // Ignorar errores de autenticación
+        if (process.env.NODE_ENV === "development") {
+          console.debug("[DireccionesClient] Error de autenticación ignorado:", err);
+        }
+      }
+    };
+
+    loadUserEmail();
+  }, []);
 
   // NO cargar direcciones automáticamente al escribir
   // Solo se cargan cuando el usuario hace clic en "Buscar" o presiona Enter
