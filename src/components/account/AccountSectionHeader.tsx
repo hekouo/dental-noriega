@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import clsx from "clsx";
+import { getUserInitial } from "@/lib/account/avatar";
 
 type AccountSectionHeaderProps = {
   user?: {
@@ -21,20 +23,18 @@ export default function AccountSectionHeader({
   user,
   currentSection,
 }: AccountSectionHeaderProps) {
+  const router = useRouter();
   const fullName = user?.fullName?.trim() || null;
   const email = user?.email?.trim() || null;
-  const initial =
-    fullName?.[0]?.toUpperCase() ||
-    email?.[0]?.toUpperCase() ||
-    "D";
-
+  const initial = getUserInitial({ fullName, email });
   const secondaryLine = email || "Sin correo asociado";
 
   return (
     <div className="mb-8 rounded-2xl border border-slate-200/70 bg-white px-4 py-4 md:px-6 md:py-5 shadow-sm flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-      <Link
-        href="/cuenta"
-        className="flex items-center"
+      <button
+        type="button"
+        onClick={() => router.push("/cuenta")}
+        className="flex items-center gap-3 text-left hover:bg-slate-50 rounded-xl px-3 py-2 -mx-3 -my-2 transition"
         aria-label="Volver al panel de cuenta"
       >
         <div className="h-12 w-12 rounded-full bg-blue-600 text-white flex items-center justify-center text-lg font-semibold mr-3 hover:scale-105 transition-transform">
@@ -48,7 +48,7 @@ export default function AccountSectionHeader({
             {secondaryLine}
           </span>
         </div>
-      </Link>
+      </button>
 
       <nav className="flex flex-wrap gap-2 justify-start md:justify-end">
         {navItems.map((item) => {

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCartStore, selectCartCount } from "@/lib/store/cartStore";
 import { getBrowserSupabase } from "@/lib/supabase/client";
+import { getUserInitial } from "@/lib/account/avatar";
 import type { User } from "@supabase/supabase-js";
 
 export function ToothAccountMenu() {
@@ -75,7 +76,10 @@ export function ToothAccountMenu() {
           className="flex items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded-lg px-2 py-1 hover:bg-gray-50 transition"
         >
           <div className="h-9 w-9 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-semibold shadow-sm">
-            {user.email?.[0]?.toUpperCase() || user.user_metadata?.full_name?.[0]?.toUpperCase() || "U"}
+            {getUserInitial({
+              fullName: user.user_metadata?.full_name || user.user_metadata?.fullName || null,
+              email: user.email || null,
+            })}
           </div>
           <span className="hidden sm:inline-block ml-2 text-sm font-medium text-gray-700">
             Cuenta
@@ -100,6 +104,14 @@ export function ToothAccountMenu() {
         >
           {user ? (
             <>
+              <Link
+                href="/cuenta"
+                className="block rounded-xl px-3 py-2 hover:bg-neutral-50 transition-colors"
+                onClick={() => setOpen(false)}
+                role="menuitem"
+              >
+                Mi cuenta
+              </Link>
               <Link
                 href="/cuenta/perfil"
                 className="block rounded-xl px-3 py-2 hover:bg-neutral-50 transition-colors"
