@@ -99,7 +99,7 @@ export default function EditProfileForm({
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+          className="w-full px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150 hover:-translate-y-[1px] active:translate-y-0 font-medium"
         >
           {isLoading ? "Guardando..." : "Guardar cambios"}
         </button>

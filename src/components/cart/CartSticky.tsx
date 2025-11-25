@@ -1,6 +1,7 @@
 // src/components/cart/CartSticky.tsx
 "use client";
 
+import { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { ShoppingCart } from "lucide-react";
@@ -12,6 +13,18 @@ export default function CartSticky() {
   const cartItems = useCartStore((s) => s.cartItems);
   const count = cartItems.reduce((sum, item) => sum + item.qty, 0);
   const total = cartItems.reduce((sum, item) => sum + item.price * item.qty, 0);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const prevCountRef = useRef(count);
+
+  // Animar cuando se agrega un producto (count aumenta)
+  useEffect(() => {
+    if (count > prevCountRef.current && prevCountRef.current > 0) {
+      setIsAnimating(true);
+      const timer = setTimeout(() => setIsAnimating(false), 300);
+      return () => clearTimeout(timer);
+    }
+    prevCountRef.current = count;
+  }, [count]);
 
   // Ocultar en rutas de checkout
   if (pathname?.startsWith("/checkout")) {
@@ -29,7 +42,7 @@ export default function CartSticky() {
       <Link
         href="/carrito"
         aria-label={`Ver carrito con ${count} ${count === 1 ? "producto" : "productos"}`}
-        className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-black text-white px-4 py-3 flex items-center justify-between shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+        className={`fixed bottom-0 left-0 right-0 z-50 md:hidden bg-black text-white px-4 py-3 flex items-center justify-between shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 ${isAnimating ? "animate-[bounce_0.3s_ease-in-out]" : ""}`}
       >
         <div className="flex items-center gap-3">
           <ShoppingCart className="h-5 w-5" aria-hidden="true" />
@@ -44,12 +57,12 @@ export default function CartSticky() {
       <Link
         href="/carrito"
         aria-label={`Ver carrito con ${count} ${count === 1 ? "producto" : "productos"}`}
-        className="hidden md:flex fixed bottom-6 right-6 z-50 bg-black text-white px-6 py-4 rounded-full shadow-xl hover:bg-black/90 transition-all items-center gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+        className={`hidden md:flex fixed bottom-6 right-6 z-50 bg-black text-white px-6 py-4 rounded-full shadow-xl hover:bg-black/90 transition-all items-center gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 ${isAnimating ? "animate-[bounce_0.3s_ease-in-out]" : ""}`}
       >
         <div className="relative">
           <ShoppingCart className="h-6 w-6" aria-hidden="true" />
           {count > 0 && (
-            <span className="absolute -top-2 -right-2 bg-white text-black text-xs font-bold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center">
+            <span className={`absolute -top-2 -right-2 bg-white text-black text-xs font-bold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center ${isAnimating ? "animate-[scale-125_0.3s_ease-in-out]" : ""}`}>
               {count}
             </span>
           )}

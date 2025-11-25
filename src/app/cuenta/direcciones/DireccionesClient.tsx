@@ -267,7 +267,7 @@ export default function DireccionesClient() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-[fadeInUp_0.5s_ease-out_forwards]">
       {/* Formulario de email */}
       <div className="bg-white rounded-lg border p-4 sm:p-6">
         <h2 className="text-lg font-semibold tracking-tight mb-2 text-gray-900">Ingresa tu email</h2>
@@ -293,7 +293,7 @@ export default function DireccionesClient() {
             type="button"
             onClick={loadAddresses}
             disabled={!email.trim() || loading || !isValidEmail(email)}
-            className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150 hover:-translate-y-[1px] active:translate-y-0"
           >
             {loading ? "Cargando..." : "Buscar"}
           </button>
@@ -487,7 +487,7 @@ export default function DireccionesClient() {
             <button
               type="submit"
               disabled={isPending}
-              className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150 hover:-translate-y-[1px] active:translate-y-0"
             >
               {(() => {
                 if (isPending) return "Guardando...";

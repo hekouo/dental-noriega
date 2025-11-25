@@ -331,7 +331,7 @@ export default function PedidosPage() {
         currentSection="pedidos"
       />
 
-      <div className="mt-6 bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 space-y-6">
+      <div className="mt-6 bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 space-y-6 animate-[fadeInUp_0.5s_ease-out_forwards]">
 
         {/* Formulario de búsqueda */}
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -389,7 +389,7 @@ export default function PedidosPage() {
             <button
               type="submit"
               disabled={loading || (!isAuthenticated && !email.trim())}
-              className="w-full px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold"
+              className="w-full px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150 hover:-translate-y-[1px] active:translate-y-0 font-semibold"
             >
               {loading ? "Buscando..." : isAuthenticated && userEmail ? "Buscar por otro email" : "Buscar pedidos"}
             </button>
@@ -406,7 +406,7 @@ export default function PedidosPage() {
                 setError(null);
                 handleSubmit(new Event("submit") as unknown as React.FormEvent);
               }}
-              className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 text-sm font-medium"
+              className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 text-sm font-medium transition-all duration-150 hover:-translate-y-[1px] active:translate-y-0"
             >
               Reintentar
             </button>

@@ -61,7 +61,7 @@ export default async function PerfilPage({
 
       <AccountInfoBanner showVerified={showVerified} />
 
-      <div className="mt-6 bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 space-y-6">
+      <div className="mt-6 bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 space-y-6 animate-[fadeInUp_0.5s_ease-out_forwards]">
         <section>
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
             Datos de cuenta
