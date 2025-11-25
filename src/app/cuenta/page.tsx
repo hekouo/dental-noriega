@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { createServerSupabase } from "@/lib/supabase/server-auth";
 import ClientPage from "./ClientPage";
