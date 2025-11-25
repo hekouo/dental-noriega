@@ -11,7 +11,7 @@ type DashboardClientProps = {
 };
 
 export default function DashboardClient({
-  user,
+  user: _user,
   searchParams,
 }: DashboardClientProps) {
   return (
