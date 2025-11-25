@@ -9,8 +9,8 @@ import { trackWhatsappClick } from "@/lib/analytics/events";
 export default function WhatsappBubble() {
   const pathname = usePathname();
   
-  // Ocultar en checkout y cuenta
-  if (pathname?.startsWith("/checkout") || pathname?.startsWith("/cuenta")) {
+  // Ocultar solo en checkout
+  if (pathname?.startsWith("/checkout")) {
     return null;
   }
   

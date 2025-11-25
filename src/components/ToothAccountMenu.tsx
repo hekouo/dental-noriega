@@ -101,12 +101,12 @@ export function ToothAccountMenu() {
           {user ? (
             <>
               <Link
-                href="/cuenta/perfil"
+                href="/cuenta"
                 className="block rounded-xl px-3 py-2 hover:bg-neutral-50 transition-colors"
                 onClick={() => setOpen(false)}
                 role="menuitem"
               >
-                Mi perfil
+                Mi cuenta
               </Link>
               <Link
                 href="/cuenta/pedidos"

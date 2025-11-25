@@ -19,15 +19,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Si es un signup (verificación de email) o magiclink, redirigir a direcciones
+    // Si es un signup (verificación de email) o magiclink, redirigir a cuenta con mensaje de verificación
     if (type === "signup" || type === "magiclink") {
       return NextResponse.redirect(
-        new URL("/cuenta/direcciones?verified=1", requestUrl.origin),
+        new URL("/cuenta?verified=1", requestUrl.origin),
       );
     }
 
-    // Para otros tipos (recovery, etc.), redirigir a direcciones
-    return NextResponse.redirect(new URL("/cuenta/direcciones", requestUrl.origin));
+    // Para otros tipos (recovery, etc.), redirigir a cuenta
+    return NextResponse.redirect(new URL("/cuenta", requestUrl.origin));
   }
 
   // Si no hay código, redirigir a cuenta
