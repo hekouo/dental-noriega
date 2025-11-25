@@ -1,4 +1,6 @@
 import { Metadata } from "next";
+import { createServerSupabase } from "@/lib/supabase/server-auth";
+import AccountSectionHeader from "@/components/account/AccountSectionHeader";
 import DireccionesClient from "./DireccionesClient";
 
 export const metadata: Metadata = {
@@ -16,7 +18,17 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-export default function DireccionesPage() {
+export default async function DireccionesPage() {
+  const supabase = createServerSupabase();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const fullName =
+    (user?.user_metadata &&
+      (user.user_metadata.full_name || user.user_metadata.fullName)) ||
+    null;
+
   return (
     <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       <header>
@@ -25,6 +37,10 @@ export default function DireccionesPage() {
           Gestiona tus direcciones de envío para facilitar tus compras.
         </p>
       </header>
+      <AccountSectionHeader
+        user={{ email: user?.email ?? null, fullName }}
+        currentSection="direcciones"
+      />
       <DireccionesClient />
     </main>
   );
