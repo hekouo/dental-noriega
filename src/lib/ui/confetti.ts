@@ -74,3 +74,40 @@ export async function launchCartConfetti(
   }
 }
 
+/**
+ * Lanza confeti tipo "monedas doradas" para celebrar compras y pagos
+ * Solo se muestra una vez por sesión del navegador
+ */
+export async function launchPaymentCoins(): Promise<void> {
+  // SSR-safe: no hacer nada en servidor
+  if (typeof window === "undefined") return;
+
+  // Verificar si ya se mostraron monedas en esta sesión
+  const shownKey = "ddn_payment_coins_shown";
+  if (sessionStorage.getItem(shownKey) === "1") {
+    return;
+  }
+
+  try {
+    const confetti = await loadConfetti();
+    if (!confetti) return;
+
+    const options = {
+      particleCount: 50,
+      spread: 55,
+      origin: { y: 0.7 },
+      colors: ["#facc15", "#eab308", "#f97316"], // Amarillos/dorados
+    };
+
+    confetti.default(options);
+
+    // Marcar como mostrado en esta sesión
+    sessionStorage.setItem(shownKey, "1");
+  } catch (err) {
+    // Fallar en silencio
+    if (process.env.NODE_ENV === "development") {
+      console.debug("[confetti] Error launching payment coins:", err);
+    }
+  }
+}
+

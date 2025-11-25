@@ -13,6 +13,7 @@ import PdpRelatedSection from "./PdpRelatedSection";
 import { FREE_SHIPPING_THRESHOLD_MXN } from "@/lib/shipping/freeShipping";
 import { LOYALTY_POINTS_PER_MXN } from "@/lib/loyalty/config";
 import { AnimatedPoints } from "@/components/ui/AnimatedPoints";
+import { LoyaltyPointsBar } from "@/components/ui/LoyaltyPointsBar";
 import Breadcrumbs from "@/components/navigation/Breadcrumbs";
 import {
   getBreadcrumbsJsonLd,
@@ -251,14 +252,20 @@ export default async function ProductDetailPage({ params }: Props) {
                     Envío gratis desde ${FREE_SHIPPING_THRESHOLD_MXN.toLocaleString("es-MX")} MXN en productos.
                   </p>
                   {product.price > 0 && (
-                    <p className="text-sm text-amber-700">
-                      Acumulas aprox.{" "}
-                      <AnimatedPoints
+                    <>
+                      <p className="text-sm text-amber-700">
+                        Acumulas aprox.{" "}
+                        <AnimatedPoints
+                          value={Math.floor(product.price * LOYALTY_POINTS_PER_MXN)}
+                          className="font-semibold"
+                        />{" "}
+                        puntos con este producto.
+                      </p>
+                      <LoyaltyPointsBar
                         value={Math.floor(product.price * LOYALTY_POINTS_PER_MXN)}
-                        className="font-semibold"
-                      />{" "}
-                      puntos con este producto.
-                    </p>
+                        className="mt-1"
+                      />
+                    </>
                   )}
                 </div>
               </div>

@@ -14,6 +14,8 @@ import { useCheckoutStore } from "@/lib/store/checkoutStore";
 import { loadStripe } from "@stripe/stripe-js";
 import { trackPurchase } from "@/lib/analytics/events";
 import { AnimatedPoints } from "@/components/ui/AnimatedPoints";
+import { launchPaymentCoins } from "@/lib/ui/confetti";
+import { LoyaltyPointsBar } from "@/components/ui/LoyaltyPointsBar";
 
 type LastOrder = {
   orderRef: string;
@@ -47,6 +49,7 @@ export default function GraciasContent() {
   const clearSelection = useCheckoutStore((s) => s.clearSelection);
   const resetAfterSuccess = useCheckoutStore((s) => s.resetAfterSuccess);
   const hasTrackedRef = React.useRef(false);
+  const hasLaunchedCoinsRef = React.useRef(false);
 
   // Marcar como montado solo en cliente
   useEffect(() => {
@@ -774,6 +777,15 @@ export default function GraciasContent() {
     loadLoyaltyInfo();
   }, [displayStatus, orderRef]);
 
+  // Lanzar monedas cuando el pago se confirma
+  useEffect(() => {
+    if (displayStatus !== "paid") return;
+    if (hasLaunchedCoinsRef.current) return;
+    
+    hasLaunchedCoinsRef.current = true;
+    void launchPaymentCoins();
+  }, [displayStatus]);
+
   const getShippingMethodLabel = (method?: ShippingMethod): string => {
     switch (method) {
       case "pickup":
@@ -863,15 +875,26 @@ export default function GraciasContent() {
                   />{" "}
                   puntos.
                 </p>
+                <LoyaltyPointsBar
+                  value={loyaltyInfo.pointsEarned}
+                  className="mt-1"
+                />
                 {loyaltyInfo.pointsBalance !== null && (
-                  <p className="text-blue-700 text-sm">
-                    Ahora tienes{" "}
-                    <AnimatedPoints
+                  <>
+                    <p className="text-blue-700 text-sm mt-2">
+                      Ahora tienes{" "}
+                      <AnimatedPoints
+                        value={loyaltyInfo.pointsBalance}
+                        className="font-semibold"
+                      />{" "}
+                      puntos acumulados en tu cuenta.
+                    </p>
+                    <LoyaltyPointsBar
                       value={loyaltyInfo.pointsBalance}
-                      className="font-semibold"
-                    />{" "}
-                    puntos acumulados en tu cuenta.
-                  </p>
+                      max={Math.max(loyaltyInfo.pointsBalance, 2000)}
+                      className="mt-1"
+                    />
+                  </>
                 )}
               </>
             ) : (
