@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 const OrdersRequestSchema = z.object({
-  email: z.string().email("Email inválido"),
+  email: z.string().email("Email inválido").optional(),
   orderId: z.string().uuid().optional(),
 });
 
@@ -44,7 +44,6 @@ export async function POST(req: NextRequest) {
     }
 
     const { email, orderId } = validationResult.data;
-    const normalizedEmail = email.trim().toLowerCase();
 
     // Intentar obtener user_id de la sesión (si el usuario está autenticado)
     let userId: string | null = null;
@@ -54,14 +53,43 @@ export async function POST(req: NextRequest) {
         data: { user },
       } = await authSupabase.auth.getUser();
       userId = user?.id ?? null;
-    } catch {
+    } catch (err) {
       // Si no hay sesión, continuar como guest (userId = null, buscar por email)
+      if (process.env.NODE_ENV === "development") {
+        console.debug("[api/account/orders] No hay sesión activa:", err);
+      }
+    }
+
+    // Validar que haya al menos userId o email válido
+    const normalizedEmail = email?.trim().toLowerCase() || null;
+    if (!userId && !normalizedEmail) {
+      return NextResponse.json(
+        { error: "Email requerido o sesión activa" },
+        { status: 400 },
+      );
+    }
+
+    // Si hay email pero no es válido, devolver error
+    if (normalizedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      return NextResponse.json(
+        { error: "Email inválido" },
+        { status: 400 },
+      );
     }
 
     // Si viene orderId, devolver detalle de una orden
     if (orderId) {
       try {
-        const order = await getOrderWithItems(orderId, normalizedEmail, userId);
+        // Para getOrderWithItems, necesitamos un email (puede ser el del usuario autenticado o el proporcionado)
+        const emailForOrder = normalizedEmail || (userId ? `user-${userId}@temp.local` : null);
+        if (!emailForOrder) {
+          return NextResponse.json(
+            { error: "Email requerido para buscar una orden específica" },
+            { status: 400 },
+          );
+        }
+
+        const order = await getOrderWithItems(orderId, emailForOrder, userId);
 
         // Log temporal para debugging
         if (process.env.NODE_ENV === "development") {
@@ -93,9 +121,21 @@ export async function POST(req: NextRequest) {
 
     // Si no viene orderId, devolver lista de órdenes
     try {
-      const orders = await getOrdersByEmail(normalizedEmail, { 
+      // Si hay userId, podemos buscar sin email (la función prioriza userId)
+      // Si no hay userId, necesitamos email
+      if (!userId && !normalizedEmail) {
+        return NextResponse.json(
+          { error: "Email requerido o sesión activa" },
+          { status: 400 },
+        );
+      }
+
+      // Si hay userId pero no email, usar un email dummy (no se usará porque la función prioriza userId)
+      const emailForQuery = normalizedEmail || (userId ? "dummy@temp.local" : "");
+      
+      const orders = await getOrdersByEmail(emailForQuery, { 
         limit: 20,
-        userId: userId, // Pasar userId si está disponible
+        userId: userId, // Pasar userId si está disponible (prioridad)
       });
 
       // Log temporal para debugging

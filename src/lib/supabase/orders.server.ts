@@ -75,8 +75,9 @@ export async function getOrdersByEmail(
 ): Promise<OrderSummary[]> {
   const supabase = createServiceRoleSupabase();
   const limit = options?.limit ?? 10;
-  const normalizedEmail = email.trim().toLowerCase();
   const userId = options?.userId;
+  // Normalizar email para logging (aunque no se use si hay userId)
+  const normalizedEmail = email.trim().toLowerCase();
 
   let query = supabase
     .from("orders")
