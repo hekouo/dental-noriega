@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient } from "@supabase/supabase-js";
+import type { PostgrestError } from "@supabase/supabase-js";
 
 /**
  * Tipos para órdenes y items
@@ -57,6 +58,9 @@ function createServiceRoleSupabase() {
   });
 }
 
+const isMissingTableError = (error?: PostgrestError | null) =>
+  Boolean(error?.code === "PGRST205");
+
 /**
  * Obtiene las órdenes de un usuario
  * @param userId - ID del usuario (opcional, prioridad si está presente)
@@ -70,14 +74,18 @@ function createServiceRoleSupabase() {
  * - Mantiene compatibilidad con pedidos históricos por email
  */
 export async function getOrdersByEmail(
-  email: string,
+  email?: string | null,
   options?: { limit?: number; userId?: string | null },
 ): Promise<OrderSummary[]> {
   const supabase = createServiceRoleSupabase();
   const limit = options?.limit ?? 10;
   const userId = options?.userId;
   // Normalizar email para logging (aunque no se use si hay userId)
-  const normalizedEmail = email.trim().toLowerCase();
+  const normalizedEmail = email?.trim().toLowerCase() ?? null;
+
+  if (!userId && !normalizedEmail) {
+    throw new Error("Email o userId requeridos para obtener órdenes");
+  }
 
   let query = supabase
     .from("orders")
@@ -86,7 +94,7 @@ export async function getOrdersByEmail(
   // Prioridad: buscar por user_id si está disponible (usuarios autenticados)
   if (userId) {
     query = query.eq("user_id", userId);
-  } else {
+  } else if (normalizedEmail) {
     // Fallback: buscar por contact_email (guest checkout o pedidos históricos)
     query = query.eq("contact_email", normalizedEmail);
   }
@@ -96,8 +104,14 @@ export async function getOrdersByEmail(
     .limit(limit);
 
   if (error) {
+    if (isMissingTableError(error)) {
+      console.warn("[getOrdersByEmail] Tabla orders no disponible. Se devuelve lista vacía.");
+      return [];
+    }
     console.error("[getOrdersByEmail] Error:", { userId, email: normalizedEmail, error });
-    throw new Error(`Error al obtener órdenes: ${error.message}`);
+    const enrichedError = new Error(`Error al obtener órdenes: ${error.message}`);
+    (enrichedError as Error & { code?: string }).code = error.code;
+    throw enrichedError;
   }
 
   // Log temporal para debugging
@@ -122,7 +136,7 @@ export async function getOrdersByEmail(
     id: order.id,
     created_at: order.created_at,
     status: order.status,
-    email: order.contact_email || normalizedEmail, // Usar contact_email o el email proporcionado
+    email: order.contact_email || normalizedEmail || "",
     total_cents: order.total_cents,
     metadata: (order.metadata as OrderSummary["metadata"]) || null,
   }));
@@ -142,11 +156,15 @@ export async function getOrdersByEmail(
  */
 export async function getOrderWithItems(
   orderId: string,
-  email: string,
+  email?: string | null,
   userId?: string | null,
 ): Promise<OrderDetail | null> {
   const supabase = createServiceRoleSupabase();
-  const normalizedEmail = email.trim().toLowerCase();
+  const normalizedEmail = email?.trim().toLowerCase() ?? null;
+
+  if (!userId && !normalizedEmail) {
+    throw new Error("Email o userId requeridos para obtener una orden");
+  }
 
   let query = supabase
     .from("orders")
@@ -156,7 +174,7 @@ export async function getOrderWithItems(
   // Prioridad: verificar por user_id si está disponible
   if (userId) {
     query = query.eq("user_id", userId);
-  } else {
+  } else if (normalizedEmail) {
     // Fallback: verificar por contact_email
     query = query.eq("contact_email", normalizedEmail);
   }
@@ -164,11 +182,23 @@ export async function getOrderWithItems(
   const { data: orderData, error: orderError } = await query.single();
 
   if (orderError || !orderData) {
-    console.warn(
-      `[getOrderWithItems] Orden ${orderId} no encontrada o no pertenece a ${userId ? `user_id ${userId}` : `email ${normalizedEmail}`}`,
-      { error: orderError },
+    if (orderError && isMissingTableError(orderError)) {
+      console.warn("[getOrderWithItems] Tabla orders no disponible. Devolviendo null.");
+      return null;
+    }
+    if (orderError?.code === "PGRST116") {
+      console.warn(
+        `[getOrderWithItems] Orden ${orderId} no encontrada para ${
+          userId ? `user_id ${userId}` : `email ${normalizedEmail}`
+        }`,
+      );
+      return null;
+    }
+    const enrichedError = new Error(
+      `Error al obtener orden ${orderId}: ${orderError?.message || "desconocido"}`,
     );
-    return null;
+    (enrichedError as Error & { code?: string }).code = orderError?.code;
+    throw enrichedError;
   }
 
   // Obtener los items de la orden
@@ -179,13 +209,16 @@ export async function getOrderWithItems(
     .order("created_at", { ascending: true });
 
   if (itemsError) {
-    console.error("[getOrderWithItems] Error al obtener items:", itemsError);
-    // Aún así devolver la orden sin items si hay error
+    if (isMissingTableError(itemsError)) {
+      console.warn("[getOrderWithItems] Tabla order_items no disponible. Continuando sin items.");
+    } else {
+      console.error("[getOrderWithItems] Error al obtener items:", itemsError);
+    }
     return {
       id: orderData.id,
       created_at: orderData.created_at,
       status: orderData.status,
-      email: orderData.contact_email || normalizedEmail, // Usar contact_email o el email proporcionado
+      email: orderData.contact_email || normalizedEmail || "",
       total_cents: orderData.total_cents,
       metadata: (orderData.metadata as OrderSummary["metadata"]) || null,
       items: [],

@@ -12,14 +12,18 @@ export const revalidate = 0;
 
 const OrdersRequestSchema = z.object({
   email: z.string().email("Email inválido").optional(),
-  orderId: z.union([
-    z.string().uuid("OrderId debe ser un UUID válido"),
-    z.literal(""),
-  ]).optional(),
+  orderId: z
+    .union([z.string().uuid("OrderId debe ser un UUID válido"), z.literal("")])
+    .optional(),
 });
 
 // Type export for potential future use
 export type OrdersRequest = z.infer<typeof OrdersRequestSchema>;
+
+const isMissingTableError = (error: unknown) => {
+  if (!error || typeof error !== "object") return false;
+  return "code" in error && (error as { code?: string }).code === "PGRST205";
+};
 
 export async function POST(req: NextRequest) {
   noStore();
@@ -89,9 +93,9 @@ export async function POST(req: NextRequest) {
     // Si viene orderId normalizado, devolver detalle de una orden
     if (orderId) {
       try {
-        // Para getOrderWithItems, necesitamos un email (puede ser el del usuario autenticado o el proporcionado)
-        const emailForOrder = normalizedEmail || (userId ? `user-${userId}@temp.local` : null);
-        if (!emailForOrder) {
+        const emailForOrder = normalizedEmail || null;
+
+        if (!userId && !emailForOrder) {
           return NextResponse.json(
             { error: "Email requerido para buscar una orden específica" },
             { status: 400 },
@@ -120,6 +124,13 @@ export async function POST(req: NextRequest) {
 
         return NextResponse.json({ order });
       } catch (err) {
+        if (isMissingTableError(err)) {
+          console.warn("[api/account/orders] Tabla requerida no disponible. Devolviendo 404 controlado.");
+          return NextResponse.json(
+            { error: "Orden no encontrada o no pertenece a tu cuenta" },
+            { status: 404 },
+          );
+        }
         console.error("[api/account/orders] Error al obtener orden:", err);
         return NextResponse.json(
           { error: "Ocurrió un error al buscar el pedido. Intenta de nuevo más tarde." },
@@ -139,12 +150,9 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // Si hay userId pero no email, usar un email dummy (no se usará porque la función prioriza userId)
-      const emailForQuery = normalizedEmail || (userId ? "dummy@temp.local" : "");
-      
-      const orders = await getOrdersByEmail(emailForQuery, { 
+      const orders = await getOrdersByEmail(normalizedEmail, {
         limit: 20,
-        userId: userId, // Pasar userId si está disponible (prioridad)
+        userId, // Pasar userId si está disponible (prioridad)
       });
 
       // Log temporal para debugging
@@ -158,6 +166,10 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json({ orders });
     } catch (err) {
+      if (isMissingTableError(err)) {
+        console.warn("[api/account/orders] Tabla requerida no disponible. Devolviendo lista vacía.");
+        return NextResponse.json({ orders: [] });
+      }
       console.error("[api/account/orders] Error al obtener órdenes:", err);
       return NextResponse.json(
         { error: "Ocurrió un error al buscar tus pedidos. Intenta de nuevo más tarde." },

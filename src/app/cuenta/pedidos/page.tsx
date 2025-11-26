@@ -95,8 +95,12 @@ export default function PedidosPage() {
           setOrders([]);
         }
       } else {
-        // Si la respuesta no es ok, establecer array vacío para evitar mostrar datos incorrectos
+        // Si la respuesta no es ok, establecer array vacío y mostrar mensaje para evitar confusiones
         setOrders([]);
+        setError(
+          ordersData.error ||
+            "Hubo un problema al cargar tus pedidos automáticamente. Intenta de nuevo.",
+        );
       }
 
       if (loyaltyResponse.ok && loyaltyData) {
