@@ -95,11 +95,14 @@ export async function getOrdersByEmail(
     .from("orders")
     .select("id, created_at, status, contact_email, total_cents, metadata, user_id");
 
-  // Prioridad: buscar por user_id si está disponible (usuarios autenticados)
-  if (userId) {
+  // Si tengo AMBOS userId y email, usar OR para encontrar órdenes con cualquiera de los dos
+  if (userId && normalizedEmail) {
+    query = query.or(`user_id.eq.${userId},contact_email.eq.${normalizedEmail}`);
+  } else if (userId) {
+    // Solo userId: buscar por user_id
     query = query.eq("user_id", userId);
   } else if (normalizedEmail) {
-    // Fallback: buscar por contact_email (guest checkout o pedidos históricos)
+    // Solo email: buscar por contact_email (guest checkout o pedidos históricos)
     query = query.eq("contact_email", normalizedEmail);
   }
 
@@ -188,11 +191,14 @@ export async function getOrderWithItems(
     .select("id, created_at, status, contact_email, total_cents, metadata, user_id")
     .eq("id", orderId);
 
-  // Prioridad: verificar por user_id si está disponible
-  if (userId) {
+  // Si tengo AMBOS userId y email, usar OR para verificar que la orden pertenezca a cualquiera de los dos
+  if (userId && normalizedEmail) {
+    query = query.or(`user_id.eq.${userId},contact_email.eq.${normalizedEmail}`);
+  } else if (userId) {
+    // Solo userId: verificar por user_id
     query = query.eq("user_id", userId);
   } else if (normalizedEmail) {
-    // Fallback: verificar por contact_email
+    // Solo email: verificar por contact_email
     query = query.eq("contact_email", normalizedEmail);
   }
 
