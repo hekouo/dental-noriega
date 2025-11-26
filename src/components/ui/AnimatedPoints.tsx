@@ -4,28 +4,30 @@ import { useState, useEffect } from "react";
 
 type AnimatedPointsProps = {
   value: number;
+  from?: number; // valor inicial para la animación (default: 0)
   durationMs?: number; // default ~600
   className?: string;
 };
 
 /**
- * Componente que anima un contador de puntos desde 0 hasta el valor final
+ * Componente que anima un contador de puntos desde un valor inicial hasta el valor final
  */
 export function AnimatedPoints({
   value,
+  from = 0,
   durationMs = 600,
   className,
 }: AnimatedPointsProps) {
-  const [displayValue, setDisplayValue] = useState(0);
+  const [displayValue, setDisplayValue] = useState(from);
 
   useEffect(() => {
-    if (value <= 0) {
+    if (value <= 0 && from <= 0) {
       setDisplayValue(0);
       return;
     }
 
     let start: number | null = null;
-    const startValue = 0;
+    const startValue = from;
     const diff = value - startValue;
 
     const step = (timestamp: number) => {
@@ -40,7 +42,7 @@ export function AnimatedPoints({
 
     const frame = requestAnimationFrame(step);
     return () => cancelAnimationFrame(frame);
-  }, [value, durationMs]);
+  }, [value, from, durationMs]);
 
   return (
     <span className={className}>
