@@ -897,6 +897,25 @@ export default function GraciasContent() {
                   </>
                 )}
               </>
+            ) : loyaltyInfo.pointsBalance !== null && loyaltyInfo.pointsBalance > 0 ? (
+              <>
+                <p className="text-blue-900 font-medium mb-1">
+                  Tu nuevo balance de puntos es{" "}
+                  <AnimatedPoints
+                    value={loyaltyInfo.pointsBalance}
+                    className="font-semibold"
+                  />{" "}
+                  puntos.
+                </p>
+                <LoyaltyPointsBar
+                  value={loyaltyInfo.pointsBalance}
+                  max={Math.max(loyaltyInfo.pointsBalance, 2000)}
+                  className="mt-1"
+                />
+                <p className="text-blue-700 text-sm mt-2">
+                  Tus puntos de esta compra se verán reflejados en unos minutos.
+                </p>
+              </>
             ) : (
               <p className="text-blue-700 text-sm">
                 Tus puntos se actualizarán en unos minutos.
