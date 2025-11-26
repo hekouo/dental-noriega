@@ -12,7 +12,10 @@ export const revalidate = 0;
 
 const OrdersRequestSchema = z.object({
   email: z.string().email("Email inválido").optional(),
-  orderId: z.string().uuid().optional(),
+  orderId: z.union([
+    z.string().uuid("OrderId debe ser un UUID válido"),
+    z.literal(""),
+  ]).optional(),
 });
 
 // Type export for potential future use
@@ -43,7 +46,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { email, orderId } = validationResult.data;
+    const { email, orderId: rawOrderId } = validationResult.data;
+
+    // Normalizar orderId: solo usar si es string no vacío
+    const orderId =
+      typeof rawOrderId === "string" && rawOrderId.trim().length > 0
+        ? rawOrderId.trim()
+        : undefined;
 
     // Intentar obtener user_id de la sesión (si el usuario está autenticado)
     let userId: string | null = null;
@@ -77,7 +86,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Si viene orderId, devolver detalle de una orden
+    // Si viene orderId normalizado, devolver detalle de una orden
     if (orderId) {
       try {
         // Para getOrderWithItems, necesitamos un email (puede ser el del usuario autenticado o el proporcionado)
