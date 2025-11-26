@@ -5,8 +5,10 @@ import { getBrowserSupabase } from "@/lib/supabase/client";
 import type { CartItem } from "@/lib/store/cartStore";
 import { getWithTTL, removeWithTTL, KEYS } from "@/lib/utils/persist";
 
-const isMissingTableError = (error?: PostgrestError | null) =>
-  Boolean(error?.code === "PGRST205");
+const isMissingTableError = (error?: PostgrestError | null) => {
+  const code = error?.code;
+  return code === "PGRST205" || code === "42P01"; // 42P01 = PostgreSQL "relation does not exist"
+};
 
 const logMissingTable = (source: string) => {
   if (process.env.NODE_ENV === "development") {

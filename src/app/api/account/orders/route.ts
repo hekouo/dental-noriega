@@ -107,14 +107,6 @@ export async function POST(req: NextRequest) {
 
     // Si viene orderId normalizado, devolver detalle de una orden
     if (orderId) {
-      // Validar antes de llamar al helper
-      if (!userId && !normalizedEmail) {
-        return NextResponse.json(
-          { error: "Debes iniciar sesión o indicar un email válido." },
-          { status: 400 },
-        );
-      }
-
       try {
         if (process.env.NODE_ENV === "development") {
           console.log("[api/account/orders] Buscando detalle de orden:", {
@@ -125,7 +117,7 @@ export async function POST(req: NextRequest) {
           });
         }
 
-        const order = await getOrderWithItems(orderId, normalizedEmail, userId);
+        const order = await getOrderWithItems(orderId, normalizedEmail ?? null, userId);
 
         // Log temporal para debugging
         if (process.env.NODE_ENV === "development") {
@@ -147,7 +139,6 @@ export async function POST(req: NextRequest) {
 
         return NextResponse.json({ order });
       } catch (err) {
-        // Solo debería llegar aquí en errores graves de infraestructura
         console.error("[api/account/orders] ERROR al obtener orden:", {
           message: err instanceof Error ? err.message : String(err),
           code: (err as any)?.code,
@@ -166,23 +157,15 @@ export async function POST(req: NextRequest) {
           );
         }
         
-        // Para otros errores graves, devolver 502 (Bad Gateway) en vez de 500
+        // Para otros errores, devolver 500
         return NextResponse.json(
           { error: "Ocurrió un error al buscar el pedido. Intenta de nuevo más tarde." },
-          { status: 502 },
+          { status: 500 },
         );
       }
     }
 
     // Si no viene orderId, devolver lista de órdenes
-    // Validar antes de llamar al helper
-    if (!userId && !normalizedEmail) {
-      return NextResponse.json(
-        { error: "Debes iniciar sesión o indicar un email válido." },
-        { status: 400 },
-      );
-    }
-
     try {
       if (process.env.NODE_ENV === "development") {
         console.log("[api/account/orders] Buscando lista de órdenes:", {
@@ -192,9 +175,9 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      const orders = await getOrdersByEmail(normalizedEmail, {
+      const orders = await getOrdersByEmail(normalizedEmail ?? null, {
         limit: 20,
-        userId, // Pasar userId si está disponible (prioridad)
+        userId,
       });
 
       if (process.env.NODE_ENV === "development") {
@@ -205,10 +188,9 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      // Siempre devolver 200 con orders (puede estar vacío)
-      return NextResponse.json({ orders: orders ?? [] });
+      // Siempre devolver 200 con orders (nunca 404)
+      return NextResponse.json({ orders });
     } catch (err) {
-      // Solo debería llegar aquí en errores graves de infraestructura
       console.error("[api/account/orders] ERROR al obtener lista de órdenes:", {
         message: err instanceof Error ? err.message : String(err),
         code: (err as any)?.code,
@@ -223,10 +205,10 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ orders: [] });
       }
       
-      // Para otros errores graves, devolver 502 (Bad Gateway) en vez de 500
+      // Para otros errores, devolver 500
       return NextResponse.json(
         { error: "Ocurrió un error al buscar tus pedidos. Intenta de nuevo más tarde." },
-        { status: 502 },
+        { status: 500 },
       );
     }
   } catch (error) {
