@@ -20,9 +20,13 @@ const OrdersRequestSchema = z.object({
 // Type export for potential future use
 export type OrdersRequest = z.infer<typeof OrdersRequestSchema>;
 
-const isMissingTableError = (error: unknown) => {
+/**
+ * Detecta si un error es por tabla faltante (PGRST205) u otros errores de tabla inexistente
+ */
+const isMissingTableError = (error: unknown): boolean => {
   if (!error || typeof error !== "object") return false;
-  return "code" in error && (error as { code?: string }).code === "PGRST205";
+  const code = (error as { code?: string }).code;
+  return code === "PGRST205" || code === "42P01"; // 42P01 = PostgreSQL "relation does not exist"
 };
 
 export async function POST(req: NextRequest) {
@@ -124,13 +128,18 @@ export async function POST(req: NextRequest) {
 
         return NextResponse.json({ order });
       } catch (err) {
+        // Si es error de tabla faltante, tratar como "no encontrada"
         if (isMissingTableError(err)) {
-          console.warn("[api/account/orders] Tabla requerida no disponible. Devolviendo 404 controlado.");
+          if (process.env.NODE_ENV === "development") {
+            console.warn("[api/account/orders] Tabla requerida no disponible. Devolviendo 404 controlado.");
+          }
           return NextResponse.json(
             { error: "Orden no encontrada o no pertenece a tu cuenta" },
             { status: 404 },
           );
         }
+        
+        // Para otros errores, loguear y devolver 500
         console.error("[api/account/orders] Error al obtener orden:", err);
         return NextResponse.json(
           { error: "Ocurrió un error al buscar el pedido. Intenta de nuevo más tarde." },
@@ -155,21 +164,18 @@ export async function POST(req: NextRequest) {
         userId, // Pasar userId si está disponible (prioridad)
       });
 
-      // Log temporal para debugging
-      if (process.env.NODE_ENV === "development") {
-        console.log("[api/account/orders] Respuesta:", {
-          userId,
-          email: normalizedEmail,
-          ordersCount: orders.length,
-        });
-      }
-
+      // Siempre devolver 200 con orders (puede estar vacío)
       return NextResponse.json({ orders });
     } catch (err) {
+      // Si es error de tabla faltante, devolver lista vacía (no es un error real)
       if (isMissingTableError(err)) {
-        console.warn("[api/account/orders] Tabla requerida no disponible. Devolviendo lista vacía.");
+        if (process.env.NODE_ENV === "development") {
+          console.warn("[api/account/orders] Tabla requerida no disponible. Devolviendo lista vacía.");
+        }
         return NextResponse.json({ orders: [] });
       }
+      
+      // Para otros errores, loguear y devolver 500
       console.error("[api/account/orders] Error al obtener órdenes:", err);
       return NextResponse.json(
         { error: "Ocurrió un error al buscar tus pedidos. Intenta de nuevo más tarde." },

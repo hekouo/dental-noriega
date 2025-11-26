@@ -88,19 +88,20 @@ export default function PedidosPage() {
       const loyaltyData = await loyaltyResponse.json();
 
       if (ordersResponse.ok) {
+        // La API siempre devuelve { orders: [...] } cuando es ok
         if (ordersData.orders && Array.isArray(ordersData.orders)) {
           setOrders(ordersData.orders);
         } else {
-          // Si no hay órdenes, establecer array vacío para mostrar empty state
+          // Si no viene orders en la respuesta, establecer array vacío
           setOrders([]);
         }
+        // Limpiar error si la respuesta fue exitosa
+        setError(null);
       } else {
-        // Si la respuesta no es ok, establecer array vacío y mostrar mensaje para evitar confusiones
+        // Si la respuesta no es ok (500 u otro error), establecer array vacío y mostrar mensaje
         setOrders([]);
-        setError(
-          ordersData.error ||
-            "Hubo un problema al cargar tus pedidos automáticamente. Intenta de nuevo.",
-        );
+        const errorMessage = ordersData?.error || "Hubo un problema al cargar tus pedidos automáticamente. Intenta de nuevo.";
+        setError(errorMessage);
       }
 
       if (loyaltyResponse.ok && loyaltyData) {
@@ -161,8 +162,13 @@ export default function PedidosPage() {
         // Manejar 404 específicamente para "orden no encontrada"
         if (ordersResponse.status === 404) {
           setError(ordersData.error || "Orden no encontrada o no pertenece a tu cuenta");
+          setOrders([]);
+          setOrderDetail(null);
         } else {
+          // Para 500 u otros errores, mostrar mensaje genérico
           setError(ordersData.error || "Error al obtener pedidos");
+          setOrders([]);
+          setOrderDetail(null);
         }
         setLoading(false);
         return;
