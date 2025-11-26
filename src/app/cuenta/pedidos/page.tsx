@@ -29,6 +29,7 @@ export default function PedidosPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userFullName, setUserFullName] = useState<string | null>(null);
+  const ordersRef = useRef<HTMLDivElement | null>(null);
 
   // Cargar email del usuario autenticado al montar
   useEffect(() => {
@@ -151,6 +152,16 @@ export default function PedidosPage() {
         // Lista de órdenes
         setOrders(ordersData.orders);
         setOrderDetail(null);
+        
+        // Scroll suave hacia los resultados si hay pedidos
+        if (ordersData.orders.length > 0) {
+          setTimeout(() => {
+            ordersRef.current?.scrollIntoView({
+              behavior: "smooth",
+              block: "start",
+            });
+          }, 100);
+        }
       }
 
       // Actualizar puntos de lealtad si la respuesta fue exitosa
@@ -454,7 +465,7 @@ export default function PedidosPage() {
 
         {/* Lista de órdenes */}
         {orders && orders.length > 0 && (
-          <div className="overflow-hidden">
+          <div ref={ordersRef} className="overflow-hidden">
             <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-gray-900">
                 {orders.length} pedido{orders.length !== 1 ? "s" : ""} encontrado
@@ -572,7 +583,17 @@ export default function PedidosPage() {
           </div>
         )}
 
-        {orders && orders.length === 0 && (
+        {/* Empty state: no hay pedidos */}
+        {email.trim() && isValidEmail(email) && !loading && orders && orders.length === 0 && !orderDetail && !error && (
+          <div ref={ordersRef} className="bg-gray-50 rounded-lg border border-gray-200 p-8 text-center">
+            <p className="text-gray-700 font-medium mb-2">Todavía no tienes pedidos con este correo</p>
+            <p className="text-sm text-gray-600">
+              Cuando realices tu primera compra, aparecerá aquí.
+            </p>
+          </div>
+        )}
+
+        {orders && orders.length === 0 && orderDetail && (
           <div className="text-center py-12">
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
               Aún no tienes pedidos

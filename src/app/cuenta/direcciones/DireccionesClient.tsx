@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useState, useEffect, useTransition, useRef } from "react";
 import type { AccountAddress } from "@/lib/supabase/addresses.server";
 import { isValidEmail } from "@/lib/validation/email";
 import { getBrowserSupabase } from "@/lib/supabase/client";
@@ -36,6 +36,7 @@ export default function DireccionesClient() {
     country: "México",
     is_default: false,
   });
+  const addressesRef = useRef<HTMLDivElement | null>(null);
 
   // Cargar email del usuario autenticado al montar
   useEffect(() => {
@@ -86,6 +87,16 @@ export default function DireccionesClient() {
 
       const data = await response.json();
       setAddresses(data.addresses || []);
+      
+      // Scroll suave hacia el listado si hay direcciones
+      if (data.addresses && data.addresses.length > 0) {
+        setTimeout(() => {
+          addressesRef.current?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          });
+        }, 100);
+      }
       
       // Si no hay direcciones, mostrar mensaje amigable
       if (!data.addresses || data.addresses.length === 0) {
@@ -150,6 +161,14 @@ export default function DireccionesClient() {
         });
         setEditingId(null);
         await loadAddresses();
+        
+        // Scroll suave hacia el listado después de guardar
+        setTimeout(() => {
+          addressesRef.current?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          });
+        }, 200);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Error al guardar dirección");
         console.error("[handleSubmit] Error:", err);
@@ -523,7 +542,7 @@ export default function DireccionesClient() {
 
       {/* Lista de direcciones */}
       {email.trim() && addresses.length > 0 && (
-        <div className="space-y-4">
+        <div ref={addressesRef} className="space-y-4">
           <h2 className="text-lg font-semibold">Direcciones guardadas</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {addresses.map((address) => (
