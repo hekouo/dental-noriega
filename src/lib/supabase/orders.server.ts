@@ -186,9 +186,10 @@ export async function getOrderWithItems(
     return null;
   }
 
+  // Intentar buscar primero por id (UUID)
   let query = supabase
     .from("orders")
-    .select("id, created_at, status, contact_email, total_cents, metadata, user_id")
+    .select("id, created_at, status, contact_email, total_cents, metadata, user_id, stripe_session_id")
     .eq("id", orderId);
 
   // Si tengo AMBOS userId y email, usar OR para verificar que la orden pertenezca a cualquiera de los dos
@@ -202,7 +203,43 @@ export async function getOrderWithItems(
     query = query.eq("contact_email", normalizedEmail);
   }
 
-  const { data: orderData, error: orderError } = await query.single();
+  let { data: orderData, error: orderError } = await query.single();
+
+  // Si no se encontró por id, intentar buscar por stripe_session_id
+  if ((orderError?.code === "PGRST116" || !orderData) && orderId) {
+    if (process.env.NODE_ENV === "development") {
+      console.log("[getOrderWithItems] No encontrado por id, intentando buscar por stripe_session_id:", orderId);
+    }
+    
+    let queryBySession = supabase
+      .from("orders")
+      .select("id, created_at, status, contact_email, total_cents, metadata, user_id, stripe_session_id")
+      .eq("stripe_session_id", orderId);
+
+    // Aplicar los mismos filtros de seguridad
+    if (userId && normalizedEmail) {
+      queryBySession = queryBySession.or(`user_id.eq.${userId},contact_email.eq.${normalizedEmail}`);
+    } else if (userId) {
+      queryBySession = queryBySession.eq("user_id", userId);
+    } else if (normalizedEmail) {
+      queryBySession = queryBySession.eq("contact_email", normalizedEmail);
+    }
+
+    const { data: orderDataBySession, error: orderErrorBySession } = await queryBySession.single();
+    
+    if (orderDataBySession && !orderErrorBySession) {
+      // Encontrado por stripe_session_id
+      orderData = orderDataBySession;
+      orderError = null;
+      if (process.env.NODE_ENV === "development") {
+        console.log("[getOrderWithItems] Encontrado por stripe_session_id:", orderData.id);
+      }
+    } else {
+      // No encontrado ni por id ni por stripe_session_id
+      orderData = null;
+      orderError = orderErrorBySession || orderError;
+    }
+  }
 
   if (orderError || !orderData) {
     if (orderError && isMissingTableError(orderError)) {
@@ -232,11 +269,12 @@ export async function getOrderWithItems(
     return null;
   }
 
-  // Obtener los items de la orden
+  // Obtener los items de la orden (usar el id real de la orden encontrada, no el orderId original)
+  const realOrderId = orderData?.id || orderId;
   const { data: itemsData, error: itemsError } = await supabase
     .from("order_items")
     .select("id, product_id, title, qty, unit_price_cents, image_url")
-    .eq("order_id", orderId)
+    .eq("order_id", realOrderId)
     .order("created_at", { ascending: true });
 
   if (itemsError) {
@@ -259,9 +297,12 @@ export async function getOrderWithItems(
   // Log temporal para debugging
   if (process.env.NODE_ENV === "development") {
     console.log("[getOrderWithItems] Resultado:", {
-      orderId,
+      orderIdOriginal: orderId,
+      orderIdReal: orderData.id,
+      userId,
       email: normalizedEmail,
       itemsCount: itemsData?.length || 0,
+      found: !!orderData,
     });
   }
 
