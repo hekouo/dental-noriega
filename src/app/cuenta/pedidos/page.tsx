@@ -88,12 +88,15 @@ export default function PedidosPage() {
       const loyaltyData = await loyaltyResponse.json();
 
       if (ordersResponse.ok) {
-        if (ordersData.orders) {
+        if (ordersData.orders && Array.isArray(ordersData.orders)) {
           setOrders(ordersData.orders);
         } else {
           // Si no hay órdenes, establecer array vacío para mostrar empty state
           setOrders([]);
         }
+      } else {
+        // Si la respuesta no es ok, establecer array vacío para evitar mostrar datos incorrectos
+        setOrders([]);
       }
 
       if (loyaltyResponse.ok && loyaltyData) {

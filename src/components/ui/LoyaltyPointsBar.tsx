@@ -16,21 +16,26 @@ export function LoyaltyPointsBar({
   max = 5000,
   className,
 }: LoyaltyPointsBarProps) {
-  const [displayPercent, setDisplayPercent] = useState(0);
+  const [progress, setProgress] = useState(0);
 
   useEffect(() => {
     // Si value <= 0, no animar
-    if (value <= 0) {
-      setDisplayPercent(0);
+    if (!value || value <= 0) {
+      setProgress(0);
       return;
     }
 
     // Calcular porcentaje
     const safeMax = Math.max(max, value || 0, 1);
-    const percentage = Math.min(100, (value / safeMax) * 100);
+    const percentage = Math.min(100, Math.max(0, (value / safeMax) * 100));
 
-    // Animar desde 0 hasta el porcentaje final
-    setDisplayPercent(percentage);
+    // Truco para que la transición se vea: resetear a 0 y luego animar al porcentaje final
+    setProgress(0);
+    const id = requestAnimationFrame(() => {
+      setProgress(percentage);
+    });
+
+    return () => cancelAnimationFrame(id);
   }, [value, max]);
 
   // Si value <= 0, no renderizar
@@ -46,7 +51,7 @@ export function LoyaltyPointsBar({
     >
       <div
         className="h-full bg-emerald-500 rounded-full transition-all duration-500 ease-out"
-        style={{ width: `${displayPercent}%` }}
+        style={{ width: `${progress}%` }}
       />
     </div>
   );
