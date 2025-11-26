@@ -752,62 +752,23 @@ export default function GraciasContent() {
               }
             }
           } else if (orderResponse.status === 404) {
-            // Orden no encontrada por orderId - intentar fallback: obtener lista y usar la más reciente
+            // Orden no encontrada - solo loguear en dev, no mostrar error rojo ni romper la página
             if (process.env.NODE_ENV === "development") {
-              console.warn("[GraciasContent] No se encontró orden por orderId, intentando fallback con lista:", orderRef);
-            }
-            
-            try {
-              const listResponse = await fetch(`/api/account/orders`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  email: checkoutDatos.email,
-                  // No enviar orderId para obtener la lista
-                }),
+              console.warn("[GraciasContent] Orden no encontrada (404):", {
+                orderRef,
+                email: checkoutDatos.email,
               });
-              
-              if (listResponse.ok) {
-                const listData = await listResponse.json();
-                const orders = listData.orders || [];
-                
-                if (orders.length > 0) {
-                  // Usar la orden más reciente (primera de la lista, que viene ordenada por fecha descendente)
-                  const mostRecentOrder = orders[0];
-                  const metadata = mostRecentOrder.metadata as Record<string, unknown> | null;
-                  const pointsEarned = typeof metadata?.loyalty_points_earned === "number"
-                    ? metadata.loyalty_points_earned
-                    : null;
-                  
-                  if (pointsEarned !== null) {
-                    const loyaltyResponse = await fetch(
-                      `/api/account/loyalty?email=${encodeURIComponent(checkoutDatos.email)}`,
-                    );
-                    
-                    if (loyaltyResponse.ok) {
-                      const loyaltyData = await loyaltyResponse.json();
-                      setLoyaltyInfo({
-                        pointsEarned,
-                        pointsBalance: loyaltyData.pointsBalance || null,
-                      });
-                      return;
-                    }
-                  }
-                }
-              }
-            } catch (fallbackError) {
-              if (process.env.NODE_ENV === "development") {
-                console.warn("[GraciasContent] Error en fallback de lista:", fallbackError);
-              }
             }
-            
             // Continuar con el flujo normal, no romper la página
           } else if (orderResponse.status >= 500) {
             // Error del servidor - loguear pero no romper
-            console.error("[GraciasContent] Error del servidor al cargar orden:", {
-              status: orderResponse.status,
-              orderId: orderRef,
-            });
+            if (process.env.NODE_ENV === "development") {
+              console.error("[GraciasContent] Error del servidor al cargar orden:", {
+                status: orderResponse.status,
+                orderId: orderRef,
+                email: checkoutDatos.email,
+              });
+            }
             // Continuar con el flujo normal
           }
           
