@@ -98,10 +98,16 @@ export default function PedidosPage() {
         // Limpiar error si la respuesta fue exitosa
         setError(null);
       } else {
-        // Si la respuesta no es ok (500 u otro error), establecer array vacío y mostrar mensaje
+        // Si la respuesta no es ok, verificar el status
         setOrders([]);
-        const errorMessage = ordersData?.error || "Hubo un problema al cargar tus pedidos automáticamente. Intenta de nuevo.";
-        setError(errorMessage);
+        if (ordersResponse.status >= 500) {
+          // Solo mostrar error para 500+
+          const errorMessage = ordersData?.error || "Hubo un problema al cargar tus pedidos automáticamente. Intenta de nuevo.";
+          setError(errorMessage);
+        } else {
+          // Para otros errores (400, 404, etc.), no mostrar error, solo lista vacía
+          setError(null);
+        }
       }
 
       if (loyaltyResponse.ok && loyaltyData) {
@@ -159,16 +165,21 @@ export default function PedidosPage() {
       const loyaltyData = await loyaltyResponse.json();
 
       if (!ordersResponse.ok) {
-        // Manejar 404 específicamente para "orden no encontrada"
-        if (ordersResponse.status === 404) {
+        // Manejar 404 específicamente para "orden no encontrada" (solo si se buscó por orderId)
+        if (ordersResponse.status === 404 && trimmedOrderId.length > 0) {
           setError(ordersData.error || "Orden no encontrada o no pertenece a tu cuenta");
           setOrders([]);
           setOrderDetail(null);
-        } else {
-          // Para 500 u otros errores, mostrar mensaje genérico
+        } else if (ordersResponse.status >= 500) {
+          // Solo mostrar banner rojo para errores 500+
           setError(ordersData.error || "Error al obtener pedidos");
           setOrders([]);
           setOrderDetail(null);
+        } else {
+          // Para otros errores (400, 422, etc.), establecer lista vacía sin mostrar error
+          setOrders([]);
+          setOrderDetail(null);
+          setError(null);
         }
         setLoading(false);
         return;
@@ -822,3 +833,4 @@ export default function PedidosPage() {
     </div>
   );
 }
+

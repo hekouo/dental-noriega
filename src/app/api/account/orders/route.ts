@@ -96,17 +96,16 @@ export async function POST(req: NextRequest) {
 
     // Si viene orderId normalizado, devolver detalle de una orden
     if (orderId) {
+      // Validar antes de llamar al helper
+      if (!userId && !normalizedEmail) {
+        return NextResponse.json(
+          { error: "Debes iniciar sesión o indicar un email válido." },
+          { status: 400 },
+        );
+      }
+
       try {
-        const emailForOrder = normalizedEmail || null;
-
-        if (!userId && !emailForOrder) {
-          return NextResponse.json(
-            { error: "Email requerido para buscar una orden específica" },
-            { status: 400 },
-          );
-        }
-
-        const order = await getOrderWithItems(orderId, emailForOrder, userId);
+        const order = await getOrderWithItems(orderId, normalizedEmail, userId);
 
         // Log temporal para debugging
         if (process.env.NODE_ENV === "development") {
@@ -128,62 +127,80 @@ export async function POST(req: NextRequest) {
 
         return NextResponse.json({ order });
       } catch (err) {
+        // Solo debería llegar aquí en errores graves de infraestructura
+        console.error("[api/account/orders] ERROR al obtener orden:", {
+          message: err instanceof Error ? err.message : String(err),
+          code: (err as any)?.code,
+          stack: err instanceof Error ? err.stack : undefined,
+          name: (err as any)?.name,
+          orderId,
+          userId,
+          email: normalizedEmail,
+        });
+        
         // Si es error de tabla faltante, tratar como "no encontrada"
         if (isMissingTableError(err)) {
-          if (process.env.NODE_ENV === "development") {
-            console.warn("[api/account/orders] Tabla requerida no disponible. Devolviendo 404 controlado.");
-          }
           return NextResponse.json(
             { error: "Orden no encontrada o no pertenece a tu cuenta" },
             { status: 404 },
           );
         }
         
-        // Para otros errores, loguear y devolver 500
-        console.error("[api/account/orders] Error al obtener orden:", err);
+        // Para otros errores graves, devolver 502 (Bad Gateway) en vez de 500
         return NextResponse.json(
           { error: "Ocurrió un error al buscar el pedido. Intenta de nuevo más tarde." },
-          { status: 500 },
+          { status: 502 },
         );
       }
     }
 
     // Si no viene orderId, devolver lista de órdenes
-    try {
-      // Si hay userId, podemos buscar sin email (la función prioriza userId)
-      // Si no hay userId, necesitamos email
-      if (!userId && !normalizedEmail) {
-        return NextResponse.json(
-          { error: "Email requerido o sesión activa" },
-          { status: 400 },
-        );
-      }
+    // Validar antes de llamar al helper
+    if (!userId && !normalizedEmail) {
+      return NextResponse.json(
+        { error: "Debes iniciar sesión o indicar un email válido." },
+        { status: 400 },
+      );
+    }
 
+    try {
       const orders = await getOrdersByEmail(normalizedEmail, {
         limit: 20,
         userId, // Pasar userId si está disponible (prioridad)
       });
 
       // Siempre devolver 200 con orders (puede estar vacío)
-      return NextResponse.json({ orders });
+      return NextResponse.json({ orders: orders ?? [] });
     } catch (err) {
+      // Solo debería llegar aquí en errores graves de infraestructura
+      console.error("[api/account/orders] ERROR al obtener lista de órdenes:", {
+        message: err instanceof Error ? err.message : String(err),
+        code: (err as any)?.code,
+        stack: err instanceof Error ? err.stack : undefined,
+        name: (err as any)?.name,
+        userId,
+        email: normalizedEmail,
+      });
+      
       // Si es error de tabla faltante, devolver lista vacía (no es un error real)
       if (isMissingTableError(err)) {
-        if (process.env.NODE_ENV === "development") {
-          console.warn("[api/account/orders] Tabla requerida no disponible. Devolviendo lista vacía.");
-        }
         return NextResponse.json({ orders: [] });
       }
       
-      // Para otros errores, loguear y devolver 500
-      console.error("[api/account/orders] Error al obtener órdenes:", err);
+      // Para otros errores graves, devolver 502 (Bad Gateway) en vez de 500
       return NextResponse.json(
         { error: "Ocurrió un error al buscar tus pedidos. Intenta de nuevo más tarde." },
-        { status: 500 },
+        { status: 502 },
       );
     }
   } catch (error) {
-    console.error("[api/account/orders] Error inesperado:", error);
+    // Catch final para errores inesperados (parsing, validación, etc.)
+    console.error("[api/account/orders] ERROR inesperado:", {
+      message: error instanceof Error ? error.message : String(error),
+      code: (error as any)?.code,
+      stack: error instanceof Error ? error.stack : undefined,
+      name: (error as any)?.name,
+    });
     return NextResponse.json(
       { error: "Ocurrió un error al procesar tu solicitud. Intenta de nuevo más tarde." },
       { status: 500 },
