@@ -87,8 +87,13 @@ export default function PedidosPage() {
       const ordersData = await ordersResponse.json();
       const loyaltyData = await loyaltyResponse.json();
 
-      if (ordersResponse.ok && ordersData.orders) {
-        setOrders(ordersData.orders);
+      if (ordersResponse.ok) {
+        if (ordersData.orders) {
+          setOrders(ordersData.orders);
+        } else {
+          // Si no hay órdenes, establecer array vacío para mostrar empty state
+          setOrders([]);
+        }
       }
 
       if (loyaltyResponse.ok && loyaltyData) {
@@ -162,6 +167,10 @@ export default function PedidosPage() {
             });
           }, 100);
         }
+      } else {
+        // Si no hay órdenes ni detalle, establecer array vacío para mostrar empty state
+        setOrders([]);
+        setOrderDetail(null);
       }
 
       // Actualizar puntos de lealtad si la respuesta fue exitosa
@@ -584,7 +593,7 @@ export default function PedidosPage() {
         )}
 
         {/* Empty state: no hay pedidos */}
-        {email.trim() && isValidEmail(email) && !loading && orders && orders.length === 0 && !orderDetail && !error && (
+        {email.trim() && isValidEmail(email) && !loading && orders !== null && orders.length === 0 && !orderDetail && !error && (
           <div ref={ordersRef} className="bg-gray-50 rounded-lg border border-gray-200 p-8 text-center">
             <p className="text-gray-700 font-medium mb-2">Todavía no tienes pedidos con este correo</p>
             <p className="text-sm text-gray-600">

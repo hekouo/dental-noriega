@@ -863,66 +863,72 @@ export default function GraciasContent() {
         </h1>
 
         {/* Mensaje de puntos de lealtad */}
-        {displayStatus === "paid" && loyaltyInfo && (
-          <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            {loyaltyInfo.pointsEarned !== null && loyaltyInfo.pointsEarned > 0 ? (
-              <>
+        {displayStatus === "paid" && loyaltyInfo && (() => {
+          const previousBalance = loyaltyInfo.pointsBalance ?? 0;
+          const earned = loyaltyInfo.pointsEarned ?? 0;
+          const newBalance = previousBalance + earned;
+
+          if (earned > 0) {
+            // Caso A: usuario ganó puntos en esta compra
+            return (
+              <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <p className="text-blue-900 font-medium mb-1">
-                  Por este pedido ganaste{" "}
+                  Ganaste{" "}
                   <AnimatedPoints
-                    value={loyaltyInfo.pointsEarned}
+                    value={earned}
                     className="font-semibold"
                   />{" "}
-                  puntos.
+                  puntos con esta compra.
                 </p>
                 <LoyaltyPointsBar
-                  value={loyaltyInfo.pointsEarned}
+                  value={newBalance}
+                  max={Math.max(newBalance, 2000)}
                   className="mt-1"
                 />
-                {loyaltyInfo.pointsBalance !== null && (
-                  <>
-                    <p className="text-blue-700 text-sm mt-2">
-                      Ahora tienes{" "}
-                      <AnimatedPoints
-                        value={loyaltyInfo.pointsBalance}
-                        className="font-semibold"
-                      />{" "}
-                      puntos acumulados en tu cuenta.
-                    </p>
-                    <LoyaltyPointsBar
-                      value={loyaltyInfo.pointsBalance}
-                      max={Math.max(loyaltyInfo.pointsBalance, 2000)}
-                      className="mt-1"
-                    />
-                  </>
-                )}
-              </>
-            ) : loyaltyInfo.pointsBalance !== null && loyaltyInfo.pointsBalance > 0 ? (
-              <>
-                <p className="text-blue-900 font-medium mb-1">
-                  Tu nuevo balance de puntos es{" "}
+                <p className="text-blue-700 text-sm mt-2">
+                  Tu nuevo balance es{" "}
                   <AnimatedPoints
-                    value={loyaltyInfo.pointsBalance}
+                    value={newBalance}
+                    from={previousBalance}
+                    className="font-semibold"
+                  />{" "}
+                  puntos.
+                </p>
+              </div>
+            );
+          } else if (newBalance > 0) {
+            // Caso B: usuario tiene puntos pero no hay pointsEarned aún (delay del backend)
+            return (
+              <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-blue-900 font-medium mb-1">
+                  Tu balance actual de puntos es{" "}
+                  <AnimatedPoints
+                    value={newBalance}
                     className="font-semibold"
                   />{" "}
                   puntos.
                 </p>
                 <LoyaltyPointsBar
-                  value={loyaltyInfo.pointsBalance}
-                  max={Math.max(loyaltyInfo.pointsBalance, 2000)}
+                  value={newBalance}
+                  max={Math.max(newBalance, 2000)}
                   className="mt-1"
                 />
                 <p className="text-blue-700 text-sm mt-2">
                   Tus puntos de esta compra se verán reflejados en unos minutos.
                 </p>
-              </>
-            ) : (
-              <p className="text-blue-700 text-sm">
-                Tus puntos se actualizarán en unos minutos.
-              </p>
-            )}
-          </div>
-        )}
+              </div>
+            );
+          } else {
+            // Caso C: no hay puntos (fallback)
+            return (
+              <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-blue-700 text-sm">
+                  Tus puntos se actualizarán en unos minutos.
+                </p>
+              </div>
+            );
+          }
+        })()}
 
         {/* Número de orden y estado */}
         {orderRef && (
