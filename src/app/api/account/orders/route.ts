@@ -20,14 +20,6 @@ const OrdersRequestSchema = z.object({
 // Type export for potential future use
 export type OrdersRequest = z.infer<typeof OrdersRequestSchema>;
 
-/**
- * Detecta si un error es por tabla faltante (PGRST205) u otros errores de tabla inexistente
- */
-const isMissingTableError = (error: unknown): boolean => {
-  if (!error || typeof error !== "object") return false;
-  const code = (error as { code?: string }).code;
-  return code === "PGRST205" || code === "42P01"; // 42P01 = PostgreSQL "relation does not exist"
-};
 
 export async function POST(req: NextRequest) {
   noStore();
@@ -107,110 +99,57 @@ export async function POST(req: NextRequest) {
 
     // Si viene orderId normalizado, devolver detalle de una orden
     if (orderId) {
-      try {
-        if (process.env.NODE_ENV === "development") {
-          console.log("[api/account/orders] Buscando detalle de orden:", {
-            orderId,
-            userId,
-            email: normalizedEmail,
-            rama: "detalle",
-          });
-        }
-
-        const order = await getOrderWithItems(orderId, normalizedEmail ?? null, userId);
-
-        // Log temporal para debugging
-        if (process.env.NODE_ENV === "development") {
-          console.log("[api/account/orders] getOrderWithItems result:", {
-            orderId,
-            userId,
-            email: normalizedEmail,
-            found: !!order,
-            itemsCount: order?.items?.length || 0,
-          });
-        }
-
-        if (!order) {
-          return NextResponse.json(
-            { error: "Orden no encontrada o no pertenece a tu cuenta" },
-            { status: 404 },
-          );
-        }
-
-        return NextResponse.json({ order });
-      } catch (err) {
-        console.error("[api/account/orders] ERROR al obtener orden:", {
-          message: err instanceof Error ? err.message : String(err),
-          code: (err as any)?.code,
-          stack: err instanceof Error ? err.stack : undefined,
-          name: (err as any)?.name,
+      if (process.env.NODE_ENV === "development") {
+        console.log("[api/account/orders] Buscando detalle de orden:", {
           orderId,
-          userId,
           email: normalizedEmail,
+          rama: "detalle",
         });
-        
-        // Si es error de tabla faltante, tratar como "no encontrada"
-        if (isMissingTableError(err)) {
-          return NextResponse.json(
-            { error: "Orden no encontrada o no pertenece a tu cuenta" },
-            { status: 404 },
-          );
-        }
-        
-        // Para otros errores, devolver 500
+      }
+
+      const order = await getOrderWithItems(orderId, normalizedEmail ?? null);
+
+      // Log temporal para debugging
+      if (process.env.NODE_ENV === "development") {
+        console.log("[api/account/orders] getOrderWithItems result:", {
+          orderId,
+          email: normalizedEmail,
+          found: !!order,
+          itemsCount: order?.items?.length || 0,
+        });
+      }
+
+      if (!order) {
         return NextResponse.json(
-          { error: "Ocurrió un error al buscar el pedido. Intenta de nuevo más tarde." },
-          { status: 500 },
+          { error: "Orden no encontrada o no pertenece a tu cuenta" },
+          { status: 404 },
         );
       }
+
+      return NextResponse.json({ order });
     }
 
     // Si no viene orderId, devolver lista de órdenes
-    try {
-      if (process.env.NODE_ENV === "development") {
-        console.log("[api/account/orders] Buscando lista de órdenes:", {
-          email: normalizedEmail,
-          userId,
-          rama: "lista",
-        });
-      }
-
-      const orders = await getOrdersByEmail(normalizedEmail ?? null, {
-        limit: 20,
-        userId,
-      });
-
-      if (process.env.NODE_ENV === "development") {
-        console.log("[api/account/orders] getOrdersByEmail result:", {
-          email: normalizedEmail,
-          userId,
-          count: orders?.length || 0,
-        });
-      }
-
-      // Siempre devolver 200 con orders (nunca 404)
-      return NextResponse.json({ orders });
-    } catch (err) {
-      console.error("[api/account/orders] ERROR al obtener lista de órdenes:", {
-        message: err instanceof Error ? err.message : String(err),
-        code: (err as any)?.code,
-        stack: err instanceof Error ? err.stack : undefined,
-        name: (err as any)?.name,
-        userId,
+    if (process.env.NODE_ENV === "development") {
+      console.log("[api/account/orders] Buscando lista de órdenes:", {
         email: normalizedEmail,
+        rama: "lista",
       });
-      
-      // Si es error de tabla faltante, devolver lista vacía (no es un error real)
-      if (isMissingTableError(err)) {
-        return NextResponse.json({ orders: [] });
-      }
-      
-      // Para otros errores, devolver 500
-      return NextResponse.json(
-        { error: "Ocurrió un error al buscar tus pedidos. Intenta de nuevo más tarde." },
-        { status: 500 },
-      );
     }
+
+    const orders = await getOrdersByEmail(normalizedEmail ?? null, {
+      limit: 20,
+    });
+
+    if (process.env.NODE_ENV === "development") {
+      console.log("[api/account/orders] getOrdersByEmail result:", {
+        email: normalizedEmail,
+        count: orders?.length || 0,
+      });
+    }
+
+    // Siempre devolver 200 con orders (nunca 404)
+    return NextResponse.json({ orders });
   } catch (error) {
     // Catch final para errores inesperados (parsing, validación, etc.)
     console.error("[api/account/orders] ERROR inesperado:", {

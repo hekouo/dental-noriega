@@ -76,34 +76,27 @@ const isMissingTableError = (error?: PostgrestError | null) => {
  * - Mantiene compatibilidad con pedidos históricos por email
  */
 export async function getOrdersByEmail(
-  email?: string | null,
-  options?: { limit?: number; userId?: string | null },
+  email: string | null,
+  options?: { limit?: number },
 ): Promise<OrderSummary[]> {
   const supabase = createServiceRoleSupabase();
   const limit = options?.limit ?? 10;
   const normalizedEmail = email?.trim().toLowerCase() ?? null;
 
+  // Si no hay email, log en dev y devolver lista vacía (NO throw)
   if (!normalizedEmail) {
-    // Si no hay email pero hay userId, por ahora lanzar error (en el futuro se podría obtener el email de la sesión)
-    if (options?.userId) {
-      throw new Error("Email requerido para obtener órdenes");
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[getOrdersByEmail] Sin email. Devolviendo lista vacía.");
     }
-    // Si no hay ni email ni userId, lanzar error
-    throw new Error("Email requerido para obtener órdenes");
+    return [];
   }
 
-  let query = supabase
+  const { data, error } = await supabase
     .from("orders")
     .select("id, created_at, status, contact_email, total_cents, metadata")
+    .eq("contact_email", normalizedEmail)
     .order("created_at", { ascending: false })
     .limit(limit);
-
-  // Solo buscar por email, sin OR con user_id
-  if (normalizedEmail) {
-    query = query.eq("contact_email", normalizedEmail);
-  }
-
-  const { data, error } = await query;
 
   if (error) {
     if (isMissingTableError(error)) {
@@ -112,7 +105,7 @@ export async function getOrdersByEmail(
       }
       return [];
     }
-    // Para otros errores, loguear y lanzar Error enriquecido
+    // Para cualquier otro error, loguear y devolver lista vacía (NO throw)
     console.error("[getOrdersByEmail] Error de Supabase:", {
       email: normalizedEmail,
       code: error.code,
@@ -120,9 +113,7 @@ export async function getOrdersByEmail(
       details: error.details,
       hint: error.hint,
     });
-    const enrichedError = new Error(`Error al obtener órdenes: ${error.message}`);
-    (enrichedError as Error & { code?: string }).code = error.code;
-    throw enrichedError;
+    return [];
   }
 
   // Log temporal para debugging
@@ -154,165 +145,121 @@ export async function getOrdersByEmail(
 
 /**
  * Obtiene una orden específica con sus items, verificando que pertenezca al email
- * @param orderRef - ID de la orden (UUID) o stripe_session_id
- * @param email - Email del usuario (para verificación de seguridad)
- * @param userId - ID del usuario (opcional, no se usa en la query pero se acepta para compatibilidad)
+ * @param orderId - ID de la orden (UUID) o stripe_session_id
+ * @param email - Email del usuario (opcional, para verificación de seguridad)
  * @returns Orden completa con items, o null si no existe o no pertenece al email
  */
 export async function getOrderWithItems(
-  orderRef: string,
+  orderId: string,
   email?: string | null,
-  userId?: string | null,
 ): Promise<OrderDetail | null> {
   const supabase = createServiceRoleSupabase();
   const normalizedEmail = email?.trim().toLowerCase() ?? null;
 
-  if (!normalizedEmail && !userId) {
-    throw new Error("Email o userId requeridos para obtener una orden");
-  }
-
-  // Paso 1: Intentar buscar por id (UUID)
-  let baseQuery = supabase
-    .from("orders")
-    .select("id, created_at, status, contact_email, total_cents, metadata")
-    .eq("id", orderRef)
-    .single();
-
-  let { data: orderData, error: orderError } = await baseQuery;
-
-  // Si no se encontró por id, intentar buscar por stripe_session_id
-  if (orderError?.code === "PGRST116" || !orderData) {
-    if (process.env.NODE_ENV === "development") {
-      console.log("[getOrderWithItems] No encontrado por id, intentando buscar por stripe_session_id:", orderRef);
-    }
-    
-    baseQuery = supabase
+  try {
+    // Buscar primero por id
+    let { data: orderData, error: orderError } = await supabase
       .from("orders")
-      .select("id, created_at, status, contact_email, total_cents, metadata")
-      .eq("stripe_session_id", orderRef)
+      .select("id, created_at, status, contact_email, total_cents, metadata, stripe_session_id")
+      .eq("id", orderId)
       .single();
 
-    const { data: orderDataBySession, error: orderErrorBySession } = await baseQuery;
-    
-    if (orderDataBySession && !orderErrorBySession) {
-      // Encontrado por stripe_session_id
-      orderData = orderDataBySession;
+    // Si no se encontró por id, intentar buscar por stripe_session_id
+    if (orderError || !orderData) {
+      const { data: byStripe, error: stripeError } = await supabase
+        .from("orders")
+        .select("id, created_at, status, contact_email, total_cents, metadata, stripe_session_id")
+        .eq("stripe_session_id", orderId)
+        .single();
+
+      if (stripeError || !byStripe) {
+        // Si el código es de tabla faltante (PGRST205 / 42P01) → log y return null
+        if (stripeError && isMissingTableError(stripeError)) {
+          if (process.env.NODE_ENV === "development") {
+            console.warn("[getOrderWithItems] Tabla orders no disponible. Devolviendo null.");
+          }
+          return null;
+        }
+        // Para cualquier otro error → log y return null
+        if (stripeError) {
+          console.error("[getOrderWithItems] Error al buscar orden por stripe_session_id:", {
+            orderId,
+            code: stripeError.code,
+            message: stripeError.message,
+          });
+        }
+        return null;
+      }
+
+      orderData = byStripe;
       orderError = null;
       if (process.env.NODE_ENV === "development") {
         console.log("[getOrderWithItems] Encontrado por stripe_session_id:", orderData.id);
       }
-    } else {
-      // No encontrado ni por id ni por stripe_session_id
-      orderData = null;
-      orderError = orderErrorBySession || orderError;
     }
-  }
 
-  if (orderError || !orderData) {
-    if (orderError && isMissingTableError(orderError)) {
-      if (process.env.NODE_ENV === "development") {
-        console.warn("[getOrderWithItems] Tabla orders no disponible. Devolviendo null.");
-      }
-      return null;
-    }
-    if (orderError?.code === "PGRST116") {
-      // No rows found - caso normal, orden no encontrada
+    // Validar email en memoria, pero sin lanzar
+    if (
+      normalizedEmail &&
+      orderData.contact_email &&
+      orderData.contact_email.trim().toLowerCase() !== normalizedEmail
+    ) {
       if (process.env.NODE_ENV === "development") {
         console.warn(
-          `[getOrderWithItems] Orden ${orderRef} no encontrada`,
+          `[getOrderWithItems] Orden ${orderId} no pertenece al email ${normalizedEmail} (orden tiene ${orderData.contact_email})`,
         );
       }
       return null;
     }
-    // Para otros errores, loguear y lanzar Error enriquecido
-    console.error("[getOrderWithItems] Error de Supabase al obtener orden:", {
-      orderRef,
-      email: normalizedEmail,
-      code: orderError?.code,
-      message: orderError?.message,
-      details: orderError?.details,
-      hint: orderError?.hint,
-    });
-    const enrichedError = new Error(
-      `Error al obtener orden ${orderRef}: ${orderError?.message || "desconocido"}`,
-    );
-    (enrichedError as Error & { code?: string }).code = orderError?.code;
-    throw enrichedError;
-  }
 
-  // Verificar que el email coincida (en memoria, no en la query)
-  if (normalizedEmail && orderData.contact_email) {
-    const orderEmail = orderData.contact_email.trim().toLowerCase();
-    if (orderEmail !== normalizedEmail) {
-      // El email no coincide, devolver null
-      if (process.env.NODE_ENV === "development") {
-        console.warn(
-          `[getOrderWithItems] Orden ${orderRef} no pertenece al email ${normalizedEmail} (orden tiene ${orderData.contact_email})`,
-        );
+    // Cargar items
+    const { data: itemsData, error: itemsError } = await supabase
+      .from("order_items")
+      .select("id, product_id, title, qty, unit_price_cents, image_url")
+      .eq("order_id", orderData.id)
+      .order("created_at", { ascending: true });
+
+    if (itemsError) {
+      // Si es tabla faltante → log y continuar con items []
+      if (isMissingTableError(itemsError)) {
+        if (process.env.NODE_ENV === "development") {
+          console.warn("[getOrderWithItems] Tabla order_items no disponible. Continuando sin items.");
+        }
+      } else {
+        // Si es otro error → log y continuar con items []
+        console.error("[getOrderWithItems] Error al obtener items:", {
+          orderId: orderData.id,
+          code: itemsError.code,
+          message: itemsError.message,
+        });
       }
-      return null;
     }
-  }
 
-  // Obtener los items de la orden (usar el id real de la orden encontrada)
-  const realOrderId = orderData.id;
-  const { data: itemsData, error: itemsError } = await supabase
-    .from("order_items")
-    .select("id, product_id, title, qty, unit_price_cents, image_url")
-    .eq("order_id", realOrderId)
-    .order("created_at", { ascending: true });
+    const items = itemsData || [];
 
-  if (itemsError) {
-    if (isMissingTableError(itemsError)) {
-      if (process.env.NODE_ENV === "development") {
-        console.warn("[getOrderWithItems] Tabla order_items no disponible. Continuando sin items.");
-      }
-      return {
-        id: orderData.id,
-        created_at: orderData.created_at,
-        status: orderData.status,
-        email: orderData.contact_email || normalizedEmail || "",
-        total_cents: orderData.total_cents,
-        metadata: (orderData.metadata as OrderSummary["metadata"]) || null,
-        items: [],
-      };
-    } else {
-      // Para otros errores, loguear y lanzar Error enriquecido
-      console.error("[getOrderWithItems] Error al obtener items:", itemsError);
-      const enrichedError = new Error(
-        `Error al obtener items de orden ${realOrderId}: ${itemsError.message}`,
-      );
-      (enrichedError as Error & { code?: string }).code = itemsError.code;
-      throw enrichedError;
+    // Log temporal para debugging
+    if (process.env.NODE_ENV === "development") {
+      console.log("[getOrderWithItems] Resultado:", {
+        orderIdOriginal: orderId,
+        orderIdReal: orderData.id,
+        email: normalizedEmail,
+        itemsCount: items.length,
+        found: !!orderData,
+      });
     }
-  }
 
-  // Log temporal para debugging
-  if (process.env.NODE_ENV === "development") {
-    console.log("[getOrderWithItems] Resultado:", {
-      orderRefOriginal: orderRef,
-      orderIdReal: orderData.id,
-      email: normalizedEmail,
-      itemsCount: itemsData?.length || 0,
-      found: !!orderData,
-    });
+    return {
+      id: orderData.id,
+      created_at: orderData.created_at,
+      status: orderData.status,
+      email: orderData.contact_email || normalizedEmail || "",
+      total_cents: orderData.total_cents,
+      metadata: (orderData.metadata as OrderSummary["metadata"]) || null,
+      items,
+    };
+  } catch (err) {
+    console.error("[getOrderWithItems] Error inesperado:", err);
+    return null;
   }
-
-  return {
-    id: orderData.id,
-    created_at: orderData.created_at,
-    status: orderData.status,
-    email: orderData.contact_email || normalizedEmail, // Usar contact_email o el email proporcionado
-    total_cents: orderData.total_cents,
-    metadata: (orderData.metadata as OrderSummary["metadata"]) || null,
-    items: (itemsData || []).map((item) => ({
-      id: item.id,
-      product_id: item.product_id,
-      title: item.title,
-      qty: item.qty,
-      unit_price_cents: item.unit_price_cents,
-      image_url: item.image_url,
-    })),
-  };
 }
 
