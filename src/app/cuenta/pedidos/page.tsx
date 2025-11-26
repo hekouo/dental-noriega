@@ -129,6 +129,15 @@ export default function PedidosPage() {
     }
 
     try {
+      // Construir payload sin orderId si está vacío
+      const payload: { email: string; orderId?: string } = {
+        email: searchEmail,
+      };
+      const trimmedOrderId = orderId.trim();
+      if (trimmedOrderId.length > 0) {
+        payload.orderId = trimmedOrderId;
+      }
+
       // Hacer ambas llamadas en paralelo: órdenes y puntos de lealtad
       const [ordersResponse, loyaltyResponse] = await Promise.all([
         fetch("/api/account/orders", {
@@ -136,10 +145,7 @@ export default function PedidosPage() {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            email: searchEmail,
-            orderId: orderId.trim() || undefined,
-          }),
+          body: JSON.stringify(payload),
         }),
         fetch(`/api/account/loyalty?email=${encodeURIComponent(searchEmail)}`),
       ]);
@@ -148,7 +154,13 @@ export default function PedidosPage() {
       const loyaltyData = await loyaltyResponse.json();
 
       if (!ordersResponse.ok) {
-        setError(ordersData.error || "Error al obtener pedidos");
+        // Manejar 404 específicamente para "orden no encontrada"
+        if (ordersResponse.status === 404) {
+          setError(ordersData.error || "Orden no encontrada o no pertenece a tu cuenta");
+        } else {
+          setError(ordersData.error || "Error al obtener pedidos");
+        }
+        setLoading(false);
         return;
       }
 
