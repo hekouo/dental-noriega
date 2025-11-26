@@ -247,14 +247,6 @@ export default function PedidosPage() {
         const errorData = await response.json().catch(() => ({}));
         const errorMsg = (errorData as { error?: string }).error || "Error al cargar el detalle del pedido";
         setError(errorMsg);
-        setLoadingDetail(false);
-        return;
-      }
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const errorMsg = (errorData as { error?: string }).error || "Error al cargar el detalle del pedido";
-        setError(errorMsg);
         setSelectedOrderId(null);
         setOrderDetail(null);
         setLoadingDetail(false);
