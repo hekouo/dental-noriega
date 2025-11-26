@@ -1,8 +1,20 @@
 "use client";
 
+import type { PostgrestError } from "@supabase/supabase-js";
 import { getBrowserSupabase } from "@/lib/supabase/client";
 import type { CartItem } from "@/lib/store/cartStore";
 import { getWithTTL, removeWithTTL, KEYS } from "@/lib/utils/persist";
+
+const isMissingTableError = (error?: PostgrestError | null) =>
+  Boolean(error?.code === "PGRST205");
+
+const logMissingTable = (source: string) => {
+  if (process.env.NODE_ENV === "development") {
+    console.warn(
+      `[migrateCartToSupabase] Tabla de carritos/cart_items no disponible (${source}). Se omite migración.`,
+    );
+  }
+};
 
 /**
  * Migra el carrito de localStorage a Supabase cuando el usuario inicia sesión
@@ -31,9 +43,15 @@ export async function migrateCartToSupabase(
       .eq("user_id", userId)
       .maybeSingle();
 
-    if (cartError && cartError.code !== "PGRST116") {
-      // PGRST116 = no rows returned, que es esperado si no existe cart
-      return { success: false, error: cartError.message };
+    if (cartError) {
+      if (isMissingTableError(cartError)) {
+        logMissingTable("select carts");
+        return { success: true };
+      }
+      if (cartError.code !== "PGRST116") {
+        // PGRST116 = no rows returned, que es esperado si no existe cart
+        return { success: false, error: cartError.message };
+      }
     }
 
     if (existingCart) {
@@ -47,6 +65,10 @@ export async function migrateCartToSupabase(
         .single();
 
       if (createError || !newCart) {
+        if (createError && isMissingTableError(createError)) {
+          logMissingTable("insert carts");
+          return { success: true };
+        }
         return { success: false, error: createError?.message ?? "Error al crear carrito" };
       }
       cartId = (newCart as { id: string }).id;
@@ -66,11 +88,19 @@ export async function migrateCartToSupabase(
 
     // Upsert: si existe sku+cart_id, actualizar qty; si no, insertar
     // Primero obtener items existentes
-    const { data: existingItems } = await supabase
+    const { data: existingItems, error: existingItemsError } = await supabase
       .from("cart_items")
       .select("sku, qty")
       .eq("cart_id", cartId)
       .in("sku", cartItems.map((i) => i.sku));
+
+    if (existingItemsError) {
+      if (isMissingTableError(existingItemsError)) {
+        logMissingTable("select cart_items");
+        return { success: true };
+      }
+      return { success: false, error: existingItemsError.message };
+    }
 
     const existingSkus = new Set(
       (existingItems as Array<{ sku: string; qty: number }> | null)?.map((i) => i.sku) ?? [],
@@ -82,11 +112,19 @@ export async function migrateCartToSupabase(
 
     // Actualizar existentes
     for (const item of toUpdate) {
-      await supabase
+      const { error: updateError } = await supabase
         .from("cart_items")
         .update({ qty: item.qty, price: item.price } as never)
         .eq("cart_id", cartId)
         .eq("sku", item.sku);
+
+      if (updateError) {
+        if (isMissingTableError(updateError)) {
+          logMissingTable("update cart_items");
+          return { success: true };
+        }
+        return { success: false, error: updateError.message };
+      }
     }
 
     // Insertar nuevos
@@ -96,6 +134,10 @@ export async function migrateCartToSupabase(
         .insert(toInsert as never);
 
       if (insertError) {
+        if (isMissingTableError(insertError)) {
+          logMissingTable("insert cart_items");
+          return { success: true };
+        }
         return { success: false, error: insertError.message };
       }
     }
