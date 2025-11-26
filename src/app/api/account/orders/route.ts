@@ -94,6 +94,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Logs detallados solo en development
+    if (process.env.NODE_ENV === "development") {
+      console.log("[api/account/orders] Request recibido:", {
+        email: normalizedEmail,
+        rawOrderId,
+        orderId: orderId || "(no hay)",
+        userId: userId || "(no hay)",
+        hasOrderId: !!orderId,
+      });
+    }
+
     // Si viene orderId normalizado, devolver detalle de una orden
     if (orderId) {
       // Validar antes de llamar al helper
@@ -105,6 +116,15 @@ export async function POST(req: NextRequest) {
       }
 
       try {
+        if (process.env.NODE_ENV === "development") {
+          console.log("[api/account/orders] Buscando detalle de orden:", {
+            orderId,
+            userId,
+            email: normalizedEmail,
+            rama: "detalle",
+          });
+        }
+
         const order = await getOrderWithItems(orderId, normalizedEmail, userId);
 
         // Log temporal para debugging
@@ -164,10 +184,26 @@ export async function POST(req: NextRequest) {
     }
 
     try {
+      if (process.env.NODE_ENV === "development") {
+        console.log("[api/account/orders] Buscando lista de órdenes:", {
+          email: normalizedEmail,
+          userId,
+          rama: "lista",
+        });
+      }
+
       const orders = await getOrdersByEmail(normalizedEmail, {
         limit: 20,
         userId, // Pasar userId si está disponible (prioridad)
       });
+
+      if (process.env.NODE_ENV === "development") {
+        console.log("[api/account/orders] getOrdersByEmail result:", {
+          email: normalizedEmail,
+          userId,
+          count: orders?.length || 0,
+        });
+      }
 
       // Siempre devolver 200 con orders (puede estar vacío)
       return NextResponse.json({ orders: orders ?? [] });
