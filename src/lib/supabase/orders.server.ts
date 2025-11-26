@@ -58,8 +58,10 @@ function createServiceRoleSupabase() {
   });
 }
 
-const isMissingTableError = (error?: PostgrestError | null) =>
-  Boolean(error?.code === "PGRST205");
+const isMissingTableError = (error?: PostgrestError | null) => {
+  const code = error?.code;
+  return code === "PGRST205" || code === "42P01"; // 42P01 = PostgreSQL "relation does not exist"
+};
 
 /**
  * Obtiene las órdenes de un usuario
@@ -84,7 +86,9 @@ export async function getOrdersByEmail(
   const normalizedEmail = email?.trim().toLowerCase() ?? null;
 
   if (!userId && !normalizedEmail) {
-    throw new Error("Email o userId requeridos para obtener órdenes");
+    // No lanzar error, devolver lista vacía (la API validará antes de llamar)
+    console.warn("[getOrdersByEmail] Sin userId ni email. Devolviendo lista vacía.");
+    return [];
   }
 
   let query = supabase
@@ -108,10 +112,21 @@ export async function getOrdersByEmail(
       console.warn("[getOrdersByEmail] Tabla orders no disponible. Se devuelve lista vacía.");
       return [];
     }
-    console.error("[getOrdersByEmail] Error:", { userId, email: normalizedEmail, error });
-    const enrichedError = new Error(`Error al obtener órdenes: ${error.message}`);
-    (enrichedError as Error & { code?: string }).code = error.code;
-    throw enrichedError;
+    if (error.code === "PGRST116") {
+      // No rows found - caso normal, devolver lista vacía
+      return [];
+    }
+    // Para otros errores, loguear pero devolver lista vacía en vez de lanzar
+    console.error("[getOrdersByEmail] Error de Supabase:", {
+      userId,
+      email: normalizedEmail,
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+    });
+    // No lanzar, devolver lista vacía para evitar 500
+    return [];
   }
 
   // Log temporal para debugging
@@ -163,7 +178,9 @@ export async function getOrderWithItems(
   const normalizedEmail = email?.trim().toLowerCase() ?? null;
 
   if (!userId && !normalizedEmail) {
-    throw new Error("Email o userId requeridos para obtener una orden");
+    // No lanzar error, devolver null (la API validará antes de llamar)
+    console.warn("[getOrderWithItems] Sin userId ni email. Devolviendo null.");
+    return null;
   }
 
   let query = supabase
@@ -187,6 +204,7 @@ export async function getOrderWithItems(
       return null;
     }
     if (orderError?.code === "PGRST116") {
+      // No rows found - caso normal, orden no encontrada
       console.warn(
         `[getOrderWithItems] Orden ${orderId} no encontrada para ${
           userId ? `user_id ${userId}` : `email ${normalizedEmail}`
@@ -194,11 +212,18 @@ export async function getOrderWithItems(
       );
       return null;
     }
-    const enrichedError = new Error(
-      `Error al obtener orden ${orderId}: ${orderError?.message || "desconocido"}`,
-    );
-    (enrichedError as Error & { code?: string }).code = orderError?.code;
-    throw enrichedError;
+    // Para otros errores, loguear pero devolver null en vez de lanzar
+    console.error("[getOrderWithItems] Error de Supabase al obtener orden:", {
+      orderId,
+      userId,
+      email: normalizedEmail,
+      code: orderError?.code,
+      message: orderError?.message,
+      details: orderError?.details,
+      hint: orderError?.hint,
+    });
+    // No lanzar, devolver null para evitar 500
+    return null;
   }
 
   // Obtener los items de la orden

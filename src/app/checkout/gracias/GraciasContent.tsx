@@ -751,6 +751,19 @@ export default function GraciasContent() {
                 }
               }
             }
+          } else if (orderResponse.status === 404) {
+            // Orden no encontrada - no es crítico, el pago fue correcto
+            if (process.env.NODE_ENV === "development") {
+              console.warn("[GraciasContent] No se pudo cargar el detalle de la orden, pero el pago fue correcto.");
+            }
+            // Continuar con el flujo normal, no romper la página
+          } else if (orderResponse.status >= 500) {
+            // Error del servidor - loguear pero no romper
+            console.error("[GraciasContent] Error del servidor al cargar orden:", {
+              status: orderResponse.status,
+              orderId: orderRef,
+            });
+            // Continuar con el flujo normal
           }
           
           // Fallback: consultar solo la API de loyalty
