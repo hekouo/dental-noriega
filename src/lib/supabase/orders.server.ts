@@ -455,18 +455,6 @@ export async function getOrderWithItemsAdmin(
 
     const items = itemsData || [];
 
-    // Extraer información de envío de metadata
-    const metadata = (orderData.metadata as OrderSummary["metadata"]) || null;
-    const shipping: ShippingInfo = {
-      contact_name: metadata?.contact_name || null,
-      contact_phone: metadata?.contact_phone || null,
-      contact_address: metadata?.contact_address || null,
-      contact_city: metadata?.contact_city || null,
-      contact_state: metadata?.contact_state || null,
-      contact_cp: metadata?.contact_cp || null,
-      shipping_method: metadata?.shipping_method || null,
-    };
-
     return {
       id: orderData.id,
       shortId: `${orderData.id.slice(0, 8)}…`,
@@ -474,10 +462,9 @@ export async function getOrderWithItemsAdmin(
       status: orderData.status,
       email: orderData.email || "",
       total_cents: orderData.total_cents,
-      metadata,
+      metadata: (orderData.metadata as OrderSummary["metadata"]) || null,
       items,
       ownedByEmail: null, // No aplica en admin
-      shipping,
     };
   } catch (err) {
     console.error("[getOrderWithItemsAdmin] Error inesperado:", err);
