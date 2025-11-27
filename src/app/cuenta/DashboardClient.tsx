@@ -1,18 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { User, ShoppingBag, CreditCard, MapPin } from "lucide-react";
+import { User, ShoppingBag, CreditCard, MapPin, Settings } from "lucide-react";
 import AccountInfoBanner from "@/components/account/AccountInfoBanner";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 
 type DashboardClientProps = {
   user: SupabaseUser;
   searchParams: { verified?: string; error?: string };
+  isAdmin?: boolean;
 };
 
 export default function DashboardClient({
   user: _user,
   searchParams,
+  isAdmin = false,
 }: DashboardClientProps) {
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -110,6 +112,29 @@ export default function DashboardClient({
             Ver direcciones
           </Link>
         </div>
+
+        {/* Tarjeta 5: Administración (solo para admins) */}
+        {isAdmin && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 flex flex-col animate-[fadeInUp_0.5s_ease-out_400ms_forwards] hover:-translate-y-1 hover:shadow-lg transition-all duration-300 ease-out border-2 border-blue-200">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
+                <Settings className="h-6 w-6 text-blue-600" />
+              </div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Administración
+              </h2>
+            </div>
+            <p className="text-sm text-gray-600 mb-6 flex-1">
+              Panel de administración de pedidos
+            </p>
+            <Link
+              href="/admin/pedidos"
+              className="inline-flex items-center justify-center rounded-xl bg-blue-600 text-white px-4 py-2 text-sm font-medium hover:bg-blue-700 transition-all duration-150 hover:-translate-y-[1px] active:translate-y-0"
+            >
+              Ir al panel admin
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );

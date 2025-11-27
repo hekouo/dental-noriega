@@ -1,8 +1,10 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { checkAdminAccess } from "@/lib/admin/access";
 import { getOrderWithItemsAdmin } from "@/lib/supabase/orders.server";
 import { formatMXNFromCents } from "@/lib/utils/currency";
+
+export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{
@@ -17,8 +19,11 @@ type Props = {
  */
 export default async function AdminPedidoDetailPage({ params }: Props) {
   // Verificar acceso admin
-  const { allowed } = await checkAdminAccess();
-  if (!allowed) {
+  const access = await checkAdminAccess();
+  if (access.status === "unauthenticated") {
+    redirect("/cuenta");
+  }
+  if (access.status === "forbidden") {
     notFound();
   }
 
@@ -273,4 +278,3 @@ export default async function AdminPedidoDetailPage({ params }: Props) {
     </div>
   );
 }
-
