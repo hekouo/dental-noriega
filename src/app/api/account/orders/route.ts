@@ -99,10 +99,13 @@ export async function POST(req: NextRequest) {
 
     // Si viene orderId normalizado, devolver detalle de una orden
     if (orderId) {
-      if (process.env.NODE_ENV === "development") {
+      if (process.env.NODE_ENV !== "production") {
         console.log("[api/account/orders] Buscando detalle de orden:", {
+          body: { email: body.email, rawOrderId },
+          normalizedEmail,
           orderId,
-          email: normalizedEmail,
+          orderIdLength: orderId.length,
+          orderIdType: typeof orderId,
           rama: "detalle",
         });
       }
@@ -110,12 +113,13 @@ export async function POST(req: NextRequest) {
       const order = await getOrderWithItems(orderId, normalizedEmail ?? null);
 
       // Log temporal para debugging
-      if (process.env.NODE_ENV === "development") {
+      if (process.env.NODE_ENV !== "production") {
         console.log("[api/account/orders] getOrderWithItems result:", {
           orderId,
           email: normalizedEmail,
           found: !!order,
           itemsCount: order?.items?.length || 0,
+          orderEmail: order?.email,
         });
       }
 
