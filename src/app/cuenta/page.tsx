@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { createServerSupabase } from "@/lib/supabase/server-auth";
+import { checkAdminAccess } from "@/lib/admin/access";
 import ClientPage from "./ClientPage";
 import DashboardClient from "./DashboardClient";
 
@@ -34,9 +35,17 @@ export default async function Page({ searchParams }: PageProps) {
 
   // Si el usuario está autenticado, mostrar dashboard
   if (user) {
+    // Verificar si el usuario es admin (sin redirigir, solo para mostrar el link)
+    const adminAccess = await checkAdminAccess();
+    const isAdmin = adminAccess.status === "allowed";
+
     return (
       <Suspense fallback={null}>
-        <DashboardClient user={user} searchParams={params} />
+        <DashboardClient
+          user={user}
+          searchParams={params}
+          isAdmin={isAdmin}
+        />
       </Suspense>
     );
   }

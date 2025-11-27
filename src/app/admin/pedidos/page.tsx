@@ -1,7 +1,9 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { checkAdminAccess } from "@/lib/admin/access";
 import { getAllOrdersAdmin, type AdminOrderFilters } from "@/lib/supabase/orders.server";
 import AdminPedidosClient from "./AdminPedidosClient";
+
+export const dynamic = "force-dynamic";
 
 type Props = {
   searchParams: Promise<{
@@ -25,8 +27,11 @@ type Props = {
  */
 export default async function AdminPedidosPage({ searchParams }: Props) {
   // Verificar acceso admin
-  const { allowed } = await checkAdminAccess();
-  if (!allowed) {
+  const access = await checkAdminAccess();
+  if (access.status === "unauthenticated") {
+    redirect("/cuenta");
+  }
+  if (access.status === "forbidden") {
     notFound();
   }
 
