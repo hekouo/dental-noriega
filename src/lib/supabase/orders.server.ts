@@ -157,12 +157,31 @@ export async function getOrderWithItems(
   const normalizedEmail = email?.trim().toLowerCase() ?? null;
 
   try {
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[getOrderWithItems] Iniciando búsqueda:", {
+        orderId,
+        orderIdLength: orderId.length,
+        normalizedEmail,
+      });
+    }
+
     // Buscar primero por id
     let { data: orderData, error: orderError } = await supabase
       .from("orders")
       .select("id, created_at, status, email, total_cents, metadata, stripe_session_id")
       .eq("id", orderId)
       .single();
+
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[getOrderWithItems] Resultado búsqueda por id:", {
+        found: !!orderData,
+        error: orderError ? {
+          code: orderError.code,
+          message: orderError.message,
+        } : null,
+        orderDataEmail: orderData?.email,
+      });
+    }
 
     // Si no se encontró por id, intentar buscar por stripe_session_id
     if (orderError || !orderData) {
@@ -193,23 +212,36 @@ export async function getOrderWithItems(
 
       orderData = byStripe;
       orderError = null;
-      if (process.env.NODE_ENV === "development") {
-        console.log("[getOrderWithItems] Encontrado por stripe_session_id:", orderData.id);
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[getOrderWithItems] Encontrado por stripe_session_id:", {
+          realId: orderData.id,
+          email: orderData.email,
+        });
       }
     }
 
     // Validar email en memoria, pero sin lanzar
-    if (
-      normalizedEmail &&
-      orderData.email &&
-      orderData.email.trim().toLowerCase() !== normalizedEmail
-    ) {
-      if (process.env.NODE_ENV === "development") {
-        console.warn(
-          `[getOrderWithItems] Orden ${orderId} no pertenece al email ${normalizedEmail} (orden tiene ${orderData.email})`,
-        );
+    if (normalizedEmail && orderData.email) {
+      const orderEmailNormalized = orderData.email.trim().toLowerCase();
+      if (orderEmailNormalized !== normalizedEmail) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn(
+            `[getOrderWithItems] Orden ${orderId} no pertenece al email:`,
+            {
+              expected: normalizedEmail,
+              actual: orderEmailNormalized,
+              original: orderData.email,
+            },
+          );
+        }
+        return null;
       }
-      return null;
+    } else if (process.env.NODE_ENV !== "production") {
+      console.log("[getOrderWithItems] Validación de email:", {
+        normalizedEmail,
+        orderDataEmail: orderData.email,
+        skipValidation: !normalizedEmail || !orderData.email,
+      });
     }
 
     // Cargar items
@@ -238,11 +270,12 @@ export async function getOrderWithItems(
     const items = itemsData || [];
 
     // Log temporal para debugging
-    if (process.env.NODE_ENV === "development") {
-      console.log("[getOrderWithItems] Resultado:", {
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[getOrderWithItems] Resultado final:", {
         orderIdOriginal: orderId,
         orderIdReal: orderData.id,
-        email: normalizedEmail,
+        normalizedEmail,
+        orderDataEmail: orderData.email,
         itemsCount: items.length,
         found: !!orderData,
       });

@@ -238,7 +238,12 @@ export default function PedidosPage() {
   };
 
   const handleViewDetail = async (id: string) => {
-    if (!email.trim()) return;
+    // Usar el email del usuario autenticado si el campo email está vacío
+    const emailToUse = email.trim() || userEmail || "";
+    if (!emailToUse) {
+      setError("Email requerido para ver el detalle del pedido");
+      return;
+    }
 
     setLoadingDetail(true);
     setError(null);
@@ -246,13 +251,18 @@ export default function PedidosPage() {
     setOrderDetail(null); // Limpiar detalle anterior
 
     const requestBody = {
-      email: email.trim(),
+      email: emailToUse,
       orderId: id,
     };
 
     // Log temporal para debugging
     if (process.env.NODE_ENV === "development") {
-      console.log("[handleViewDetail] Request:", requestBody);
+      console.log("[handleViewDetail] Request:", {
+        ...requestBody,
+        orderIdLength: id.length,
+        orderIdType: typeof id,
+        emailSource: email.trim() ? "input" : "userEmail",
+      });
     }
 
     try {
