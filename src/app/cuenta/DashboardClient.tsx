@@ -125,20 +125,20 @@ export default function DashboardClient({
               </h2>
             </div>
             <p className="text-sm text-gray-600 mb-6 flex-1">
-              Panel de administración de pedidos y productos
+              Gestiona pedidos y productos del catálogo.
             </p>
-            <div className="space-y-2">
+            <div className="flex flex-col space-y-2">
               <Link
                 href="/admin/pedidos"
-                className="block w-full text-center rounded-xl bg-blue-600 text-white px-4 py-2 text-sm font-medium hover:bg-blue-700 transition-all duration-150 hover:-translate-y-[1px] active:translate-y-0"
+                className="inline-flex items-center justify-center rounded-xl bg-blue-600 text-white px-4 py-2 text-sm font-medium hover:bg-blue-700 transition-all duration-150 hover:-translate-y-[1px] active:translate-y-0"
               >
-                Pedidos
+                Panel de Pedidos
               </Link>
               <Link
                 href="/admin/productos"
-                className="block w-full text-center rounded-xl bg-green-600 text-white px-4 py-2 text-sm font-medium hover:bg-green-700 transition-all duration-150 hover:-translate-y-[1px] active:translate-y-0"
+                className="inline-flex items-center justify-center rounded-xl bg-blue-600 text-white px-4 py-2 text-sm font-medium hover:bg-blue-700 transition-all duration-150 hover:-translate-y-[1px] active:translate-y-0"
               >
-                Productos
+                Panel de Productos
               </Link>
             </div>
           </div>

@@ -341,4 +341,3 @@ export default async function AdminPedidoDetailPage({ params }: Props) {
     </div>
   );
 }
-

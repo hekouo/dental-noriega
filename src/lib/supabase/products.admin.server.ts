@@ -124,7 +124,6 @@ export async function getAdminProducts(options?: {
   const offset = options?.offset ?? 0;
 
   try {
-    // Ordenar por título para consistencia, pero permitir nulls en created_at
     const { data, error, count } = await supabase
       .from("products")
       .select(
