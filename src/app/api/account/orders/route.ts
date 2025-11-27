@@ -120,16 +120,20 @@ export async function POST(req: NextRequest) {
           found: !!order,
           itemsCount: order?.items?.length || 0,
           orderEmail: order?.email,
+          ownedByEmail: order?.ownedByEmail,
         });
       }
 
+      // Solo devolver 404 si la orden realmente no existe
+      // Si existe pero ownedByEmail === false, aún devolvemos 200 con el detalle
       if (!order) {
         return NextResponse.json(
-          { error: "Orden no encontrada o no pertenece a tu cuenta" },
+          { error: "Orden no encontrada" },
           { status: 404 },
         );
       }
 
+      // Siempre devolver 200 si la orden existe, independientemente de ownedByEmail
       return NextResponse.json({ order });
     }
 
