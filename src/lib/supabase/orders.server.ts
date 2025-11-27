@@ -72,7 +72,7 @@ const isMissingTableError = (error?: PostgrestError | null) => {
  * 
  * FLUJO ACTUAL:
  * - Si hay userId: busca por user_id (órdenes de usuarios autenticados)
- * - Si no hay userId pero hay email: busca por contact_email (guest checkout)
+ * - Si no hay userId pero hay email: busca por email (guest checkout)
  * - Mantiene compatibilidad con pedidos históricos por email
  */
 export async function getOrdersByEmail(
@@ -93,8 +93,8 @@ export async function getOrdersByEmail(
 
   const { data, error } = await supabase
     .from("orders")
-    .select("id, created_at, status, contact_email, total_cents, metadata")
-    .eq("contact_email", normalizedEmail)
+    .select("id, created_at, status, email, total_cents, metadata")
+    .eq("email", normalizedEmail)
     .order("created_at", { ascending: false })
     .limit(limit);
 
@@ -137,7 +137,7 @@ export async function getOrdersByEmail(
     id: order.id,
     created_at: order.created_at,
     status: order.status,
-    email: order.contact_email || normalizedEmail || "",
+    email: order.email || normalizedEmail || "",
     total_cents: order.total_cents,
     metadata: (order.metadata as OrderSummary["metadata"]) || null,
   }));
@@ -160,7 +160,7 @@ export async function getOrderWithItems(
     // Buscar primero por id
     let { data: orderData, error: orderError } = await supabase
       .from("orders")
-      .select("id, created_at, status, contact_email, total_cents, metadata, stripe_session_id")
+      .select("id, created_at, status, email, total_cents, metadata, stripe_session_id")
       .eq("id", orderId)
       .single();
 
@@ -168,7 +168,7 @@ export async function getOrderWithItems(
     if (orderError || !orderData) {
       const { data: byStripe, error: stripeError } = await supabase
         .from("orders")
-        .select("id, created_at, status, contact_email, total_cents, metadata, stripe_session_id")
+        .select("id, created_at, status, email, total_cents, metadata, stripe_session_id")
         .eq("stripe_session_id", orderId)
         .single();
 
@@ -201,12 +201,12 @@ export async function getOrderWithItems(
     // Validar email en memoria, pero sin lanzar
     if (
       normalizedEmail &&
-      orderData.contact_email &&
-      orderData.contact_email.trim().toLowerCase() !== normalizedEmail
+      orderData.email &&
+      orderData.email.trim().toLowerCase() !== normalizedEmail
     ) {
       if (process.env.NODE_ENV === "development") {
         console.warn(
-          `[getOrderWithItems] Orden ${orderId} no pertenece al email ${normalizedEmail} (orden tiene ${orderData.contact_email})`,
+          `[getOrderWithItems] Orden ${orderId} no pertenece al email ${normalizedEmail} (orden tiene ${orderData.email})`,
         );
       }
       return null;
@@ -252,7 +252,7 @@ export async function getOrderWithItems(
       id: orderData.id,
       created_at: orderData.created_at,
       status: orderData.status,
-      email: orderData.contact_email || normalizedEmail || "",
+      email: orderData.email || normalizedEmail || "",
       total_cents: orderData.total_cents,
       metadata: (orderData.metadata as OrderSummary["metadata"]) || null,
       items,
