@@ -20,10 +20,25 @@ export type OrderSummary = {
     discount_cents?: number;
     contact_name?: string;
     contact_email?: string;
+    contact_phone?: string;
+    contact_address?: string;
+    contact_city?: string;
+    contact_state?: string;
+    contact_cp?: string;
     loyalty_points_earned?: number | null;
     loyalty_points_spent?: number | null;
     loyalty_points_balance_after?: number | null;
   } | null;
+};
+
+export type ShippingInfo = {
+  contact_name: string | null;
+  contact_phone: string | null;
+  contact_address: string | null;
+  contact_city: string | null;
+  contact_state: string | null;
+  contact_cp: string | null;
+  shipping_method: string | null;
 };
 
 export type OrderItem = {
@@ -38,6 +53,7 @@ export type OrderItem = {
 export type OrderDetail = OrderSummary & {
   items: OrderItem[];
   ownedByEmail?: boolean | null; // true si el email coincide, false si no, null si no se puede determinar
+  shipping?: ShippingInfo; // Información de envío extraída de metadata
 };
 
 /**
