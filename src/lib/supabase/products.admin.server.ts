@@ -120,7 +120,7 @@ export async function getAdminProducts(options?: {
   offset?: number;
 }): Promise<{ products: AdminProduct[]; total: number }> {
   const supabase = createServiceRoleSupabase();
-  const limit = options?.limit ?? 20;
+  const limit = options?.limit ?? 50; // Aumentar límite por defecto para ver más productos
   const offset = options?.offset ?? 0;
 
   try {
@@ -130,7 +130,7 @@ export async function getAdminProducts(options?: {
         "id, section_slug, slug, title, price, description, sku, active, in_stock, created_at",
         { count: "exact" },
       )
-      .order("created_at", { ascending: false })
+      .order("title", { ascending: true }) // Ordenar por título para mejor UX
       .range(offset, offset + limit - 1);
 
     if (error) {

@@ -139,25 +139,88 @@ export default async function AdminPedidoDetailPage({ params }: Props) {
           </div>
         </div>
 
-        {/* Datos de contacto */}
-        {order.metadata && (
+        {/* Datos de contacto y envío */}
+        {(order.metadata || order.shipping) && (
           <div className="px-6 py-4 border-b border-gray-200">
             <h2 className="text-lg font-semibold mb-3">Datos de Contacto</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              {order.metadata.contact_name && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-4">
+              {(order.shipping?.contact_name || order.metadata?.contact_name) && (
                 <div>
                   <p className="text-gray-600">Nombre</p>
-                  <p className="font-medium">{order.metadata.contact_name}</p>
+                  <p className="font-medium">
+                    {order.shipping?.contact_name || order.metadata?.contact_name}
+                  </p>
                 </div>
               )}
-              {order.metadata.contact_email && (
+              {(order.metadata?.contact_email || order.email) && (
                 <div>
                   <p className="text-gray-600">Email de contacto</p>
-                  <p className="font-medium">{order.metadata.contact_email}</p>
+                  <p className="font-medium">
+                    {order.metadata?.contact_email || order.email}
+                  </p>
                 </div>
               )}
-              {/* Nota: Si hay más campos de dirección en metadata, se pueden agregar aquí */}
+              {order.shipping?.contact_phone && (
+                <div>
+                  <p className="text-gray-600">Teléfono</p>
+                  <p className="font-medium">{order.shipping.contact_phone}</p>
+                </div>
+              )}
             </div>
+
+            {/* Dirección de envío */}
+            {order.shipping && (
+              order.shipping.contact_address ||
+              order.shipping.contact_city ||
+              order.shipping.contact_state ||
+              order.shipping.contact_cp
+            ) && (
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <h3 className="text-md font-semibold mb-3">Dirección de Entrega</h3>
+                <div className="space-y-2 text-sm">
+                  {order.shipping.contact_address && (
+                    <div>
+                      <p className="text-gray-600">Dirección</p>
+                      <p className="font-medium">{order.shipping.contact_address}</p>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {order.shipping.contact_city && (
+                      <div>
+                        <p className="text-gray-600">Ciudad</p>
+                        <p className="font-medium">{order.shipping.contact_city}</p>
+                      </div>
+                    )}
+                    {order.shipping.contact_state && (
+                      <div>
+                        <p className="text-gray-600">Estado</p>
+                        <p className="font-medium">{order.shipping.contact_state}</p>
+                      </div>
+                    )}
+                    {order.shipping.contact_cp && (
+                      <div>
+                        <p className="text-gray-600">Código Postal</p>
+                        <p className="font-medium">{order.shipping.contact_cp}</p>
+                      </div>
+                    )}
+                  </div>
+                  {order.shipping.shipping_method && (
+                    <div className="mt-2">
+                      <p className="text-gray-600">Método de envío</p>
+                      <p className="font-medium">
+                        {order.shipping.shipping_method === "pickup"
+                          ? "Recoger en tienda"
+                          : order.shipping.shipping_method === "standard"
+                            ? "Estándar"
+                            : order.shipping.shipping_method === "express"
+                              ? "Express"
+                              : order.shipping.shipping_method}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

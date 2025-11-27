@@ -455,6 +455,64 @@ export async function getOrderWithItemsAdmin(
 
     const items = itemsData || [];
 
+    // Extraer información de envío de metadata
+    const metadata = (orderData.metadata as OrderSummary["metadata"]) || null;
+    
+    // Construir shipping desde metadata primero
+    const shipping: ShippingInfo = {
+      contact_name: metadata?.contact_name || null,
+      contact_phone: metadata?.contact_phone || null,
+      contact_address: metadata?.contact_address || null,
+      contact_city: metadata?.contact_city || null,
+      contact_state: metadata?.contact_state || null,
+      contact_cp: metadata?.contact_cp || null,
+      shipping_method: metadata?.shipping_method || null,
+    };
+
+    // Si faltan campos críticos (address o phone), intentar fallback desde account_addresses
+    const needsFallback = (!shipping.contact_address || !shipping.contact_phone) && orderData.email;
+    
+    if (needsFallback) {
+      try {
+        const { getAddressesByEmail } = await import("@/lib/supabase/addresses.server");
+        const addresses = await getAddressesByEmail(orderData.email);
+        
+        if (addresses.length > 0) {
+          // Usar dirección default o la más reciente
+          const defaultAddress = addresses.find((a) => a.is_default) || addresses[0];
+          
+          // Rellenar solo los campos que faltan
+          if (!shipping.contact_name && defaultAddress.full_name) {
+            shipping.contact_name = defaultAddress.full_name;
+          }
+          if (!shipping.contact_phone && defaultAddress.phone) {
+            shipping.contact_phone = defaultAddress.phone;
+          }
+          if (!shipping.contact_address && defaultAddress.street) {
+            shipping.contact_address = defaultAddress.street;
+            // Si hay neighborhood, añadirlo a la dirección
+            if (defaultAddress.neighborhood) {
+              shipping.contact_address = `${defaultAddress.street}, ${defaultAddress.neighborhood}`;
+            }
+          }
+          if (!shipping.contact_city && defaultAddress.city) {
+            shipping.contact_city = defaultAddress.city;
+          }
+          if (!shipping.contact_state && defaultAddress.state) {
+            shipping.contact_state = defaultAddress.state;
+          }
+          if (!shipping.contact_cp && defaultAddress.zip_code) {
+            shipping.contact_cp = defaultAddress.zip_code;
+          }
+        }
+      } catch (addressError) {
+        // Si falla el fallback, continuar con lo que tenemos de metadata
+        if (process.env.NODE_ENV === "development") {
+          console.warn("[getOrderWithItemsAdmin] Error al obtener direcciones de fallback:", addressError);
+        }
+      }
+    }
+
     return {
       id: orderData.id,
       shortId: `${orderData.id.slice(0, 8)}…`,
@@ -462,9 +520,10 @@ export async function getOrderWithItemsAdmin(
       status: orderData.status,
       email: orderData.email || "",
       total_cents: orderData.total_cents,
-      metadata: (orderData.metadata as OrderSummary["metadata"]) || null,
+      metadata,
       items,
       ownedByEmail: null, // No aplica en admin
+      shipping,
     };
   } catch (err) {
     console.error("[getOrderWithItemsAdmin] Error inesperado:", err);
