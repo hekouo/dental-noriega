@@ -535,7 +535,7 @@ export default function PedidosPage() {
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <span className="font-mono text-sm text-gray-500">
-                          {order.id.substring(0, 8)}...
+                          {order.shortId}
                         </span>
                         <span
                           className={`px-2 py-1 rounded text-xs font-medium ${
@@ -615,7 +615,7 @@ export default function PedidosPage() {
                         onClick={() => handleViewDetail(order.id)}
                         disabled={loadingDetail && selectedOrderId === order.id}
                         className="mt-2 text-sm text-primary-600 hover:text-primary-700 underline disabled:opacity-50 disabled:cursor-not-allowed"
-                        aria-label={`Ver detalle del pedido ${order.id.substring(0, 8)}`}
+                        aria-label={`Ver detalle del pedido ${order.shortId}`}
                       >
                         {loadingDetail && selectedOrderId === order.id
                           ? "Cargando detalle..."
