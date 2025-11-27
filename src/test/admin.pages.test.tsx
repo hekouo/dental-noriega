@@ -96,4 +96,3 @@ describe("Admin Access", () => {
     expect(result.status).toBe("unauthenticated");
   });
 });
-
