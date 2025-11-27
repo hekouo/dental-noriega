@@ -6,7 +6,8 @@ import type { PostgrestError } from "@supabase/supabase-js";
  * Tipos para órdenes y items
  */
 export type OrderSummary = {
-  id: string;
+  id: string; // UUID completo de Supabase
+  shortId: string; // Versión truncada para mostrar en UI (ej: "702693b3…")
   created_at: string;
   status: string;
   email: string;
@@ -134,7 +135,8 @@ export async function getOrdersByEmail(
   }
 
   return (data || []).map((order) => ({
-    id: order.id,
+    id: order.id, // UUID completo - NUNCA truncar
+    shortId: `${order.id.slice(0, 8)}…`, // Versión truncada solo para UI
     created_at: order.created_at,
     status: order.status,
     email: order.email || normalizedEmail || "",
@@ -282,7 +284,8 @@ export async function getOrderWithItems(
     }
 
     return {
-      id: orderData.id,
+      id: orderData.id, // UUID completo - NUNCA truncar
+      shortId: `${orderData.id.slice(0, 8)}…`, // Versión truncada solo para UI
       created_at: orderData.created_at,
       status: orderData.status,
       email: orderData.email || normalizedEmail || "",
