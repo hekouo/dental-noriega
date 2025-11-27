@@ -269,3 +269,190 @@ export async function getOrderWithItems(
   }
 }
 
+/**
+ * Tipos para filtros de admin
+ */
+export type AdminOrderFilters = {
+  status?: string | null;
+  email?: string | null;
+  dateFrom?: string | null; // ISO date string
+  dateTo?: string | null; // ISO date string
+  limit?: number;
+  offset?: number;
+};
+
+/**
+ * Obtiene todas las órdenes para el panel de administración
+ * @param filters - Filtros opcionales (status, email, rango de fechas, paginación)
+ * @returns Lista de órdenes resumidas con paginación
+ */
+export async function getAllOrdersAdmin(
+  filters: AdminOrderFilters = {},
+): Promise<{ orders: OrderSummary[]; total: number }> {
+  const supabase = createServiceRoleSupabase();
+  const limit = filters.limit ?? 20;
+  const offset = filters.offset ?? 0;
+
+  try {
+    let query = supabase
+      .from("orders")
+      .select("id, created_at, status, email, total_cents, metadata", {
+        count: "exact",
+      });
+
+    // Aplicar filtros
+    if (filters.status && filters.status !== "all") {
+      query = query.eq("status", filters.status);
+    }
+
+    if (filters.email) {
+      const normalizedEmail = normalizeEmail(filters.email);
+      if (normalizedEmail) {
+        query = query.ilike("email", `%${normalizedEmail}%`);
+      }
+    }
+
+    if (filters.dateFrom) {
+      query = query.gte("created_at", filters.dateFrom);
+    }
+
+    if (filters.dateTo) {
+      // Añadir 1 día para incluir todo el día "hasta"
+      const dateTo = new Date(filters.dateTo);
+      dateTo.setDate(dateTo.getDate() + 1);
+      query = query.lt("created_at", dateTo.toISOString());
+    }
+
+    // Ordenar por fecha más reciente primero
+    query = query.order("created_at", { ascending: false });
+
+    // Aplicar paginación
+    query = query.range(offset, offset + limit - 1);
+
+    const { data, error, count } = await query;
+
+    if (error) {
+      if (isMissingTableError(error)) {
+        if (process.env.NODE_ENV === "development") {
+          console.warn("[getAllOrdersAdmin] Tabla orders no disponible.");
+        }
+        return { orders: [], total: 0 };
+      }
+      console.error("[getAllOrdersAdmin] Error de Supabase:", {
+        code: error.code,
+        message: error.message,
+      });
+      return { orders: [], total: 0 };
+    }
+
+    const orders = (data || []).map((order) => ({
+      id: order.id,
+      shortId: `${order.id.slice(0, 8)}…`,
+      created_at: order.created_at,
+      status: order.status,
+      email: order.email || "",
+      total_cents: order.total_cents,
+      metadata: (order.metadata as OrderSummary["metadata"]) || null,
+    }));
+
+    return {
+      orders,
+      total: count ?? 0,
+    };
+  } catch (err) {
+    console.error("[getAllOrdersAdmin] Error inesperado:", err);
+    return { orders: [], total: 0 };
+  }
+}
+
+/**
+ * Obtiene una orden específica con sus items para el panel de administración
+ * (sin restricciones de email)
+ * @param orderId - ID de la orden (UUID)
+ * @returns Orden completa con items, o null si no existe
+ */
+export async function getOrderWithItemsAdmin(
+  orderId: string,
+): Promise<OrderDetail | null> {
+  const supabase = createServiceRoleSupabase();
+
+  if (!orderId || orderId.trim().length === 0) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[getOrderWithItemsAdmin] orderId vacío, devolviendo null");
+    }
+    return null;
+  }
+
+  const normalizedOrderId = orderId.trim();
+
+  try {
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[getOrderWithItemsAdmin] Iniciando búsqueda:", {
+        orderId: normalizedOrderId,
+      });
+    }
+
+    // Buscar orden por id
+    const { data: orderData, error } = await supabase
+      .from("orders")
+      .select("id, created_at, status, email, total_cents, metadata")
+      .eq("id", normalizedOrderId)
+      .maybeSingle();
+
+    if (error) {
+      if (isMissingTableError(error)) {
+        if (process.env.NODE_ENV === "development") {
+          console.warn("[getOrderWithItemsAdmin] Tabla orders no disponible.");
+        }
+        return null;
+      }
+      console.error("[getOrderWithItemsAdmin] Error al buscar orden:", {
+        orderId: normalizedOrderId,
+        code: error.code,
+        message: error.message,
+      });
+      return null;
+    }
+
+    if (!orderData) {
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[getOrderWithItemsAdmin] Orden no encontrada:", {
+          orderId: normalizedOrderId,
+        });
+      }
+      return null;
+    }
+
+    // Cargar items
+    const { data: itemsData, error: itemsError } = await supabase
+      .from("order_items")
+      .select("id, product_id, title, qty, unit_price_cents, image_url")
+      .eq("order_id", orderData.id);
+
+    if (itemsError) {
+      console.error("[getOrderWithItemsAdmin] Error al leer order_items:", {
+        orderId: orderData.id,
+        error: itemsError.message,
+        code: itemsError.code,
+      });
+    }
+
+    const items = itemsData || [];
+
+    return {
+      id: orderData.id,
+      shortId: `${orderData.id.slice(0, 8)}…`,
+      created_at: orderData.created_at,
+      status: orderData.status,
+      email: orderData.email || "",
+      total_cents: orderData.total_cents,
+      metadata: (orderData.metadata as OrderSummary["metadata"]) || null,
+      items,
+      ownedByEmail: null, // No aplica en admin
+    };
+  } catch (err) {
+    console.error("[getOrderWithItemsAdmin] Error inesperado:", err);
+    return null;
+  }
+}
+
