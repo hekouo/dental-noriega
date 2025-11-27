@@ -29,7 +29,7 @@ export default async function AdminProductosPage({ searchParams }: Props) {
 
   const params = await searchParams;
   const page = Math.max(1, parseInt(params.page || "1", 10));
-  const limit = 20;
+  const limit = 50; // Aumentar límite para ver más productos
   const offset = (page - 1) * limit;
 
   const { products, total } = await getAdminProducts({ limit, offset });
@@ -151,7 +151,7 @@ export default async function AdminProductosPage({ searchParams }: Props) {
             {totalPages > 1 && (
               <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
                 <p className="text-sm text-gray-600">
-                  Página {page} de {totalPages} ({total} productos)
+                  Mostrando {offset + 1}-{Math.min(offset + limit, total)} de {total} productos
                 </p>
                 <div className="flex gap-2">
                   {page > 1 && (

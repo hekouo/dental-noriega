@@ -144,16 +144,20 @@ export default async function AdminPedidoDetailPage({ params }: Props) {
           <div className="px-6 py-4 border-b border-gray-200">
             <h2 className="text-lg font-semibold mb-3">Datos de Contacto</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-4">
-              {order.metadata?.contact_name && (
+              {(order.shipping?.contact_name || order.metadata?.contact_name) && (
                 <div>
                   <p className="text-gray-600">Nombre</p>
-                  <p className="font-medium">{order.metadata.contact_name}</p>
+                  <p className="font-medium">
+                    {order.shipping?.contact_name || order.metadata?.contact_name}
+                  </p>
                 </div>
               )}
-              {order.metadata?.contact_email && (
+              {(order.metadata?.contact_email || order.email) && (
                 <div>
                   <p className="text-gray-600">Email de contacto</p>
-                  <p className="font-medium">{order.metadata.contact_email}</p>
+                  <p className="font-medium">
+                    {order.metadata?.contact_email || order.email}
+                  </p>
                 </div>
               )}
               {order.shipping?.contact_phone && (
