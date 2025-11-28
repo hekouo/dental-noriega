@@ -123,15 +123,12 @@ export default async function AdminProductosPage({ searchParams }: Props) {
                         <p className="font-medium text-gray-900">
                           {product.title}
                         </p>
-                        {product.sku && (
-                          <p className="text-xs text-gray-500">SKU: {product.sku}</p>
-                        )}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">
-                        {product.section_slug || "Sin sección"}
+                        {product.sectionName || product.sectionSlug || "Sin sección"}
                       </td>
                       <td className="px-4 py-3 text-right font-medium">
-                        {formatMXNFromCents(product.price_cents)}
+                        {formatMXNFromCents(product.priceCents)}
                       </td>
                       <td className="px-4 py-3 text-center">
                         <span
