@@ -3,7 +3,6 @@ import { createClient } from "@supabase/supabase-js";
 
 /**
  * Crea un cliente Supabase con SERVICE_ROLE_KEY (bypassa RLS)
- * Reutiliza el mismo patrón que orders.server.ts
  */
 function createServiceRoleSupabase() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -22,89 +21,90 @@ function createServiceRoleSupabase() {
 }
 
 /**
- * Tipo para un producto en el panel admin
+ * Tipo para un producto en el listado del panel admin
+ */
+export type AdminProductListItem = {
+  id: string;
+  title: string;
+  slug: string;
+  sectionId: string | null;
+  sectionSlug: string | null;
+  sectionName: string | null;
+  priceCents: number;
+  currency: string | null;
+  stockQty: number | null;
+  active: boolean;
+  image_url: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+};
+
+/**
+ * Tipo para un producto completo (usado en formularios de edición)
  */
 export type AdminProduct = {
   id: string;
-  section_slug: string | null;
+  sectionId: string | null;
+  sectionSlug: string | null;
+  sectionName: string | null;
   slug: string;
   title: string;
-  price: number; // precio en MXN (no cents)
-  price_cents: number; // precio en centavos
+  priceCents: number;
+  currency: string;
+  stockQty: number | null;
+  active: boolean;
   description: string | null;
   sku: string | null;
-  active: boolean;
-  in_stock: boolean;
-  image_url: string | null; // URL de la imagen primaria
-  created_at: string;
+  image_url: string | null;
+  createdAt: string;
+  updatedAt: string | null;
 };
 
 /**
  * Tipo para crear/actualizar producto
  */
 export type AdminProductInput = {
-  section_slug: string;
+  sectionId: string; // UUID de la sección
   slug: string;
   title: string;
-  price: number; // precio en MXN (se convierte a price_cents)
+  priceMxn: number; // Precio en MXN (se convierte a price_cents)
+  stockQty?: number | null;
   description?: string | null;
   sku?: string | null;
   active?: boolean;
-  image_url?: string | null; // Si se proporciona, se crea/actualiza product_images
+  image_url?: string | null;
 };
 
 /**
  * Tipo para sección
  */
 export type AdminSection = {
+  id: string; // UUID
   slug: string;
   name: string;
 };
 
 /**
- * Obtiene todas las secciones disponibles
+ * Obtiene todas las secciones disponibles desde public.sections
  */
 export async function getAdminSections(): Promise<AdminSection[]> {
   const supabase = createServiceRoleSupabase();
 
   try {
-    // Intentar leer desde tabla sections
-    const { data: sectionsData, error: sectionsError } = await supabase
+    const { data, error } = await supabase
       .from("sections")
-      .select("slug, name")
+      .select("id, slug, name")
       .order("name", { ascending: true });
 
-    if (!sectionsError && sectionsData && sectionsData.length > 0) {
-      return sectionsData.map((s) => ({
-        slug: s.slug || "",
-        name: s.name || s.slug || "",
-      }));
-    }
-
-    // Fallback: obtener secciones únicas desde productos
-    const { data: productsData, error: productsError } = await supabase
-      .from("products")
-      .select("section_slug")
-      .not("section_slug", "is", null)
-      .neq("section_slug", "");
-
-    if (productsError || !productsData) {
+    if (error) {
+      console.error("[getAdminSections] Error:", error);
       return [];
     }
 
-    const uniqueSections = [
-      ...new Set(
-        productsData
-          .map((p) => p.section_slug)
-          .filter((s): s is string => Boolean(s)),
-      ),
-    ].sort();
-
-    return uniqueSections.map((slug) => ({
-      slug,
-      name: slug
-        .replace(/-/g, " ")
-        .replace(/\b\w/g, (l) => l.toUpperCase()),
+    return (data || []).map((s) => ({
+      id: s.id,
+      slug: s.slug || "",
+      name: s.name || s.slug || "",
     }));
   } catch (err) {
     console.error("[getAdminSections] Error:", err);
@@ -114,72 +114,129 @@ export async function getAdminSections(): Promise<AdminSection[]> {
 
 /**
  * Obtiene productos para el panel admin con paginación
+ * Usa el esquema real: section_id (FK), price_cents, stock_qty, etc.
  */
 export async function getAdminProducts(options?: {
   limit?: number;
   offset?: number;
-}): Promise<{ products: AdminProduct[]; total: number }> {
+}): Promise<{ products: AdminProductListItem[]; total: number }> {
   const supabase = createServiceRoleSupabase();
-  const limit = options?.limit ?? 50; // Aumentar límite por defecto para ver más productos
+  const limit = options?.limit ?? 50;
   const offset = options?.offset ?? 0;
 
   try {
+    // Query con join a sections usando la sintaxis de Supabase
     const { data, error, count } = await supabase
       .from("products")
       .select(
-        "id, section_slug, slug, title, price, description, sku, active, in_stock, created_at",
+        `
+        id,
+        title,
+        slug,
+        section_id,
+        price_cents,
+        currency,
+        stock_qty,
+        active,
+        image_url,
+        created_at,
+        updated_at,
+        sections!inner (
+          id,
+          slug,
+          name
+        )
+      `,
         { count: "exact" },
       )
-      .order("title", { ascending: true }) // Ordenar por título para mejor UX
+      .order("title", { ascending: true })
       .range(offset, offset + limit - 1);
 
     if (error) {
-      console.error("[getAdminProducts] Error:", error);
+      console.error("[getAdminProducts] Error en query:", error);
+      // Si falla el join, intentar sin join
+      const { data: dataFallback, error: errorFallback, count: countFallback } =
+        await supabase
+          .from("products")
+          .select("id, title, slug, section_id, price_cents, currency, stock_qty, active, image_url, created_at, updated_at", {
+            count: "exact",
+          })
+          .order("title", { ascending: true })
+          .range(offset, offset + limit - 1);
+
+      if (errorFallback || !dataFallback) {
+        return { products: [], total: 0 };
+      }
+
+      // Mapear sin sección
+      const products: AdminProductListItem[] = dataFallback.map((p) => ({
+        id: p.id,
+        title: p.title || "",
+        slug: p.slug || "",
+        sectionId: p.section_id || null,
+        sectionSlug: null,
+        sectionName: null,
+        priceCents: p.price_cents ?? 0,
+        currency: p.currency || "mxn",
+        stockQty: p.stock_qty ?? null,
+        active: p.active ?? true,
+        image_url: p.image_url || null,
+        createdAt: p.created_at || "",
+        updatedAt: p.updated_at || null,
+      }));
+
+      return {
+        products,
+        total: countFallback ?? 0,
+      };
+    }
+
+    if (!data) {
+      console.warn("[getAdminProducts] No se recibieron datos de Supabase");
       return { products: [], total: 0 };
     }
 
-    // Obtener imágenes primarias para cada producto
-    const productIds = (data || []).map((p) => p.id);
-    const { data: imagesData } = await supabase
-      .from("product_images")
-      .select("product_id, url")
-      .in("product_id", productIds)
-      .eq("is_primary", true);
+    // Mapear los datos al tipo AdminProductListItem
+    const products: AdminProductListItem[] = data.map((p) => {
+      // El join puede devolver un objeto o un array
+      const section = (p as { sections?: { id: string; slug: string; name: string } | { id: string; slug: string; name: string }[] }).sections;
+      const sectionObj = Array.isArray(section) ? section[0] : section;
 
-    const imageMap = new Map<string, string>();
-    (imagesData || []).forEach((img) => {
-      if (img.url && !imageMap.has(img.product_id)) {
-        imageMap.set(img.product_id, img.url);
-      }
+      return {
+        id: p.id,
+        title: p.title || "",
+        slug: p.slug || "",
+        sectionId: p.section_id || null,
+        sectionSlug: sectionObj?.slug || null,
+        sectionName: sectionObj?.name || null,
+        priceCents: p.price_cents ?? 0,
+        currency: p.currency || "mxn",
+        stockQty: p.stock_qty ?? null,
+        active: p.active ?? true,
+        image_url: p.image_url || null,
+        createdAt: p.created_at || "",
+        updatedAt: p.updated_at || null,
+      };
     });
 
-    const products: AdminProduct[] = (data || []).map((p) => ({
-      id: p.id,
-      section_slug: p.section_slug || null,
-      slug: p.slug,
-      title: p.title,
-      price: Number(p.price) || 0,
-      price_cents: Math.round((Number(p.price) || 0) * 100),
-      description: p.description || null,
-      sku: p.sku || null,
-      active: p.active ?? true,
-      in_stock: p.in_stock ?? true,
-      image_url: imageMap.get(p.id) || null,
-      created_at: p.created_at,
-    }));
+    if (process.env.NODE_ENV === "development") {
+      console.log(
+        `[getAdminProducts] Encontrados ${products.length} productos (total: ${count ?? 0})`,
+      );
+    }
 
     return {
       products,
       total: count ?? 0,
     };
   } catch (err) {
-    console.error("[getAdminProducts] Error:", err);
+    console.error("[getAdminProducts] Error inesperado:", err);
     return { products: [], total: 0 };
   }
 }
 
 /**
- * Obtiene un producto por ID con su imagen primaria
+ * Obtiene un producto por ID con su sección
  */
 export async function getAdminProductById(
   productId: string,
@@ -189,35 +246,85 @@ export async function getAdminProductById(
   try {
     const { data, error } = await supabase
       .from("products")
-      .select("id, section_slug, slug, title, price, description, sku, active, in_stock, created_at")
+      .select(
+        `
+        id,
+        section_id,
+        slug,
+        title,
+        price_cents,
+        currency,
+        stock_qty,
+        active,
+        description,
+        sku,
+        image_url,
+        created_at,
+        updated_at,
+        sections!inner (
+          id,
+          slug,
+          name
+        )
+      `,
+      )
       .eq("id", productId)
       .maybeSingle();
 
     if (error || !data) {
+      if (error) {
+        console.error("[getAdminProductById] Error:", error);
+        // Intentar sin join si falla
+        const { data: dataFallback, error: errorFallback } = await supabase
+          .from("products")
+          .select("id, section_id, slug, title, price_cents, currency, stock_qty, active, description, sku, image_url, created_at, updated_at")
+          .eq("id", productId)
+          .maybeSingle();
+
+        if (errorFallback || !dataFallback) {
+          return null;
+        }
+
+        return {
+          id: dataFallback.id,
+          sectionId: dataFallback.section_id || null,
+          sectionSlug: null,
+          sectionName: null,
+          slug: dataFallback.slug || "",
+          title: dataFallback.title || "",
+          priceCents: dataFallback.price_cents ?? 0,
+          currency: dataFallback.currency || "mxn",
+          stockQty: dataFallback.stock_qty ?? null,
+          active: dataFallback.active ?? true,
+          description: dataFallback.description || null,
+          sku: dataFallback.sku || null,
+          image_url: dataFallback.image_url || null,
+          createdAt: dataFallback.created_at || "",
+          updatedAt: dataFallback.updated_at || null,
+        };
+      }
       return null;
     }
 
-    // Obtener imagen primaria
-    const { data: imageData } = await supabase
-      .from("product_images")
-      .select("url")
-      .eq("product_id", productId)
-      .eq("is_primary", true)
-      .maybeSingle();
+    const section = (data as { sections?: { id: string; slug: string; name: string } | { id: string; slug: string; name: string }[] }).sections;
+    const sectionObj = Array.isArray(section) ? section[0] : section;
 
     return {
       id: data.id,
-      section_slug: data.section_slug || null,
-      slug: data.slug,
-      title: data.title,
-      price: Number(data.price) || 0,
-      price_cents: Math.round((Number(data.price) || 0) * 100),
+      sectionId: data.section_id || null,
+      sectionSlug: sectionObj?.slug || null,
+      sectionName: sectionObj?.name || null,
+      slug: data.slug || "",
+      title: data.title || "",
+      priceCents: data.price_cents ?? 0,
+      currency: data.currency || "mxn",
+      stockQty: data.stock_qty ?? null,
+      active: data.active ?? true,
       description: data.description || null,
       sku: data.sku || null,
-      active: data.active ?? true,
-      in_stock: data.in_stock ?? true,
-      image_url: imageData?.url || null,
-      created_at: data.created_at,
+      image_url: data.image_url || null,
+      createdAt: data.created_at || "",
+      updatedAt: data.updated_at || null,
     };
   } catch (err) {
     console.error("[getAdminProductById] Error:", err);
@@ -234,18 +341,22 @@ export async function createAdminProduct(
   const supabase = createServiceRoleSupabase();
 
   try {
+    const priceCents = Math.round(input.priceMxn * 100);
+
     // Insertar producto
     const { data: productData, error: productError } = await supabase
       .from("products")
       .insert({
-        section_slug: input.section_slug,
+        section_id: input.sectionId,
         slug: input.slug,
         title: input.title,
-        price: input.price,
+        price_cents: priceCents,
+        currency: "mxn",
+        stock_qty: input.stockQty ?? null,
         description: input.description || null,
         sku: input.sku || null,
         active: input.active ?? true,
-        in_stock: true,
+        image_url: input.image_url || null,
       })
       .select("id")
       .single();
@@ -259,9 +370,9 @@ export async function createAdminProduct(
 
     const productId = productData.id;
 
-    // Si hay image_url, crear registro en product_images
+    // Si hay image_url, también crear/actualizar en product_images como primaria
     if (input.image_url) {
-      // Primero, desmarcar cualquier imagen primaria existente (por si acaso)
+      // Desmarcar cualquier imagen primaria existente
       await supabase
         .from("product_images")
         .update({ is_primary: false })
@@ -305,17 +416,22 @@ export async function updateAdminProduct(
   const supabase = createServiceRoleSupabase();
 
   try {
+    const priceCents = Math.round(input.priceMxn * 100);
+
     // Actualizar producto
     const { error: productError } = await supabase
       .from("products")
       .update({
-        section_slug: input.section_slug,
+        section_id: input.sectionId,
         slug: input.slug,
         title: input.title,
-        price: input.price,
+        price_cents: priceCents,
+        stock_qty: input.stockQty ?? null,
         description: input.description || null,
         sku: input.sku || null,
         active: input.active ?? true,
+        image_url: input.image_url || null,
+        updated_at: new Date().toISOString(),
       })
       .eq("id", productId);
 
@@ -326,7 +442,7 @@ export async function updateAdminProduct(
       };
     }
 
-    // Manejar imagen primaria
+    // Manejar imagen primaria en product_images
     if (input.image_url !== undefined) {
       // Desmarcar todas las imágenes primarias existentes
       await supabase
@@ -373,4 +489,3 @@ export async function updateAdminProduct(
     };
   }
 }
-

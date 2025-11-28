@@ -9,32 +9,40 @@ import {
 } from "@/lib/supabase/products.admin.server";
 
 export async function createProductAction(formData: FormData): Promise<void> {
-  const section_slug = formData.get("section_slug")?.toString() || "";
+  const sectionId = formData.get("section_id")?.toString() || "";
   const slug = formData.get("slug")?.toString() || "";
   const title = formData.get("title")?.toString() || "";
   const priceStr = formData.get("price")?.toString() || "0";
+  const stockQtyStr = formData.get("stock_qty")?.toString() || "";
   const description = formData.get("description")?.toString() || null;
   const sku = formData.get("sku")?.toString() || null;
   const active = formData.get("active") === "on";
   const image_url = formData.get("image_url")?.toString() || null;
 
   // Validación básica
-  if (!section_slug || !slug || !title) {
+  if (!sectionId || !slug || !title) {
     redirect("/admin/productos/nuevo?error=campos_requeridos");
     return;
   }
 
-  const price = parseFloat(priceStr);
-  if (isNaN(price) || price < 0) {
+  const priceMxn = parseFloat(priceStr);
+  if (isNaN(priceMxn) || priceMxn < 0) {
     redirect("/admin/productos/nuevo?error=precio_invalido");
     return;
   }
 
+  const stockQty = stockQtyStr ? parseInt(stockQtyStr, 10) : null;
+  if (stockQty !== null && (isNaN(stockQty) || stockQty < 0)) {
+    redirect("/admin/productos/nuevo?error=stock_invalido");
+    return;
+  }
+
   const input: AdminProductInput = {
-    section_slug,
+    sectionId,
     slug,
     title,
-    price,
+    priceMxn,
+    stockQty,
     description,
     sku,
     active,
@@ -44,11 +52,18 @@ export async function createProductAction(formData: FormData): Promise<void> {
   const result = await createAdminProduct(input);
 
   if (!result.success) {
-    redirect(`/admin/productos/nuevo?error=${encodeURIComponent(result.error || "error_desconocido")}`);
+    redirect(
+      `/admin/productos/nuevo?error=${encodeURIComponent(result.error || "error_desconocido")}`,
+    );
     return;
   }
 
+  // Revalidar rutas del catálogo público
   revalidatePath("/admin/productos");
+  revalidatePath("/catalogo", "layout");
+  revalidatePath("/tienda");
+  revalidatePath("/destacados");
+
   redirect(`/admin/productos/${result.productId}/editar`);
 }
 
@@ -56,32 +71,40 @@ export async function updateProductAction(
   productId: string,
   formData: FormData,
 ): Promise<void> {
-  const section_slug = formData.get("section_slug")?.toString() || "";
+  const sectionId = formData.get("section_id")?.toString() || "";
   const slug = formData.get("slug")?.toString() || "";
   const title = formData.get("title")?.toString() || "";
   const priceStr = formData.get("price")?.toString() || "0";
+  const stockQtyStr = formData.get("stock_qty")?.toString() || "";
   const description = formData.get("description")?.toString() || null;
   const sku = formData.get("sku")?.toString() || null;
   const active = formData.get("active") === "on";
   const image_url = formData.get("image_url")?.toString() || null;
 
   // Validación básica
-  if (!section_slug || !slug || !title) {
+  if (!sectionId || !slug || !title) {
     redirect(`/admin/productos/${productId}/editar?error=campos_requeridos`);
     return;
   }
 
-  const price = parseFloat(priceStr);
-  if (isNaN(price) || price < 0) {
+  const priceMxn = parseFloat(priceStr);
+  if (isNaN(priceMxn) || priceMxn < 0) {
     redirect(`/admin/productos/${productId}/editar?error=precio_invalido`);
     return;
   }
 
+  const stockQty = stockQtyStr ? parseInt(stockQtyStr, 10) : null;
+  if (stockQty !== null && (isNaN(stockQty) || stockQty < 0)) {
+    redirect(`/admin/productos/${productId}/editar?error=stock_invalido`);
+    return;
+  }
+
   const input: AdminProductInput = {
-    section_slug,
+    sectionId,
     slug,
     title,
-    price,
+    priceMxn,
+    stockQty,
     description,
     sku,
     active,
@@ -91,11 +114,17 @@ export async function updateProductAction(
   const result = await updateAdminProduct(productId, input);
 
   if (!result.success) {
-    redirect(`/admin/productos/${productId}/editar?error=${encodeURIComponent(result.error || "error_desconocido")}`);
+    redirect(
+      `/admin/productos/${productId}/editar?error=${encodeURIComponent(result.error || "error_desconocido")}`,
+    );
     return;
   }
 
+  // Revalidar rutas del catálogo público
   revalidatePath("/admin/productos");
+  revalidatePath("/catalogo", "layout");
+  revalidatePath("/tienda");
+  revalidatePath("/destacados");
+
   redirect("/admin/productos");
 }
-

@@ -29,11 +29,18 @@ export default async function AdminProductosPage({ searchParams }: Props) {
 
   const params = await searchParams;
   const page = Math.max(1, parseInt(params.page || "1", 10));
-  const limit = 50; // Aumentar límite para ver más productos
+  const limit = 50;
   const offset = (page - 1) * limit;
 
   const { products, total } = await getAdminProducts({ limit, offset });
   const totalPages = Math.ceil(total / limit);
+
+  // Log en desarrollo para debugging
+  if (process.env.NODE_ENV === "development") {
+    console.log(
+      `[AdminProductosPage] Productos cargados: ${products.length}, Total: ${total}`,
+    );
+  }
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -57,7 +64,11 @@ export default async function AdminProductosPage({ searchParams }: Props) {
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         {products.length === 0 ? (
           <div className="px-6 py-12 text-center">
-            <p className="text-gray-500 mb-4">No hay productos registrados</p>
+            <p className="text-gray-500 mb-4">
+              {total === 0
+                ? "No hay productos registrados"
+                : "No se pudieron cargar los productos. Revisa los logs del servidor."}
+            </p>
             <Link
               href="/admin/productos/nuevo"
               className="text-primary-600 hover:text-primary-700 underline"
@@ -112,15 +123,12 @@ export default async function AdminProductosPage({ searchParams }: Props) {
                         <p className="font-medium text-gray-900">
                           {product.title}
                         </p>
-                        {product.sku && (
-                          <p className="text-xs text-gray-500">SKU: {product.sku}</p>
-                        )}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">
-                        {product.section_slug || "Sin sección"}
+                        {product.sectionName || product.sectionSlug || "Sin sección"}
                       </td>
                       <td className="px-4 py-3 text-right font-medium">
-                        {formatMXNFromCents(product.price_cents)}
+                        {formatMXNFromCents(product.priceCents)}
                       </td>
                       <td className="px-4 py-3 text-center">
                         <span

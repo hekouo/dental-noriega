@@ -53,6 +53,9 @@ export default async function AdminProductosEditarPage({ params }: Props) {
     );
   }
 
+  // Convertir priceCents a MXN para el formulario
+  const priceMxn = product.priceCents / 100;
+
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <header className="mb-6">
@@ -74,21 +77,21 @@ export default async function AdminProductosEditarPage({ params }: Props) {
             {/* Sección */}
             <div>
               <label
-                htmlFor="section_slug"
+                htmlFor="section_id"
                 className="block text-sm font-medium text-gray-700 mb-2"
               >
                 Sección <span className="text-red-500">*</span>
               </label>
               <select
-                id="section_slug"
-                name="section_slug"
+                id="section_id"
+                name="section_id"
                 required
-                defaultValue={product.section_slug || ""}
+                defaultValue={product.sectionId || ""}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
               >
                 <option value="">Seleccionar sección</option>
                 {sections.map((section) => (
-                  <option key={section.slug} value={section.slug}>
+                  <option key={section.id} value={section.id}>
                     {section.name}
                   </option>
                 ))}
@@ -149,9 +152,30 @@ export default async function AdminProductosEditarPage({ params }: Props) {
                 step="0.01"
                 min="0"
                 required
-                defaultValue={product.price}
+                defaultValue={priceMxn}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
               />
+            </div>
+
+            {/* Stock */}
+            <div>
+              <label
+                htmlFor="stock_qty"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Stock (cantidad)
+              </label>
+              <input
+                type="number"
+                id="stock_qty"
+                name="stock_qty"
+                min="0"
+                defaultValue={product.stockQty ?? ""}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Dejar vacío si no aplica
+              </p>
             </div>
 
             {/* SKU */}
@@ -256,4 +280,3 @@ export default async function AdminProductosEditarPage({ params }: Props) {
     </div>
   );
 }
-
