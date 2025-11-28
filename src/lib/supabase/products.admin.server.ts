@@ -549,7 +549,7 @@ export async function addAdminProductImage(
     // Validar que el producto existe
     const { data: product } = await supabase
       .from("products")
-      .select("id")
+      .select("id, image_url")
       .eq("id", productId)
       .maybeSingle();
 
@@ -592,6 +592,27 @@ export async function addAdminProductImage(
         .from("products")
         .update({ image_url: url })
         .eq("id", productId);
+    } else if (!product.image_url) {
+      // Si el producto no tiene imagen principal y esta no es primaria,
+      // verificar si hay alguna imagen primaria existente
+      const { data: primaryImage } = await supabase
+        .from("product_images")
+        .select("url")
+        .eq("product_id", productId)
+        .eq("is_primary", true)
+        .maybeSingle();
+
+      // Si no hay imagen primaria, marcar esta como primaria
+      if (!primaryImage) {
+        await supabase
+          .from("product_images")
+          .update({ is_primary: true })
+          .eq("id", imageData.id);
+        await supabase
+          .from("products")
+          .update({ image_url: url })
+          .eq("id", productId);
+      }
     }
 
     return {

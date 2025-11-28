@@ -292,63 +292,54 @@ export default async function AdminProductosEditarPage({ params }: Props) {
         </h2>
 
         {/* Lista de imágenes existentes */}
-        {images.length > 0 ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
-            {images.map((image) => (
-              <div
-                key={image.id}
-                className="relative border border-gray-200 rounded-lg overflow-hidden"
-              >
-                <img
-                  src={image.url}
-                  alt={`Imagen ${image.id}`}
-                  className="w-full h-32 object-cover"
-                />
-                {image.is_primary && (
-                  <div className="absolute top-2 left-2">
-                    <span className="px-2 py-1 text-xs font-medium bg-primary-600 text-white rounded">
-                      Principal
-                    </span>
-                  </div>
-                )}
-                <div className="p-2 bg-gray-50 flex flex-col gap-2">
-                  {!image.is_primary && (
-                    <form action={setPrimaryProductImageAction}>
+        {images.length > 0 && (
+          <div className="mb-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              {images.map((image) => (
+                <div
+                  key={image.id}
+                  className="relative border border-gray-200 rounded-lg overflow-hidden"
+                >
+                  <img
+                    src={image.url}
+                    alt={`Imagen ${image.id}`}
+                    className="w-full h-32 object-cover"
+                  />
+                  {image.is_primary && (
+                    <div className="absolute top-2 left-2">
+                      <span className="px-2 py-1 text-xs font-medium bg-primary-600 text-white rounded">
+                        Principal
+                      </span>
+                    </div>
+                  )}
+                  <div className="p-2 bg-gray-50 flex flex-col gap-2">
+                    {!image.is_primary && (
+                      <form action={setPrimaryProductImageAction}>
+                        <input type="hidden" name="productId" value={product.id} />
+                        <input type="hidden" name="imageId" value={image.id} />
+                        <button
+                          type="submit"
+                          className="w-full px-2 py-1 text-xs bg-primary-600 text-white rounded hover:bg-primary-700 transition-colors"
+                        >
+                          Marcar como principal
+                        </button>
+                      </form>
+                    )}
+                    <form action={deleteProductImageAction}>
                       <input type="hidden" name="productId" value={product.id} />
                       <input type="hidden" name="imageId" value={image.id} />
                       <button
                         type="submit"
-                        className="w-full px-3 py-1 text-xs bg-primary-600 text-white rounded hover:bg-primary-700 transition-colors"
+                        className="w-full px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
                       >
-                        Marcar como principal
+                        Eliminar
                       </button>
                     </form>
-                  )}
-                  <form action={deleteProductImageAction}>
-                    <input type="hidden" name="productId" value={product.id} />
-                    <input type="hidden" name="imageId" value={image.id} />
-                    <button
-                      type="submit"
-                      className="w-full px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
-                      onClick={(e) => {
-                        if (
-                          !confirm(
-                            "¿Estás seguro de que quieres eliminar esta imagen?",
-                          )
-                        ) {
-                          e.preventDefault();
-                        }
-                      }}
-                    >
-                      Eliminar
-                    </button>
-                  </form>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        ) : (
-          <p className="text-gray-500 mb-6">No hay imágenes registradas</p>
         )}
 
         {/* Formulario para agregar nueva imagen */}
@@ -360,14 +351,14 @@ export default async function AdminProductosEditarPage({ params }: Props) {
             <input type="hidden" name="productId" value={product.id} />
             <div>
               <label
-                htmlFor="new_image_url"
+                htmlFor="image_url_new"
                 className="block text-sm font-medium text-gray-700 mb-1"
               >
                 URL de imagen
               </label>
               <input
                 type="url"
-                id="new_image_url"
+                id="image_url_new"
                 name="url"
                 required
                 placeholder="https://lh3.googleusercontent.com/..."

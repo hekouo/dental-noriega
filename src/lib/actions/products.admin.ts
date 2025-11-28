@@ -132,9 +132,6 @@ export async function updateProductAction(
   redirect("/admin/productos");
 }
 
-/**
- * Agrega una nueva imagen a un producto
- */
 export async function addProductImageAction(formData: FormData): Promise<void> {
   const productId = formData.get("productId")?.toString() || "";
   const url = formData.get("url")?.toString() || "";
@@ -164,9 +161,6 @@ export async function addProductImageAction(formData: FormData): Promise<void> {
   redirect(`/admin/productos/${productId}/editar`);
 }
 
-/**
- * Marca una imagen como principal
- */
 export async function setPrimaryProductImageAction(
   formData: FormData,
 ): Promise<void> {
@@ -197,9 +191,6 @@ export async function setPrimaryProductImageAction(
   redirect(`/admin/productos/${productId}/editar`);
 }
 
-/**
- * Elimina una imagen de un producto
- */
 export async function deleteProductImageAction(
   formData: FormData,
 ): Promise<void> {
