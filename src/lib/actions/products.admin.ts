@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import {
   createAdminProduct,
   updateAdminProduct,
+  updateAdminProductPrice,
+  updateAdminProductActive,
   addAdminProductImage,
   setAdminPrimaryImage,
   deleteAdminProductImage,
@@ -219,4 +221,49 @@ export async function deleteProductImageAction(
   revalidatePath("/destacados");
 
   redirect(`/admin/productos/${productId}/editar`);
+}
+
+export async function quickUpdatePriceAction(
+  productId: string,
+  formData: FormData,
+): Promise<{ success: boolean; error?: string }> {
+  const priceStr = formData.get("price")?.toString() || "0";
+  const priceMxn = parseFloat(priceStr);
+
+  if (isNaN(priceMxn) || priceMxn < 0) {
+    return { success: false, error: "Precio inválido" };
+  }
+
+  const result = await updateAdminProductPrice(productId, priceMxn);
+
+  if (!result.success) {
+    return { success: false, error: result.error || "Error desconocido" };
+  }
+
+  revalidatePath("/admin/productos");
+  revalidatePath("/catalogo", "layout");
+  revalidatePath("/tienda");
+  revalidatePath("/destacados");
+
+  return { success: true };
+}
+
+export async function quickToggleActiveAction(
+  productId: string,
+  formData: FormData,
+): Promise<{ success: boolean; error?: string }> {
+  const active = formData.get("active") === "true";
+
+  const result = await updateAdminProductActive(productId, active);
+
+  if (!result.success) {
+    return { success: false, error: result.error || "Error desconocido" };
+  }
+
+  revalidatePath("/admin/productos");
+  revalidatePath("/catalogo", "layout");
+  revalidatePath("/tienda");
+  revalidatePath("/destacados");
+
+  return { success: true };
 }
