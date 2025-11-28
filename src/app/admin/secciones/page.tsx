@@ -25,116 +25,120 @@ export default async function AdminSeccionesPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <header className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">
-            Administración de Secciones
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Gestiona las categorías del catálogo
-          </p>
-        </div>
+      <header className="mb-6">
         <Link
-          href="/admin/productos"
-          className="text-primary-600 hover:text-primary-700 text-sm"
+          href="/cuenta"
+          className="text-primary-600 hover:text-primary-700 text-sm mb-2 inline-block"
         >
-          ← Volver a productos
+          ← Volver a cuenta
         </Link>
+        <h1 className="text-3xl font-bold text-gray-900">Administración de Secciones</h1>
+        <p className="text-sm text-gray-500 mt-1">
+          Gestiona las categorías del catálogo
+        </p>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Formulario de creación */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">
-            Nueva Sección
+            Crear Nueva Sección
           </h2>
-          <form action={createSectionAction} className="space-y-4">
-            <div>
-              <label
-                htmlFor="name"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
-                Nombre <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
-                placeholder="Ej: Instrumentos"
-              />
+          <form action={createSectionAction}>
+            <div className="space-y-4">
+              {/* Nombre */}
+              <div>
+                <label
+                  htmlFor="name"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  Nombre <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  id="name"
+                  name="name"
+                  required
+                  placeholder="ej: Instrumentos"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
+                />
+              </div>
+
+              {/* Slug */}
+              <div>
+                <label
+                  htmlFor="slug"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  Slug <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  id="slug"
+                  name="slug"
+                  required
+                  placeholder="ej: instrumentos"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  URL amigable (sin espacios, usar guiones)
+                </p>
+              </div>
+
+              {/* Botón */}
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  className="w-full px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+                >
+                  Crear Sección
+                </button>
+              </div>
             </div>
-            <div>
-              <label
-                htmlFor="slug"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
-                Slug <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                id="slug"
-                name="slug"
-                required
-                placeholder="ej: instrumentos"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                URL amigable (sin espacios, usar guiones)
-              </p>
-            </div>
-            <button
-              type="submit"
-              className="w-full px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-            >
-              Crear Sección
-            </button>
           </form>
         </div>
 
         {/* Listado de secciones */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900">
-              Secciones Existentes
-            </h2>
-          </div>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">
+            Secciones Existentes ({sections.length})
+          </h2>
+
           {sections.length === 0 ? (
-            <div className="px-6 py-12 text-center">
-              <p className="text-gray-500">No hay secciones registradas</p>
-            </div>
+            <p className="text-sm text-gray-500 text-center py-8">
+              No hay secciones registradas
+            </p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Nombre
                     </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Slug
                     </th>
-                    <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">
-                      Acción
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Acciones
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody className="bg-white divide-y divide-gray-200">
                   {sections.map((section) => (
-                    <tr key={section.id}>
-                      <td className="px-4 py-3">
-                        <p className="font-medium text-gray-900">
-                          {section.name}
-                        </p>
+                    <tr key={section.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {section.name}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">
-                        {section.slug}
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                        <code className="text-xs bg-gray-100 px-2 py-1 rounded">
+                          {section.slug}
+                        </code>
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-4 py-3 whitespace-nowrap text-right text-sm">
                         <Link
                           href={`/admin/secciones/${section.id}/editar`}
-                          className="text-primary-600 hover:text-primary-700 text-sm font-medium"
+                          className="text-primary-600 hover:text-primary-700 font-medium"
                         >
                           Editar
                         </Link>

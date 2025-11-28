@@ -11,6 +11,7 @@ export async function createSectionAction(formData: FormData): Promise<void> {
   const slug = formData.get("slug")?.toString() || "";
   const name = formData.get("name")?.toString() || "";
 
+  // Validación básica
   if (!slug || !name) {
     redirect("/admin/secciones?error=campos_requeridos");
     return;
@@ -27,36 +28,38 @@ export async function createSectionAction(formData: FormData): Promise<void> {
     redirect("/admin/secciones");
   } catch (err) {
     console.error("[createSectionAction] Error:", err);
-    redirect(
-      `/admin/secciones?error=${encodeURIComponent(err instanceof Error ? err.message : "error_desconocido")}`,
-    );
+    const errorMsg = err instanceof Error ? err.message : "error_desconocido";
+    redirect(`/admin/secciones?error=${encodeURIComponent(errorMsg)}`);
   }
 }
 
-export async function updateSectionAction(formData: FormData): Promise<void> {
-  const id = formData.get("id")?.toString() || "";
+export async function updateSectionAction(
+  sectionId: string,
+  formData: FormData,
+): Promise<void> {
   const slug = formData.get("slug")?.toString() || "";
   const name = formData.get("name")?.toString() || "";
 
-  if (!id || !slug || !name) {
-    redirect(`/admin/secciones/${id}/editar?error=campos_requeridos`);
+  // Validación básica
+  if (!slug || !name) {
+    redirect(`/admin/secciones/${sectionId}/editar?error=campos_requeridos`);
     return;
   }
 
   try {
-    await updateAdminSection(id, { slug, name });
+    await updateAdminSection(sectionId, { slug, name });
 
     // Revalidar rutas
     revalidatePath("/admin/secciones");
-    revalidatePath(`/admin/secciones/${id}/editar`);
     revalidatePath("/admin/productos");
     revalidatePath("/catalogo", "layout");
 
     redirect("/admin/secciones");
   } catch (err) {
     console.error("[updateSectionAction] Error:", err);
+    const errorMsg = err instanceof Error ? err.message : "error_desconocido";
     redirect(
-      `/admin/secciones/${id}/editar?error=${encodeURIComponent(err instanceof Error ? err.message : "error_desconocido")}`,
+      `/admin/secciones/${sectionId}/editar?error=${encodeURIComponent(errorMsg)}`,
     );
   }
 }

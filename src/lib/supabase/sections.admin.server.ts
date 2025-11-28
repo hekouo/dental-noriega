@@ -21,7 +21,7 @@ function createServiceRoleSupabase() {
 }
 
 /**
- * Tipo para sección
+ * Tipo para una sección en el panel admin
  */
 export type AdminSection = {
   id: string;
@@ -53,10 +53,9 @@ export async function getAdminSections(): Promise<AdminSection[]> {
     }));
   } catch (err) {
     console.error("[getAdminSections] Error:", err);
-    if (err instanceof Error) {
-      throw err;
-    }
-    throw new Error("Error inesperado al obtener secciones");
+    throw new Error(
+      err instanceof Error ? err.message : "Error inesperado al obtener secciones",
+    );
   }
 }
 
@@ -91,10 +90,9 @@ export async function getAdminSectionById(
     };
   } catch (err) {
     console.error("[getAdminSectionById] Error:", err);
-    if (err instanceof Error) {
-      throw err;
-    }
-    throw new Error("Error inesperado al obtener sección");
+    throw new Error(
+      err instanceof Error ? err.message : "Error inesperado al obtener sección",
+    );
   }
 }
 
@@ -123,7 +121,7 @@ export async function createAdminSection(input: {
     }
 
     if (!data) {
-      throw new Error("No se pudo crear la sección");
+      throw new Error("No se recibieron datos al crear la sección");
     }
 
     return {
@@ -133,10 +131,9 @@ export async function createAdminSection(input: {
     };
   } catch (err) {
     console.error("[createAdminSection] Error:", err);
-    if (err instanceof Error) {
-      throw err;
-    }
-    throw new Error("Error inesperado al crear sección");
+    throw new Error(
+      err instanceof Error ? err.message : "Error inesperado al crear sección",
+    );
   }
 }
 
@@ -166,7 +163,7 @@ export async function updateAdminSection(
     }
 
     if (!data) {
-      throw new Error("No se pudo actualizar la sección");
+      throw new Error("No se recibieron datos al actualizar la sección");
     }
 
     return {
@@ -176,10 +173,11 @@ export async function updateAdminSection(
     };
   } catch (err) {
     console.error("[updateAdminSection] Error:", err);
-    if (err instanceof Error) {
-      throw err;
-    }
-    throw new Error("Error inesperado al actualizar sección");
+    throw new Error(
+      err instanceof Error
+        ? err.message
+        : "Error inesperado al actualizar sección",
+    );
   }
 }
 

@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient } from "@supabase/supabase-js";
+import type { AdminSection } from "./sections.admin.server";
 
 /**
  * Crea un cliente Supabase con SERVICE_ROLE_KEY (bypassa RLS)
@@ -86,6 +87,34 @@ export type AdminProductImage = {
   is_primary: boolean;
   created_at: string;
 };
+
+/**
+ * Obtiene todas las secciones disponibles desde public.sections
+ */
+export async function getAdminSections(): Promise<AdminSection[]> {
+  const supabase = createServiceRoleSupabase();
+
+  try {
+    const { data, error } = await supabase
+      .from("sections")
+      .select("id, slug, name")
+      .order("name", { ascending: true });
+
+    if (error) {
+      console.error("[getAdminSections] Error:", error);
+      return [];
+    }
+
+    return (data || []).map((s) => ({
+      id: s.id,
+      slug: s.slug || "",
+      name: s.name || s.slug || "",
+    }));
+  } catch (err) {
+    console.error("[getAdminSections] Error:", err);
+    return [];
+  }
+}
 
 /**
  * Obtiene productos para el panel admin con paginación
