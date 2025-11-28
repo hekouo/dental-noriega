@@ -4,8 +4,14 @@ import { checkAdminAccess } from "@/lib/admin/access";
 import {
   getAdminProductById,
   getAdminSections,
+  getAdminProductImages,
 } from "@/lib/supabase/products.admin.server";
-import { updateProductAction } from "@/lib/actions/products.admin";
+import {
+  updateProductAction,
+  addProductImageAction,
+  setPrimaryProductImageAction,
+  deleteProductImageAction,
+} from "@/lib/actions/products.admin";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +37,7 @@ export default async function AdminProductosEditarPage({ params }: Props) {
   const { id } = await params;
   const product = await getAdminProductById(id);
   const sections = await getAdminSections();
+  const images = await getAdminProductImages(id);
 
   if (!product) {
     return (
@@ -276,6 +283,110 @@ export default async function AdminProductosEditarPage({ params }: Props) {
             </div>
           </div>
         </form>
+      </div>
+
+      {/* Galería de imágenes */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mt-6">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">
+          Galería de imágenes
+        </h2>
+
+        {/* Lista de imágenes existentes */}
+        {images.length > 0 && (
+          <div className="mb-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              {images.map((image) => (
+                <div
+                  key={image.id}
+                  className="relative border border-gray-200 rounded-lg overflow-hidden"
+                >
+                  <img
+                    src={image.url}
+                    alt={`Imagen ${image.id}`}
+                    className="w-full h-32 object-cover"
+                  />
+                  {image.is_primary && (
+                    <div className="absolute top-2 left-2">
+                      <span className="px-2 py-1 text-xs font-medium bg-primary-600 text-white rounded">
+                        Principal
+                      </span>
+                    </div>
+                  )}
+                  <div className="p-2 bg-gray-50 flex flex-col gap-2">
+                    {!image.is_primary && (
+                      <form action={setPrimaryProductImageAction}>
+                        <input type="hidden" name="productId" value={product.id} />
+                        <input type="hidden" name="imageId" value={image.id} />
+                        <button
+                          type="submit"
+                          className="w-full px-2 py-1 text-xs bg-primary-600 text-white rounded hover:bg-primary-700 transition-colors"
+                        >
+                          Marcar como principal
+                        </button>
+                      </form>
+                    )}
+                    <form action={deleteProductImageAction}>
+                      <input type="hidden" name="productId" value={product.id} />
+                      <input type="hidden" name="imageId" value={image.id} />
+                      <button
+                        type="submit"
+                        className="w-full px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                      >
+                        Eliminar
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Formulario para agregar nueva imagen */}
+        <div className="border-t border-gray-200 pt-4">
+          <h3 className="text-sm font-medium text-gray-700 mb-3">
+            Agregar nueva imagen
+          </h3>
+          <form action={addProductImageAction} className="space-y-3">
+            <input type="hidden" name="productId" value={product.id} />
+            <div>
+              <label
+                htmlFor="image_url_new"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                URL de imagen
+              </label>
+              <input
+                type="url"
+                id="image_url_new"
+                name="url"
+                required
+                placeholder="https://lh3.googleusercontent.com/..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
+              />
+            </div>
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="makePrimary"
+                name="makePrimary"
+                className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+              />
+              <label
+                htmlFor="makePrimary"
+                className="ml-2 block text-sm text-gray-700"
+              >
+                Marcar como principal
+              </label>
+            </div>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+            >
+              Agregar imagen
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );

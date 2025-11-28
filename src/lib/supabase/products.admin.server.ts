@@ -85,6 +85,17 @@ export type AdminSection = {
 };
 
 /**
+ * Tipo para imagen de producto
+ */
+export type AdminProductImage = {
+  id: string;
+  product_id: string;
+  url: string;
+  is_primary: boolean;
+  created_at: string;
+};
+
+/**
  * Obtiene todas las secciones disponibles desde public.sections
  */
 export async function getAdminSections(): Promise<AdminSection[]> {
@@ -483,6 +494,277 @@ export async function updateAdminProduct(
     };
   } catch (err) {
     console.error("[updateAdminProduct] Error:", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Error inesperado",
+    };
+  }
+}
+
+/**
+ * Obtiene todas las imágenes de un producto
+ */
+export async function getAdminProductImages(
+  productId: string,
+): Promise<AdminProductImage[]> {
+  const supabase = createServiceRoleSupabase();
+
+  try {
+    const { data, error } = await supabase
+      .from("product_images")
+      .select("id, product_id, url, is_primary, created_at")
+      .eq("product_id", productId)
+      .order("is_primary", { ascending: false })
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      console.error("[getAdminProductImages] Error:", error);
+      return [];
+    }
+
+    return (data || []).map((img) => ({
+      id: img.id,
+      product_id: img.product_id,
+      url: img.url || "",
+      is_primary: img.is_primary ?? false,
+      created_at: img.created_at || "",
+    }));
+  } catch (err) {
+    console.error("[getAdminProductImages] Error:", err);
+    return [];
+  }
+}
+
+/**
+ * Agrega una nueva imagen a un producto
+ */
+export async function addAdminProductImage(
+  productId: string,
+  url: string,
+  makePrimary = false,
+): Promise<{ success: boolean; imageId?: string; error?: string }> {
+  const supabase = createServiceRoleSupabase();
+
+  try {
+    // Validar que el producto existe
+    const { data: product } = await supabase
+      .from("products")
+      .select("id, image_url")
+      .eq("id", productId)
+      .maybeSingle();
+
+    if (!product) {
+      return {
+        success: false,
+        error: "Producto no encontrado",
+      };
+    }
+
+    // Si makePrimary es true, desmarcar todas las demás imágenes
+    if (makePrimary) {
+      await supabase
+        .from("product_images")
+        .update({ is_primary: false })
+        .eq("product_id", productId);
+    }
+
+    // Insertar nueva imagen
+    const { data: imageData, error: imageError } = await supabase
+      .from("product_images")
+      .insert({
+        product_id: productId,
+        url,
+        is_primary: makePrimary,
+      })
+      .select("id")
+      .single();
+
+    if (imageError || !imageData) {
+      return {
+        success: false,
+        error: imageError?.message || "Error al agregar imagen",
+      };
+    }
+
+    // Si es primaria, actualizar products.image_url
+    if (makePrimary) {
+      await supabase
+        .from("products")
+        .update({ image_url: url })
+        .eq("id", productId);
+    } else if (!product.image_url) {
+      // Si el producto no tiene imagen principal y esta no es primaria,
+      // verificar si hay alguna imagen primaria existente
+      const { data: primaryImage } = await supabase
+        .from("product_images")
+        .select("url")
+        .eq("product_id", productId)
+        .eq("is_primary", true)
+        .maybeSingle();
+
+      // Si no hay imagen primaria, marcar esta como primaria
+      if (!primaryImage) {
+        await supabase
+          .from("product_images")
+          .update({ is_primary: true })
+          .eq("id", imageData.id);
+        await supabase
+          .from("products")
+          .update({ image_url: url })
+          .eq("id", productId);
+      }
+    }
+
+    return {
+      success: true,
+      imageId: imageData.id,
+    };
+  } catch (err) {
+    console.error("[addAdminProductImage] Error:", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Error inesperado",
+    };
+  }
+}
+
+/**
+ * Marca una imagen como principal
+ */
+export async function setAdminPrimaryImage(
+  productId: string,
+  imageId: string,
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = createServiceRoleSupabase();
+
+  try {
+    // Validar que la imagen pertenece al producto
+    const { data: image, error: imageError } = await supabase
+      .from("product_images")
+      .select("id, url, product_id")
+      .eq("id", imageId)
+      .eq("product_id", productId)
+      .maybeSingle();
+
+    if (imageError || !image) {
+      return {
+        success: false,
+        error: "Imagen no encontrada o no pertenece al producto",
+      };
+    }
+
+    // Desmarcar todas las imágenes primarias del producto
+    await supabase
+      .from("product_images")
+      .update({ is_primary: false })
+      .eq("product_id", productId);
+
+    // Marcar esta imagen como primaria
+    const { error: updateError } = await supabase
+      .from("product_images")
+      .update({ is_primary: true })
+      .eq("id", imageId);
+
+    if (updateError) {
+      return {
+        success: false,
+        error: updateError.message || "Error al actualizar imagen",
+      };
+    }
+
+    // Actualizar products.image_url
+    await supabase
+      .from("products")
+      .update({ image_url: image.url })
+      .eq("id", productId);
+
+    return {
+      success: true,
+    };
+  } catch (err) {
+    console.error("[setAdminPrimaryImage] Error:", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Error inesperado",
+    };
+  }
+}
+
+/**
+ * Elimina una imagen de un producto
+ */
+export async function deleteAdminProductImage(
+  productId: string,
+  imageId: string,
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = createServiceRoleSupabase();
+
+  try {
+    // Obtener información de la imagen antes de borrarla
+    const { data: image, error: imageError } = await supabase
+      .from("product_images")
+      .select("id, is_primary, url")
+      .eq("id", imageId)
+      .eq("product_id", productId)
+      .maybeSingle();
+
+    if (imageError || !image) {
+      return {
+        success: false,
+        error: "Imagen no encontrada o no pertenece al producto",
+      };
+    }
+
+    const wasPrimary = image.is_primary;
+
+    // Eliminar la imagen
+    const { error: deleteError } = await supabase
+      .from("product_images")
+      .delete()
+      .eq("id", imageId);
+
+    if (deleteError) {
+      return {
+        success: false,
+        error: deleteError.message || "Error al eliminar imagen",
+      };
+    }
+
+    // Si era la imagen principal, buscar otra para marcar como principal
+    if (wasPrimary) {
+      const { data: otherImages } = await supabase
+        .from("product_images")
+        .select("id, url")
+        .eq("product_id", productId)
+        .order("created_at", { ascending: true })
+        .limit(1);
+
+      if (otherImages && otherImages.length > 0) {
+        // Marcar la primera como principal
+        await supabase
+          .from("product_images")
+          .update({ is_primary: true })
+          .eq("id", otherImages[0].id);
+
+        // Actualizar products.image_url
+        await supabase
+          .from("products")
+          .update({ image_url: otherImages[0].url })
+          .eq("id", productId);
+      } else {
+        // No hay más imágenes, dejar image_url en NULL
+        await supabase
+          .from("products")
+          .update({ image_url: null })
+          .eq("id", productId);
+      }
+    }
+
+    return {
+      success: true,
+    };
+  } catch (err) {
+    console.error("[deleteAdminProductImage] Error:", err);
     return {
       success: false,
       error: err instanceof Error ? err.message : "Error inesperado",
