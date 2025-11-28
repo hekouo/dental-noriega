@@ -49,6 +49,8 @@ export async function createProductAction(formData: FormData): Promise<void> {
   }
 
   revalidatePath("/admin/productos");
+  // Revalidar también el catálogo público
+  revalidatePath("/catalogo", "layout");
   redirect(`/admin/productos/${result.productId}/editar`);
 }
 
@@ -96,6 +98,8 @@ export async function updateProductAction(
   }
 
   revalidatePath("/admin/productos");
+  // Revalidar también el catálogo público
+  revalidatePath("/catalogo", "layout");
   redirect("/admin/productos");
 }
 

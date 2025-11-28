@@ -120,31 +120,97 @@ export async function getAdminProducts(options?: {
   offset?: number;
 }): Promise<{ products: AdminProduct[]; total: number }> {
   const supabase = createServiceRoleSupabase();
-  const limit = options?.limit ?? 50; // Aumentar límite por defecto para ver más productos
+  const limit = options?.limit ?? 50;
   const offset = options?.offset ?? 0;
 
   try {
-    const { data, error, count } = await supabase
+    // Intentar primero con section_slug, si falla intentar con section_key
+    const query = supabase
       .from("products")
       .select(
-        "id, section_slug, slug, title, price, description, sku, active, in_stock, created_at",
+        "id, section_slug, section_key, slug, title, price, description, sku, active, in_stock, created_at",
         { count: "exact" },
       )
-      .order("title", { ascending: true }) // Ordenar por título para mejor UX
+      .order("title", { ascending: true })
       .range(offset, offset + limit - 1);
 
+    const { data, error, count } = await query;
+
     if (error) {
-      console.error("[getAdminProducts] Error:", error);
+      console.error("[getAdminProducts] Error en query:", error);
+      // Si el error es por columna inexistente, intentar sin section_slug
+      if (error.message?.includes("section_slug") || error.code === "PGRST116") {
+        console.warn("[getAdminProducts] Intentando sin section_slug...");
+        const { data: dataFallback, error: errorFallback, count: countFallback } =
+          await supabase
+            .from("products")
+            .select(
+              "id, section_key, slug, title, price, description, sku, active, in_stock, created_at",
+              { count: "exact" },
+            )
+            .order("title", { ascending: true })
+            .range(offset, offset + limit - 1);
+
+        if (errorFallback) {
+          console.error("[getAdminProducts] Error en fallback:", errorFallback);
+          return { products: [], total: 0 };
+        }
+
+        // Mapear section_key a section_slug para compatibilidad
+        const productIds = (dataFallback || []).map((p) => p.id);
+        const { data: imagesData } = await supabase
+          .from("product_images")
+          .select("product_id, url")
+          .in("product_id", productIds)
+          .eq("is_primary", true);
+
+        const imageMap = new Map<string, string>();
+        (imagesData || []).forEach((img) => {
+          if (img.url && !imageMap.has(img.product_id)) {
+            imageMap.set(img.product_id, img.url);
+          }
+        });
+
+        const products: AdminProduct[] = (dataFallback || []).map((p) => ({
+          id: p.id,
+          section_slug: (p as { section_key?: string }).section_key || null,
+          slug: p.slug,
+          title: p.title,
+          price: Number(p.price) || 0,
+          price_cents: Math.round((Number(p.price) || 0) * 100),
+          description: p.description || null,
+          sku: p.sku || null,
+          active: p.active ?? true,
+          in_stock: p.in_stock ?? true,
+          image_url: imageMap.get(p.id) || null,
+          created_at: p.created_at,
+        }));
+
+        return {
+          products,
+          total: countFallback ?? 0,
+        };
+      }
+
+      return { products: [], total: 0 };
+    }
+
+    if (!data) {
+      console.warn("[getAdminProducts] No se recibieron datos de Supabase");
       return { products: [], total: 0 };
     }
 
     // Obtener imágenes primarias para cada producto
-    const productIds = (data || []).map((p) => p.id);
-    const { data: imagesData } = await supabase
+    const productIds = data.map((p) => p.id);
+    const { data: imagesData, error: imagesError } = await supabase
       .from("product_images")
       .select("product_id, url")
       .in("product_id", productIds)
       .eq("is_primary", true);
+
+    if (imagesError) {
+      console.warn("[getAdminProducts] Error al obtener imágenes:", imagesError);
+    }
 
     const imageMap = new Map<string, string>();
     (imagesData || []).forEach((img) => {
@@ -153,27 +219,41 @@ export async function getAdminProducts(options?: {
       }
     });
 
-    const products: AdminProduct[] = (data || []).map((p) => ({
-      id: p.id,
-      section_slug: p.section_slug || null,
-      slug: p.slug,
-      title: p.title,
-      price: Number(p.price) || 0,
-      price_cents: Math.round((Number(p.price) || 0) * 100),
-      description: p.description || null,
-      sku: p.sku || null,
-      active: p.active ?? true,
-      in_stock: p.in_stock ?? true,
-      image_url: imageMap.get(p.id) || null,
-      created_at: p.created_at,
-    }));
+    const products: AdminProduct[] = data.map((p) => {
+      // Manejar tanto section_slug como section_key
+      const sectionSlug =
+        (p as { section_slug?: string }).section_slug ||
+        (p as { section_key?: string }).section_key ||
+        null;
+
+      return {
+        id: p.id,
+        section_slug: sectionSlug,
+        slug: p.slug,
+        title: p.title,
+        price: Number(p.price) || 0,
+        price_cents: Math.round((Number(p.price) || 0) * 100),
+        description: p.description || null,
+        sku: p.sku || null,
+        active: p.active ?? true,
+        in_stock: p.in_stock ?? true,
+        image_url: imageMap.get(p.id) || null,
+        created_at: p.created_at,
+      };
+    });
+
+    if (process.env.NODE_ENV === "development") {
+      console.log(
+        `[getAdminProducts] Encontrados ${products.length} productos (total: ${count ?? 0})`,
+      );
+    }
 
     return {
       products,
       total: count ?? 0,
     };
   } catch (err) {
-    console.error("[getAdminProducts] Error:", err);
+    console.error("[getAdminProducts] Error inesperado:", err);
     return { products: [], total: 0 };
   }
 }
