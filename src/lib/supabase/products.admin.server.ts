@@ -27,6 +27,7 @@ export type AdminProductListItem = {
   id: string;
   title: string;
   slug: string;
+  sku: string | null;
   sectionId: string | null;
   sectionSlug: string | null;
   sectionName: string | null;
@@ -144,6 +145,7 @@ export async function getAdminProducts(options?: {
         id,
         title,
         slug,
+        sku,
         section_id,
         price_cents,
         currency,
@@ -169,7 +171,7 @@ export async function getAdminProducts(options?: {
       const { data: dataFallback, error: errorFallback, count: countFallback } =
         await supabase
           .from("products")
-          .select("id, title, slug, section_id, price_cents, currency, stock_qty, active, image_url, created_at, updated_at", {
+          .select("id, title, slug, sku, section_id, price_cents, currency, stock_qty, active, image_url, created_at, updated_at", {
             count: "exact",
           })
           .order("title", { ascending: true })
@@ -184,6 +186,7 @@ export async function getAdminProducts(options?: {
         id: p.id,
         title: p.title || "",
         slug: p.slug || "",
+        sku: p.sku || null,
         sectionId: p.section_id || null,
         sectionSlug: null,
         sectionName: null,
@@ -217,6 +220,7 @@ export async function getAdminProducts(options?: {
         id: p.id,
         title: p.title || "",
         slug: p.slug || "",
+        sku: p.sku || null,
         sectionId: p.section_id || null,
         sectionSlug: sectionObj?.slug || null,
         sectionName: sectionObj?.name || null,
@@ -494,6 +498,82 @@ export async function updateAdminProduct(
     };
   } catch (err) {
     console.error("[updateAdminProduct] Error:", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Error inesperado",
+    };
+  }
+}
+
+/**
+ * Actualiza solo el precio de un producto (edición rápida)
+ */
+export async function updateAdminProductPrice(
+  productId: string,
+  priceMxn: number,
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = createServiceRoleSupabase();
+
+  try {
+    const priceCents = Math.round(priceMxn * 100);
+
+    const { error } = await supabase
+      .from("products")
+      .update({
+        price_cents: priceCents,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", productId);
+
+    if (error) {
+      return {
+        success: false,
+        error: error.message || "Error al actualizar precio",
+      };
+    }
+
+    return {
+      success: true,
+    };
+  } catch (err) {
+    console.error("[updateAdminProductPrice] Error:", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Error inesperado",
+    };
+  }
+}
+
+/**
+ * Actualiza solo el estado activo de un producto (edición rápida)
+ */
+export async function updateAdminProductActive(
+  productId: string,
+  active: boolean,
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = createServiceRoleSupabase();
+
+  try {
+    const { error } = await supabase
+      .from("products")
+      .update({
+        active,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", productId);
+
+    if (error) {
+      return {
+        success: false,
+        error: error.message || "Error al actualizar estado",
+      };
+    }
+
+    return {
+      success: true,
+    };
+  } catch (err) {
+    console.error("[updateAdminProductActive] Error:", err);
     return {
       success: false,
       error: err instanceof Error ? err.message : "Error inesperado",
