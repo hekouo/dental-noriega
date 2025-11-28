@@ -5,6 +5,9 @@ import { redirect } from "next/navigation";
 import {
   createAdminProduct,
   updateAdminProduct,
+  addAdminProductImage,
+  setAdminPrimaryImage,
+  deleteAdminProductImage,
   type AdminProductInput,
 } from "@/lib/supabase/products.admin.server";
 
@@ -127,4 +130,102 @@ export async function updateProductAction(
   revalidatePath("/destacados");
 
   redirect("/admin/productos");
+}
+
+/**
+ * Agrega una nueva imagen a un producto
+ */
+export async function addProductImageAction(formData: FormData): Promise<void> {
+  const productId = formData.get("productId")?.toString() || "";
+  const url = formData.get("url")?.toString() || "";
+  const makePrimary = formData.get("makePrimary") === "on";
+
+  if (!productId || !url) {
+    redirect(`/admin/productos/${productId}/editar?error=campos_requeridos`);
+    return;
+  }
+
+  const result = await addAdminProductImage(productId, url, makePrimary);
+
+  if (!result.success) {
+    redirect(
+      `/admin/productos/${productId}/editar?error=${encodeURIComponent(result.error || "error_desconocido")}`,
+    );
+    return;
+  }
+
+  // Revalidar rutas
+  revalidatePath("/admin/productos");
+  revalidatePath(`/admin/productos/${productId}/editar`);
+  revalidatePath("/catalogo", "layout");
+  revalidatePath("/tienda");
+  revalidatePath("/destacados");
+
+  redirect(`/admin/productos/${productId}/editar`);
+}
+
+/**
+ * Marca una imagen como principal
+ */
+export async function setPrimaryProductImageAction(
+  formData: FormData,
+): Promise<void> {
+  const productId = formData.get("productId")?.toString() || "";
+  const imageId = formData.get("imageId")?.toString() || "";
+
+  if (!productId || !imageId) {
+    redirect(`/admin/productos/${productId}/editar?error=campos_requeridos`);
+    return;
+  }
+
+  const result = await setAdminPrimaryImage(productId, imageId);
+
+  if (!result.success) {
+    redirect(
+      `/admin/productos/${productId}/editar?error=${encodeURIComponent(result.error || "error_desconocido")}`,
+    );
+    return;
+  }
+
+  // Revalidar rutas
+  revalidatePath("/admin/productos");
+  revalidatePath(`/admin/productos/${productId}/editar`);
+  revalidatePath("/catalogo", "layout");
+  revalidatePath("/tienda");
+  revalidatePath("/destacados");
+
+  redirect(`/admin/productos/${productId}/editar`);
+}
+
+/**
+ * Elimina una imagen de un producto
+ */
+export async function deleteProductImageAction(
+  formData: FormData,
+): Promise<void> {
+  const productId = formData.get("productId")?.toString() || "";
+  const imageId = formData.get("imageId")?.toString() || "";
+
+  if (!productId || !imageId) {
+    redirect(`/admin/productos/${productId}/editar?error=campos_requeridos`);
+    return;
+  }
+
+  const result = await deleteAdminProductImage(productId, imageId);
+
+  if (!result.success) {
+    redirect(
+      `/admin/productos/${productId}/editar?error=${encodeURIComponent(result.error || "error_desconocido")}`,
+    );
+    return;
+  }
+
+  // Revalidar rutas
+  revalidatePath("/admin/productos");
+  revalidatePath(`/admin/productos/${productId}/editar`);
+  revalidatePath("/catalogo", "layout");
+  revalidatePath("/tienda");
+  revalidatePath("/destacados");
+
+  redirect(`/admin/productos/${productId}/editar`);
 }
