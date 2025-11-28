@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient } from "@supabase/supabase-js";
+import type { AdminSection } from "./sections.admin.server";
 
 /**
  * Crea un cliente Supabase con SERVICE_ROLE_KEY (bypassa RLS)
@@ -74,15 +75,6 @@ export type AdminProductInput = {
   sku?: string | null;
   active?: boolean;
   image_url?: string | null;
-};
-
-/**
- * Tipo para sección
- */
-export type AdminSection = {
-  id: string; // UUID
-  slug: string;
-  name: string;
 };
 
 /**

@@ -3,9 +3,9 @@ import Link from "next/link";
 import { checkAdminAccess } from "@/lib/admin/access";
 import {
   getAdminProductById,
-  getAdminSections,
   getAdminProductImages,
 } from "@/lib/supabase/products.admin.server";
+import { getAdminSections } from "@/lib/supabase/sections.admin.server";
 import {
   updateProductAction,
   addProductImageAction,
