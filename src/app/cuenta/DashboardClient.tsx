@@ -140,6 +140,12 @@ export default function DashboardClient({
               >
                 Panel de Productos
               </Link>
+              <Link
+                href="/admin/secciones"
+                className="inline-flex items-center justify-center rounded-xl bg-blue-600 text-white px-4 py-2 text-sm font-medium hover:bg-blue-700 transition-all duration-150 hover:-translate-y-[1px] active:translate-y-0"
+              >
+                Panel de Secciones
+              </Link>
             </div>
           </div>
         )}

@@ -1,9 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { checkAdminAccess } from "@/lib/admin/access";
-import {
-  getAdminProducts,
-  getAdminSections,
-} from "@/lib/supabase/products.admin.server";
+import { getAdminProducts } from "@/lib/supabase/products.admin.server";
+import { getAdminSections } from "@/lib/supabase/sections.admin.server";
 import AdminProductosClient from "./AdminProductosClient";
 
 export const dynamic = "force-dynamic";
