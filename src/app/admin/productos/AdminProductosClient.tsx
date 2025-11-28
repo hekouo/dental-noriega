@@ -9,7 +9,7 @@ import {
   quickToggleActiveAction,
 } from "@/lib/actions/products.admin";
 import type { AdminProductListItem } from "@/lib/supabase/products.admin.server";
-import type { AdminSection } from "@/lib/supabase/sections.admin.server";
+import type { AdminSection } from "@/lib/supabase/products.admin.server";
 
 type Props = {
   products: AdminProductListItem[];

@@ -1,8 +1,8 @@
 import { notFound, redirect } from "next/navigation";
+import Link from "next/link";
 import { checkAdminAccess } from "@/lib/admin/access";
 import { getAdminSectionById } from "@/lib/supabase/sections.admin.server";
 import { updateSectionAction } from "@/lib/actions/sections.admin";
-import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -13,9 +13,7 @@ type Props = {
 };
 
 /**
- * Página de edición de sección
- *
- * Requiere que el usuario esté autenticado y su email esté en ADMIN_ALLOWED_EMAILS
+ * Página para editar una sección existente
  */
 export default async function AdminSeccionesEditarPage({ params }: Props) {
   // Verificar acceso admin
@@ -31,7 +29,24 @@ export default async function AdminSeccionesEditarPage({ params }: Props) {
   const section = await getAdminSectionById(id);
 
   if (!section) {
-    notFound();
+    return (
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+          <h1 className="text-xl font-semibold text-red-800 mb-2">
+            Sección no encontrada
+          </h1>
+          <p className="text-red-600 mb-4">
+            No se encontró una sección con el ID proporcionado.
+          </p>
+          <Link
+            href="/admin/secciones"
+            className="text-primary-600 hover:text-primary-700 underline"
+          >
+            Volver a secciones
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -39,16 +54,13 @@ export default async function AdminSeccionesEditarPage({ params }: Props) {
       <header className="mb-6">
         <Link
           href="/admin/secciones"
-          className="text-primary-600 hover:text-primary-700 text-sm font-medium mb-4 inline-block"
+          className="text-primary-600 hover:text-primary-700 text-sm mb-2 inline-block"
         >
           ← Volver a secciones
         </Link>
         <h1 className="text-3xl font-bold text-gray-900">
-          Editar Sección
+          Editar Sección: {section.name}
         </h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Modifica los datos de la sección
-        </p>
       </header>
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -60,7 +72,7 @@ export default async function AdminSeccionesEditarPage({ params }: Props) {
               htmlFor="name"
               className="block text-sm font-medium text-gray-700 mb-2"
             >
-              Nombre
+              Nombre <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -77,7 +89,7 @@ export default async function AdminSeccionesEditarPage({ params }: Props) {
               htmlFor="slug"
               className="block text-sm font-medium text-gray-700 mb-2"
             >
-              Slug
+              Slug <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -85,26 +97,27 @@ export default async function AdminSeccionesEditarPage({ params }: Props) {
               name="slug"
               required
               defaultValue={section.slug}
+              placeholder="ej: instrumentos"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
             />
             <p className="mt-1 text-xs text-gray-500">
-              URL-friendly identifier (sin espacios, minúsculas)
+              URL amigable (sin espacios, usar guiones)
             </p>
           </div>
 
-          <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-            <Link
-              href="/admin/secciones"
-              className="text-gray-600 hover:text-gray-700 text-sm font-medium"
-            >
-              Cancelar
-            </Link>
+          <div className="flex gap-4 pt-4">
             <button
               type="submit"
-              className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+              className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
             >
               Guardar Cambios
             </button>
+            <Link
+              href="/admin/secciones"
+              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancelar
+            </Link>
           </div>
         </form>
       </div>

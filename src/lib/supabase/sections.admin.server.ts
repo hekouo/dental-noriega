@@ -24,7 +24,7 @@ function createServiceRoleSupabase() {
  * Tipo para sección
  */
 export type AdminSection = {
-  id: string; // UUID
+  id: string;
   slug: string;
   name: string;
 };

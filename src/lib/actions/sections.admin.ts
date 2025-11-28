@@ -27,8 +27,9 @@ export async function createSectionAction(formData: FormData): Promise<void> {
     redirect("/admin/secciones");
   } catch (err) {
     console.error("[createSectionAction] Error:", err);
-    const errorMsg = err instanceof Error ? err.message : "Error desconocido";
-    redirect(`/admin/secciones?error=${encodeURIComponent(errorMsg)}`);
+    redirect(
+      `/admin/secciones?error=${encodeURIComponent(err instanceof Error ? err.message : "error_desconocido")}`,
+    );
   }
 }
 
@@ -54,9 +55,8 @@ export async function updateSectionAction(formData: FormData): Promise<void> {
     redirect("/admin/secciones");
   } catch (err) {
     console.error("[updateSectionAction] Error:", err);
-    const errorMsg = err instanceof Error ? err.message : "Error desconocido";
     redirect(
-      `/admin/secciones/${id}/editar?error=${encodeURIComponent(errorMsg)}`,
+      `/admin/secciones/${id}/editar?error=${encodeURIComponent(err instanceof Error ? err.message : "error_desconocido")}`,
     );
   }
 }

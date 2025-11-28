@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import Link from "next/link";
 import { checkAdminAccess } from "@/lib/admin/access";
 import { getAdminSections } from "@/lib/supabase/sections.admin.server";
 import { createSectionAction } from "@/lib/actions/sections.admin";
@@ -24,13 +25,21 @@ export default async function AdminSeccionesPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <header className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">
-          Administración de Secciones
-        </h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Gestiona las secciones/categorías del catálogo
-        </p>
+      <header className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">
+            Administración de Secciones
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Gestiona las categorías del catálogo
+          </p>
+        </div>
+        <Link
+          href="/admin/productos"
+          className="text-primary-600 hover:text-primary-700 text-sm"
+        >
+          ← Volver a productos
+        </Link>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -45,15 +54,15 @@ export default async function AdminSeccionesPage() {
                 htmlFor="name"
                 className="block text-sm font-medium text-gray-700 mb-2"
               >
-                Nombre
+                Nombre <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 id="name"
                 name="name"
                 required
-                placeholder="Ej: Instrumentos"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
+                placeholder="Ej: Instrumentos"
               />
             </div>
             <div>
@@ -61,23 +70,23 @@ export default async function AdminSeccionesPage() {
                 htmlFor="slug"
                 className="block text-sm font-medium text-gray-700 mb-2"
               >
-                Slug
+                Slug <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 id="slug"
                 name="slug"
                 required
-                placeholder="Ej: instrumentos"
+                placeholder="ej: instrumentos"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
               />
               <p className="mt-1 text-xs text-gray-500">
-                URL-friendly identifier (sin espacios, minúsculas)
+                URL amigable (sin espacios, usar guiones)
               </p>
             </div>
             <button
               type="submit"
-              className="w-full inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+              className="w-full px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
             >
               Crear Sección
             </button>
@@ -100,13 +109,13 @@ export default async function AdminSeccionesPage() {
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-700">
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
                       Nombre
                     </th>
-                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-700">
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
                       Slug
                     </th>
-                    <th className="px-6 py-3 text-right text-sm font-medium text-gray-700">
+                    <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">
                       Acción
                     </th>
                   </tr>
@@ -114,19 +123,21 @@ export default async function AdminSeccionesPage() {
                 <tbody className="divide-y divide-gray-200">
                   {sections.map((section) => (
                     <tr key={section.id}>
-                      <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                        {section.name}
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-gray-900">
+                          {section.name}
+                        </p>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
+                      <td className="px-4 py-3 text-sm text-gray-600">
                         {section.slug}
                       </td>
-                      <td className="px-6 py-4 text-right">
-                        <a
+                      <td className="px-4 py-3 text-right">
+                        <Link
                           href={`/admin/secciones/${section.id}/editar`}
                           className="text-primary-600 hover:text-primary-700 text-sm font-medium"
                         >
                           Editar
-                        </a>
+                        </Link>
                       </td>
                     </tr>
                   ))}
