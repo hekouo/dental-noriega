@@ -65,6 +65,7 @@ export default function PagoClient() {
   }, [checkoutItems]);
   const setShipping = useCheckoutStore((s) => s.setShipping);
   const currentShippingMethod = useCheckoutStore((s) => s.shippingMethod);
+  const selectedShippingOption = useCheckoutStore((s) => s.selectedShippingOption);
   const couponCode = useCheckoutStore((s) => s.couponCode);
   const discount = useCheckoutStore((s) => s.discount);
   const discountScope = useCheckoutStore((s) => s.discountScope);
@@ -432,11 +433,30 @@ export default function PagoClient() {
     try {
       // Crear orden NUEVA - NO enviar orderId en el payload para forzar creación nueva
       // IMPORTANTE: Incluir email del checkout para que se guarde en la orden y se use en Stripe
+      const shippingCostCents = selectedShippingOption
+        ? selectedShippingOption.priceCents
+        : Math.round(shippingCost * 100);
+      
       const orderPayload = {
         email: datos.email, // Email del checkout para la orden y Stripe
         name: datos.name, // Nombre para metadata
         shippingMethod: selectedShippingMethod || "pickup", // Método de envío
-        shippingCostCents: Math.round(shippingCost * 100), // Costo de envío en centavos
+        shippingCostCents, // Costo de envío en centavos
+        // Información de Skydropx si hay opción seleccionada
+        shipping: selectedShippingOption
+          ? {
+              provider: "skydropx",
+              option_code: selectedShippingOption.code,
+              price_cents: selectedShippingOption.priceCents,
+              rate: {
+                external_id: selectedShippingOption.externalRateId,
+                provider: selectedShippingOption.provider,
+                service: selectedShippingOption.label,
+                eta_min_days: selectedShippingOption.etaMinDays,
+                eta_max_days: selectedShippingOption.etaMaxDays,
+              },
+            }
+          : undefined,
         // NO incluir orderId aquí - queremos que create-order cree SIEMPRE una nueva orden
         // Incluir datos de loyalty si está aplicado
         loyalty: loyaltyApplied && loyaltyPoints?.canApplyDiscount

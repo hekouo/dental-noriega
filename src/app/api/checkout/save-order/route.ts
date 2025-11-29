@@ -238,6 +238,11 @@ export async function POST(req: NextRequest) {
         image_url: item.image_url,
       })),
     };
+
+    // Preservar información de Skydropx si existe en el payload
+    if (metadataFromPayload.shipping && typeof metadataFromPayload.shipping === "object") {
+      metadata.shipping = metadataFromPayload.shipping;
+    }
     
     // Incluir datos de loyalty solo si pasaron la validación
     if (loyaltyData) {

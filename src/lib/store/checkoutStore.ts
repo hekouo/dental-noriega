@@ -41,12 +41,24 @@ export type CheckoutStep = "datos" | "pago" | "gracias";
 
 export type ShippingMethod = "pickup" | "standard" | "express";
 
+export type UiShippingOption = {
+  code: string;
+  label: string;
+  priceCents: number;
+  provider: "skydropx";
+  etaMinDays: number | null;
+  etaMaxDays: number | null;
+  externalRateId: string;
+};
+
 type CheckoutPersisted = {
   step: CheckoutStep;
   datos: DatosForm | null;
   checkoutItems: CheckoutItem[]; // Persistir items también
   shippingMethod?: ShippingMethod;
   shippingCost?: number;
+  shippingOptions?: UiShippingOption[];
+  selectedShippingOption?: UiShippingOption | null;
   couponCode?: string;
   discount?: number;
   discountScope?: DiscountScope;
@@ -70,6 +82,8 @@ type State = CheckoutPersisted & {
   setDatos: (datos: DatosForm) => void;
   setOrderId: (orderId: string) => void;
   setShipping: (method: ShippingMethod, cost: number) => void;
+  setShippingOptions: (options: UiShippingOption[]) => void;
+  setSelectedShippingOption: (option: UiShippingOption | null) => void;
   setCoupon: (code: string, discount: number, scope: DiscountScope) => void;
   clearCoupon: () => void;
   resetAfterSuccess: () => void; // Limpiar orderId y campos relacionados después de pago exitoso
@@ -94,16 +108,18 @@ function rehydrateCheckout(): Partial<State> {
   const stored = getWithTTL<CheckoutPersisted>(KEYS.CHECKOUT);
   if (!stored) return {};
   return {
-    step: stored.step || "datos",
-    datos: stored.datos || null,
-    checkoutItems: stored.checkoutItems || [], // Restaurar items
-    shippingMethod: stored.shippingMethod,
-    shippingCost: stored.shippingCost,
-    couponCode: stored.couponCode,
-    discount: stored.discount,
-    discountScope: stored.discountScope,
-    lastAppliedCoupon: stored.lastAppliedCoupon,
-  };
+      step: stored.step || "datos",
+      datos: stored.datos || null,
+      checkoutItems: stored.checkoutItems || [], // Restaurar items
+      shippingMethod: stored.shippingMethod,
+      shippingCost: stored.shippingCost,
+      shippingOptions: stored.shippingOptions,
+      selectedShippingOption: stored.selectedShippingOption,
+      couponCode: stored.couponCode,
+      discount: stored.discount,
+      discountScope: stored.discountScope,
+      lastAppliedCoupon: stored.lastAppliedCoupon,
+    };
 }
 
 export const useCheckoutStore = create<State>()(
@@ -115,6 +131,8 @@ export const useCheckoutStore = create<State>()(
     orderId: null,
     shippingMethod: undefined,
     shippingCost: undefined,
+    shippingOptions: undefined,
+    selectedShippingOption: undefined,
     couponCode: undefined,
     discount: undefined,
     discountScope: undefined,
@@ -343,6 +361,8 @@ export const useCheckoutStore = create<State>()(
           checkoutItems: finalItems,
           shippingMethod: next.shippingMethod,
           shippingCost: next.shippingCost,
+          shippingOptions: next.shippingOptions,
+          selectedShippingOption: next.selectedShippingOption,
           couponCode: next.couponCode,
           discount: next.discount,
           discountScope: next.discountScope,
@@ -365,6 +385,54 @@ export const useCheckoutStore = create<State>()(
           checkoutItems: next.checkoutItems,
           shippingMethod: next.shippingMethod,
           shippingCost: next.shippingCost,
+          shippingOptions: next.shippingOptions,
+          selectedShippingOption: next.selectedShippingOption,
+          couponCode: next.couponCode,
+          discount: next.discount,
+          discountScope: next.discountScope,
+          lastAppliedCoupon: next.lastAppliedCoupon,
+        });
+        return next;
+      });
+    },
+
+    setShippingOptions: (options: UiShippingOption[]) => {
+      set((s) => {
+        const next = { ...s, shippingOptions: options };
+        persistCheckout({
+          step: next.step,
+          datos: next.datos,
+          checkoutItems: next.checkoutItems,
+          shippingMethod: next.shippingMethod,
+          shippingCost: next.shippingCost,
+          shippingOptions: next.shippingOptions,
+          selectedShippingOption: next.selectedShippingOption,
+          couponCode: next.couponCode,
+          discount: next.discount,
+          discountScope: next.discountScope,
+          lastAppliedCoupon: next.lastAppliedCoupon,
+        });
+        return next;
+      });
+    },
+
+    setSelectedShippingOption: (option: UiShippingOption | null) => {
+      set((s) => {
+        const shippingCost = option ? option.priceCents / 100 : 0;
+        const next = {
+          ...s,
+          selectedShippingOption: option,
+          shippingCost,
+          shippingMethod: (option ? "standard" : undefined) as ShippingMethod | undefined,
+        };
+        persistCheckout({
+          step: next.step,
+          datos: next.datos,
+          checkoutItems: next.checkoutItems,
+          shippingMethod: next.shippingMethod,
+          shippingCost: next.shippingCost,
+          shippingOptions: next.shippingOptions,
+          selectedShippingOption: next.selectedShippingOption,
           couponCode: next.couponCode,
           discount: next.discount,
           discountScope: next.discountScope,
@@ -389,6 +457,8 @@ export const useCheckoutStore = create<State>()(
           checkoutItems: next.checkoutItems,
           shippingMethod: next.shippingMethod,
           shippingCost: next.shippingCost,
+          shippingOptions: next.shippingOptions,
+          selectedShippingOption: next.selectedShippingOption,
           couponCode: next.couponCode,
           discount: next.discount,
           discountScope: next.discountScope,
@@ -413,6 +483,8 @@ export const useCheckoutStore = create<State>()(
           checkoutItems: next.checkoutItems,
           shippingMethod: next.shippingMethod,
           shippingCost: next.shippingCost,
+          shippingOptions: next.shippingOptions,
+          selectedShippingOption: next.selectedShippingOption,
           couponCode: next.couponCode,
           discount: next.discount,
           discountScope: next.discountScope,
@@ -441,6 +513,8 @@ export const useCheckoutStore = create<State>()(
           checkoutItems: [],
           shippingMethod: next.shippingMethod,
           shippingCost: next.shippingCost,
+          shippingOptions: next.shippingOptions,
+          selectedShippingOption: next.selectedShippingOption,
           couponCode: undefined,
           discount: undefined,
           discountScope: undefined,
@@ -456,12 +530,14 @@ export const useCheckoutStore = create<State>()(
         step: "datos",
       datos: null,
       orderId: null,
-        shippingMethod: undefined,
-        shippingCost: undefined,
-        couponCode: undefined,
-        discount: undefined,
-        discountScope: undefined,
-        lastAppliedCoupon: undefined,
+      shippingMethod: undefined,
+      shippingCost: undefined,
+      shippingOptions: undefined,
+      selectedShippingOption: undefined,
+      couponCode: undefined,
+      discount: undefined,
+      discountScope: undefined,
+      lastAppliedCoupon: undefined,
       });
       removeWithTTL(KEYS.CHECKOUT);
     },
@@ -474,6 +550,8 @@ export const useCheckoutStore = create<State>()(
       checkoutItems: state.checkoutItems, // Persistir items también
       shippingMethod: state.shippingMethod,
       shippingCost: state.shippingCost,
+      shippingOptions: state.shippingOptions,
+      selectedShippingOption: state.selectedShippingOption,
       couponCode: state.couponCode,
       discount: state.discount,
       discountScope: state.discountScope,
