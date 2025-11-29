@@ -1,7 +1,9 @@
 // src/app/catalogo/[section]/page.tsx
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getBySection } from "@/lib/catalog/getBySection.server";
+import { getSectionBySlug } from "@/lib/supabase/sections.public.server";
 import { ROUTES } from "@/lib/routes";
 import { SITE } from "@/lib/site";
 import ProductCard from "@/components/catalog/ProductCard";
@@ -100,36 +102,27 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function CatalogoSectionPage({ params, searchParams }: Props) {
-  const section = decodeURIComponent(params.section ?? "").trim();
+  const sectionSlug = decodeURIComponent(params.section ?? "").trim();
   const page = parsePage(searchParams.page);
   const sort = normalizeSortParam(searchParams.sort);
   const inStockOnly = searchParams.inStock === "true";
   const priceRange = normalizePriceRangeParam(searchParams.priceRange);
   
+  if (!sectionSlug) {
+    notFound();
+  }
+
+  // Verificar que la sección existe en la base de datos
+  const section = await getSectionBySlug(sectionSlug);
   if (!section) {
-    return (
-      <div className="p-6">
-        <h1 className="text-xl font-semibold">Sección inválida</h1>
-        <p className="text-sm opacity-70 mt-1">
-          Prueba en{" "}
-          <Link href="/destacados" className="underline">
-            Destacados
-          </Link>{" "}
-          o{" "}
-          <Link href="/buscar" className="underline">
-            buscar
-          </Link>
-          .
-        </p>
-      </div>
-    );
+    notFound();
   }
 
   let result: Awaited<ReturnType<typeof getBySection>> | null = null;
   let errorOccurred = false;
 
   try {
-    result = await getBySection(section, page, sort, inStockOnly, priceRange);
+    result = await getBySection(sectionSlug, page, sort, inStockOnly, priceRange);
   } catch (error) {
     if (process.env.NODE_ENV !== "production") {
       console.error("[catalogo/section] Error:", error);
@@ -139,12 +132,9 @@ export default async function CatalogoSectionPage({ params, searchParams }: Prop
   
   const products = result?.items ?? [];
 
-  // Si no hay productos, mostrar mensaje mejorado
+  // Si no hay productos, mostrar mensaje mejorado (sección existe pero está vacía)
   if (products.length === 0 && !errorOccurred) {
-    const sectionName = params.section
-      .replace(/-/g, " ")
-      .replace(/\b\w/g, (l) => l.toUpperCase());
-    
+    const sectionName = section.name;
     const whatsappUrl = getWhatsAppUrl(`Hola, busco productos en la sección "${sectionName}" en Depósito Dental Noriega.`);
 
     return (
@@ -161,7 +151,7 @@ export default async function CatalogoSectionPage({ params, searchParams }: Prop
             />
             <h1 className="text-4xl font-bold mb-2">{sectionName}</h1>
             <p className="text-primary-100">
-              Por ahora no hay productos en esta sección
+              No hay productos en esta categoría todavía
             </p>
           </div>
         </div>
@@ -172,17 +162,17 @@ export default async function CatalogoSectionPage({ params, searchParams }: Prop
               <Package className="w-8 h-8 text-gray-400" aria-hidden="true" />
             </div>
             <h2 className="text-xl font-semibold text-gray-900 mb-2">
-              Por ahora no hay productos en esta sección
+              No hay productos en esta categoría todavía
             </h2>
             <p className="text-sm text-gray-600 mb-6">
               Puedes revisar otras categorías o escribirnos por WhatsApp para conseguirte el producto.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Link
-                href={ROUTES.catalogIndex()}
+                href={ROUTES.tienda()}
                 className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
               >
-                Ver todas las secciones del catálogo
+                Volver a la tienda
               </Link>
               <Link
                 href={ROUTES.destacados()}
@@ -212,28 +202,36 @@ export default async function CatalogoSectionPage({ params, searchParams }: Prop
   // Si hubo error y no hay productos, mostrar mensaje genérico
   if (errorOccurred && products.length === 0) {
     return (
-      <div className="p-6">
-        <h1 className="text-xl font-semibold">
-          No pudimos cargar los productos
-        </h1>
-        <p className="text-sm opacity-70 mt-1">
-          Intenta en{" "}
-          <Link href="/destacados" className="underline">
-            Destacados
-          </Link>{" "}
-          o{" "}
-          <Link href="/buscar" className="underline">
-            buscar
-          </Link>
-          .
-        </p>
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-3xl mx-auto px-4 py-12">
+          <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
+            <h1 className="text-xl font-semibold text-gray-900 mb-2">
+              No pudimos cargar los productos
+            </h1>
+            <p className="text-sm text-gray-600 mb-6">
+              Intenta más tarde o navega a otras secciones.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Link
+                href={ROUTES.tienda()}
+                className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium"
+              >
+                Volver a la tienda
+              </Link>
+              <Link
+                href={ROUTES.destacados()}
+                className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+              >
+                Ver destacados
+              </Link>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
 
-  const sectionName = params.section
-    .replace(/-/g, " ")
-    .replace(/\b\w/g, (l) => l.toUpperCase());
+  const sectionName = section.name;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -268,13 +266,13 @@ export default async function CatalogoSectionPage({ params, searchParams }: Prop
           <FiltersSelect
             inStockOnly={inStockOnly}
             priceRange={priceRange}
-            basePath={ROUTES.section(section)}
+            basePath={ROUTES.section(sectionSlug)}
             preserveParams={sort !== "relevance" ? { sort } : {}}
           />
           <div className="flex justify-end">
             <SortSelect
               currentSort={sort}
-              basePath={ROUTES.section(section)}
+              basePath={ROUTES.section(sectionSlug)}
               preserveParams={{
                 ...(inStockOnly ? { inStock: "true" } : {}),
                 ...(priceRange !== "all" ? { priceRange } : {}),
@@ -310,7 +308,7 @@ export default async function CatalogoSectionPage({ params, searchParams }: Prop
           <Pagination
             page={result.page}
             hasNextPage={result.hasNextPage}
-            basePath={ROUTES.section(section)}
+            basePath={ROUTES.section(sectionSlug)}
             extraQuery={{
               ...(sort !== "relevance" ? { sort } : {}),
               ...(inStockOnly ? { inStock: "true" } : {}),

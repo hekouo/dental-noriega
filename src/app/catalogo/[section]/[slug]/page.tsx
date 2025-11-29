@@ -1,7 +1,9 @@
 import "server-only";
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import type { Metadata } from "next";
 import { getProduct } from "@/lib/catalog/getProduct.server";
+import { getSectionBySlug } from "@/lib/supabase/sections.public.server";
 import ImageWithFallback from "@/components/ui/ImageWithFallback";
 import ProductActions from "@/components/product/ProductActions.client";
 import ProductViewTracker from "@/components/ProductViewTracker.client";
@@ -102,13 +104,66 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function ProductDetailPage({ params }: Props) {
-  const section = decodeURIComponent(params.section ?? "");
-  const slug = decodeURIComponent(params.slug ?? "");
+  const sectionSlug = decodeURIComponent(params.section ?? "");
+  const productSlug = decodeURIComponent(params.slug ?? "");
 
-  const product = await getProduct(section, slug);
+  // Verificar que la sección existe
+  const section = await getSectionBySlug(sectionSlug);
+  if (!section) {
+    notFound();
+  }
+
+  // Buscar el producto
+  const product = await getProduct(sectionSlug, productSlug);
 
   if (!product) {
-    return notFound(); // 404 limpio, no error
+    // Producto no encontrado: mostrar página amigable
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="bg-gradient-to-r from-primary-600 to-primary-800 text-white py-12">
+          <div className="max-w-7xl mx-auto px-4">
+            <Breadcrumbs
+              items={[
+                { href: ROUTES.home(), label: "Inicio" },
+                { href: ROUTES.catalogIndex(), label: "Catálogo" },
+                {
+                  href: ROUTES.section(sectionSlug),
+                  label: section.name,
+                },
+                { label: "Producto no encontrado" },
+              ]}
+              className="mb-4"
+            />
+            <h1 className="text-4xl font-bold mb-2">Producto no encontrado</h1>
+          </div>
+        </div>
+
+        <div className="max-w-3xl mx-auto px-4 py-12">
+          <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">
+              Este producto no está disponible
+            </h2>
+            <p className="text-sm text-gray-600 mb-6">
+              El producto que buscas no existe o ya no está disponible en esta categoría.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Link
+                href={ROUTES.section(sectionSlug)}
+                className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium"
+              >
+                Ver productos de {section.name}
+              </Link>
+              <Link
+                href={ROUTES.tienda()}
+                className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+              >
+                Volver a la tienda
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const image_url = product.image_url;

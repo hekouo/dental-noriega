@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import FeaturedGrid from "@/components/FeaturedGrid";
 import { getFeaturedItems } from "@/lib/catalog/getFeatured.server";
+import { getSectionsWithActiveProducts } from "@/lib/supabase/sections.public.server";
 import { ROUTES } from "@/lib/routes";
 
 export const dynamic = "force-dynamic";
@@ -20,24 +21,11 @@ export const metadata: Metadata = {
   },
 };
 
-const categories = [
-  { title: "Consumibles y Profilaxis", sectionSlug: "consumibles-y-profilaxis" },
-  { title: "Equipos", sectionSlug: "equipos" },
-  { title: "Instrumental Clínico", sectionSlug: "instrumental-clinico" },
-  { title: "Instrumental Ortodoncia", sectionSlug: "instrumental-ortodoncia" },
-  {
-    title: "Ortodoncia: Brackets y Tubos",
-    sectionSlug: "ortodoncia-brackets-y-tubos",
-  },
-  { title: "Ortodoncia: Arcos y Resortes", sectionSlug: "ortodoncia-arcos-y-resortes" },
-  {
-    title: "Ortodoncia: Accesorios y Retenedores",
-    sectionSlug: "ortodoncia-accesorios-y-retenedores",
-  },
-];
-
 export default async function TiendaPage() {
-  const featured = await getFeaturedItems();
+  const [featured, sections] = await Promise.all([
+    getFeaturedItems(),
+    getSectionsWithActiveProducts(),
+  ]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -69,23 +57,36 @@ export default async function TiendaPage() {
           </h2>
           <p className="text-sm text-gray-600 mb-6">
             Navega por nuestras categorías de productos
+            {/* Solo mostramos secciones con al menos un producto activo */}
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {categories.map((category) => (
+          {sections.length === 0 ? (
+            <div className="bg-white rounded-lg shadow p-8 text-center">
+              <p className="text-gray-500 mb-4">Aún no hay categorías disponibles</p>
               <Link
-                key={category.sectionSlug}
-                href={ROUTES.section(category.sectionSlug)}
-                className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow p-8 text-center"
-                aria-label={`Ver productos de ${category.title}`}
+                href={ROUTES.destacados()}
+                className="text-primary-600 hover:text-primary-700 underline"
               >
-                <span className="block">
-                  <h3 className="text-xl font-semibold text-gray-900 hover:text-primary-600">
-                    {category.title}
-                  </h3>
-                </span>
+                Ver productos destacados
               </Link>
-            ))}
-          </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {sections.map((section) => (
+                <Link
+                  key={section.id}
+                  href={ROUTES.section(section.slug)}
+                  className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow p-8 text-center"
+                  aria-label={`Ver productos de ${section.name}`}
+                >
+                  <span className="block">
+                    <h3 className="text-xl font-semibold text-gray-900 hover:text-primary-600">
+                      {section.name}
+                    </h3>
+                  </span>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

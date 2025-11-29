@@ -23,6 +23,7 @@ export async function createSectionAction(formData: FormData): Promise<void> {
     // Revalidar rutas
     revalidatePath("/admin/secciones");
     revalidatePath("/admin/productos");
+    revalidatePath("/tienda");
     revalidatePath("/catalogo", "layout");
 
     redirect("/admin/secciones");
@@ -52,6 +53,7 @@ export async function updateSectionAction(
     // Revalidar rutas
     revalidatePath("/admin/secciones");
     revalidatePath("/admin/productos");
+    revalidatePath("/tienda");
     revalidatePath("/catalogo", "layout");
 
     redirect("/admin/secciones");
