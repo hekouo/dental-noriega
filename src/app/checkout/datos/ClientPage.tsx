@@ -283,19 +283,30 @@ function DatosPageContent() {
         }
 
         const data = await response.json();
+        
+        // Manejar respuesta con formato { ok: true, options: [...] } o { options: [...] }
         const options: UiShippingOption[] = data.options || [];
+        const isOk = data.ok !== false; // Si no viene ok, asumir true para compatibilidad
 
-        setShippingOptions(options);
-
-        // Seleccionar automáticamente la opción más barata
-        if (options.length > 0) {
-          const cheapest = options[0]; // Ya viene ordenado por precio ASC
-          setSelectedShippingOption(cheapest);
-        } else {
+        if (!isOk || options.length === 0) {
+          setShippingOptions([]);
           setSelectedShippingOption(null);
           setRatesError(
             "No pudimos calcular el envío automático. Se usará un costo manual.",
           );
+          if (process.env.NODE_ENV === "development") {
+            console.warn("[checkout/datos] No hay opciones de envío:", {
+              ok: data.ok,
+              reason: data.reason,
+              optionsCount: options.length,
+            });
+          }
+        } else {
+          setShippingOptions(options);
+          // Seleccionar automáticamente la opción más barata
+          const cheapest = options[0]; // Ya viene ordenado por precio ASC
+          setSelectedShippingOption(cheapest);
+          setRatesError(null);
         }
       } catch (err) {
         if (err instanceof Error && err.name === "AbortError") return;
