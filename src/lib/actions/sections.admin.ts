@@ -23,9 +23,10 @@ export async function createSectionAction(formData: FormData): Promise<void> {
     // Revalidar rutas
     revalidatePath("/admin/secciones");
     revalidatePath("/admin/productos");
+    revalidatePath("/tienda");
     revalidatePath("/catalogo", "layout");
 
-    redirect("/admin/secciones");
+    redirect("/admin/secciones?success=created");
   } catch (err) {
     console.error("[createSectionAction] Error:", err);
     const errorMsg = err instanceof Error ? err.message : "error_desconocido";
@@ -52,9 +53,10 @@ export async function updateSectionAction(
     // Revalidar rutas
     revalidatePath("/admin/secciones");
     revalidatePath("/admin/productos");
+    revalidatePath("/tienda");
     revalidatePath("/catalogo", "layout");
 
-    redirect("/admin/secciones");
+    redirect("/admin/secciones?success=updated");
   } catch (err) {
     console.error("[updateSectionAction] Error:", err);
     const errorMsg = err instanceof Error ? err.message : "error_desconocido";

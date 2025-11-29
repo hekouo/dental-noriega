@@ -10,12 +10,19 @@ type Props = {
   params: Promise<{
     id: string;
   }>;
+  searchParams?: Promise<{
+    success?: string;
+    error?: string;
+  }>;
 };
 
 /**
  * Página para editar una sección existente
  */
-export default async function AdminSeccionesEditarPage({ params }: Props) {
+export default async function AdminSeccionesEditarPage({
+  params,
+  searchParams,
+}: Props) {
   // Verificar acceso admin
   const access = await checkAdminAccess();
   if (access.status === "unauthenticated") {
@@ -26,6 +33,7 @@ export default async function AdminSeccionesEditarPage({ params }: Props) {
   }
 
   const { id } = await params;
+  const sp = (await searchParams) ?? {};
   const section = await getAdminSectionById(id);
 
   if (!section) {
@@ -46,6 +54,17 @@ export default async function AdminSeccionesEditarPage({ params }: Props) {
           ID: <span className="font-mono">{section.id}</span>
         </p>
       </header>
+
+      {sp.success && (
+        <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+          Sección actualizada correctamente.
+        </div>
+      )}
+      {sp.error && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          Ocurrió un error: {sp.error}
+        </div>
+      )}
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <form action={updateSectionAction.bind(null, section.id)}>

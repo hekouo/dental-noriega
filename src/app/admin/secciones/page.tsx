@@ -11,7 +11,14 @@ export const dynamic = "force-dynamic";
  *
  * Requiere que el usuario esté autenticado y su email esté en ADMIN_ALLOWED_EMAILS
  */
-export default async function AdminSeccionesPage() {
+type Props = {
+  searchParams?: {
+    success?: string;
+    error?: string;
+  };
+};
+
+export default async function AdminSeccionesPage({ searchParams }: Props) {
   // Verificar acceso admin
   const access = await checkAdminAccess();
   if (access.status === "unauthenticated") {
@@ -22,6 +29,8 @@ export default async function AdminSeccionesPage() {
   }
 
   const sections = await getAdminSections();
+  const success = searchParams?.success;
+  const error = searchParams?.error;
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -37,6 +46,20 @@ export default async function AdminSeccionesPage() {
           Gestiona las categorías del catálogo
         </p>
       </header>
+
+      {success && (
+        <div className="mb-6 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+          {success === "created" && "Sección creada correctamente."}
+          {success === "updated" && "Sección actualizada correctamente."}
+          {!["created", "updated"].includes(success) &&
+            "Operación realizada correctamente."}
+        </div>
+      )}
+      {error && (
+        <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          Ocurrió un error: {error}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Formulario de creación */}

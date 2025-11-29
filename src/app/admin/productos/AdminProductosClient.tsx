@@ -326,6 +326,19 @@ export default function AdminProductosClient({
                         >
                           Editar
                         </Link>
+                        {product.sectionSlug &&
+                          product.slug &&
+                          product.active && (
+                            <div className="mt-1">
+                              <Link
+                                href={`/catalogo/${product.sectionSlug}/${product.slug}`}
+                                target="_blank"
+                                className="text-xs text-gray-500 hover:text-primary-600 underline"
+                              >
+                                Ver en tienda
+                              </Link>
+                            </div>
+                          )}
                       </td>
                     </tr>
                   ))}

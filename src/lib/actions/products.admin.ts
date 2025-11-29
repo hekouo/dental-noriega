@@ -131,7 +131,7 @@ export async function updateProductAction(
   revalidatePath("/tienda");
   revalidatePath("/destacados");
 
-  redirect("/admin/productos");
+  redirect(`/admin/productos/${productId}/editar?success=updated`);
 }
 
 export async function addProductImageAction(formData: FormData): Promise<void> {
@@ -160,7 +160,9 @@ export async function addProductImageAction(formData: FormData): Promise<void> {
   revalidatePath("/tienda");
   revalidatePath("/destacados");
 
-  redirect(`/admin/productos/${productId}/editar`);
+  redirect(
+    `/admin/productos/${productId}/editar?success=image_added`,
+  );
 }
 
 export async function setPrimaryProductImageAction(
@@ -190,7 +192,9 @@ export async function setPrimaryProductImageAction(
   revalidatePath("/tienda");
   revalidatePath("/destacados");
 
-  redirect(`/admin/productos/${productId}/editar`);
+  redirect(
+    `/admin/productos/${productId}/editar?success=primary_set`,
+  );
 }
 
 export async function deleteProductImageAction(
@@ -220,7 +224,38 @@ export async function deleteProductImageAction(
   revalidatePath("/tienda");
   revalidatePath("/destacados");
 
-  redirect(`/admin/productos/${productId}/editar`);
+  redirect(
+    `/admin/productos/${productId}/editar?success=image_deleted`,
+  );
+}
+
+export async function toggleProductActiveAction(
+  productId: string,
+  formData: FormData,
+): Promise<void> {
+  const activeRaw = formData.get("active")?.toString();
+  const active = activeRaw === "true";
+
+  const result = await updateAdminProductActive(productId, active);
+
+  if (!result.success) {
+    redirect(
+      `/admin/productos/${productId}/editar?error=${encodeURIComponent(result.error || "error_desconocido")}`,
+    );
+    return;
+  }
+
+  // Revalidar rutas donde aparece el producto
+  revalidatePath("/admin/productos");
+  revalidatePath(`/admin/productos/${productId}/editar`);
+  revalidatePath("/catalogo", "layout");
+  revalidatePath("/tienda");
+  revalidatePath("/destacados");
+
+  const successCode = active ? "reactivado" : "archivado";
+  redirect(
+    `/admin/productos/${productId}/editar?success=${successCode}`,
+  );
 }
 
 export async function quickUpdatePriceAction(
