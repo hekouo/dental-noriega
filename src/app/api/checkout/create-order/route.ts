@@ -26,6 +26,19 @@ const CreateOrderRequestSchema = z.object({
   // Mapear standard/express a "delivery" internamente para metadata
   shippingMethod: z.enum(["pickup", "standard", "express"]).optional(),
   shippingCostCents: z.number().int().nonnegative().optional(), // Costo de envío en centavos
+  // Información de Skydropx opcional
+  shipping: z.object({
+    provider: z.string(),
+    option_code: z.string(),
+    price_cents: z.number().int().nonnegative(),
+    rate: z.object({
+      external_id: z.string(),
+      provider: z.string(),
+      service: z.string(),
+      eta_min_days: z.number().int().nullable().optional(),
+      eta_max_days: z.number().int().nullable().optional(),
+    }),
+  }).optional(),
   // Datos de loyalty opcionales
   loyalty: z.object({
     applied: z.boolean(),
@@ -177,6 +190,11 @@ export async function POST(req: NextRequest) {
       contact_name: orderData.name || null,
       contact_email: orderData.email || null,
     };
+
+    // Incluir información de Skydropx si está presente
+    if (orderData.shipping) {
+      metadata.shipping = orderData.shipping;
+    }
 
     // Validar y procesar datos de loyalty si están presentes
     if (orderData.loyalty) {

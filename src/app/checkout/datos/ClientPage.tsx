@@ -7,6 +7,7 @@ import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useSelectedIds } from "@/lib/store/checkoutSelectors";
 import { useCheckoutStore } from "@/lib/store/checkoutStore";
+import type { UiShippingOption } from "@/lib/store/checkoutStore";
 import { datosSchema, type DatosForm, MX_STATES } from "@/lib/checkout/schemas";
 import CheckoutStepper from "@/components/checkout/CheckoutStepper";
 import CheckoutDebugPanel from "@/components/CheckoutDebugPanel";
@@ -67,6 +68,14 @@ function DatosPageContent() {
   const [saveAddress, setSaveAddress] = useState(false);
   const [addressesError, setAddressesError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Estado para tarifas de envío Skydropx
+  const [loadingRates, setLoadingRates] = useState(false);
+  const [ratesError, setRatesError] = useState<string | null>(null);
+  const shippingOptions = useCheckoutStore((s) => s.shippingOptions);
+  const selectedShippingOption = useCheckoutStore((s) => s.selectedShippingOption);
+  const setShippingOptions = useCheckoutStore((s) => s.setShippingOptions);
+  const setSelectedShippingOption = useCheckoutStore((s) => s.setSelectedShippingOption);
 
   // En /checkout/datos NO se puede aplicar cupón, solo se muestra resumen si ya está aplicado
 
@@ -220,6 +229,94 @@ function DatosPageContent() {
       setValue(field, value.trim() as never, { shouldValidate: true });
     }
   };
+
+  // Obtener tarifas de envío cuando el usuario complete CP, estado y ciudad
+  const cpValue = watch("cp");
+  const stateValue = watch("state");
+  const cityValue = watch("city");
+
+  useEffect(() => {
+    // Solo obtener tarifas si tenemos CP, estado y ciudad válidos
+    if (!cpValue || !stateValue || !cityValue) {
+      setShippingOptions([]);
+      setSelectedShippingOption(null);
+      return;
+    }
+
+    // Validar que CP tenga 5 dígitos
+    if (cpValue.length !== 5 || !/^\d{5}$/.test(cpValue)) {
+      return;
+    }
+
+    // Debounce: esperar 500ms después de que el usuario deje de escribir
+    const controller = new AbortController();
+    const timeoutId = setTimeout(async () => {
+      setLoadingRates(true);
+      setRatesError(null);
+
+      try {
+        // Calcular peso total aproximado del carrito (1kg por producto como default)
+        const totalWeightGrams = selectedItems.reduce((sum, item) => {
+          return sum + (item.qty || 1) * 1000; // 1kg por producto
+        }, 0);
+
+        const response = await fetch("/api/shipping/rates", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            address: {
+              postalCode: cpValue,
+              state: stateValue,
+              city: cityValue,
+              country: "MX",
+            },
+            totalWeightGrams: totalWeightGrams || 1000,
+          }),
+          signal: controller.signal,
+        });
+
+        if (controller.signal.aborted) return;
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || "Error al obtener tarifas");
+        }
+
+        const data = await response.json();
+        const options: UiShippingOption[] = data.options || [];
+
+        setShippingOptions(options);
+
+        // Seleccionar automáticamente la opción más barata
+        if (options.length > 0) {
+          const cheapest = options[0]; // Ya viene ordenado por precio ASC
+          setSelectedShippingOption(cheapest);
+        } else {
+          setSelectedShippingOption(null);
+          setRatesError(
+            "No pudimos calcular el envío automático. Se usará un costo manual.",
+          );
+        }
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") return;
+        console.error("[checkout/datos] Error al obtener tarifas:", err);
+        setRatesError(
+          "No pudimos calcular el envío automático. Se usará un costo manual.",
+        );
+        setShippingOptions([]);
+        setSelectedShippingOption(null);
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoadingRates(false);
+        }
+      }
+    }, 500);
+
+    return () => {
+      controller.abort();
+      clearTimeout(timeoutId);
+    };
+  }, [cpValue, stateValue, cityValue, selectedItems, setShippingOptions, setSelectedShippingOption]);
 
   const onSubmit: SubmitHandler<DatosForm> = async (values) => {
     setSubmitError(null);
@@ -780,6 +877,62 @@ function DatosPageContent() {
             </p>
           )}
         </div>
+
+        {/* Opciones de envío Skydropx */}
+        {cpValue && stateValue && cityValue && (
+          <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
+            <h3 className="text-sm font-semibold text-gray-900">Opciones de envío</h3>
+            {loadingRates && (
+              <p className="text-sm text-gray-500">Calculando tarifas...</p>
+            )}
+            {ratesError && !loadingRates && (
+              <p className="text-sm text-amber-600">{ratesError}</p>
+            )}
+            {!loadingRates && shippingOptions && shippingOptions.length > 0 && (
+              <div className="space-y-2">
+                {shippingOptions.map((option) => (
+                  <label
+                    key={option.code}
+                    className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${
+                      selectedShippingOption?.code === option.code
+                        ? "border-primary-500 bg-primary-50"
+                        : "border-gray-200 hover:border-gray-300"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="shippingOption"
+                      value={option.code}
+                      checked={selectedShippingOption?.code === option.code}
+                      onChange={() => setSelectedShippingOption(option)}
+                      className="mr-3 h-4 w-4 text-primary-600 focus:ring-primary-500"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-gray-900">
+                          {option.label}
+                        </span>
+                        <span className="text-sm font-semibold text-gray-900">
+                          {formatMXNMoney(option.priceCents / 100)}
+                        </span>
+                      </div>
+                      {option.etaMinDays && option.etaMaxDays && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          Tiempo estimado: {option.etaMinDays}-{option.etaMaxDays} días
+                        </p>
+                      )}
+                    </div>
+                  </label>
+                ))}
+              </div>
+            )}
+            {!loadingRates && (!shippingOptions || shippingOptions.length === 0) && !ratesError && (
+              <p className="text-sm text-gray-500">
+                Completa el código postal, estado y ciudad para ver opciones de envío.
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Resumen de cupón (solo lectura, si está aplicado) */}
         {couponCode && discount && (
