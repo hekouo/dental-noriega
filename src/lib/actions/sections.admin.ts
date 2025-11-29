@@ -17,21 +17,15 @@ export async function createSectionAction(formData: FormData): Promise<void> {
     return;
   }
 
-  try {
-    await createAdminSection({ slug, name });
+  await createAdminSection({ slug, name });
 
-    // Revalidar rutas
-    revalidatePath("/admin/secciones");
-    revalidatePath("/admin/productos");
-    revalidatePath("/tienda");
-    revalidatePath("/catalogo", "layout");
+  // Revalidar rutas
+  revalidatePath("/admin/secciones");
+  revalidatePath("/admin/productos");
+  revalidatePath("/tienda");
+  revalidatePath("/catalogo", "layout");
 
-    redirect("/admin/secciones?success=created");
-  } catch (err) {
-    console.error("[createSectionAction] Error:", err);
-    const errorMsg = err instanceof Error ? err.message : "error_desconocido";
-    redirect(`/admin/secciones?error=${encodeURIComponent(errorMsg)}`);
-  }
+  redirect("/admin/secciones?success=created");
 }
 
 export async function updateSectionAction(
@@ -47,22 +41,14 @@ export async function updateSectionAction(
     return;
   }
 
-  try {
-    await updateAdminSection(sectionId, { slug, name });
+  await updateAdminSection(sectionId, { slug, name });
 
-    // Revalidar rutas
-    revalidatePath("/admin/secciones");
-    revalidatePath("/admin/productos");
-    revalidatePath("/tienda");
-    revalidatePath("/catalogo", "layout");
+  // Revalidar rutas
+  revalidatePath("/admin/secciones");
+  revalidatePath("/admin/productos");
+  revalidatePath("/tienda");
+  revalidatePath("/catalogo", "layout");
 
-    redirect("/admin/secciones?success=updated");
-  } catch (err) {
-    console.error("[updateSectionAction] Error:", err);
-    const errorMsg = err instanceof Error ? err.message : "error_desconocido";
-    redirect(
-      `/admin/secciones/${sectionId}/editar?error=${encodeURIComponent(errorMsg)}`,
-    );
-  }
+  redirect("/admin/secciones?success=updated");
 }
 

@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import FeaturedGrid from "@/components/FeaturedGrid";
 import { getFeaturedItems } from "@/lib/catalog/getFeatured.server";
 import { ROUTES } from "@/lib/routes";
+import { getSectionsWithActiveProducts } from "@/lib/supabase/sections.public.server";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -20,24 +21,9 @@ export const metadata: Metadata = {
   },
 };
 
-const categories = [
-  { title: "Consumibles y Profilaxis", sectionSlug: "consumibles-y-profilaxis" },
-  { title: "Equipos", sectionSlug: "equipos" },
-  { title: "Instrumental Clínico", sectionSlug: "instrumental-clinico" },
-  { title: "Instrumental Ortodoncia", sectionSlug: "instrumental-ortodoncia" },
-  {
-    title: "Ortodoncia: Brackets y Tubos",
-    sectionSlug: "ortodoncia-brackets-y-tubos",
-  },
-  { title: "Ortodoncia: Arcos y Resortes", sectionSlug: "ortodoncia-arcos-y-resortes" },
-  {
-    title: "Ortodoncia: Accesorios y Retenedores",
-    sectionSlug: "ortodoncia-accesorios-y-retenedores",
-  },
-];
-
 export default async function TiendaPage() {
   const featured = await getFeaturedItems();
+  const sections = await getSectionsWithActiveProducts();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -71,20 +57,26 @@ export default async function TiendaPage() {
             Navega por nuestras categorías de productos
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {categories.map((category) => (
-              <Link
-                key={category.sectionSlug}
-                href={ROUTES.section(category.sectionSlug)}
-                className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow p-8 text-center"
-                aria-label={`Ver productos de ${category.title}`}
-              >
-                <span className="block">
-                  <h3 className="text-xl font-semibold text-gray-900 hover:text-primary-600">
-                    {category.title}
-                  </h3>
-                </span>
-              </Link>
-            ))}
+            {sections.length === 0 ? (
+              <p className="text-gray-500">
+                No hay categorías disponibles con productos activos.
+              </p>
+            ) : (
+              sections.map((section) => (
+                <Link
+                  key={section.slug}
+                  href={ROUTES.section(section.slug)}
+                  className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow p-8 text-center"
+                  aria-label={`Ver productos de ${section.name}`}
+                >
+                  <span className="block">
+                    <h3 className="text-xl font-semibold text-gray-900 hover:text-primary-600">
+                      {section.name}
+                    </h3>
+                  </span>
+                </Link>
+              ))
+            )}
           </div>
         </div>
       </div>
