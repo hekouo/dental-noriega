@@ -94,6 +94,45 @@ export async function getSkydropxRates(
   const widthCm = pkg.widthCm || 20;
   const heightCm = pkg.heightCm || 10;
 
+  const payload = {
+    address_from: {
+      province: config.origin.state,
+      city: config.origin.city,
+      country: config.origin.country,
+      zip: config.origin.postalCode,
+      name: config.origin.name,
+      phone: config.origin.phone || null,
+      email: config.origin.email || null,
+      address1: config.origin.addressLine1 || null,
+    },
+    address_to: {
+      province: destination.state,
+      city: destination.city,
+      country: destination.country || "MX",
+      zip: destination.postalCode,
+    },
+    parcels: [
+      {
+        weight: weightGrams,
+        distance_unit: "CM",
+        mass_unit: "KG",
+        height: heightCm,
+        width: widthCm,
+        length: lengthCm,
+      },
+    ],
+  };
+
+  if (process.env.NODE_ENV !== "production") {
+    console.log("[getSkydropxRates] Payload a Skydropx (sin API key):", {
+      ...payload,
+      address_from: {
+        ...payload.address_from,
+        // No loguear API key
+      },
+    });
+  }
+
   try {
     const response = await fetch(`${baseUrl}/quotations`, {
       method: "POST",
@@ -101,34 +140,7 @@ export async function getSkydropxRates(
         "Content-Type": "application/json",
         "Authorization": `Token token=${config.apiKey}`,
       },
-      body: JSON.stringify({
-        address_from: {
-          province: config.origin.state,
-          city: config.origin.city,
-          country: config.origin.country,
-          zip: config.origin.postalCode,
-          name: config.origin.name,
-          phone: config.origin.phone || null,
-          email: config.origin.email || null,
-          address1: config.origin.addressLine1 || null,
-        },
-        address_to: {
-          province: destination.state,
-          city: destination.city,
-          country: destination.country || "MX",
-          zip: destination.postalCode,
-        },
-        parcels: [
-          {
-            weight: weightGrams,
-            distance_unit: "CM",
-            mass_unit: "KG",
-            height: heightCm,
-            width: widthCm,
-            length: lengthCm,
-          },
-        ],
-      }),
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
@@ -145,30 +157,94 @@ export async function getSkydropxRates(
 
     const data = await response.json();
 
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[getSkydropxRates] Respuesta de Skydropx (estructura):", {
+        hasData: !!data,
+        hasDataData: !!data?.data,
+        hasIncluded: !!data?.included,
+        dataKeys: data ? Object.keys(data) : [],
+        dataDataType: data?.data ? (Array.isArray(data.data) ? "array" : typeof data.data) : "none",
+        includedType: data?.included ? (Array.isArray(data.included) ? "array" : typeof data.included) : "none",
+        includedLength: Array.isArray(data?.included) ? data.included.length : 0,
+        dataDataLength: Array.isArray(data?.data) ? data.data.length : 0,
+      });
+    }
+
     // Parsear respuesta según estructura de Skydropx
-    // La respuesta típica tiene un campo "included" con las tarifas
-    if (!data || !data.included || !Array.isArray(data.included)) {
+    // Skydropx puede devolver las tarifas en data.data o data.included
+    let ratesArray: unknown[] = [];
+
+    if (data?.data && Array.isArray(data.data)) {
+      ratesArray = data.data;
       if (process.env.NODE_ENV !== "production") {
-        console.warn("[getSkydropxRates] Respuesta inesperada de Skydropx:", data);
+        console.log("[getSkydropxRates] Usando data.data, encontradas", ratesArray.length, "tarifas");
+      }
+    } else if (data?.included && Array.isArray(data.included)) {
+      ratesArray = data.included;
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[getSkydropxRates] Usando data.included, encontradas", ratesArray.length, "tarifas");
+      }
+    } else {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[getSkydropxRates] Respuesta inesperada de Skydropx, estructura completa:", JSON.stringify(data, null, 2));
       }
       return [];
     }
 
-    const rates: SkydropxRate[] = data.included
-      .map((rate: any) => {
+    const rates: SkydropxRate[] = ratesArray
+      .map((rate: any, index: number) => {
         try {
-          // Skydropx devuelve el precio en MXN como número decimal
-          const totalPrice = typeof rate.total_price === "number" ? rate.total_price : 0;
+          if (process.env.NODE_ENV !== "production" && index === 0) {
+            console.log("[getSkydropxRates] Ejemplo de tarifa (primera):", JSON.stringify(rate, null, 2));
+          }
+
+          // Skydropx puede devolver el precio como número decimal o string
+          let totalPrice = 0;
+          if (typeof rate.total_price === "number") {
+            totalPrice = rate.total_price;
+          } else if (typeof rate.total_price === "string") {
+            totalPrice = parseFloat(rate.total_price) || 0;
+          } else if (rate.attributes?.total_price !== undefined) {
+            totalPrice = typeof rate.attributes.total_price === "number"
+              ? rate.attributes.total_price
+              : parseFloat(String(rate.attributes.total_price)) || 0;
+          }
+
           const totalPriceCents = Math.round(totalPrice * 100);
 
+          // Extraer provider
+          const provider = rate.attributes?.provider || rate.provider || "unknown";
+
+          // Extraer service/name
+          const service = rate.attributes?.name || rate.name || rate.service || "Standard";
+
+          // Extraer ID
+          const externalRateId = rate.id || rate.attributes?.id || String(index);
+
+          // Extraer delivery time
+          const deliveryTime = rate.attributes?.delivery_time || rate.delivery_time;
+          const etaMinDays = deliveryTime?.min ?? null;
+          const etaMaxDays = deliveryTime?.max ?? null;
+
+          if (process.env.NODE_ENV !== "production" && index === 0) {
+            console.log("[getSkydropxRates] Tarifa parseada:", {
+              provider,
+              service,
+              totalPriceCents,
+              externalRateId,
+              etaMinDays,
+              etaMaxDays,
+            });
+          }
+
           return {
-            provider: rate.attributes?.provider || rate.provider || "unknown",
-            service: rate.attributes?.name || rate.name || "Standard",
+            provider,
+            service,
             totalPriceCents,
             currency: "MXN",
-            etaMinDays: rate.attributes?.delivery_time?.min || rate.delivery_time?.min || null,
-            etaMaxDays: rate.attributes?.delivery_time?.max || rate.delivery_time?.max || null,
-            externalRateId: rate.id || rate.attributes?.id || "",
+            etaMinDays,
+            etaMaxDays,
+            externalRateId,
           };
         } catch (err) {
           if (process.env.NODE_ENV !== "production") {
@@ -177,7 +253,12 @@ export async function getSkydropxRates(
           return null;
         }
       })
-      .filter((r: SkydropxRate | null): r is SkydropxRate => r !== null);
+      .filter((r: SkydropxRate | null): r is SkydropxRate => r !== null)
+      .sort((a, b) => a.totalPriceCents - b.totalPriceCents); // Ordenar por precio ASC
+
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[getSkydropxRates] Total de tarifas parseadas:", rates.length);
+    }
 
     return rates;
   } catch (error) {
