@@ -11,6 +11,7 @@ import {
   addProductImageAction,
   setPrimaryProductImageAction,
   deleteProductImageAction,
+  toggleProductActiveAction,
 } from "@/lib/actions/products.admin";
 
 export const dynamic = "force-dynamic";
@@ -19,12 +20,19 @@ type Props = {
   params: Promise<{
     id: string;
   }>;
+  searchParams?: Promise<{
+    success?: string;
+    error?: string;
+  }>;
 };
 
 /**
  * Página para editar un producto existente
  */
-export default async function AdminProductosEditarPage({ params }: Props) {
+export default async function AdminProductosEditarPage({
+  params,
+  searchParams,
+}: Props) {
   // Verificar acceso admin
   const access = await checkAdminAccess();
   if (access.status === "unauthenticated") {
@@ -35,6 +43,7 @@ export default async function AdminProductosEditarPage({ params }: Props) {
   }
 
   const { id } = await params;
+  const sp = (await searchParams) ?? {};
   const product = await getAdminProductById(id);
   const sections = await getAdminSections();
   const images = await getAdminProductImages(id);
@@ -76,7 +85,36 @@ export default async function AdminProductosEditarPage({ params }: Props) {
         <p className="text-sm text-gray-500 mt-1">
           ID: <span className="font-mono">{product.id}</span>
         </p>
+        {product.sectionSlug && product.slug && (
+          <div className="mt-3">
+            <Link
+              href={`/catalogo/${product.sectionSlug}/${product.slug}`}
+              target="_blank"
+              className="inline-flex items-center text-sm text-primary-600 hover:text-primary-700 underline"
+            >
+              Ver en tienda
+            </Link>
+          </div>
+        )}
       </header>
+
+      {/* Mensajes de feedback */}
+      {sp.success && (
+        <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+          {sp.success === "created" && "Producto creado correctamente."}
+          {sp.success === "updated" && "Producto guardado correctamente."}
+          {sp.success === "archivado" && "Producto desactivado y oculto de la tienda."}
+          {sp.success === "reactivado" && "Producto reactivado y visible en la tienda."}
+          {!["created", "updated", "archivado", "reactivado"].includes(
+            sp.success,
+          ) && "Operación realizada correctamente."}
+        </div>
+      )}
+      {sp.error && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          Ocurrió un error: {sp.error}
+        </div>
+      )}
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <form action={updateProductAction.bind(null, product.id)}>
@@ -283,6 +321,45 @@ export default async function AdminProductosEditarPage({ params }: Props) {
             </div>
           </div>
         </form>
+      </div>
+
+      {/* Estado y archivado */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mt-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-2">
+          Estado del producto
+        </h2>
+        <p className="text-sm text-gray-600 mb-4">
+          Estado actual:{" "}
+          <span
+            className={
+              product.active
+                ? "inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800"
+                : "inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800"
+            }
+          >
+            {product.active ? "Activo (visible en la tienda)" : "Inactivo (oculto de la tienda)"}
+          </span>
+        </p>
+        <form action={toggleProductActiveAction.bind(null, product.id)}>
+          <input
+            type="hidden"
+            name="active"
+            value={product.active ? "false" : "true"}
+          />
+          <button
+            type="submit"
+            className={
+              product.active
+                ? "inline-flex items-center rounded-lg border border-red-300 bg-red-50 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-100 transition-colors"
+                : "inline-flex items-center rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100 transition-colors"
+            }
+          >
+            {product.active ? "Desactivar producto" : "Reactivar producto"}
+          </button>
+        </form>
+        <p className="mt-2 text-xs text-gray-500">
+          Desactivar un producto equivale a archivarlo: dejará de aparecer en la tienda, catálogo y buscador.
+        </p>
       </div>
 
       {/* Galería de imágenes */}
