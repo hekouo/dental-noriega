@@ -51,7 +51,6 @@ export async function POST(req: NextRequest) {
         city: address.city,
         country: address.country || "MX",
         totalWeightGrams: totalWeightGrams || 1000,
-        weightKg: (totalWeightGrams || 1000) / 1000,
       });
     }
 
@@ -83,7 +82,7 @@ export async function POST(req: NextRequest) {
       }
       return NextResponse.json({
         ok: false,
-        reason: "no_rates",
+        reason: "no_rates_from_skydropx",
         options: [],
       });
     }

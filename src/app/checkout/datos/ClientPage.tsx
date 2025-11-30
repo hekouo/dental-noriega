@@ -297,7 +297,7 @@ function DatosPageContent() {
           if (process.env.NODE_ENV === "development") {
             console.warn("[checkout/datos] No hay opciones de envío:", {
               ok: data.ok,
-              reason: data.reason || "unknown",
+              reason: data.reason,
               error: data.error,
               optionsCount: options.length,
             });
