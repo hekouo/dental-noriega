@@ -75,59 +75,72 @@ export async function POST(req: NextRequest) {
       console.log("[shipping/rates] Tarifas obtenidas de getSkydropxRates:", rates.length);
     }
 
-    // Si no hay tarifas, devolver respuesta con ok: false pero status 200
-    if (rates.length === 0) {
+    // Si hay tarifas, devolver ok: true
+    if (rates.length > 0) {
+      // Mapear tarifas a formato UI
+      const options: UiShippingOption[] = rates
+        .map((rate, index) => {
+          // Generar código único basado en provider y service
+          const code = `skydropx_${rate.provider}_${index}`;
+          
+          // Generar label descriptivo
+          const etaText =
+            rate.etaMinDays && rate.etaMaxDays
+              ? ` (${rate.etaMinDays}-${rate.etaMaxDays} días)`
+              : rate.etaMinDays
+                ? ` (${rate.etaMinDays}+ días)`
+                : "";
+          const label = `${rate.service}${etaText}`;
+
+          return {
+            code,
+            label,
+            priceCents: rate.totalPriceCents,
+            provider: "skydropx" as const,
+            etaMinDays: rate.etaMinDays,
+            etaMaxDays: rate.etaMaxDays,
+            externalRateId: rate.externalRateId,
+          };
+        });
+      // Ya viene ordenado de getSkydropxRates, pero por seguridad ordenamos de nuevo
+      options.sort((a, b) => a.priceCents - b.priceCents);
+
       if (process.env.NODE_ENV !== "production") {
-        console.warn("[shipping/rates] No se obtuvieron tarifas de Skydropx");
+        console.log("[shipping/rates] Opciones de envío generadas:", options.length);
       }
-      return NextResponse.json({
-        ok: false,
-        reason: "no_rates_from_skydropx",
-        options: [],
-      });
+
+      return NextResponse.json({ ok: true, options });
     }
 
-    // Mapear tarifas a formato UI
-    const options: UiShippingOption[] = rates
-      .map((rate, index) => {
-        // Generar código único basado en provider y service
-        const code = `skydropx_${rate.provider}_${index}`;
-        
-        // Generar label descriptivo
-        const etaText =
-          rate.etaMinDays && rate.etaMaxDays
-            ? ` (${rate.etaMinDays}-${rate.etaMaxDays} días)`
-            : rate.etaMinDays
-              ? ` (${rate.etaMinDays}+ días)`
-              : "";
-        const label = `${rate.service}${etaText}`;
-
-        return {
-          code,
-          label,
-          priceCents: rate.totalPriceCents,
-          provider: "skydropx" as const,
-          etaMinDays: rate.etaMinDays,
-          etaMaxDays: rate.etaMaxDays,
-          externalRateId: rate.externalRateId,
-        };
-      });
-    // Ya viene ordenado de getSkydropxRates, pero por seguridad ordenamos de nuevo
-    options.sort((a, b) => a.priceCents - b.priceCents);
-
+    // Si no hay tarifas, devolver respuesta con ok: false pero status 200
     if (process.env.NODE_ENV !== "production") {
-      console.log("[shipping/rates] Opciones de envío generadas:", options.length);
+      console.warn("[shipping/rates] No se obtuvieron tarifas de Skydropx");
     }
+    return NextResponse.json({
+      ok: false,
+      reason: "no_rates_from_skydropx",
+      options: [],
+    });
 
-    return NextResponse.json({ ok: true, options });
   } catch (error) {
     if (process.env.NODE_ENV !== "production") {
       console.error("[shipping/rates] Error inesperado:", error);
     }
+    
+    // Determinar el motivo del error
+    let reason = "skydropx_error";
+    if (error instanceof Error) {
+      if (error.message === "skydropx_auth_error") {
+        reason = "skydropx_auth_error";
+      } else if (error.message === "skydropx_fetch_error") {
+        reason = "skydropx_fetch_error";
+      }
+    }
+    
     // No devolver 500, devolver 200 con ok: false para que el frontend maneje
     return NextResponse.json({
       ok: false,
-      reason: "skydropx_error",
+      reason,
       options: [],
     });
   }
