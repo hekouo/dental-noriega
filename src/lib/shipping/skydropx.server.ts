@@ -90,6 +90,7 @@ export async function getSkydropxRates(
   // Valores por defecto para dimensiones si no se proporcionan
   // 1kg, 20x20x10 cm es un default razonable para productos dentales pequeños
   const weightGrams = pkg.weightGrams || 1000;
+  const weightKg = weightGrams / 1000; // Convertir gramos a kilogramos
   const lengthCm = pkg.lengthCm || 20;
   const widthCm = pkg.widthCm || 20;
   const heightCm = pkg.heightCm || 10;
@@ -113,7 +114,7 @@ export async function getSkydropxRates(
     },
     parcels: [
       {
-        weight: weightGrams,
+        weight: weightKg, // En kilogramos, no gramos
         distance_unit: "CM",
         mass_unit: "KG",
         height: heightCm,
@@ -145,11 +146,20 @@ export async function getSkydropxRates(
 
     if (!response.ok) {
       const errorText = await response.text();
+      let errorBody: unknown = null;
+      try {
+        errorBody = JSON.parse(errorText);
+      } catch {
+        // Si no es JSON, usar el texto tal cual
+        errorBody = errorText;
+      }
+      
       if (process.env.NODE_ENV !== "production") {
         console.error("[getSkydropxRates] Error de Skydropx:", {
           status: response.status,
           statusText: response.statusText,
-          body: errorText,
+          body: errorBody,
+          url: `${baseUrl}/quotations`,
         });
       }
       return [];
@@ -301,6 +311,7 @@ export async function createSkydropxShipment(input: {
     : "https://api.skydropx.com/v1";
 
   const weightGrams = input.pkg.weightGrams || 1000;
+  const weightKg = weightGrams / 1000; // Convertir gramos a kilogramos
   const lengthCm = input.pkg.lengthCm || 20;
   const widthCm = input.pkg.widthCm || 20;
   const heightCm = input.pkg.heightCm || 10;
@@ -335,7 +346,7 @@ export async function createSkydropxShipment(input: {
         },
         parcels: [
           {
-            weight: weightGrams,
+            weight: weightKg, // En kilogramos, no gramos
             distance_unit: "CM",
             mass_unit: "KG",
             height: heightCm,

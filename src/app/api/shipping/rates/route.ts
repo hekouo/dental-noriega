@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
       }
       return NextResponse.json({
         ok: false,
-        reason: "no_rates",
+        reason: "no_rates_from_skydropx",
         options: [],
       });
     }

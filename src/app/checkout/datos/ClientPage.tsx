@@ -298,6 +298,7 @@ function DatosPageContent() {
             console.warn("[checkout/datos] No hay opciones de envío:", {
               ok: data.ok,
               reason: data.reason,
+              error: data.error,
               optionsCount: options.length,
             });
           }
