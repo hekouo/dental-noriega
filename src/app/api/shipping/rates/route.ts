@@ -51,6 +51,7 @@ export async function POST(req: NextRequest) {
         city: address.city,
         country: address.country || "MX",
         totalWeightGrams: totalWeightGrams || 1000,
+        weightKg: (totalWeightGrams || 1000) / 1000,
       });
     }
 
