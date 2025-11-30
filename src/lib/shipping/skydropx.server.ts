@@ -84,7 +84,7 @@ export async function getSkydropxRates(
   }
 
   const baseUrl = config.isSandbox
-    ? "https://api.sandbox.skydropx.com/v1"
+    ? "https://api-demo.skydropx.com/v1"
     : "https://api.skydropx.com/v1";
 
   // Valores por defecto para dimensiones si no se proporcionan
@@ -307,7 +307,7 @@ export async function createSkydropxShipment(input: {
   }
 
   const baseUrl = config.isSandbox
-    ? "https://api.sandbox.skydropx.com/v1"
+    ? "https://api-demo.skydropx.com/v1"
     : "https://api.skydropx.com/v1";
 
   const weightGrams = input.pkg.weightGrams || 1000;
