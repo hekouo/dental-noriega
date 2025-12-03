@@ -93,7 +93,7 @@ const SECURITY_HEADERS = [
 
 const nextConfig = {
   images: {
-    formats: ["image/avif", "image/webp"],
+    unoptimized: true,
     remotePatterns,
   },
   trailingSlash: false,
