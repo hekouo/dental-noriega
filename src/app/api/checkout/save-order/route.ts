@@ -239,9 +239,48 @@ export async function POST(req: NextRequest) {
       })),
     };
 
-    // Preservar información de Skydropx si existe en el payload
+    // Preparar datos de shipping: priorizar Skydropx si está disponible, sino usar método manual
+    let shippingProvider: string | null = null;
+    let shippingServiceName: string | null = null;
+    let shippingRateExtId: string | null = null;
+    let shippingEtaMinDays: number | null = null;
+    let shippingEtaMaxDays: number | null = null;
+    let shippingPriceCents: number | null = null;
+    
     if (metadataFromPayload.shipping && typeof metadataFromPayload.shipping === "object") {
+      // Caso Skydropx
+      const shippingData = metadataFromPayload.shipping as {
+        provider?: string;
+        rate?: {
+          external_id?: string;
+          service?: string;
+          eta_min_days?: number | null;
+          eta_max_days?: number | null;
+        };
+        price_cents?: number;
+      };
+      
       metadata.shipping = metadataFromPayload.shipping;
+      
+      // Extraer campos para guardar en columnas
+      shippingProvider = shippingData.provider || "skydropx";
+      shippingServiceName = shippingData.rate?.service || null;
+      shippingRateExtId = shippingData.rate?.external_id || null;
+      shippingEtaMinDays = shippingData.rate?.eta_min_days ?? null;
+      shippingEtaMaxDays = shippingData.rate?.eta_max_days ?? null;
+      shippingPriceCents = shippingData.price_cents || null;
+    } else if (shippingMethod === "pickup") {
+      // Caso "Recoger en tienda"
+      shippingProvider = "pickup";
+      shippingServiceName = "Recoger en tienda";
+      shippingPriceCents = 0;
+      // shippingRateExtId, shippingEtaMinDays, shippingEtaMaxDays quedan null
+    } else if (shippingMethod) {
+      // Caso método manual (standard/express) sin Skydropx
+      shippingProvider = "manual";
+      shippingServiceName = shippingMethod === "standard" ? "Envío estándar" : "Envío express";
+      shippingPriceCents = shippingCostCents;
+      // shippingRateExtId, shippingEtaMinDays, shippingEtaMaxDays quedan null
     }
     
     // Incluir datos de loyalty solo si pasaron la validación
@@ -284,6 +323,13 @@ export async function POST(req: NextRequest) {
           payment_provider: orderData.payment_provider || "stripe",
           payment_id: orderData.payment_id || null,
           metadata: loyaltyMetadata,
+          // Campos de shipping de Skydropx (opcionales)
+          shipping_provider: shippingProvider,
+          shipping_service_name: shippingServiceName,
+          shipping_price_cents: shippingPriceCents,
+          shipping_rate_ext_id: shippingRateExtId,
+          shipping_eta_min_days: shippingEtaMinDays,
+          shipping_eta_max_days: shippingEtaMaxDays,
           updated_at: new Date().toISOString(),
         })
         .eq("id", orderData.order_id);
@@ -379,6 +425,13 @@ export async function POST(req: NextRequest) {
           payment_provider: orderData.payment_provider || "stripe",
           payment_id: orderData.payment_id || null,
           metadata: metadata,
+          // Campos de shipping de Skydropx (opcionales)
+          shipping_provider: shippingProvider,
+          shipping_service_name: shippingServiceName,
+          shipping_price_cents: shippingPriceCents,
+          shipping_rate_ext_id: shippingRateExtId,
+          shipping_eta_min_days: shippingEtaMinDays,
+          shipping_eta_max_days: shippingEtaMaxDays,
         });
 
       if (insertError) {

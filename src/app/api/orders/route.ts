@@ -17,6 +17,12 @@ type OrderRequest = {
   shipping: {
     method: ShippingMethod;
     cost_cents: number;
+    // Información de Skydropx (opcional)
+    provider?: string;
+    service_name?: string;
+    rate_ext_id?: string;
+    eta_min_days?: number | null;
+    eta_max_days?: number | null;
   };
   datos: {
     nombre: string;
@@ -143,6 +149,16 @@ export async function POST(req: NextRequest) {
             ? "Tienda física"
             : addressFull;
 
+        // Preparar datos de shipping de Skydropx si están disponibles
+        const shippingProvider = orderData.shipping.provider || null;
+        const shippingServiceName = orderData.shipping.service_name || null;
+        const shippingRateExtId = orderData.shipping.rate_ext_id || null;
+        const shippingEtaMinDays = orderData.shipping.eta_min_days ?? null;
+        const shippingEtaMaxDays = orderData.shipping.eta_max_days ?? null;
+        const shippingPriceCents = orderData.shipping.provider
+          ? orderData.totals.shipping_cents
+          : null;
+
         const { data: order, error: orderError } = await supabase
           .from("orders")
           .insert({
@@ -157,6 +173,13 @@ export async function POST(req: NextRequest) {
             discount_amount: (orderData.coupon?.discount_cents || 0) / 100,
             total: orderData.totals.total_cents / 100,
             status: "pending",
+            // Campos de shipping de Skydropx (opcionales)
+            shipping_provider: shippingProvider,
+            shipping_service_name: shippingServiceName,
+            shipping_price_cents: shippingPriceCents,
+            shipping_rate_ext_id: shippingRateExtId,
+            shipping_eta_min_days: shippingEtaMinDays,
+            shipping_eta_max_days: shippingEtaMaxDays,
           })
           .select("id")
           .single();

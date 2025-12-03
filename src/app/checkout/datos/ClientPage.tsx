@@ -76,6 +76,8 @@ function DatosPageContent() {
   const selectedShippingOption = useCheckoutStore((s) => s.selectedShippingOption);
   const setShippingOptions = useCheckoutStore((s) => s.setShippingOptions);
   const setSelectedShippingOption = useCheckoutStore((s) => s.setSelectedShippingOption);
+  const setShipping = useCheckoutStore((s) => s.setShipping);
+  const currentShippingMethod = useCheckoutStore((s) => s.shippingMethod);
 
   // En /checkout/datos NO se puede aplicar cupón, solo se muestra resumen si ya está aplicado
 
@@ -291,9 +293,11 @@ function DatosPageContent() {
         if (!isOk || options.length === 0) {
           setShippingOptions([]);
           setSelectedShippingOption(null);
-          setRatesError(
-            "No pudimos calcular el envío automático. Se usará un costo manual.",
-          );
+          // Mensaje más amigable cuando no hay cobertura
+          const friendlyMessage = data.reason === "no_rates_from_skydropx" || data.reason === "skydropx_error"
+            ? "Lo sentimos, no hay envíos disponibles para esta dirección. Intenta con otro código postal."
+            : "No pudimos calcular el envío automático. Se usará un costo manual.";
+          setRatesError(friendlyMessage);
           if (process.env.NODE_ENV === "development") {
             console.warn("[checkout/datos] No hay opciones de envío:", {
               ok: data.ok,
@@ -890,61 +894,108 @@ function DatosPageContent() {
           )}
         </div>
 
-        {/* Opciones de envío Skydropx */}
-        {cpValue && stateValue && cityValue && (
-          <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
-            <h3 className="text-sm font-semibold text-gray-900">Opciones de envío</h3>
-            {loadingRates && (
-              <p className="text-sm text-gray-500">Calculando tarifas...</p>
-            )}
-            {ratesError && !loadingRates && (
-              <p className="text-sm text-amber-600">{ratesError}</p>
-            )}
-            {!loadingRates && shippingOptions && shippingOptions.length > 0 && (
-              <div className="space-y-2">
-                {shippingOptions.map((option) => (
-                  <label
-                    key={option.code}
-                    className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${
-                      selectedShippingOption?.code === option.code
-                        ? "border-primary-500 bg-primary-50"
-                        : "border-gray-200 hover:border-gray-300"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="shippingOption"
-                      value={option.code}
-                      checked={selectedShippingOption?.code === option.code}
-                      onChange={() => setSelectedShippingOption(option)}
-                      className="mr-3 h-4 w-4 text-primary-600 focus:ring-primary-500"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-gray-900">
-                          {option.label}
-                        </span>
-                        <span className="text-sm font-semibold text-gray-900">
-                          {formatMXNMoney(option.priceCents / 100)}
-                        </span>
-                      </div>
-                      {option.etaMinDays && option.etaMaxDays && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          Tiempo estimado: {option.etaMinDays}-{option.etaMaxDays} días
-                        </p>
-                      )}
-                    </div>
-                  </label>
-                ))}
+        {/* Opciones de envío */}
+        <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
+          <h3 className="text-sm font-semibold text-gray-900">Opciones de envío</h3>
+          
+          {/* Opción: Recoger en tienda (siempre disponible) */}
+          <label
+            className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${
+              !selectedShippingOption && currentShippingMethod === "pickup"
+                ? "border-primary-500 bg-primary-50"
+                : "border-gray-200 hover:border-gray-300"
+            }`}
+          >
+            <input
+              type="radio"
+              name="shippingOption"
+              value="pickup"
+              checked={!selectedShippingOption && currentShippingMethod === "pickup"}
+              onChange={() => {
+                setSelectedShippingOption(null);
+                setShipping("pickup", 0);
+              }}
+              className="mr-3 h-4 w-4 text-primary-600 focus:ring-primary-500"
+            />
+            <div className="flex-1">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-900">
+                  Recoger en tienda
+                </span>
+                <span className="text-sm font-semibold text-gray-900">
+                  {formatMXNMoney(0)}
+                </span>
               </div>
-            )}
-            {!loadingRates && (!shippingOptions || shippingOptions.length === 0) && !ratesError && (
-              <p className="text-sm text-gray-500">
-                Completa el código postal, estado y ciudad para ver opciones de envío.
+              <p className="text-xs text-gray-500 mt-1">
+                Sucursal Tlalpan, Ciudad de México
               </p>
-            )}
-          </div>
-        )}
+            </div>
+          </label>
+
+          {/* Opciones de Skydropx (solo si hay CP, estado y ciudad) */}
+          {cpValue && stateValue && cityValue && (
+            <>
+              {loadingRates && (
+                <p className="text-sm text-gray-500">Calculando tarifas...</p>
+              )}
+              {ratesError && !loadingRates && (
+                <p className="text-sm text-amber-600">
+                  {ratesError.includes("no hay envíos disponibles") 
+                    ? ratesError 
+                    : "Lo sentimos, no hay envíos disponibles para esta dirección. Intenta con otro código postal."}
+                </p>
+              )}
+              {!loadingRates && shippingOptions && shippingOptions.length > 0 && (
+                <div className="space-y-2">
+                  {shippingOptions.map((option) => (
+                    <label
+                      key={option.code}
+                      className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${
+                        selectedShippingOption?.code === option.code
+                          ? "border-primary-500 bg-primary-50"
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="shippingOption"
+                        value={option.code}
+                        checked={selectedShippingOption?.code === option.code}
+                        onChange={() => {
+                          setSelectedShippingOption(option);
+                          // Establecer método de envío basado en el label (standard o express)
+                          const method = option.label.toLowerCase().includes("express") ? "express" : "standard";
+                          setShipping(method, option.priceCents / 100);
+                        }}
+                        className="mr-3 h-4 w-4 text-primary-600 focus:ring-primary-500"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-gray-900">
+                            {option.label}
+                          </span>
+                          <span className="text-sm font-semibold text-gray-900">
+                            {formatMXNMoney(option.priceCents / 100)}
+                          </span>
+                        </div>
+                        {option.etaMinDays && option.etaMaxDays && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Tiempo estimado: {option.etaMinDays}-{option.etaMaxDays} días
+                          </p>
+                        )}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
+              {!loadingRates && (!shippingOptions || shippingOptions.length === 0) && !ratesError && (
+                <p className="text-sm text-gray-500">
+                  Completa el código postal, estado y ciudad para ver opciones de envío.
+                </p>
+              )}
+            </>
+          )}
+        </div>
 
         {/* Resumen de cupón (solo lectura, si está aplicado) */}
         {couponCode && discount && (

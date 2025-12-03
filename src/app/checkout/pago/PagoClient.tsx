@@ -33,7 +33,7 @@ import { applyFreeShippingIfEligible } from "@/lib/shipping/freeShipping";
 type FormValues = {
   paymentMethod: string;
   honorific: string;
-  shippingMethod: ShippingMethod;
+  // shippingMethod ya no se usa en el formulario, solo se muestra en lectura
 };
 
 // Tipo extendido para items del checkout que pueden tener propiedades adicionales
@@ -63,7 +63,7 @@ export default function PagoClient() {
   const subtotal = useMemo(() => {
     return getSelectedSubtotalCents(checkoutItems) / 100;
   }, [checkoutItems]);
-  const setShipping = useCheckoutStore((s) => s.setShipping);
+  // setShipping ya no se usa en esta página - el método de envío se elige en /checkout/datos
   const currentShippingMethod = useCheckoutStore((s) => s.shippingMethod);
   const selectedShippingOption = useCheckoutStore((s) => s.selectedShippingOption);
   const couponCode = useCheckoutStore((s) => s.couponCode);
@@ -201,12 +201,8 @@ export default function PagoClient() {
       };
     }, [datos?.cp, itemsForOrder]);
 
-  // Inicializar método de envío si no está seleccionado
-  useEffect(() => {
-    if (!currentShippingMethod && datos?.cp) {
-      setShipping("pickup", 0);
-    }
-  }, [currentShippingMethod, datos?.cp, setShipping]);
+  // Ya no inicializamos ni permitimos cambiar el método de envío en esta página
+  // El método de envío se elige en /checkout/datos y solo se muestra aquí en lectura
 
   const {
     register,
@@ -217,13 +213,26 @@ export default function PagoClient() {
     defaultValues: {
       paymentMethod: "",
       honorific: "Dr.",
-      shippingMethod: currentShippingMethod || "pickup",
     },
   });
 
-  const selectedShippingMethod = watch("shippingMethod") as ShippingMethod;
   const selectedPaymentMethod = watch("paymentMethod");
-  const rawShippingCost = shippingData.prices[selectedShippingMethod] || 0;
+  
+  // Determinar el método de envío actual (solo lectura)
+  // Prioridad: selectedShippingOption (Skydropx) > currentShippingMethod (manual)
+  const displayShippingMethod: ShippingMethod = selectedShippingOption 
+    ? (selectedShippingOption.label.toLowerCase().includes("express") ? "express" : "standard")
+    : (currentShippingMethod || "pickup");
+  
+  // Calcular costo de envío: priorizar selectedShippingOption si existe
+  const rawShippingCost = useMemo(() => {
+    // Si hay una opción de Skydropx seleccionada, usar su precio
+    if (selectedShippingOption) {
+      return selectedShippingOption.priceCents / 100; // Convertir centavos a MXN
+    }
+    // Fallback al método manual
+    return shippingData.prices[displayShippingMethod] || 0;
+  }, [selectedShippingOption, displayShippingMethod, shippingData.prices]);
   
   // Calcular subtotal de productos en centavos para aplicar envío gratis
   const productsSubtotalCents = useMemo(() => {
@@ -293,21 +302,8 @@ export default function PagoClient() {
     return Math.max(0, calculated);
   }, [subtotal, shippingCost, discount, discountScope, loyaltyDiscountCents]);
 
-  // Actualizar store cuando cambia el método de envío
-  useEffect(() => {
-    if (selectedShippingMethod) {
-      setShipping(selectedShippingMethod, shippingCost);
-
-      // Analytics: add_shipping_info
-      if (selectedShippingMethod !== "pickup") {
-        track("add_shipping_info", {
-          shipping_tier: selectedShippingMethod,
-          value: total,
-          shipping: shippingCost,
-        });
-      }
-    }
-  }, [selectedShippingMethod, shippingCost, total, setShipping]);
+  // Ya no actualizamos el método de envío desde esta página
+  // El método de envío se establece en /checkout/datos y solo se muestra aquí
 
   // Helper para obtener section de un item
   const getItemSection = (item: CheckoutItem): string => {
@@ -440,7 +436,7 @@ export default function PagoClient() {
       const orderPayload = {
         email: datos.email, // Email del checkout para la orden y Stripe
         name: datos.name, // Nombre para metadata
-        shippingMethod: selectedShippingMethod || "pickup", // Método de envío
+        shippingMethod: displayShippingMethod, // Método de envío (solo lectura)
         shippingCostCents, // Costo de envío en centavos
         // Información de Skydropx si hay opción seleccionada
         shipping: selectedShippingOption
@@ -635,7 +631,7 @@ export default function PagoClient() {
           };
         }),
         shipping: {
-          method: selectedShippingMethod,
+          method: displayShippingMethod,
           cost_cents: Math.round(shippingCost * 100),
         },
         datos: {
@@ -800,76 +796,78 @@ export default function PagoClient() {
         </div>
       </div>
 
-      {/* Método de envío */}
+      {/* Método de envío (solo lectura) */}
       <div className="bg-gray-50 rounded-lg p-4 mb-6">
-        <h2 className="font-semibold mb-3 text-sm text-gray-700">
-          Método de envío *
-        </h2>
-        <div className="space-y-2">
-          <label className="flex items-center p-3 border rounded-md cursor-pointer hover:bg-gray-100">
-            <input
-              type="radio"
-              value="pickup"
-              {...register("shippingMethod", {
-                required: "Selecciona un método de envío",
-              })}
-              className="mr-3"
-            />
-            <div className="flex-1">
-              <div className="font-medium">Recoger en tienda</div>
-              <div className="text-sm text-gray-600">Gratis</div>
-            </div>
-            <div className="font-semibold">{formatMXNMoney(0)}</div>
-          </label>
-
-          <label className="flex items-center p-3 border rounded-md cursor-pointer hover:bg-gray-100">
-            <input
-              type="radio"
-              value="standard"
-              {...register("shippingMethod", {
-                required: "Selecciona un método de envío",
-              })}
-              className="mr-3"
-            />
-            <div className="flex-1">
-              <div className="font-medium">Estándar</div>
-              <div className="text-sm text-gray-600">
-                {shippingData.zone
-                  ? `Zona ${shippingData.zone} • ${shippingData.kg.toFixed(1)} kg`
-                  : "Envío estándar"}
-              </div>
-            </div>
-            <div className="font-semibold">
-              {formatMXNMoney(shippingData.prices.standard)}
-            </div>
-          </label>
-
-          <label className="flex items-center p-3 border rounded-md cursor-pointer hover:bg-gray-100">
-            <input
-              type="radio"
-              value="express"
-              {...register("shippingMethod", {
-                required: "Selecciona un método de envío",
-              })}
-              className="mr-3"
-            />
-            <div className="flex-1">
-              <div className="font-medium">Express</div>
-              <div className="text-sm text-gray-600">
-                {shippingData.zone
-                  ? `Zona ${shippingData.zone} • ${shippingData.kg.toFixed(1)} kg`
-                  : "Entrega rápida"}
-              </div>
-            </div>
-            <div className="font-semibold">
-              {formatMXNMoney(shippingData.prices.express)}
-            </div>
-          </label>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-semibold text-sm text-gray-700">
+            Método de envío
+          </h2>
+          <Link
+            href="/checkout/datos"
+            className="text-xs text-primary-600 hover:text-primary-700 underline"
+          >
+            Cambiar
+          </Link>
         </div>
-        {errors.shippingMethod && (
-          <p className="text-red-500 text-sm mt-2">
-            {errors.shippingMethod.message}
-          </p>
+        
+        {selectedShippingOption ? (
+          // Mostrar opción de Skydropx seleccionada
+          <div className="bg-white border border-gray-200 rounded-md p-4">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <div className="font-medium text-gray-900">
+                  {selectedShippingOption.label}
+                </div>
+                {selectedShippingOption.etaMinDays && selectedShippingOption.etaMaxDays && (
+                  <div className="text-sm text-gray-600 mt-1">
+                    Tiempo estimado: {selectedShippingOption.etaMinDays}-{selectedShippingOption.etaMaxDays} días
+                  </div>
+                )}
+                {selectedShippingOption.provider === "skydropx" && (
+                  <div className="text-xs text-gray-500 mt-1">
+                    Envío gestionado por Skydropx
+                  </div>
+                )}
+              </div>
+              <div className="font-semibold text-gray-900">
+                {formatMXNMoney(selectedShippingOption.priceCents / 100)}
+              </div>
+            </div>
+          </div>
+        ) : displayShippingMethod === "pickup" ? (
+          // Mostrar recoger en tienda
+          <div className="bg-white border border-gray-200 rounded-md p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <div className="font-medium text-gray-900">Recoger en tienda</div>
+                <div className="text-sm text-gray-600">Sucursal Tlalpan, Ciudad de México</div>
+              </div>
+              <div className="font-semibold text-gray-900">
+                {formatMXNMoney(0)}
+              </div>
+            </div>
+          </div>
+        ) : (
+          // Mostrar método manual (standard o express) como fallback
+          <div className="bg-white border border-gray-200 rounded-md p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <div className="font-medium text-gray-900">
+                  {displayShippingMethod === "standard" ? "Envío estándar" : "Envío express"}
+                </div>
+                <div className="text-sm text-gray-600">
+                  {shippingData.zone
+                    ? `Zona ${shippingData.zone} • ${shippingData.kg.toFixed(1)} kg`
+                    : displayShippingMethod === "standard" 
+                      ? "Envío estándar"
+                      : "Entrega rápida"}
+                </div>
+              </div>
+              <div className="font-semibold text-gray-900">
+                {formatMXNMoney(shippingData.prices[displayShippingMethod])}
+              </div>
+            </div>
+          </div>
         )}
       </div>
 
@@ -953,17 +951,19 @@ export default function PagoClient() {
           </div>
           <div className="flex justify-between text-sm">
             <span>
-              {selectedShippingMethod === "pickup"
-                ? "Recoger en tienda"
-                : selectedShippingMethod === "standard"
-                  ? "Envío estándar"
-                  : selectedShippingMethod === "express"
-                    ? "Envío express"
-                    : "Envío"}
+              {selectedShippingOption 
+                ? selectedShippingOption.label
+                : displayShippingMethod === "pickup"
+                  ? "Recoger en tienda"
+                  : displayShippingMethod === "standard"
+                    ? "Envío estándar"
+                    : displayShippingMethod === "express"
+                      ? "Envío express"
+                      : "Envío"}
               :
             </span>
             <span>
-              {selectedShippingMethod === "pickup"
+              {displayShippingMethod === "pickup"
                 ? "$0.00"
                 : shippingCost > 0
                   ? formatMXNMoney(shippingCost)

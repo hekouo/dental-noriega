@@ -100,6 +100,146 @@ export async function POST(req: NextRequest) {
               });
             }
           }
+
+          // Crear envío en Skydropx si está configurado y hay información de shipping
+          try {
+            const { data: orderData } = await supabase
+              .from("orders")
+              .select("metadata, order_items(*)")
+              .eq("id", order_id)
+              .single();
+
+            if (orderData?.metadata) {
+              const metadata = orderData.metadata as Record<string, unknown>;
+              const shipping = metadata.shipping as
+                | {
+                    provider?: string;
+                    option_code?: string;
+                    rate?: {
+                      external_id?: string;
+                      provider?: string;
+                      service?: string;
+                    };
+                  }
+                | undefined;
+
+              // Solo crear envío si hay información de Skydropx en metadata
+              if (
+                shipping?.provider === "skydropx" &&
+                shipping.rate?.external_id &&
+                metadata.contact_address &&
+                metadata.contact_city &&
+                metadata.contact_state &&
+                metadata.contact_cp
+              ) {
+                const { createSkydropxShipment } = await import("@/lib/shipping/skydropx.server");
+
+                // Calcular peso total de los productos
+                const orderItems = (orderData.order_items as Array<{ qty: number }>) || [];
+                const totalWeightGrams = orderItems.reduce((sum, item) => sum + (item.qty || 1) * 1000, 0);
+
+                // Construir productos para declarar en el envío
+                const products = (orderData.order_items as Array<{
+                  title?: string;
+                  sku?: string;
+                  unit_price_cents?: number;
+                  qty?: number;
+                }>).map((item) => ({
+                  name: item.title || "Producto",
+                  sku: item.sku || undefined,
+                  price: item.unit_price_cents ? item.unit_price_cents / 100 : undefined,
+                  quantity: item.qty || 1,
+                }));
+
+                const shipmentResult = await createSkydropxShipment({
+                  rateId: shipping.rate.external_id,
+                  destination: {
+                    postalCode: String(metadata.contact_cp),
+                    state: String(metadata.contact_state),
+                    city: String(metadata.contact_city),
+                    country: "MX",
+                    name: String(metadata.contact_name || ""),
+                    phone: metadata.contact_phone ? String(metadata.contact_phone) : undefined,
+                    email: metadata.contact_email ? String(metadata.contact_email) : undefined,
+                    addressLine1: metadata.contact_address ? String(metadata.contact_address) : undefined,
+                  },
+                  pkg: {
+                    weightGrams: totalWeightGrams || 1000,
+                  },
+                  products,
+                });
+
+                if (shipmentResult.success && shipmentResult.shipmentId) {
+                  // Actualizar metadata con información del envío creado
+                  const updatedShipping = {
+                    ...shipping,
+                    shipment: {
+                      id: shipmentResult.shipmentId,
+                      tracking_number: shipmentResult.trackingNumber || null,
+                      label_url: shipmentResult.labelUrl || null,
+                      carrier_name: shipmentResult.carrierName || null,
+                      workflow_status: shipmentResult.workflowStatus || null,
+                      payment_status: shipmentResult.paymentStatus || null,
+                      total: shipmentResult.total || null,
+                      packages: shipmentResult.packages || [],
+                    },
+                    integration_status: "success" as const,
+                  };
+
+                  await supabase
+                    .from("orders")
+                    .update({
+                      metadata: {
+                        ...metadata,
+                        shipping: updatedShipping,
+                      },
+                    })
+                    .eq("id", order_id);
+
+                  if (process.env.NODE_ENV !== "production") {
+                    console.log("[webhook] Envío Skydropx creado:", {
+                      order_id,
+                      shipment_id: shipmentResult.shipmentId,
+                      tracking_number: shipmentResult.trackingNumber,
+                    });
+                  }
+                } else {
+                  // Guardar error en metadata sin romper el flujo
+                  const updatedShipping = {
+                    ...shipping,
+                    integration_status: "error" as const,
+                    integration_error: shipmentResult.error || "Error desconocido al crear envío",
+                  };
+
+                  await supabase
+                    .from("orders")
+                    .update({
+                      metadata: {
+                        ...metadata,
+                        shipping: updatedShipping,
+                      },
+                    })
+                    .eq("id", order_id);
+
+                  if (process.env.NODE_ENV !== "production") {
+                    console.warn("[webhook] Error al crear envío Skydropx:", {
+                      order_id,
+                      error: shipmentResult.error,
+                    });
+                  }
+                }
+              }
+            }
+          } catch (skydropxError) {
+            // No fallar el webhook si falla la creación del envío
+            console.error("[webhook] Error al crear envío Skydropx:", skydropxError);
+            if (process.env.NODE_ENV === "development") {
+              console.error("[webhook] Skydropx error details:", {
+                order_id,
+                error: skydropxError instanceof Error ? skydropxError.message : String(skydropxError),
+              });
+            }
+          }
         } else {
           if (process.env.NODE_ENV === "development") {
             console.error("[webhook] Error al actualizar orden a paid:", {

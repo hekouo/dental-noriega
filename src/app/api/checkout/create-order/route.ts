@@ -252,6 +252,36 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Preparar datos de shipping: priorizar Skydropx si está disponible, sino usar método manual
+    let shippingProvider: string | null = null;
+    let shippingServiceName: string | null = null;
+    let shippingRateExtId: string | null = null;
+    let shippingEtaMinDays: number | null = null;
+    let shippingEtaMaxDays: number | null = null;
+    let shippingPriceCents: number | null = null;
+
+    if (orderData.shipping) {
+      // Caso Skydropx
+      shippingProvider = orderData.shipping.provider || "skydropx";
+      shippingServiceName = orderData.shipping.rate?.service || null;
+      shippingRateExtId = orderData.shipping.rate?.external_id || null;
+      shippingEtaMinDays = orderData.shipping.rate?.eta_min_days ?? null;
+      shippingEtaMaxDays = orderData.shipping.rate?.eta_max_days ?? null;
+      shippingPriceCents = orderData.shipping.price_cents || null;
+    } else if (shippingMethodForMetadata === "pickup") {
+      // Caso "Recoger en tienda"
+      shippingProvider = "pickup";
+      shippingServiceName = "Recoger en tienda";
+      shippingPriceCents = 0;
+      // shippingRateExtId, shippingEtaMinDays, shippingEtaMaxDays quedan null
+    } else {
+      // Caso método manual (standard/express) sin Skydropx
+      shippingProvider = "manual";
+      shippingServiceName = shippingMethodForMetadata === "standard" ? "Envío estándar" : "Envío express";
+      shippingPriceCents = shippingCostCents;
+      // shippingRateExtId, shippingEtaMinDays, shippingEtaMaxDays quedan null
+    }
+
     // Crear orden usando SOLO las columnas válidas del schema real
     const { data: order, error: orderError } = await supabase
       .from("orders")
@@ -263,6 +293,13 @@ export async function POST(req: NextRequest) {
         payment_provider: null, // Se actualizará cuando se cree el PaymentIntent
         payment_id: null,
         metadata: metadata,
+        // Campos de shipping de Skydropx (opcionales)
+        shipping_provider: shippingProvider,
+        shipping_service_name: shippingServiceName,
+        shipping_price_cents: shippingPriceCents,
+        shipping_rate_ext_id: shippingRateExtId,
+        shipping_eta_min_days: shippingEtaMinDays,
+        shipping_eta_max_days: shippingEtaMaxDays,
       })
       .select("id, total_cents")
       .single();
