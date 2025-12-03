@@ -672,3 +672,125 @@ export async function createShipment(
   return (await response.json()) as SkydropxShipmentResponse;
 }
 
+/**
+ * Crea un envío en Skydropx a partir de un rate ID
+ * Esta función simplifica la creación de envíos cuando ya se tiene un rate_id
+ */
+export async function createShipmentFromRate(input: {
+  rateExternalId: string;
+  addressFrom: {
+    countryCode: string;
+    postalCode: string;
+    state: string;
+    city: string;
+    address1: string;
+    name: string;
+    phone?: string | null;
+    email?: string | null;
+  };
+  addressTo: {
+    countryCode: string;
+    postalCode: string;
+    state: string;
+    city: string;
+    address1: string;
+    name: string;
+    phone?: string | null;
+    email?: string | null;
+  };
+  parcels: Array<{
+    weight: number;
+    height: number;
+    width: number;
+    length: number;
+  }>;
+}): Promise<{
+  trackingNumber: string;
+  labelUrl: string | null;
+  rawId: string | null;
+}> {
+  const config = getSkydropxConfig();
+  if (!config) {
+    throw new Error("Skydropx no está configurado");
+  }
+
+  // Construir payload para crear shipment
+  const shipmentPayload: SkydropxShipmentPayload = {
+    rate_id: input.rateExternalId,
+    address_from: {
+      province: input.addressFrom.state,
+      city: input.addressFrom.city,
+      country: input.addressFrom.countryCode,
+      zip: input.addressFrom.postalCode,
+      name: input.addressFrom.name,
+      phone: input.addressFrom.phone || null,
+      email: input.addressFrom.email || null,
+      address1: input.addressFrom.address1 || null,
+    },
+    address_to: {
+      province: input.addressTo.state,
+      city: input.addressTo.city,
+      country: input.addressTo.countryCode,
+      zip: input.addressTo.postalCode,
+      name: input.addressTo.name,
+      phone: input.addressTo.phone || null,
+      email: input.addressTo.email || null,
+      address1: input.addressTo.address1 || null,
+    },
+    parcels: input.parcels.map((p) => ({
+      weight: p.weight,
+      distance_unit: "CM",
+      mass_unit: "KG",
+      height: p.height,
+      width: p.width,
+      length: p.length,
+    })),
+  };
+
+  if (process.env.NODE_ENV !== "production") {
+    console.log("[Skydropx createShipmentFromRate] Creando envío:", {
+      url: `${config.restBaseUrl}/v1/shipments`,
+      method: "POST",
+      rate_id: input.rateExternalId,
+      from: `${input.addressFrom.city}, ${input.addressFrom.postalCode}`,
+      to: `${input.addressTo.city}, ${input.addressTo.postalCode}`,
+      parcels: input.parcels.length,
+    });
+  }
+
+  // Llamar a createShipment
+  const response = await createShipment(shipmentPayload);
+
+  // Extraer tracking number y label URL
+  const trackingNumber =
+    response.master_tracking_number || response.data?.master_tracking_number || "";
+  const rawId = response.id || response.data?.id || null;
+
+  // Buscar label_url en los paquetes incluidos
+  let labelUrl: string | null = null;
+  if (response.included && Array.isArray(response.included)) {
+    const firstPackage = response.included.find((pkg) => pkg.label_url);
+    if (firstPackage?.label_url) {
+      labelUrl = firstPackage.label_url;
+    }
+  }
+
+  if (process.env.NODE_ENV !== "production") {
+    console.log("[Skydropx createShipmentFromRate] Envío creado:", {
+      trackingNumber,
+      labelUrl: labelUrl ? "presente" : "no disponible",
+      rawId,
+    });
+  }
+
+  if (!trackingNumber) {
+    throw new Error("No se recibió tracking number de Skydropx");
+  }
+
+  return {
+    trackingNumber,
+    labelUrl,
+    rawId,
+  };
+}
+

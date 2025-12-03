@@ -65,7 +65,7 @@ type SkydropxAuthConfig = {
  * Obtiene la configuración completa de Skydropx (autenticación + origen)
  * Prioriza OAuth si está disponible, sino usa API key
  */
-function getSkydropxConfig(): SkydropxAuthConfig | null {
+export function getSkydropxConfig(): SkydropxAuthConfig | null {
   // Verificar si está habilitado Skydropx
   const enableSkydropx = process.env.ENABLE_SKYDROPX_SHIPPING !== "false"; // default true si no está definido
   if (!enableSkydropx) {
