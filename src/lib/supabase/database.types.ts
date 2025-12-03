@@ -154,6 +154,9 @@ export interface Database {
           shipping_rate_ext_id: string | null;
           shipping_eta_min_days: number | null;
           shipping_eta_max_days: number | null;
+          shipping_tracking_number: string | null;
+          shipping_label_url: string | null;
+          shipping_status: string | null;
           created_at: string;
         };
         Insert: {
@@ -178,6 +181,9 @@ export interface Database {
           shipping_rate_ext_id?: string | null;
           shipping_eta_min_days?: number | null;
           shipping_eta_max_days?: number | null;
+          shipping_tracking_number?: string | null;
+          shipping_label_url?: string | null;
+          shipping_status?: string | null;
           created_at?: string;
         };
         Update: {
@@ -196,6 +202,15 @@ export interface Database {
           points_redeemed?: number;
           total?: number;
           stripe_session_id?: string | null;
+          shipping_provider?: string | null;
+          shipping_service_name?: string | null;
+          shipping_price_cents?: number | null;
+          shipping_rate_ext_id?: string | null;
+          shipping_eta_min_days?: number | null;
+          shipping_eta_max_days?: number | null;
+          shipping_tracking_number?: string | null;
+          shipping_label_url?: string | null;
+          shipping_status?: string | null;
           created_at?: string;
         };
       };

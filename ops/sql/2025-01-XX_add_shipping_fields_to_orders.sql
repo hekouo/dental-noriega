@@ -8,7 +8,10 @@ ALTER TABLE public.orders
   ADD COLUMN IF NOT EXISTS shipping_price_cents INTEGER,
   ADD COLUMN IF NOT EXISTS shipping_rate_ext_id TEXT,
   ADD COLUMN IF NOT EXISTS shipping_eta_min_days INTEGER,
-  ADD COLUMN IF NOT EXISTS shipping_eta_max_days INTEGER;
+  ADD COLUMN IF NOT EXISTS shipping_eta_max_days INTEGER,
+  ADD COLUMN IF NOT EXISTS shipping_tracking_number TEXT,
+  ADD COLUMN IF NOT EXISTS shipping_label_url TEXT,
+  ADD COLUMN IF NOT EXISTS shipping_status TEXT;
 
 -- Comentarios para documentación
 COMMENT ON COLUMN public.orders.shipping_provider IS 'Proveedor de envío (ej: "skydropx", "estafeta", "dhl")';
@@ -17,4 +20,7 @@ COMMENT ON COLUMN public.orders.shipping_price_cents IS 'Precio del envío en ce
 COMMENT ON COLUMN public.orders.shipping_rate_ext_id IS 'ID externo de la tarifa de Skydropx';
 COMMENT ON COLUMN public.orders.shipping_eta_min_days IS 'Días estimados mínimos de entrega';
 COMMENT ON COLUMN public.orders.shipping_eta_max_days IS 'Días estimados máximos de entrega';
+COMMENT ON COLUMN public.orders.shipping_tracking_number IS 'Número de guía de rastreo del envío';
+COMMENT ON COLUMN public.orders.shipping_label_url IS 'URL del PDF de la etiqueta de envío';
+COMMENT ON COLUMN public.orders.shipping_status IS 'Estado del envío (ej: "created", "pending", "in_transit", "delivered")';
 

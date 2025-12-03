@@ -135,6 +135,61 @@ El código mapea automáticamente desde nuestro formato interno:
 
 Crea un envío con Skydropx (URL completa: `${SKYDROPX_BASE_URL}/v1/shipments`)
 
+**Payload de ejemplo:**
+```json
+{
+  "rate_id": "rate_123",
+  "address_from": {
+    "province": "Ciudad de México",
+    "city": "Tlalpan",
+    "country": "MX",
+    "zip": "14380",
+    "name": "Deposito Dental Noriega",
+    "phone": "+525531033715",
+    "email": "dental.noriega721@gmail.com",
+    "address1": "Prolongación División del Norte #2"
+  },
+  "address_to": {
+    "province": "Jalisco",
+    "city": "Guadalajara",
+    "country": "MX",
+    "zip": "44100",
+    "name": "Juan Pérez",
+    "phone": "+523312345678",
+    "email": "juan@example.com",
+    "address1": "Av. Revolución 123"
+  },
+  "parcels": [
+    {
+      "weight": 1.5,
+      "distance_unit": "CM",
+      "mass_unit": "KG",
+      "height": 20,
+      "width": 20,
+      "length": 30
+    }
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "id": "shipment_456",
+  "master_tracking_number": "EST123456789MX",
+  "carrier_name": "estafeta",
+  "workflow_status": "pending",
+  "payment_status": "paid",
+  "included": [
+    {
+      "id": "package_789",
+      "tracking_number": "EST123456789MX",
+      "label_url": "https://app.skydropx.com/labels/abc123.pdf"
+    }
+  ]
+}
+```
+
 ### GET `/v1/quotations/{id}`
 
 Obtiene una cotización específica (URL completa: `${SKYDROPX_BASE_URL}/v1/quotations/{id}`)
@@ -211,6 +266,83 @@ La respuesta de Skydropx puede venir en diferentes formatos (array directo, `dat
 - `totalPriceCents`: precio en centavos MXN
 - `etaMinDays` / `etaMaxDays`: días estimados de entrega
 - `externalRateId`: ID de la tarifa en Skydropx (para crear el envío después)
+
+### POST `/api/shipping/create-shipment`
+
+Crea un envío (shipment) en Skydropx a partir de una orden existente. Este endpoint:
+
+1. Valida que la orden tenga `shipping_provider = "skydropx"` y un `shipping_rate_ext_id` válido.
+2. Obtiene los datos de dirección del destino desde la orden (metadata o campos directos).
+3. Crea el shipment en Skydropx usando el `rate_id` guardado.
+4. Actualiza la orden con el tracking number, label URL y status.
+
+**Request:**
+```json
+{
+  "orderId": "uuid-de-la-orden"
+}
+```
+
+**Opcionalmente, puedes proporcionar los datos de dirección si no están en la orden:**
+```json
+{
+  "orderId": "uuid-de-la-orden",
+  "addressTo": {
+    "countryCode": "MX",
+    "postalCode": "44100",
+    "state": "Jalisco",
+    "city": "Guadalajara",
+    "address1": "Av. Revolución 123",
+    "name": "Juan Pérez",
+    "phone": "+523312345678",
+    "email": "juan@example.com"
+  }
+}
+```
+
+**Precondiciones:**
+- La orden debe existir en la base de datos.
+- La orden debe tener `shipping_provider = "skydropx"`.
+- La orden debe tener `shipping_rate_ext_id` no nulo (ID del rate de Skydropx).
+- Los datos de dirección del destino deben estar disponibles (en metadata de la orden o proporcionados en el request).
+
+**Response (éxito):**
+```json
+{
+  "ok": true,
+  "orderId": "uuid-de-la-orden",
+  "trackingNumber": "EST123456789MX",
+  "labelUrl": "https://app.skydropx.com/labels/abc123.pdf"
+}
+```
+
+**Response (error):**
+```json
+{
+  "ok": false,
+  "reason": "order_not_found" | "unsupported_provider" | "missing_shipping_rate" | "missing_address_data" | "skydropx_error" | "unknown_error",
+  "message": "Descripción del error"
+}
+```
+
+**Efectos:**
+- Crea el shipment en Skydropx.
+- Actualiza la orden en Supabase con:
+  - `shipping_tracking_number`: número de guía de rastreo.
+  - `shipping_label_url`: URL del PDF de la etiqueta (si está disponible).
+  - `shipping_status`: se establece en `"created"`.
+
+**Ejemplo de uso:**
+```bash
+curl -X POST https://tu-dominio.com/api/shipping/create-shipment \
+  -H "Content-Type: application/json" \
+  -d '{"orderId": "123e4567-e89b-12d3-a456-426614174000"}'
+```
+
+**Notas:**
+- Si los datos de dirección no están en la orden, el endpoint intentará extraerlos de `metadata.address` o `metadata.shipping.address`.
+- Si tampoco están ahí, intentará parsear `pickup_location` (formato: "dirección, colonia, estado CP").
+- Si ninguna de estas fuentes tiene los datos, devolverá `missing_address_data` y deberás proporcionarlos en el request.
 
 **Ejemplo de respuesta real de Skydropx (formato JSON:API):**
 ```json
