@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { updateShippingStatusAdmin } from "@/lib/actions/shipping.admin";
-import { getShippingStatusLabel, type ShippingStatus } from "@/lib/orders/shippingStatus";
+import type { ShippingStatus } from "@/lib/orders/shippingStatus";
 import { useRouter } from "next/navigation";
 
 type Props = {
