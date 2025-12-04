@@ -9,7 +9,7 @@ import type {
   OrderDetail,
 } from "@/lib/supabase/orders.server";
 import AccountSectionHeader from "@/components/account/AccountSectionHeader";
-import { getShippingStatusLabel } from "@/lib/orders/shippingStatus";
+import { mapStatusToLabel, mapStatusToDescription } from "@/lib/orders/shippingStatus";
 
 export default function PedidosPage() {
   const [email, setEmail] = useState("");
@@ -774,30 +774,31 @@ export default function PedidosPage() {
                     )}
 
                     {/* Estado del envío */}
-                    <div>
-                      <p className="text-sm text-gray-600">Estado del envío</p>
-                      <p className="font-medium">
-                        {(() => {
-                          const status = orderDetail.shipping_status;
-                          const statusLabel = getShippingStatusLabel(status);
-                          
-                          // Mensajes contextuales según el estado
-                          if (status === "created" && orderDetail.shipping_tracking_number) {
-                            return `${statusLabel} (en preparación)`;
-                          }
-                          if (status === "ready_for_pickup") {
-                            return statusLabel;
-                          }
-                          if (status === "delivered") {
-                            return statusLabel;
-                          }
-                          if (status === "in_transit") {
-                            return statusLabel;
-                          }
-                          return statusLabel;
-                        })()}
-                      </p>
-                    </div>
+                    {(() => {
+                      // Lógica de fallback según el usuario
+                      let statusToShow = orderDetail.shipping_status;
+                      if (!statusToShow) {
+                        if (orderDetail.shipping_provider === "pickup" && orderDetail.status === "paid") {
+                          statusToShow = "pending";
+                        } else if (
+                          orderDetail.shipping_provider === "skydropx" &&
+                          orderDetail.shipping_tracking_number
+                        ) {
+                          statusToShow = "created";
+                        } else {
+                          // Si es legacy sin nada, ocultar sección
+                          return null;
+                        }
+                      }
+                      const label = mapStatusToDescription(statusToShow);
+                      const prefix = orderDetail.shipping_provider === "pickup" ? "Estado del pedido" : "Estado del envío";
+                      return (
+                        <div>
+                          <p className="text-sm text-gray-600">{prefix}</p>
+                          <p className="font-medium">{label}</p>
+                        </div>
+                      );
+                    })()}
 
                     {/* Tracking */}
                     {orderDetail.shipping_tracking_number ? (

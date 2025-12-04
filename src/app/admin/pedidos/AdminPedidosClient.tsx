@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { formatMXNFromCents } from "@/lib/utils/currency";
 import type { OrderSummary } from "@/lib/supabase/orders.server";
-import { getShippingStatusLabel, getShippingStatusVariant } from "@/lib/orders/shippingStatus";
+import { mapStatusToLabel, mapStatusToBadgeVariant } from "@/lib/orders/shippingStatus";
 
 type Props = {
   orders: OrderSummary[];
@@ -276,27 +276,39 @@ export default function AdminPedidosClient({
                       )}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <span
-                        className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                          (() => {
-                            const variant = getShippingStatusVariant(order.shipping_status);
-                            switch (variant) {
-                              case "success":
-                                return "bg-green-100 text-green-700";
-                              case "warning":
-                                return "bg-yellow-100 text-yellow-700";
-                              case "info":
-                                return "bg-blue-100 text-blue-700";
-                              case "destructive":
-                                return "bg-red-100 text-red-700";
-                              default:
-                                return "bg-gray-100 text-gray-700";
-                            }
-                          })()
-                        }`}
-                      >
-                        {getShippingStatusLabel(order.shipping_status)}
-                      </span>
+                      {(() => {
+                        // Lógica de fallback según el usuario
+                        let statusToShow = order.shipping_status;
+                        if (!statusToShow) {
+                          if (order.shipping_provider === "pickup") {
+                            statusToShow = "pending";
+                          } else if (
+                            order.shipping_provider === "skydropx" &&
+                            order.shipping_tracking_number
+                          ) {
+                            statusToShow = "created";
+                          } else {
+                            // No mostrar badge si no hay nada
+                            return null;
+                          }
+                        }
+                        const variant = mapStatusToBadgeVariant(statusToShow);
+                        const label = mapStatusToLabel(statusToShow);
+                        const variantClasses = {
+                          success: "bg-green-100 text-green-700",
+                          warning: "bg-yellow-100 text-yellow-700",
+                          info: "bg-blue-100 text-blue-700",
+                          destructive: "bg-red-100 text-red-700",
+                          default: "bg-gray-100 text-gray-700",
+                        };
+                        return (
+                          <span
+                            className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${variantClasses[variant] || variantClasses.default}`}
+                          >
+                            {label}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-right">
                       {order.total_cents !== null

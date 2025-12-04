@@ -117,10 +117,13 @@ export async function updateShippingStatusAdmin(
       };
     }
 
-    // Actualizar el estado
+    // Actualizar el estado y updated_at
     const { error: updateError } = await supabase
       .from("orders")
-      .update({ shipping_status: newStatus })
+      .update({
+        shipping_status: newStatus,
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", orderId);
 
     if (updateError) {

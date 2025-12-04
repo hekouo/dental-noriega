@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { updateShippingStatusAdmin } from "@/lib/actions/shipping.admin";
 import type { ShippingStatus } from "@/lib/orders/shippingStatus";
+import { SHIPPING_STATUS_LABELS } from "@/lib/orders/shippingStatus";
 import { useRouter } from "next/navigation";
 
 type Props = {
@@ -11,29 +12,47 @@ type Props = {
   shippingProvider: string | null;
 };
 
+const ALL_STATUSES: ShippingStatus[] = [
+  "pending",
+  "created",
+  "in_transit",
+  "ready_for_pickup",
+  "delivered",
+  "canceled",
+];
+
 export default function UpdateShippingStatusClient({
   orderId,
   currentStatus,
   shippingProvider,
 }: Props) {
   const router = useRouter();
+  const [selectedStatus, setSelectedStatus] = useState<ShippingStatus>(
+    (currentStatus as ShippingStatus) || "pending"
+  );
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
-  const handleUpdateStatus = async (newStatus: ShippingStatus) => {
+  const handleUpdateStatus = async (e: React.FormEvent) => {
+    e.preventDefault();
     setIsUpdating(true);
     setError(null);
+    setSuccess(false);
 
     try {
-      const result = await updateShippingStatusAdmin(orderId, newStatus);
+      const result = await updateShippingStatusAdmin(orderId, selectedStatus);
 
       if (!result.success) {
         setError(result.error || "Error al actualizar el estado");
         return;
       }
 
+      setSuccess(true);
       // Refrescar la página para mostrar el nuevo estado
-      router.refresh();
+      setTimeout(() => {
+        router.refresh();
+      }, 1000);
     } catch (err) {
       console.error("[UpdateShippingStatusClient] Error:", err);
       setError("Error inesperado al actualizar el estado");
@@ -41,10 +60,6 @@ export default function UpdateShippingStatusClient({
       setIsUpdating(false);
     }
   };
-
-  // Botones según el tipo de envío
-  const isPickup = shippingProvider === "pickup";
-  const isPaqueteria = shippingProvider === "skydropx" || shippingProvider === "manual";
 
   return (
     <div className="mt-4 space-y-3">
@@ -57,58 +72,44 @@ export default function UpdateShippingStatusClient({
             {error}
           </div>
         )}
-        <div className="flex flex-wrap gap-2">
-          {isPickup && (
-            <>
-              <button
-                type="button"
-                onClick={() => handleUpdateStatus("ready_for_pickup")}
-                disabled={isUpdating || currentStatus === "ready_for_pickup"}
-                className="px-3 py-1.5 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {isUpdating ? "Actualizando..." : "Marcar como listo para recoger"}
-              </button>
-              <button
-                type="button"
-                onClick={() => handleUpdateStatus("delivered")}
-                disabled={isUpdating || currentStatus === "delivered"}
-                className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {isUpdating ? "Actualizando..." : "Marcar como entregado"}
-              </button>
-            </>
-          )}
-          {isPaqueteria && (
-            <>
-              <button
-                type="button"
-                onClick={() => handleUpdateStatus("in_transit")}
-                disabled={isUpdating || currentStatus === "in_transit"}
-                className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {isUpdating ? "Actualizando..." : "Marcar como en tránsito"}
-              </button>
-              <button
-                type="button"
-                onClick={() => handleUpdateStatus("delivered")}
-                disabled={isUpdating || currentStatus === "delivered"}
-                className="px-3 py-1.5 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {isUpdating ? "Actualizando..." : "Marcar como entregado"}
-              </button>
-            </>
-          )}
-          {(isPickup || isPaqueteria) && (
-            <button
-              type="button"
-              onClick={() => handleUpdateStatus("canceled")}
-              disabled={isUpdating || currentStatus === "canceled"}
-              className="px-3 py-1.5 text-sm bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        {success && (
+          <div className="mb-3 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-700">
+            Estado actualizado correctamente
+          </div>
+        )}
+        <form onSubmit={handleUpdateStatus} className="space-y-3">
+          <div>
+            <label
+              htmlFor="shipping-status-select"
+              className="block text-sm font-medium text-gray-700 mb-1"
             >
-              {isUpdating ? "Actualizando..." : "Cancelar envío"}
-            </button>
-          )}
-        </div>
+              Estado actual:{" "}
+              <span className="font-semibold">
+                {SHIPPING_STATUS_LABELS[(currentStatus as ShippingStatus) || "pending"]}
+              </span>
+            </label>
+            <select
+              id="shipping-status-select"
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value as ShippingStatus)}
+              disabled={isUpdating}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {ALL_STATUSES.map((status) => (
+                <option key={status} value={status}>
+                  {SHIPPING_STATUS_LABELS[status]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <button
+            type="submit"
+            disabled={isUpdating || selectedStatus === currentStatus}
+            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+          >
+            {isUpdating ? "Actualizando..." : "Actualizar estado de envío"}
+          </button>
+        </form>
       </div>
     </div>
   );

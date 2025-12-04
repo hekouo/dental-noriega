@@ -14,12 +14,12 @@ export type ShippingStatus =
  * Etiquetas en español para cada estado de envío
  */
 export const SHIPPING_STATUS_LABELS: Record<ShippingStatus, string> = {
-  pending: "Pendiente de envío",
-  created: "Guía generada",
+  pending: "Pendiente",
+  created: "Guía creada",
   in_transit: "En tránsito",
-  ready_for_pickup: "Listo para recoger en tienda",
+  ready_for_pickup: "Listo para recoger",
   delivered: "Entregado",
-  canceled: "Envío cancelado",
+  canceled: "Cancelado",
 };
 
 /**
@@ -37,11 +37,11 @@ export const SHIPPING_STATUS_VARIANTS: Record<ShippingStatus, ShippingStatusVari
 };
 
 /**
- * Obtiene el label de un estado de envío
+ * Mapea un estado de envío a su label en español
  * @param status - Estado de envío (puede ser null o string no válido)
- * @returns Label en español o "Pendiente de envío" como fallback
+ * @returns Label en español o "Pendiente" como fallback
  */
-export function getShippingStatusLabel(
+export function mapStatusToLabel(
   status: string | null | undefined,
 ): string {
   if (!status || !isValidShippingStatus(status)) {
@@ -51,11 +51,11 @@ export function getShippingStatusLabel(
 }
 
 /**
- * Obtiene la variante de color para un estado de envío
+ * Mapea un estado de envío a su variante de badge
  * @param status - Estado de envío (puede ser null o string no válido)
  * @returns Variante de color o "default" como fallback
  */
-export function getShippingStatusVariant(
+export function mapStatusToBadgeVariant(
   status: string | null | undefined,
 ): ShippingStatusVariant {
   if (!status || !isValidShippingStatus(status)) {
@@ -63,6 +63,24 @@ export function getShippingStatusVariant(
   }
   return SHIPPING_STATUS_VARIANTS[status];
 }
+
+/**
+ * Mapea un estado de envío a una descripción amigable para el cliente
+ * @param status - Estado de envío (puede ser null o string no válido)
+ * @returns Descripción en español o "Pendiente" como fallback
+ */
+export function mapStatusToDescription(
+  status: string | null | undefined,
+): string {
+  if (!status || !isValidShippingStatus(status)) {
+    return SHIPPING_STATUS_LABELS.pending;
+  }
+  return SHIPPING_STATUS_LABELS[status];
+}
+
+// Aliases para compatibilidad con código existente
+export const getShippingStatusLabel = mapStatusToLabel;
+export const getShippingStatusVariant = mapStatusToBadgeVariant;
 
 /**
  * Valida si un string es un estado de envío válido
