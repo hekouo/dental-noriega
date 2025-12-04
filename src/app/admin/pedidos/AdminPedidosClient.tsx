@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { formatMXNFromCents } from "@/lib/utils/currency";
 import type { OrderSummary } from "@/lib/supabase/orders.server";
-import { getShippingStatusLabel } from "@/lib/orders/shippingStatus";
+import { getShippingStatusLabel, getShippingStatusVariant } from "@/lib/orders/shippingStatus";
 
 type Props = {
   orders: OrderSummary[];
@@ -275,20 +275,26 @@ export default function AdminPedidosClient({
                         <span className="text-gray-400">N/A</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                        order.shipping_status === "delivered"
-                          ? "bg-green-100 text-green-700"
-                          : order.shipping_status === "ready_for_pickup"
-                            ? "bg-blue-100 text-blue-700"
-                            : order.shipping_status === "in_transit"
-                              ? "bg-blue-100 text-blue-700"
-                              : order.shipping_status === "created"
-                                ? "bg-yellow-100 text-yellow-700"
-                                : order.shipping_status === "canceled"
-                                  ? "bg-red-100 text-red-700"
-                                  : "bg-gray-100 text-gray-700"
-                      }`}>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span
+                        className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                          (() => {
+                            const variant = getShippingStatusVariant(order.shipping_status);
+                            switch (variant) {
+                              case "success":
+                                return "bg-green-100 text-green-700";
+                              case "warning":
+                                return "bg-yellow-100 text-yellow-700";
+                              case "info":
+                                return "bg-blue-100 text-blue-700";
+                              case "destructive":
+                                return "bg-red-100 text-red-700";
+                              default:
+                                return "bg-gray-100 text-gray-700";
+                            }
+                          })()
+                        }`}
+                      >
                         {getShippingStatusLabel(order.shipping_status)}
                       </span>
                     </td>

@@ -779,20 +779,22 @@ export default function PedidosPage() {
                       <p className="font-medium">
                         {(() => {
                           const status = orderDetail.shipping_status;
-                          const label = getShippingStatusLabel(status);
+                          const statusLabel = getShippingStatusLabel(status);
                           
                           // Mensajes contextuales según el estado
                           if (status === "created" && orderDetail.shipping_tracking_number) {
-                            return `${label} (en preparación)`;
+                            return `${statusLabel} (en preparación)`;
                           }
                           if (status === "ready_for_pickup") {
-                            return label;
+                            return statusLabel;
                           }
                           if (status === "delivered") {
-                            return label;
+                            return statusLabel;
                           }
-                          
-                          return label;
+                          if (status === "in_transit") {
+                            return statusLabel;
+                          }
+                          return statusLabel;
                         })()}
                       </p>
                     </div>
@@ -832,17 +834,13 @@ export default function PedidosPage() {
                           </div>
                         )}
                       </div>
-                    ) : (
+                    ) : orderDetail.shipping_status !== "delivered" && orderDetail.shipping_status !== "canceled" ? (
                       <div>
                         <p className="text-sm text-gray-500 italic">
-                          {orderDetail.shipping_status === "pending" || !orderDetail.shipping_status
-                            ? "La guía de envío aún no se ha generado. Si ya realizaste el pago, se generará en cuanto preparemos tu pedido."
-                            : orderDetail.shipping_status === "created"
-                              ? "La guía de envío ha sido generada y está en preparación."
-                              : "No hay número de guía disponible aún."}
+                          La guía de envío aún no se ha generado. Si ya realizaste el pago, se generará en cuanto preparemos tu pedido.
                         </p>
                       </div>
-                    )}
+                    ) : null}
                   </div>
                 </div>
               )}

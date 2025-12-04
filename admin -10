@@ -1,0 +1,26 @@
+stash@{0}: On feat/account-dashboard-cards: account header WIP
+stash@{1}: WIP on chore/cleanup-lint-type-warnings: 7ad5a26 chore: improve type safety and reduce any usage
+stash@{2}: lint-staged automatic backup
+stash@{3}: WIP on chore/lint-type-fixes: 0e18b5f chore(lint): type fixes, move helpers out of pages, tame legacy script warnings
+stash@{4}: lint-staged automatic backup
+stash@{5}: lint-staged automatic backup
+stash@{6}: lint-staged automatic backup
+stash@{7}: lint-staged automatic backup
+stash@{8}: lint-staged automatic backup
+stash@{9}: lint-staged automatic backup
+stash@{10}: lint-staged automatic backup
+stash@{11}: lint-staged automatic backup
+stash@{12}: lint-staged automatic backup
+stash@{13}: On chore/audit-summary: temp: cambios locales antes de verificar main
+stash@{14}: lint-staged automatic backup
+stash@{15}: On feat/perf-fonts-headers: temp stash before fix/perf-78-2
+stash@{16}: On fix/perf-78: temp before switch
+stash@{17}: On fix/perf-78: temp before switch
+stash@{18}: WIP on chore/fix-next-image-mock-jsx: 60358d7 test(ProductImage): stabilize under jsdom + robust queries; mock normalizeImageUrl
+stash@{19}: On (no branch): pre-pr13-rebase
+stash@{20}: On main: pre-#13-sync
+stash@{21}: On chore/wip-pre-restart: wip local
+stash@{22}: On chore/wip-pre-restart: wip local
+stash@{23}: On chore/wip-pre-restart: wip local
+stash@{24}: WIP on fix/disable-checkout-route: 1df93b7 chore: disable checkout API to unblock Vercel build
+stash@{25}: WIP on fix/automerge-workflow-repo-param: a1c314f fix: add --repo parameter to automerge workflow
