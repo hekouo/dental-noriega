@@ -523,8 +523,8 @@ export default function PedidosPage() {
               {orders.map((order) => {
                 const isSelected = selectedOrderId === order.id;
                 return (
-                  <div
-                    key={order.id}
+                <div
+                  key={order.id}
                     className={`px-4 sm:px-6 py-4 transition-colors ${
                       isSelected
                         ? "bg-blue-50 border-l-4 border-blue-500"
@@ -552,36 +552,66 @@ export default function PedidosPage() {
                       <p className="text-sm text-gray-600">
                         {formatDate(order.created_at)}
                       </p>
-                      {order.metadata?.shipping_method && (
-                        <p className="text-sm text-gray-600 mt-1">
-                          {(() => {
-                            const method = formatShippingMethod(order.metadata.shipping_method);
-                            const shippingCostCents = order.metadata.shipping_cost_cents;
-                            
-                            // Log temporal para debugging
-                            if (process.env.NODE_ENV === "development") {
-                              console.log("[PedidosPage] Shipping info:", {
-                                orderId: order.id,
-                                method: order.metadata.shipping_method,
-                                shippingCostCents,
-                                metadata: order.metadata,
-                              });
+                      {/* Resumen de envío usando campos de shipping */}
+                      {(() => {
+                        // Priorizar campos de shipping directos sobre metadata
+                        if (order.shipping_provider === "pickup") {
+                          return (
+                            <p className="text-sm text-gray-600 mt-1">
+                              Recoger en tienda · $0
+                            </p>
+                          );
+                        }
+                        
+                        if (order.shipping_provider && order.shipping_service_name) {
+                          const serviceName = order.shipping_service_name;
+                          const priceCents = order.shipping_price_cents;
+                          
+                          if (priceCents !== null && priceCents !== undefined) {
+                            return (
+                              <p className="text-sm text-gray-600 mt-1">
+                                {serviceName} · {formatMXNFromCents(priceCents)}
+                              </p>
+                            );
+                          }
+                          
+                          return (
+                            <p className="text-sm text-gray-600 mt-1">
+                              {serviceName}
+                            </p>
+                          );
+                        }
+                        
+                        // Fallback a metadata para compatibilidad con pedidos antiguos
+                        if (order.metadata?.shipping_method) {
+                          const method = formatShippingMethod(order.metadata.shipping_method);
+                          const shippingCostCents = order.metadata.shipping_cost_cents;
+                          
+                          if (shippingCostCents !== undefined && shippingCostCents !== null) {
+                            if (shippingCostCents > 0) {
+                              return (
+                                <p className="text-sm text-gray-600 mt-1">
+                                  {method} · {formatMXNFromCents(shippingCostCents)}
+                                </p>
+                              );
+                            } else {
+                              return (
+                                <p className="text-sm text-gray-600 mt-1">
+                                  {method} · $0.00 (envío gratis)
+                                </p>
+                              );
                             }
-                            
-                            if (shippingCostCents !== undefined && shippingCostCents !== null) {
-                              if (shippingCostCents > 0) {
-                                return `${method} · ${formatMXNFromCents(shippingCostCents)}`;
-                              } else {
-                                // Envío gratis (subtotal >= $2,000 MXN)
-                                return `${method} · $0.00 (envío gratis)`;
-                              }
-                            }
-                            
-                            // Si no hay información de costo, solo mostrar el método
-                            return method;
-                          })()}
-                        </p>
-                      )}
+                          }
+                          
+                          return (
+                            <p className="text-sm text-gray-600 mt-1">
+                              {method}
+                            </p>
+                          );
+                        }
+                        
+                        return null;
+                      })()}
                       {/* Resumen de puntos en la lista (solo si está paid y tiene info) */}
                       {order.status === "paid" && (() => {
                         const earned = order.metadata?.loyalty_points_earned;
@@ -662,7 +692,7 @@ export default function PedidosPage() {
           <div ref={detailRef} className="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden mt-6">
             <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-gray-900">Detalle del Pedido</h2>
-            </div>
+                  </div>
 
             <div className="px-4 sm:px-6 py-4 space-y-4">
               {/* Información básica */}
@@ -694,6 +724,99 @@ export default function PedidosPage() {
                   <p>{orderDetail.email}</p>
                 </div>
               </div>
+
+              {/* Bloque de información de envío */}
+              {(orderDetail.shipping_provider || orderDetail.metadata?.shipping_method) && (
+                <div className="mt-6 pt-4 border-t border-gray-200">
+                  <h3 className="text-lg font-semibold mb-4">Información de envío</h3>
+                  <div className="space-y-3">
+                    {/* Método de envío */}
+                    <div>
+                      <p className="text-sm text-gray-600">Método de envío</p>
+                      <p className="font-medium">
+                        {orderDetail.shipping_provider === "pickup" ? (
+                          "Recoger en tienda · Sin costo"
+                        ) : orderDetail.shipping_provider && orderDetail.shipping_service_name ? (
+                          `${orderDetail.shipping_service_name} (${orderDetail.shipping_provider})`
+                        ) : orderDetail.metadata?.shipping_method ? (
+                          formatShippingMethod(orderDetail.metadata.shipping_method)
+                        ) : (
+                          "No especificado"
+                        )}
+                      </p>
+                    </div>
+
+                    {/* Costo de envío */}
+                    {orderDetail.shipping_price_cents !== null && orderDetail.shipping_price_cents !== undefined && (
+                      <div>
+                        <p className="text-sm text-gray-600">Costo de envío</p>
+                        <p className="font-medium">
+                          {formatMXNFromCents(orderDetail.shipping_price_cents)}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Estimado de entrega */}
+                    {(orderDetail.shipping_eta_min_days !== null || orderDetail.shipping_eta_max_days !== null) && (
+                      <div>
+                        <p className="text-sm text-gray-600">Tiempo estimado de entrega</p>
+                        <p className="font-medium">
+                          {orderDetail.shipping_eta_min_days !== null && orderDetail.shipping_eta_max_days !== null
+                            ? `Llega entre ${orderDetail.shipping_eta_min_days} y ${orderDetail.shipping_eta_max_days} días`
+                            : orderDetail.shipping_eta_min_days !== null
+                              ? `Aproximadamente en ${orderDetail.shipping_eta_min_days} días`
+                              : orderDetail.shipping_eta_max_days !== null
+                                ? `Aproximadamente en ${orderDetail.shipping_eta_max_days} días`
+                                : ""}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Tracking */}
+                    {orderDetail.shipping_tracking_number ? (
+                      <div className="space-y-2">
+                        <div>
+                          <p className="text-sm text-gray-600">Número de guía</p>
+                          <p className="font-medium font-mono text-sm">
+                            {orderDetail.shipping_tracking_number}
+                          </p>
+                        </div>
+                        {orderDetail.shipping_label_url && (
+                          <div>
+                            <a
+                              href={orderDetail.shipping_label_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center text-sm text-primary-600 hover:text-primary-700 underline"
+                            >
+                              Ver guía / etiqueta PDF
+                              <svg
+                                className="ml-1 w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                                />
+                              </svg>
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="text-sm text-gray-500 italic">
+                          La guía de envío aún no se ha generado. Si ya realizaste el pago, se generará en cuanto preparemos tu pedido.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Items */}
               {orderDetail.items.length > 0 && (
@@ -783,7 +906,7 @@ export default function PedidosPage() {
                         <span>
                           {formatMXNFromCents(orderDetail.total_cents)}
                         </span>
-                      </div>
+                    </div>
                     )}
                   </div>
                 </div>
@@ -837,10 +960,10 @@ export default function PedidosPage() {
                 );
               })()}
             </div>
-          </div>
-        )}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
   );
 }
 
