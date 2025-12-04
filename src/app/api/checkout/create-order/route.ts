@@ -300,6 +300,7 @@ export async function POST(req: NextRequest) {
         shipping_rate_ext_id: shippingRateExtId,
         shipping_eta_min_days: shippingEtaMinDays,
         shipping_eta_max_days: shippingEtaMaxDays,
+        shipping_status: "pending", // Estado por defecto: pendiente de envío
       })
       .select("id, total_cents")
       .single();

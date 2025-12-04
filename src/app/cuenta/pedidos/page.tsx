@@ -9,6 +9,7 @@ import type {
   OrderDetail,
 } from "@/lib/supabase/orders.server";
 import AccountSectionHeader from "@/components/account/AccountSectionHeader";
+import { getShippingStatusLabel } from "@/lib/orders/shippingStatus";
 
 export default function PedidosPage() {
   const [email, setEmail] = useState("");
@@ -772,6 +773,30 @@ export default function PedidosPage() {
                       </div>
                     )}
 
+                    {/* Estado del envío */}
+                    <div>
+                      <p className="text-sm text-gray-600">Estado del envío</p>
+                      <p className="font-medium">
+                        {(() => {
+                          const status = orderDetail.shipping_status;
+                          const label = getShippingStatusLabel(status);
+                          
+                          // Mensajes contextuales según el estado
+                          if (status === "created" && orderDetail.shipping_tracking_number) {
+                            return `${label} (en preparación)`;
+                          }
+                          if (status === "ready_for_pickup") {
+                            return label;
+                          }
+                          if (status === "delivered") {
+                            return label;
+                          }
+                          
+                          return label;
+                        })()}
+                      </p>
+                    </div>
+
                     {/* Tracking */}
                     {orderDetail.shipping_tracking_number ? (
                       <div className="space-y-2">
@@ -810,7 +835,11 @@ export default function PedidosPage() {
                     ) : (
                       <div>
                         <p className="text-sm text-gray-500 italic">
-                          La guía de envío aún no se ha generado. Si ya realizaste el pago, se generará en cuanto preparemos tu pedido.
+                          {orderDetail.shipping_status === "pending" || !orderDetail.shipping_status
+                            ? "La guía de envío aún no se ha generado. Si ya realizaste el pago, se generará en cuanto preparemos tu pedido."
+                            : orderDetail.shipping_status === "created"
+                              ? "La guía de envío ha sido generada y está en preparación."
+                              : "No hay número de guía disponible aún."}
                         </p>
                       </div>
                     )}

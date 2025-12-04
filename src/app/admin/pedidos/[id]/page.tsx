@@ -4,6 +4,8 @@ import { checkAdminAccess } from "@/lib/admin/access";
 import { getOrderWithItemsAdmin } from "@/lib/supabase/orders.server";
 import { formatMXNFromCents } from "@/lib/utils/currency";
 import { createSkydropxLabelAction } from "@/lib/actions/shipping.admin";
+import { getShippingStatusLabel } from "@/lib/orders/shippingStatus";
+import UpdateShippingStatusClient from "./UpdateShippingStatusClient";
 
 export const dynamic = "force-dynamic";
 
@@ -303,12 +305,12 @@ export default async function AdminPedidoDetailPage({
                     </p>
                   </div>
                 )}
-                {order.shipping_status && (
-                  <div>
-                    <p className="text-gray-600">Estado</p>
-                    <p className="font-medium">{order.shipping_status}</p>
-                  </div>
-                )}
+                <div>
+                  <p className="text-gray-600">Estado del envío</p>
+                  <p className="font-medium">
+                    {getShippingStatusLabel(order.shipping_status)}
+                  </p>
+                </div>
                 {order.shipping_tracking_number && (
                   <div>
                     <p className="text-gray-600">Número de guía</p>
@@ -345,6 +347,13 @@ export default async function AdminPedidoDetailPage({
                     </button>
                   </form>
                 )}
+
+              {/* Controles para cambiar estado de envío */}
+              <UpdateShippingStatusClient
+                orderId={order.id}
+                currentStatus={order.shipping_status}
+                shippingProvider={order.shipping_provider}
+              />
             </div>
           ) : (
             <p className="text-sm text-gray-500">

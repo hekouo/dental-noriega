@@ -330,6 +330,8 @@ export async function POST(req: NextRequest) {
           shipping_rate_ext_id: shippingRateExtId,
           shipping_eta_min_days: shippingEtaMinDays,
           shipping_eta_max_days: shippingEtaMaxDays,
+          // Mantener shipping_status existente o asignar "pending" si no existe
+          shipping_status: undefined, // No sobrescribir si ya existe
           updated_at: new Date().toISOString(),
         })
         .eq("id", orderData.order_id);

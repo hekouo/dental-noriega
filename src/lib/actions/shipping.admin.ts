@@ -2,6 +2,60 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { createClient } from "@supabase/supabase-js";
+import { checkAdminAccess } from "@/lib/admin/access";
+import type { ShippingStatus } from "@/lib/orders/shippingStatus";
+import { isValidShippingStatus } from "@/lib/orders/shippingStatus";
+
+/**
+ * Actualiza el estado de envío de una orden (solo admin)
+ */
+export async function updateShippingStatusAction(
+  orderId: string,
+  newStatus: ShippingStatus,
+): Promise<{ success: boolean; error?: string }> {
+  // Verificar acceso admin
+  const access = await checkAdminAccess();
+  if (access.status !== "allowed") {
+    return { success: false, error: "Acceso denegado" };
+  }
+
+  // Validar estado
+  if (!isValidShippingStatus(newStatus)) {
+    return { success: false, error: "Estado de envío inválido" };
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    console.error("[updateShippingStatusAction] Configuración de Supabase incompleta");
+    return { success: false, error: "Error de configuración" };
+  }
+
+  const supabase = createClient(supabaseUrl, serviceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+
+  const { error } = await supabase
+    .from("orders")
+    .update({ shipping_status: newStatus })
+    .eq("id", orderId);
+
+  if (error) {
+    console.error("[updateShippingStatusAction] Error al actualizar:", error);
+    return { success: false, error: "No se pudo actualizar el estado de envío" };
+  }
+
+  // Revalidar rutas
+  revalidatePath("/admin/pedidos");
+  revalidatePath(`/admin/pedidos/${orderId}`);
+
+  return { success: true };
+}
 
 /**
  * Crea una guía de envío en Skydropx para una orden
