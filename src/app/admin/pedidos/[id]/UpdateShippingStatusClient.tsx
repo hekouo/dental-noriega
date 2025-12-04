@@ -24,7 +24,7 @@ const ALL_STATUSES: ShippingStatus[] = [
 export default function UpdateShippingStatusClient({
   orderId,
   currentStatus,
-  shippingProvider,
+  shippingProvider: _shippingProvider,
 }: Props) {
   const router = useRouter();
   const [selectedStatus, setSelectedStatus] = useState<ShippingStatus>(
