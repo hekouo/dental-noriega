@@ -29,6 +29,15 @@ export type OrderSummary = {
     loyalty_points_spent?: number | null;
     loyalty_points_balance_after?: number | null;
   } | null;
+  shipping_provider: string | null;
+  shipping_service_name: string | null;
+  shipping_price_cents: number | null;
+  shipping_rate_ext_id: string | null;
+  shipping_eta_min_days: number | null;
+  shipping_eta_max_days: number | null;
+  shipping_tracking_number: string | null;
+  shipping_label_url: string | null;
+  shipping_status: string | null;
 };
 
 export type ShippingInfo = {
@@ -119,7 +128,7 @@ export async function getOrdersByEmail(
 
   const { data, error } = await supabase
     .from("orders")
-    .select("id, created_at, status, email, total_cents, metadata")
+    .select("id, created_at, status, email, total_cents, metadata, shipping_provider, shipping_service_name, shipping_price_cents, shipping_rate_ext_id, shipping_eta_min_days, shipping_eta_max_days, shipping_tracking_number, shipping_label_url, shipping_status")
     .eq("email", normalizedEmail)
     .order("created_at", { ascending: false })
     .limit(limit);
@@ -167,6 +176,15 @@ export async function getOrdersByEmail(
     email: order.email || normalizedEmail || "",
     total_cents: order.total_cents,
     metadata: (order.metadata as OrderSummary["metadata"]) || null,
+    shipping_provider: order.shipping_provider || null,
+    shipping_service_name: order.shipping_service_name || null,
+    shipping_price_cents: order.shipping_price_cents || null,
+    shipping_rate_ext_id: order.shipping_rate_ext_id || null,
+    shipping_eta_min_days: order.shipping_eta_min_days || null,
+    shipping_eta_max_days: order.shipping_eta_max_days || null,
+    shipping_tracking_number: order.shipping_tracking_number || null,
+    shipping_label_url: order.shipping_label_url || null,
+    shipping_status: order.shipping_status || null,
   }));
 }
 
@@ -205,7 +223,7 @@ export async function getOrderWithItems(
     // Buscar orden por id (UNA sola búsqueda)
     const { data: orderData, error } = await supabase
       .from("orders")
-      .select("id, created_at, status, email, total_cents, metadata")
+      .select("id, created_at, status, email, total_cents, metadata, shipping_provider, shipping_service_name, shipping_price_cents, shipping_rate_ext_id, shipping_eta_min_days, shipping_eta_max_days, shipping_tracking_number, shipping_label_url, shipping_status")
       .eq("id", normalizedOrderId)
       .maybeSingle();
 
@@ -278,6 +296,15 @@ export async function getOrderWithItems(
       metadata: (orderData.metadata as OrderSummary["metadata"]) || null,
       items,
       ownedByEmail, // Flag que indica si el email coincide (true/false/null)
+      shipping_provider: orderData.shipping_provider || null,
+      shipping_service_name: orderData.shipping_service_name || null,
+      shipping_price_cents: orderData.shipping_price_cents || null,
+      shipping_rate_ext_id: orderData.shipping_rate_ext_id || null,
+      shipping_eta_min_days: orderData.shipping_eta_min_days || null,
+      shipping_eta_max_days: orderData.shipping_eta_max_days || null,
+      shipping_tracking_number: orderData.shipping_tracking_number || null,
+      shipping_label_url: orderData.shipping_label_url || null,
+      shipping_status: orderData.shipping_status || null,
     };
   } catch (err) {
     console.error("[getOrderWithItems] Error inesperado:", err);
@@ -312,7 +339,7 @@ export async function getAllOrdersAdmin(
   try {
     let query = supabase
       .from("orders")
-      .select("id, created_at, status, email, total_cents, metadata", {
+      .select("id, created_at, status, email, total_cents, metadata, shipping_provider, shipping_service_name, shipping_price_cents, shipping_rate_ext_id, shipping_eta_min_days, shipping_eta_max_days, shipping_tracking_number, shipping_label_url, shipping_status", {
         count: "exact",
       });
 
@@ -369,6 +396,15 @@ export async function getAllOrdersAdmin(
       email: order.email || "",
       total_cents: order.total_cents,
       metadata: (order.metadata as OrderSummary["metadata"]) || null,
+      shipping_provider: order.shipping_provider || null,
+      shipping_service_name: order.shipping_service_name || null,
+      shipping_price_cents: order.shipping_price_cents || null,
+      shipping_rate_ext_id: order.shipping_rate_ext_id || null,
+      shipping_eta_min_days: order.shipping_eta_min_days || null,
+      shipping_eta_max_days: order.shipping_eta_max_days || null,
+      shipping_tracking_number: order.shipping_tracking_number || null,
+      shipping_label_url: order.shipping_label_url || null,
+      shipping_status: order.shipping_status || null,
     }));
 
     return {
@@ -411,7 +447,7 @@ export async function getOrderWithItemsAdmin(
     // Buscar orden por id
     const { data: orderData, error } = await supabase
       .from("orders")
-      .select("id, created_at, status, email, total_cents, metadata")
+      .select("id, created_at, status, email, total_cents, metadata, shipping_provider, shipping_service_name, shipping_price_cents, shipping_rate_ext_id, shipping_eta_min_days, shipping_eta_max_days, shipping_tracking_number, shipping_label_url, shipping_status")
       .eq("id", normalizedOrderId)
       .maybeSingle();
 
@@ -524,6 +560,15 @@ export async function getOrderWithItemsAdmin(
       items,
       ownedByEmail: null, // No aplica en admin
       shipping,
+      shipping_provider: orderData.shipping_provider || null,
+      shipping_service_name: orderData.shipping_service_name || null,
+      shipping_price_cents: orderData.shipping_price_cents || null,
+      shipping_rate_ext_id: orderData.shipping_rate_ext_id || null,
+      shipping_eta_min_days: orderData.shipping_eta_min_days || null,
+      shipping_eta_max_days: orderData.shipping_eta_max_days || null,
+      shipping_tracking_number: orderData.shipping_tracking_number || null,
+      shipping_label_url: orderData.shipping_label_url || null,
+      shipping_status: orderData.shipping_status || null,
     };
   } catch (err) {
     console.error("[getOrderWithItemsAdmin] Error inesperado:", err);

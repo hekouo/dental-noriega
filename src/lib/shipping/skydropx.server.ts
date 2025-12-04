@@ -20,6 +20,7 @@ export type SkydropxRate = {
   etaMinDays: number | null;
   etaMaxDays: number | null;
   externalRateId: string; // id de la tarifa que devuelve Skydropx
+  hasPickup: boolean; // indica si la tarifa tiene pickup disponible
 };
 
 export type SkydropxDestination = {
@@ -284,16 +285,45 @@ export async function getSkydropxRates(
       return [];
     }
 
-    const rates: SkydropxRate[] = ratesArray
+    // Lista blanca de proveedores permitidos
+    const ALLOWED_PROVIDERS = ["fedex", "dhl", "estafeta", "paquetexpress", "coordinadora"];
+    
+    // Normalizar nombre de proveedor para comparación
+    const normalizeProvider = (name: string): string => {
+      return name.toLowerCase().trim();
+    };
+
+    const ratesRaw = ratesArray
       .map((rate: SkydropxQuotationRate, index: number) => {
         try {
-          if (process.env.NODE_ENV !== "production" && index === 0) {
-            console.log("[getSkydropxRates] Ejemplo de tarifa (primera):", JSON.stringify(rate, null, 2));
+          const rateAny = rate as any;
+
+          // Filtro 1: Verificar success (si existe en la respuesta)
+          if (rateAny.success === false) {
+            if (process.env.NODE_ENV !== "production") {
+              console.warn(`[getSkydropxRates] Tarifa ${index} descartada: success=false`, rate);
+            }
+            return null;
+          }
+
+          // Filtro 2: Excluir packaging_type = 'pallet'
+          if (rateAny.packaging_type === "pallet" || rateAny.package_type === "pallet") {
+            if (process.env.NODE_ENV !== "production") {
+              console.warn(`[getSkydropxRates] Tarifa ${index} descartada: packaging_type=pallet`, rate);
+            }
+            return null;
+          }
+
+          // Filtro 3: Excluir status no aplicable o sin cobertura
+          const status = rateAny.status || rateAny.workflow_status;
+          if (status === "not_applicable" || status === "no_coverage" || status === "unavailable") {
+            if (process.env.NODE_ENV !== "production") {
+              console.warn(`[getSkydropxRates] Tarifa ${index} descartada: status=${status}`, rate);
+            }
+            return null;
           }
 
           // Extraer precio: usar campos del tipo SkydropxQuotationRate
-          // - total (número en MXN)
-          // - También soportar formatos legacy
           let totalPrice = 0;
           
           if (rate.total !== undefined && rate.total !== null) {
@@ -301,9 +331,9 @@ export async function getSkydropxRates(
           } else {
             // Fallback a formatos legacy
             const priceFields = [
-              (rate as any).total_price,
-              (rate as any).total_pricing,
-              (rate as any).amount_local,
+              rateAny.total_price,
+              rateAny.total_pricing,
+              rateAny.amount_local,
             ];
             for (const priceField of priceFields) {
               if (priceField !== undefined && priceField !== null) {
@@ -319,7 +349,7 @@ export async function getSkydropxRates(
           // Normalizar precio a centavos
           const totalPriceCents = Math.round(totalPrice * 100);
 
-          // Descartar tarifas con precio 0 o inválido
+          // Filtro 4: Descartar tarifas con precio 0 o inválido
           if (totalPriceCents <= 0 || isNaN(totalPriceCents)) {
             if (process.env.NODE_ENV !== "production") {
               console.warn(`[getSkydropxRates] Tarifa ${index} descartada: precio inválido (${totalPriceCents} centavos)`, rate);
@@ -328,19 +358,29 @@ export async function getSkydropxRates(
           }
 
           // Extraer provider: usar provider_name o provider_display_name
-          const provider = 
+          const providerRaw = 
             rate.provider_name || 
             rate.provider_display_name || 
-            (rate as any).provider || 
-            (rate as any).carrier || 
+            rateAny.provider || 
+            rateAny.carrier || 
             "unknown";
+          
+          const provider = normalizeProvider(providerRaw);
+
+          // Filtro 5: Lista blanca de proveedores
+          if (!ALLOWED_PROVIDERS.includes(provider)) {
+            if (process.env.NODE_ENV !== "production") {
+              console.warn(`[getSkydropxRates] Tarifa ${index} descartada: proveedor no permitido (${provider})`, rate);
+            }
+            return null;
+          }
 
           // Extraer service: usar provider_service_name o days
           const service = 
             rate.provider_service_name || 
-            (rate as any).service_level_name ||
-            (rate as any).name || 
-            (rate as any).service || 
+            rateAny.service_level_name ||
+            rateAny.name || 
+            rateAny.service || 
             "Standard";
 
           // Extraer ID
@@ -358,26 +398,18 @@ export async function getSkydropxRates(
             }
           }
 
-          if (process.env.NODE_ENV !== "production" && index === 0) {
-            console.log("[getSkydropxRates] Tarifa parseada:", {
-              provider,
-              service,
-              totalPriceCents,
-              totalPrice,
-              externalRateId,
-              etaMinDays,
-              etaMaxDays,
-            });
-          }
+          // Extraer pickup (preferir tarifas con pickup)
+          const hasPickup = rate.pickup === true || rate.pickup_automatic === true || rateAny.pickup === true;
 
           return {
-            provider,
+            provider: providerRaw, // Mantener nombre original para display
             service,
             totalPriceCents,
             currency: "MXN",
             etaMinDays,
             etaMaxDays,
             externalRateId,
+            hasPickup: hasPickup ?? false, // Agregar flag para ordenamiento
           };
         } catch (err) {
           if (process.env.NODE_ENV !== "production") {
@@ -386,14 +418,85 @@ export async function getSkydropxRates(
           return null;
         }
       })
-      .filter((r: SkydropxRate | null): r is SkydropxRate => r !== null && r.totalPriceCents > 0)
-      .sort((a, b) => a.totalPriceCents - b.totalPriceCents); // Ordenar por precio ASC
+      .filter((r): r is SkydropxRate => r !== null && r.totalPriceCents > 0);
 
     if (process.env.NODE_ENV !== "production") {
-      console.log("[getSkydropxRates] Total de tarifas parseadas:", rates.length);
+      console.log("[getSkydropxRates] Total de tarifas parseadas después de filtros:", ratesRaw.length);
     }
 
-    return rates;
+    // Ordenar: primero por days (ETA) ASC, luego por precio ASC, preferir pickup
+    ratesRaw.sort((a, b) => {
+      // Preferir pickup
+      if (a.hasPickup && !b.hasPickup) return -1;
+      if (!a.hasPickup && b.hasPickup) return 1;
+      
+      // Ordenar por days (ETA) primero
+      const aDays = a.etaMinDays ?? Infinity;
+      const bDays = b.etaMinDays ?? Infinity;
+      if (aDays !== bDays) {
+        return aDays - bDays;
+      }
+      
+      // Si tienen los mismos days, ordenar por precio
+      return a.totalPriceCents - b.totalPriceCents;
+    });
+
+    // Selección curada: fastest, cheapest, recommended
+    const fastestOption = ratesRaw.find((r) => r.etaMinDays !== null) || null;
+    const cheapestOption = ratesRaw.length > 0 ? ratesRaw[0] : null; // Ya está ordenado por precio
+    
+    // Recommended: primera tarifa con days <= 3 y precio dentro del 30% del mínimo
+    const minPrice = cheapestOption?.totalPriceCents ?? 0;
+    const recommendedThreshold = minPrice * 1.3; // 30% más que el mínimo
+    
+    const recommendedOption = ratesRaw.find(
+      (r) => 
+        (r.etaMinDays !== null && r.etaMinDays <= 3) &&
+        r.totalPriceCents <= recommendedThreshold
+    ) || fastestOption || cheapestOption;
+
+    // Construir array final: recommended, fastest, cheapest, y otras razonables (máximo 5)
+    const selectedRates: SkydropxRate[] = [];
+    const seenIds = new Set<string>();
+
+    // Agregar recommended primero (si existe y no está duplicado)
+    if (recommendedOption && !seenIds.has(recommendedOption.externalRateId)) {
+      selectedRates.push(recommendedOption);
+      seenIds.add(recommendedOption.externalRateId);
+    }
+
+    // Agregar fastest (si es diferente de recommended)
+    if (fastestOption && !seenIds.has(fastestOption.externalRateId)) {
+      selectedRates.push(fastestOption);
+      seenIds.add(fastestOption.externalRateId);
+    }
+
+    // Agregar cheapest (si es diferente)
+    if (cheapestOption && !seenIds.has(cheapestOption.externalRateId)) {
+      selectedRates.push(cheapestOption);
+      seenIds.add(cheapestOption.externalRateId);
+    }
+
+    // Agregar otras opciones razonables hasta llegar a 5 máximo
+    for (const rate of ratesRaw) {
+      if (selectedRates.length >= 5) break;
+      if (!seenIds.has(rate.externalRateId)) {
+        selectedRates.push(rate);
+        seenIds.add(rate.externalRateId);
+      }
+    }
+
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[getSkydropxRates] Selección curada:", {
+        total: ratesRaw.length,
+        selected: selectedRates.length,
+        recommended: recommendedOption?.externalRateId,
+        fastest: fastestOption?.externalRateId,
+        cheapest: cheapestOption?.externalRateId,
+      });
+    }
+
+    return selectedRates;
   } catch (error) {
     if (process.env.NODE_ENV !== "production") {
       console.error("[getSkydropxRates] Error inesperado:", error);
