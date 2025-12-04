@@ -261,133 +261,96 @@ export default async function AdminPedidoDetailPage({
           </div>
         )}
 
-        {/* Envío Skydropx */}
+        {/* Datos de envío */}
         <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold mb-3">Envío Skydropx</h2>
-          {(() => {
-            const metadata = (order.metadata || {}) as Record<string, unknown>;
-            const shipping = metadata.shipping as
-              | {
-                  provider?: string;
-                  option_code?: string;
-                  price_cents?: number;
-                  rate?: {
-                    external_id?: string;
-                    provider?: string;
-                    service?: string;
-                    eta_min_days?: number | null;
-                    eta_max_days?: number | null;
-                  };
-                  shipment?: {
-                    id?: string;
-                    tracking_number?: string;
-                    label_url?: string;
-                  };
-                }
-              | undefined;
-
-            // Si existe shipment, mostrar información de guía creada
-            if (shipping?.shipment) {
-              return (
-                <div className="space-y-3">
-                  <div className="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-800">
-                    Guía creada
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <p className="text-gray-600">Proveedor</p>
-                      <p className="font-medium">Skydropx</p>
-                    </div>
-                    {shipping.rate?.provider && (
-                      <div>
-                        <p className="text-gray-600">Carrier/Servicio</p>
-                        <p className="font-medium">{shipping.rate.provider}</p>
-                      </div>
-                    )}
-                    {shipping.shipment.tracking_number && (
-                      <div>
-                        <p className="text-gray-600">Tracking Number</p>
-                        <p className="font-medium font-mono">
-                          {shipping.shipment.tracking_number}
-                        </p>
-                      </div>
-                    )}
-                    {shipping.shipment.label_url && (
-                      <div>
-                        <p className="text-gray-600">Guía PDF</p>
-                        <Link
-                          href={shipping.shipment.label_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary-600 hover:text-primary-700 underline"
-                        >
-                          Ver guía PDF
-                        </Link>
-                      </div>
-                    )}
-                  </div>
+          <h2 className="text-lg font-semibold mb-3">Datos de envío</h2>
+          {order.shipping_provider ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-gray-600">Proveedor</p>
+                  <p className="font-medium">
+                    {order.shipping_provider === "pickup"
+                      ? "Recoger en tienda"
+                      : order.shipping_provider === "skydropx"
+                        ? "Skydropx"
+                        : order.shipping_provider}
+                  </p>
                 </div>
-              );
-            }
-
-            // Si hay información de tarifa pero no shipment, mostrar resumen y botón
-            if (shipping?.rate) {
-              return (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <p className="text-gray-600">Proveedor</p>
-                      <p className="font-medium">Skydropx</p>
-                    </div>
-                    {shipping.rate.service && (
-                      <div>
-                        <p className="text-gray-600">Servicio</p>
-                        <p className="font-medium">{shipping.rate.service}</p>
-                      </div>
-                    )}
-                    {typeof shipping.price_cents === "number" && (
-                      <div>
-                        <p className="text-gray-600">Precio</p>
-                        <p className="font-medium">
-                          {formatMXNFromCents(shipping.price_cents)}
-                        </p>
-                      </div>
-                    )}
-                    {(shipping.rate.eta_min_days ||
-                      shipping.rate.eta_max_days) && (
-                      <div>
-                        <p className="text-gray-600">Tiempo estimado</p>
-                        <p className="font-medium">
-                          {shipping.rate.eta_min_days &&
-                          shipping.rate.eta_max_days
-                            ? `${shipping.rate.eta_min_days}-${shipping.rate.eta_max_days} días`
-                            : shipping.rate.eta_min_days
-                              ? `${shipping.rate.eta_min_days}+ días`
-                              : ""}
-                        </p>
-                      </div>
-                    )}
+                {order.shipping_service_name && (
+                  <div>
+                    <p className="text-gray-600">Servicio</p>
+                    <p className="font-medium">{order.shipping_service_name}</p>
                   </div>
+                )}
+                {order.shipping_price_cents !== null && (
+                  <div>
+                    <p className="text-gray-600">Precio</p>
+                    <p className="font-medium">
+                      {formatMXNFromCents(order.shipping_price_cents)}
+                    </p>
+                  </div>
+                )}
+                {(order.shipping_eta_min_days || order.shipping_eta_max_days) && (
+                  <div>
+                    <p className="text-gray-600">Tiempo estimado</p>
+                    <p className="font-medium">
+                      {order.shipping_eta_min_days && order.shipping_eta_max_days
+                        ? `${order.shipping_eta_min_days}-${order.shipping_eta_max_days} días`
+                        : order.shipping_eta_min_days
+                          ? `${order.shipping_eta_min_days}+ días`
+                          : ""}
+                    </p>
+                  </div>
+                )}
+                {order.shipping_status && (
+                  <div>
+                    <p className="text-gray-600">Estado</p>
+                    <p className="font-medium">{order.shipping_status}</p>
+                  </div>
+                )}
+                {order.shipping_tracking_number && (
+                  <div>
+                    <p className="text-gray-600">Número de guía</p>
+                    <p className="font-medium font-mono">
+                      {order.shipping_tracking_number}
+                    </p>
+                  </div>
+                )}
+                {order.shipping_label_url && (
+                  <div>
+                    <p className="text-gray-600">Etiqueta PDF</p>
+                    <Link
+                      href={order.shipping_label_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary-600 hover:text-primary-700 underline"
+                    >
+                      Ver etiqueta PDF
+                    </Link>
+                  </div>
+                )}
+              </div>
+
+              {/* Botón para crear guía si es Skydropx y no tiene tracking */}
+              {order.shipping_provider === "skydropx" &&
+                order.shipping_rate_ext_id &&
+                !order.shipping_tracking_number && (
                   <form action={createSkydropxLabelAction.bind(null, order.id)}>
                     <button
                       type="submit"
                       className="mt-4 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium"
                     >
-                      Crear guía Skydropx
+                      Crear guía en Skydropx
                     </button>
                   </form>
-                </div>
-              );
-            }
-
-            // Si no hay información de shipping
-            return (
-              <p className="text-sm text-gray-500">
-                Esta orden no tiene información de envío calculada. Revisa el
-                checkout.
-              </p>
-            );
-          })()}
+                )}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500">
+              Esta orden no tiene información de envío. Revisa el checkout.
+            </p>
+          )}
         </div>
 
         {/* Productos */}
