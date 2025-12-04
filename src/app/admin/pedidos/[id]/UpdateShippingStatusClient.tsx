@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 type Props = {
   orderId: string;
   currentStatus: string | null;
-  shippingProvider: string | null;
+  shippingProvider?: string | null;
 };
 
 const ALL_STATUSES: ShippingStatus[] = [

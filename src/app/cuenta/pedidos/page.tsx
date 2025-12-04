@@ -9,7 +9,7 @@ import type {
   OrderDetail,
 } from "@/lib/supabase/orders.server";
 import AccountSectionHeader from "@/components/account/AccountSectionHeader";
-import { mapStatusToLabel, mapStatusToDescription } from "@/lib/orders/shippingStatus";
+import { mapStatusToDescription } from "@/lib/orders/shippingStatus";
 
 export default function PedidosPage() {
   const [email, setEmail] = useState("");

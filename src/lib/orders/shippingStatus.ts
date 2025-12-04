@@ -66,16 +66,15 @@ export function mapStatusToBadgeVariant(
 
 /**
  * Mapea un estado de envío a una descripción amigable para el cliente
+ * Por ahora es igual a mapStatusToLabel, pero puede extenderse en el futuro
  * @param status - Estado de envío (puede ser null o string no válido)
  * @returns Descripción en español o "Pendiente" como fallback
  */
 export function mapStatusToDescription(
   status: string | null | undefined,
 ): string {
-  if (!status || !isValidShippingStatus(status)) {
-    return SHIPPING_STATUS_LABELS.pending;
-  }
-  return SHIPPING_STATUS_LABELS[status];
+  // Reutilizar mapStatusToLabel para evitar duplicación
+  return mapStatusToLabel(status);
 }
 
 // Aliases para compatibilidad con código existente
