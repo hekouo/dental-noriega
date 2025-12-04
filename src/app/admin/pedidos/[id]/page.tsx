@@ -4,6 +4,8 @@ import { checkAdminAccess } from "@/lib/admin/access";
 import { getOrderWithItemsAdmin } from "@/lib/supabase/orders.server";
 import { formatMXNFromCents } from "@/lib/utils/currency";
 import { createSkydropxLabelAction } from "@/lib/actions/shipping.admin";
+import { getShippingStatusLabel, getShippingStatusVariant } from "@/lib/orders/shippingStatus";
+import UpdateShippingStatusClient from "./UpdateShippingStatusClient";
 
 export const dynamic = "force-dynamic";
 
@@ -303,12 +305,30 @@ export default async function AdminPedidoDetailPage({
                     </p>
                   </div>
                 )}
-                {order.shipping_status && (
-                  <div>
-                    <p className="text-gray-600">Estado</p>
-                    <p className="font-medium">{order.shipping_status}</p>
-                  </div>
-                )}
+                <div>
+                  <p className="text-gray-600">Estado del envío</p>
+                  <span
+                    className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                      (() => {
+                        const variant = getShippingStatusVariant(order.shipping_status);
+                        switch (variant) {
+                          case "success":
+                            return "bg-green-100 text-green-700";
+                          case "warning":
+                            return "bg-yellow-100 text-yellow-700";
+                          case "info":
+                            return "bg-blue-100 text-blue-700";
+                          case "destructive":
+                            return "bg-red-100 text-red-700";
+                          default:
+                            return "bg-gray-100 text-gray-700";
+                        }
+                      })()
+                    }`}
+                  >
+                    {getShippingStatusLabel(order.shipping_status)}
+                  </span>
+                </div>
                 {order.shipping_tracking_number && (
                   <div>
                     <p className="text-gray-600">Número de guía</p>
@@ -345,6 +365,13 @@ export default async function AdminPedidoDetailPage({
                     </button>
                   </form>
                 )}
+
+              {/* Controles para actualizar estado de envío */}
+              <UpdateShippingStatusClient
+                orderId={order.id}
+                currentStatus={order.shipping_status}
+                shippingProvider={order.shipping_provider}
+              />
             </div>
           ) : (
             <p className="text-sm text-gray-500">

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { formatMXNFromCents } from "@/lib/utils/currency";
 import type { OrderSummary } from "@/lib/supabase/orders.server";
+import { getShippingStatusLabel, getShippingStatusVariant } from "@/lib/orders/shippingStatus";
 
 type Props = {
   orders: OrderSummary[];
@@ -207,6 +208,9 @@ export default function AdminPedidosClient({
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                   Envío
                 </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                  Estado envío
+                </th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-700 uppercase tracking-wider">
                   Total
                 </th>
@@ -218,7 +222,7 @@ export default function AdminPedidosClient({
             <tbody className="bg-white divide-y divide-gray-200">
               {orders.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
                     No se encontraron pedidos con los filtros aplicados
                   </td>
                 </tr>
@@ -270,6 +274,29 @@ export default function AdminPedidosClient({
                       ) : (
                         <span className="text-gray-400">N/A</span>
                       )}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span
+                        className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                          (() => {
+                            const variant = getShippingStatusVariant(order.shipping_status);
+                            switch (variant) {
+                              case "success":
+                                return "bg-green-100 text-green-700";
+                              case "warning":
+                                return "bg-yellow-100 text-yellow-700";
+                              case "info":
+                                return "bg-blue-100 text-blue-700";
+                              case "destructive":
+                                return "bg-red-100 text-red-700";
+                              default:
+                                return "bg-gray-100 text-gray-700";
+                            }
+                          })()
+                        }`}
+                      >
+                        {getShippingStatusLabel(order.shipping_status)}
+                      </span>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-right">
                       {order.total_cents !== null

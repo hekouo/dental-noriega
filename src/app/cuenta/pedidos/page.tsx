@@ -9,6 +9,7 @@ import type {
   OrderDetail,
 } from "@/lib/supabase/orders.server";
 import AccountSectionHeader from "@/components/account/AccountSectionHeader";
+import { getShippingStatusLabel } from "@/lib/orders/shippingStatus";
 
 export default function PedidosPage() {
   const [email, setEmail] = useState("");
@@ -772,6 +773,32 @@ export default function PedidosPage() {
                       </div>
                     )}
 
+                    {/* Estado del envío */}
+                    <div>
+                      <p className="text-sm text-gray-600">Estado del envío</p>
+                      <p className="font-medium">
+                        {(() => {
+                          const status = orderDetail.shipping_status;
+                          const statusLabel = getShippingStatusLabel(status);
+                          
+                          // Mensajes contextuales según el estado
+                          if (status === "created" && orderDetail.shipping_tracking_number) {
+                            return `${statusLabel} (en preparación)`;
+                          }
+                          if (status === "ready_for_pickup") {
+                            return statusLabel;
+                          }
+                          if (status === "delivered") {
+                            return statusLabel;
+                          }
+                          if (status === "in_transit") {
+                            return statusLabel;
+                          }
+                          return statusLabel;
+                        })()}
+                      </p>
+                    </div>
+
                     {/* Tracking */}
                     {orderDetail.shipping_tracking_number ? (
                       <div className="space-y-2">
@@ -807,13 +834,13 @@ export default function PedidosPage() {
                           </div>
                         )}
                       </div>
-                    ) : (
+                    ) : orderDetail.shipping_status !== "delivered" && orderDetail.shipping_status !== "canceled" ? (
                       <div>
                         <p className="text-sm text-gray-500 italic">
                           La guía de envío aún no se ha generado. Si ya realizaste el pago, se generará en cuanto preparemos tu pedido.
                         </p>
                       </div>
-                    )}
+                    ) : null}
                   </div>
                 </div>
               )}
