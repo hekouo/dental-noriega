@@ -3,6 +3,7 @@
  */
 
 import type { ShippingStatus } from "@/lib/orders/shippingStatus";
+import { escapeHtml } from "@/lib/utils/escapeHtml";
 
 export type ShippingEmailContext = {
   status: ShippingStatus;
@@ -44,23 +45,30 @@ export function buildShippingEmail(
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3002";
   const ordersUrl = `${siteUrl}/cuenta/pedidos`;
 
+  // Escapar datos externos para HTML
+  const safeCustomerName = customerName ? escapeHtml(customerName) : null;
+  const safeShippingProvider = shippingProvider ? escapeHtml(shippingProvider) : null;
+  const safeShippingServiceName = shippingServiceName ? escapeHtml(shippingServiceName) : null;
+  const safeTrackingNumber = trackingNumber ? escapeHtml(trackingNumber) : null;
+  const safeOrderIdShort = escapeHtml(orderId.slice(0, 8));
+
   // Construir nombre de saludo
-  const greeting = customerName ? `Hola ${customerName},` : "Hola,";
+  const greeting = safeCustomerName ? `Hola ${safeCustomerName},` : "Hola,";
 
   // Construir información de envío
   let shippingInfo = "";
   if (shippingProvider === "pickup") {
     shippingInfo = "Recoger en tienda";
-  } else if (shippingProvider && shippingServiceName) {
-    shippingInfo = `${shippingServiceName} (${shippingProvider})`;
-  } else if (shippingProvider) {
-    shippingInfo = shippingProvider;
+  } else if (safeShippingProvider && safeShippingServiceName) {
+    shippingInfo = `${safeShippingServiceName} (${safeShippingProvider})`;
+  } else if (safeShippingProvider) {
+    shippingInfo = safeShippingProvider;
   }
 
   // Construir tracking info si existe
   let trackingInfo = "";
-  if (trackingNumber) {
-    trackingInfo = `<p><strong>Número de guía:</strong> <code style="background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-family: monospace;">${trackingNumber}</code></p>`;
+  if (safeTrackingNumber) {
+    trackingInfo = `<p><strong>Número de guía:</strong> <code style="background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-family: monospace;">${safeTrackingNumber}</code></p>`;
   }
 
   // Templates según el estado
@@ -71,7 +79,7 @@ export function buildShippingEmail(
     case "ready_for_pickup": {
       subject = "Tu pedido está listo para recoger";
       bodyContent = `
-        <p>Tu pedido <strong>#${orderId.slice(0, 8)}</strong> está listo para recoger en tienda.</p>
+        <p>Tu pedido <strong>#${safeOrderIdShort}</strong> está listo para recoger en tienda.</p>
         ${shippingInfo ? `<p><strong>Método de envío:</strong> ${shippingInfo}</p>` : ""}
         <p>Puedes pasar a recogerlo en nuestro horario de atención.</p>
       `;
@@ -80,7 +88,7 @@ export function buildShippingEmail(
     case "in_transit": {
       subject = "Tu pedido va en camino";
       bodyContent = `
-        <p>Tu pedido <strong>#${orderId.slice(0, 8)}</strong> ya está en camino.</p>
+        <p>Tu pedido <strong>#${safeOrderIdShort}</strong> ya está en camino.</p>
         ${shippingInfo ? `<p><strong>Paquetería:</strong> ${shippingInfo}</p>` : ""}
         ${trackingInfo}
         <p>Puedes rastrear tu envío usando el número de guía proporcionado.</p>
@@ -90,7 +98,7 @@ export function buildShippingEmail(
     case "delivered": {
       subject = "Tu pedido ha sido entregado";
       bodyContent = `
-        <p>¡Excelente noticia! Tu pedido <strong>#${orderId.slice(0, 8)}</strong> ha sido entregado.</p>
+        <p>¡Excelente noticia! Tu pedido <strong>#${safeOrderIdShort}</strong> ha sido entregado.</p>
         ${shippingInfo ? `<p><strong>Paquetería:</strong> ${shippingInfo}</p>` : ""}
         ${trackingInfo}
         <p>Esperamos que disfrutes tu compra. Si tienes alguna pregunta, no dudes en contactarnos.</p>
@@ -100,7 +108,7 @@ export function buildShippingEmail(
     case "created": {
       subject = "Tu envío ha sido generado";
       bodyContent = `
-        <p>Tu pedido <strong>#${orderId.slice(0, 8)}</strong> está siendo preparado para envío.</p>
+        <p>Tu pedido <strong>#${safeOrderIdShort}</strong> está siendo preparado para envío.</p>
         ${shippingInfo ? `<p><strong>Paquetería:</strong> ${shippingInfo}</p>` : ""}
         ${trackingInfo}
         <p>Te notificaremos cuando tu pedido esté en camino.</p>
@@ -110,6 +118,9 @@ export function buildShippingEmail(
     default:
       return null;
   }
+
+  // Escapar subject para HTML (aunque normalmente no debería tener HTML, por seguridad)
+  const safeSubject = escapeHtml(subject);
 
   // Construir HTML completo
   const html = `
@@ -121,12 +132,12 @@ export function buildShippingEmail(
       </head>
       <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="background: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 24px;">
-          <h1 style="color: #1f2937; margin-top: 0;">${subject}</h1>
+          <h1 style="color: #1f2937; margin-top: 0;">${safeSubject}</h1>
           <p>${greeting}</p>
           ${bodyContent}
           <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;">
           <p style="font-size: 14px; color: #6b7280;">
-            <a href="${ordersUrl}" style="color: #2563eb; text-decoration: none;">Ver detalles de tu pedido →</a>
+            <a href="${escapeHtml(ordersUrl)}" style="color: #2563eb; text-decoration: none;">Ver detalles de tu pedido →</a>
           </p>
           <p style="font-size: 12px; color: #9ca3af; margin-top: 24px;">
             Este es un correo automático. Por favor, no respondas a este mensaje.

@@ -31,13 +31,11 @@ export async function sendTransactionalEmail(
   const enabled = process.env.EMAIL_ENABLED === "true";
 
   // Si no está habilitado o faltan configuraciones, solo loguear y retornar
+  // No loguear el HTML completo para evitar log injection
   if (!enabled || !apiKey || !from) {
-    console.warn("[email] disabled, would send:", {
+    console.warn("[email] disabled, would send transactional email", {
       to: input.to,
       subject: input.subject,
-      enabled,
-      hasApiKey: !!apiKey,
-      hasFrom: !!from,
     });
     return { ok: false, reason: "disabled" };
   }

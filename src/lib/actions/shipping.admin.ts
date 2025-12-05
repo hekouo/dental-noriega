@@ -54,7 +54,12 @@ export async function createSkydropxLabelAction(
 
     redirect(`/admin/pedidos/${orderId}?success=skydropx_label_created`);
   } catch (error) {
-    console.error("[createSkydropxLabelAction] Error inesperado:", error);
+    console.error("[createSkydropxLabelAction] Error inesperado", {
+      orderId,
+      error: error instanceof Error
+        ? { name: error.name, message: error.message }
+        : String(error),
+    });
     redirect(`/admin/pedidos/${orderId}?error=error_desconocido`);
   }
 }
@@ -160,20 +165,27 @@ export async function updateShippingStatusAdmin(
           if (emailResult.ok) {
             // Actualizar last_notified_shipping_status solo si el email se envió exitosamente
             updateData.last_notified_shipping_status = newStatus;
-            console.log(`[updateShippingStatusAdmin] Notificación enviada para orden ${orderId}, estado: ${newStatus}`);
+            console.log("[updateShippingStatusAdmin] Notificación enviada", {
+              orderId: order.id,
+              newStatus,
+            });
           } else {
-            console.warn(
-              `[updateShippingStatusAdmin] Email no enviado para orden ${orderId}:`,
-              emailResult.reason,
-            );
+            console.warn("[updateShippingStatusAdmin] Email no enviado", {
+              orderId: order.id,
+              newStatus,
+              reason: emailResult.reason,
+            });
           }
         }
       } catch (emailError) {
         // No romper el flujo si falla el email
-        console.error(
-          "[updateShippingStatusAdmin] Error al enviar notificación:",
-          emailError,
-        );
+        console.error("[updateShippingStatusAdmin] Error al enviar notificación", {
+          orderId: order.id,
+          newStatus,
+          error: emailError instanceof Error
+            ? { name: emailError.name, message: emailError.message }
+            : String(emailError),
+        });
       }
     }
 
@@ -184,7 +196,13 @@ export async function updateShippingStatusAdmin(
       .eq("id", orderId);
 
     if (updateError) {
-      console.error("[updateShippingStatusAdmin] Error al actualizar:", updateError);
+      console.error("[updateShippingStatusAdmin] Error al actualizar", {
+        orderId,
+        newStatus,
+        error: updateError instanceof Error
+          ? { name: updateError.name, message: updateError.message, code: updateError.code }
+          : String(updateError),
+      });
       return {
         success: false,
         error: "No se pudo actualizar el estado de envío",
@@ -197,7 +215,13 @@ export async function updateShippingStatusAdmin(
 
     return { success: true };
   } catch (error) {
-    console.error("[updateShippingStatusAdmin] Error inesperado:", error);
+    console.error("[updateShippingStatusAdmin] Error inesperado", {
+      orderId,
+      newStatus,
+      error: error instanceof Error
+        ? { name: error.name, message: error.message }
+        : String(error),
+    });
     return {
       success: false,
       error: "Error inesperado al actualizar el estado",
