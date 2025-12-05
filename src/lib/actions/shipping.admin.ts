@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import type { ShippingStatus } from "@/lib/orders/shippingStatus";
+import { buildShippingEmail } from "@/lib/notifications/shipping";
+import { sendTransactionalEmail } from "@/lib/notifications/email";
 
 /**
  * Crea una guía de envío en Skydropx para una orden
@@ -52,7 +54,16 @@ export async function createSkydropxLabelAction(
 
     redirect(`/admin/pedidos/${orderId}?success=skydropx_label_created`);
   } catch (error) {
-    console.error("[createSkydropxLabelAction] Error inesperado:", error);
+    console.error(
+      "[createSkydropxLabelAction] Error inesperado",
+      {
+        orderId,
+        error:
+          error instanceof Error
+            ? { name: error.name, message: error.message }
+            : String(error),
+      },
+    );
     redirect(`/admin/pedidos/${orderId}?error=error_desconocido`);
   }
 }
@@ -103,10 +114,12 @@ export async function updateShippingStatusAdmin(
       },
     });
 
-    // Verificar que la orden existe
+    // Obtener la orden con todos los campos necesarios para notificaciones
     const { data: order, error: fetchError } = await supabase
       .from("orders")
-      .select("id")
+      .select(
+        "id, email, contact_email, contact_name, metadata, shipping_provider, shipping_service_name, shipping_tracking_number, shipping_status, last_notified_shipping_status",
+      )
       .eq("id", orderId)
       .single();
 
@@ -117,14 +130,98 @@ export async function updateShippingStatusAdmin(
       };
     }
 
+    // Obtener email del cliente (prioridad: contact_email > email > metadata.contact_email)
+    const customerEmail = order.contact_email || order.email || (order.metadata as { contact_email?: string } | null)?.contact_email || null;
+    const customerName = order.contact_name || (order.metadata as { contact_name?: string } | null)?.contact_name || null;
+
+    // Verificar idempotencia: solo notificar si el estado cambió
+    const shouldNotify =
+      order.shipping_status !== newStatus &&
+      order.last_notified_shipping_status !== newStatus;
+
     // Actualizar el estado
+    const updateData: { shipping_status: ShippingStatus; updated_at?: string; last_notified_shipping_status?: ShippingStatus } = {
+      shipping_status: newStatus,
+      updated_at: new Date().toISOString(),
+    };
+
+    // Intentar enviar notificación (no bloquea si falla)
+    if (shouldNotify && customerEmail) {
+      try {
+        const emailContent = buildShippingEmail({
+          status: newStatus,
+          orderId: order.id,
+          customerEmail,
+          customerName,
+          shippingProvider: order.shipping_provider || null,
+          shippingServiceName: order.shipping_service_name || null,
+          trackingNumber: order.shipping_tracking_number || null,
+        });
+
+        if (emailContent) {
+          const emailResult = await sendTransactionalEmail({
+            to: customerEmail,
+            subject: emailContent.subject,
+            html: emailContent.html,
+            text: emailContent.text,
+          });
+
+          if (emailResult.ok) {
+            // Actualizar last_notified_shipping_status solo si el email se envió exitosamente
+            updateData.last_notified_shipping_status = newStatus;
+            console.log(
+              "[updateShippingStatusAdmin] Notificación enviada exitosamente",
+              {
+                orderId,
+                newStatus,
+              },
+            );
+          } else {
+            console.warn(
+              "[updateShippingStatusAdmin] Email no enviado",
+              {
+                orderId,
+                newStatus,
+                reason: emailResult.reason,
+                error: emailResult.error,
+              },
+            );
+          }
+        }
+      } catch (emailError) {
+        // No romper el flujo si falla el email
+        console.error(
+          "[updateShippingStatusAdmin] Error al enviar notificación",
+          {
+            orderId,
+            newStatus,
+            error:
+              emailError instanceof Error
+                ? { name: emailError.name, message: emailError.message }
+                : String(emailError),
+          },
+        );
+      }
+    }
+
+    // Actualizar el estado en la base de datos
     const { error: updateError } = await supabase
       .from("orders")
-      .update({ shipping_status: newStatus })
+      .update(updateData)
       .eq("id", orderId);
 
     if (updateError) {
-      console.error("[updateShippingStatusAdmin] Error al actualizar:", updateError);
+      console.error(
+        "[updateShippingStatusAdmin] Error al actualizar estado en base de datos",
+        {
+          orderId,
+          newStatus,
+          error:
+            updateError instanceof Error
+              ? { name: updateError.name, message: updateError.message }
+              : String(updateError),
+        },
+      );
       return {
         success: false,
         error: "No se pudo actualizar el estado de envío",
@@ -137,7 +234,17 @@ export async function updateShippingStatusAdmin(
 
     return { success: true };
   } catch (error) {
-    console.error("[updateShippingStatusAdmin] Error inesperado:", error);
+    console.error(
+      "[updateShippingStatusAdmin] Error inesperado",
+      {
+        orderId,
+        newStatus,
+        error:
+          error instanceof Error
+            ? { name: error.name, message: error.message }
+            : String(error),
+      },
+    );
     return {
       success: false,
       error: "Error inesperado al actualizar el estado",
