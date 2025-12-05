@@ -159,7 +159,6 @@ export async function updateShippingStatusAdmin(
           });
 
           if (emailResult.ok) {
-            notificationSent = true;
             // Actualizar last_notified_shipping_status solo si el email se envió exitosamente
             updateData.last_notified_shipping_status = newStatus;
             console.log(`[updateShippingStatusAdmin] Notificación enviada para orden ${orderId}, estado: ${newStatus}`);
