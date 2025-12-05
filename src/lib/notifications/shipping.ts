@@ -1,9 +1,8 @@
 /**
- * Plantillas de correo para notificaciones de envío
+ * Helper para construir plantillas de correo de notificaciones de envío
  */
 
 import type { ShippingStatus } from "@/lib/orders/shippingStatus";
-import { SITE } from "@/lib/site";
 
 export type ShippingEmailContext = {
   status: ShippingStatus;
@@ -16,135 +15,138 @@ export type ShippingEmailContext = {
 };
 
 /**
- * Construye el contenido del correo de notificación de envío
- * Devuelve null si el estado no requiere notificación
+ * Construye el contenido de un correo de notificación de envío
+ * 
+ * Solo genera correos para estos estados:
+ * - ready_for_pickup
+ * - in_transit
+ * - delivered
+ * - created (opcional)
+ * 
+ * Para otros estados, devuelve null
  */
 export function buildShippingEmail(
   ctx: ShippingEmailContext,
 ): { subject: string; html: string; text: string } | null {
-  // Solo notificar para estos estados
-  const notifiableStatuses: ShippingStatus[] = [
-    "ready_for_pickup",
-    "in_transit",
-    "delivered",
-    "created",
-  ];
+  const { status, orderId, customerName, shippingProvider, shippingServiceName, trackingNumber } = ctx;
 
-  if (!notifiableStatuses.includes(ctx.status)) {
+  // Solo generar correos para estados específicos
+  if (
+    status !== "ready_for_pickup" &&
+    status !== "in_transit" &&
+    status !== "delivered" &&
+    status !== "created"
+  ) {
     return null;
   }
 
-  const baseUrl = SITE.url;
-  const orderUrl = `${baseUrl}/cuenta/pedidos`;
-  const customerName = ctx.customerName || "Cliente";
-  const orderRef = ctx.orderId.substring(0, 8).toUpperCase();
+  // Obtener URL base del sitio
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3002";
+  const ordersUrl = `${siteUrl}/cuenta/pedidos`;
 
-  // Construir subject y mensaje según el estado
-  let subject: string;
-  let statusMessage: string;
-  let actionMessage: string;
+  // Construir nombre de saludo
+  const greeting = customerName ? `Hola ${customerName},` : "Hola,";
 
-  switch (ctx.status) {
-    case "ready_for_pickup":
+  // Construir información de envío
+  let shippingInfo = "";
+  if (shippingProvider === "pickup") {
+    shippingInfo = "Recoger en tienda";
+  } else if (shippingProvider && shippingServiceName) {
+    shippingInfo = `${shippingServiceName} (${shippingProvider})`;
+  } else if (shippingProvider) {
+    shippingInfo = shippingProvider;
+  }
+
+  // Construir tracking info si existe
+  let trackingInfo = "";
+  if (trackingNumber) {
+    trackingInfo = `<p><strong>Número de guía:</strong> <code style="background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-family: monospace;">${trackingNumber}</code></p>`;
+  }
+
+  // Templates según el estado
+  let subject = "";
+  let bodyContent = "";
+
+  switch (status) {
+    case "ready_for_pickup": {
       subject = "Tu pedido está listo para recoger";
-      statusMessage = "Tu pedido está listo para recoger en tienda";
-      actionMessage =
-        "Puedes pasar a recogerlo en nuestras instalaciones durante nuestro horario de atención.";
+      bodyContent = `
+        <p>Tu pedido <strong>#${orderId.slice(0, 8)}</strong> está listo para recoger en tienda.</p>
+        ${shippingInfo ? `<p><strong>Método de envío:</strong> ${shippingInfo}</p>` : ""}
+        <p>Puedes pasar a recogerlo en nuestro horario de atención.</p>
+      `;
       break;
-    case "in_transit":
+    }
+    case "in_transit": {
       subject = "Tu pedido va en camino";
-      statusMessage = "Tu pedido ha sido enviado y está en camino";
-      actionMessage =
-        "Te notificaremos cuando haya sido entregado. Puedes rastrear tu envío usando el número de guía.";
+      bodyContent = `
+        <p>Tu pedido <strong>#${orderId.slice(0, 8)}</strong> ya está en camino.</p>
+        ${shippingInfo ? `<p><strong>Paquetería:</strong> ${shippingInfo}</p>` : ""}
+        ${trackingInfo}
+        <p>Puedes rastrear tu envío usando el número de guía proporcionado.</p>
+      `;
       break;
-    case "delivered":
+    }
+    case "delivered": {
       subject = "Tu pedido ha sido entregado";
-      statusMessage = "Tu pedido ha sido entregado exitosamente";
-      actionMessage =
-        "Esperamos que estés satisfecho con tu compra. Si tienes alguna pregunta, no dudes en contactarnos.";
+      bodyContent = `
+        <p>¡Excelente noticia! Tu pedido <strong>#${orderId.slice(0, 8)}</strong> ha sido entregado.</p>
+        ${shippingInfo ? `<p><strong>Paquetería:</strong> ${shippingInfo}</p>` : ""}
+        ${trackingInfo}
+        <p>Esperamos que disfrutes tu compra. Si tienes alguna pregunta, no dudes en contactarnos.</p>
+      `;
       break;
-    case "created":
+    }
+    case "created": {
       subject = "Tu envío ha sido generado";
-      statusMessage = "La guía de envío de tu pedido ha sido generada";
-      actionMessage =
-        "Tu pedido está siendo preparado para envío. Te notificaremos cuando esté en camino.";
+      bodyContent = `
+        <p>Tu pedido <strong>#${orderId.slice(0, 8)}</strong> está siendo preparado para envío.</p>
+        ${shippingInfo ? `<p><strong>Paquetería:</strong> ${shippingInfo}</p>` : ""}
+        ${trackingInfo}
+        <p>Te notificaremos cuando tu pedido esté en camino.</p>
+      `;
       break;
+    }
     default:
       return null;
   }
 
-  // Información de envío
-  const shippingInfo: string[] = [];
-  if (ctx.shippingProvider && ctx.shippingProvider !== "pickup") {
-    const providerName =
-      ctx.shippingProvider === "skydropx"
-        ? ctx.shippingServiceName || "Skydropx"
-        : ctx.shippingProvider;
-    shippingInfo.push(`Proveedor: ${providerName}`);
-  }
-  if (ctx.trackingNumber) {
-    shippingInfo.push(`Número de guía: ${ctx.trackingNumber}`);
-  }
-
-  // HTML del correo
+  // Construir HTML completo
   const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-    <h1 style="color: #2563eb; margin-top: 0;">${subject}</h1>
-  </div>
-  
-  <p>Hola ${customerName},</p>
-  
-  <p>${statusMessage}.</p>
-  
-  <div style="background-color: #f1f5f9; padding: 15px; border-radius: 6px; margin: 20px 0;">
-    <p style="margin: 0;"><strong>Número de pedido:</strong> ${orderRef}</p>
-    ${shippingInfo.length > 0 ? `<p style="margin: 5px 0 0 0;"><strong>${shippingInfo.join("<br>")}</strong></p>` : ""}
-  </div>
-  
-  <p>${actionMessage}</p>
-  
-  <div style="margin: 30px 0; text-align: center;">
-    <a href="${orderUrl}" style="display: inline-block; background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Ver detalles del pedido</a>
-  </div>
-  
-  <p style="color: #666; font-size: 14px; margin-top: 30px;">
-    Si tienes alguna pregunta, puedes contactarnos en ${SITE.email} o visitar nuestra tienda.
-  </p>
-  
-  <p style="color: #666; font-size: 12px; margin-top: 20px; border-top: 1px solid #e5e7eb; padding-top: 20px;">
-    Este es un correo automático, por favor no respondas a este mensaje.
-  </p>
-</body>
-</html>
-  `.trim();
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      </head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 24px;">
+          <h1 style="color: #1f2937; margin-top: 0;">${subject}</h1>
+          <p>${greeting}</p>
+          ${bodyContent}
+          <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;">
+          <p style="font-size: 14px; color: #6b7280;">
+            <a href="${ordersUrl}" style="color: #2563eb; text-decoration: none;">Ver detalles de tu pedido →</a>
+          </p>
+          <p style="font-size: 12px; color: #9ca3af; margin-top: 24px;">
+            Este es un correo automático. Por favor, no respondas a este mensaje.
+          </p>
+        </div>
+      </body>
+    </html>
+  `;
 
-  // Texto plano
+  // Construir versión texto plano
   const text = `
-${subject}
+${greeting}
 
-Hola ${customerName},
+${bodyContent.replace(/<[^>]*>/g, "").replace(/\n\s+/g, "\n").trim()}
 
-${statusMessage}.
+Ver detalles de tu pedido: ${ordersUrl}
 
-Número de pedido: ${orderRef}
-${shippingInfo.length > 0 ? shippingInfo.join("\n") : ""}
-
-${actionMessage}
-
-Ver detalles del pedido: ${orderUrl}
-
-Si tienes alguna pregunta, puedes contactarnos en ${SITE.email} o visitar nuestra tienda.
-
-Este es un correo automático, por favor no respondas a este mensaje.
+---
+Este es un correo automático. Por favor, no respondas a este mensaje.
   `.trim();
 
   return { subject, html, text };
 }
-

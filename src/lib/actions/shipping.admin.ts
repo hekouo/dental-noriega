@@ -109,7 +109,7 @@ export async function updateShippingStatusAdmin(
     const { data: order, error: fetchError } = await supabase
       .from("orders")
       .select(
-        "id, contact_email, contact_name, shipping_provider, shipping_service_name, shipping_tracking_number, shipping_status, last_notified_shipping_status",
+        "id, email, contact_email, contact_name, metadata, shipping_provider, shipping_service_name, shipping_tracking_number, shipping_status, last_notified_shipping_status",
       )
       .eq("id", orderId)
       .single();
@@ -121,52 +121,48 @@ export async function updateShippingStatusAdmin(
       };
     }
 
+    // Obtener email del cliente (prioridad: contact_email > email > metadata.contact_email)
+    const customerEmail = order.contact_email || order.email || (order.metadata as { contact_email?: string } | null)?.contact_email || null;
+    const customerName = order.contact_name || (order.metadata as { contact_name?: string } | null)?.contact_name || null;
+
     // Verificar idempotencia: solo notificar si el estado cambió
     const shouldNotify =
       order.shipping_status !== newStatus &&
       order.last_notified_shipping_status !== newStatus;
 
     // Actualizar el estado
-    const { error: updateError } = await supabase
-      .from("orders")
-      .update({ shipping_status: newStatus })
-      .eq("id", orderId);
-
-    if (updateError) {
-      console.error("[updateShippingStatusAdmin] Error al actualizar:", updateError);
-      return {
-        success: false,
-        error: "No se pudo actualizar el estado de envío",
-      };
-    }
+    const updateData: { shipping_status: ShippingStatus; updated_at?: string; last_notified_shipping_status?: ShippingStatus } = {
+      shipping_status: newStatus,
+      updated_at: new Date().toISOString(),
+    };
 
     // Intentar enviar notificación (no bloquea si falla)
-    if (shouldNotify && order.contact_email) {
+    let notificationSent = false;
+    if (shouldNotify && customerEmail) {
       try {
         const emailContent = buildShippingEmail({
           status: newStatus,
           orderId: order.id,
-          customerEmail: order.contact_email,
-          customerName: order.contact_name,
-          shippingProvider: order.shipping_provider,
-          shippingServiceName: order.shipping_service_name,
-          trackingNumber: order.shipping_tracking_number,
+          customerEmail,
+          customerName,
+          shippingProvider: order.shipping_provider || null,
+          shippingServiceName: order.shipping_service_name || null,
+          trackingNumber: order.shipping_tracking_number || null,
         });
 
         if (emailContent) {
           const emailResult = await sendTransactionalEmail({
-            to: order.contact_email,
+            to: customerEmail,
             subject: emailContent.subject,
             html: emailContent.html,
             text: emailContent.text,
           });
 
           if (emailResult.ok) {
+            notificationSent = true;
             // Actualizar last_notified_shipping_status solo si el email se envió exitosamente
-            await supabase
-              .from("orders")
-              .update({ last_notified_shipping_status: newStatus })
-              .eq("id", orderId);
+            updateData.last_notified_shipping_status = newStatus;
+            console.log(`[updateShippingStatusAdmin] Notificación enviada para orden ${orderId}, estado: ${newStatus}`);
           } else {
             console.warn(
               `[updateShippingStatusAdmin] Email no enviado para orden ${orderId}:`,
@@ -181,6 +177,20 @@ export async function updateShippingStatusAdmin(
           emailError,
         );
       }
+    }
+
+    // Actualizar el estado en la base de datos
+    const { error: updateError } = await supabase
+      .from("orders")
+      .update(updateData)
+      .eq("id", orderId);
+
+    if (updateError) {
+      console.error("[updateShippingStatusAdmin] Error al actualizar:", updateError);
+      return {
+        success: false,
+        error: "No se pudo actualizar el estado de envío",
+      };
     }
 
     // Revalidar rutas
