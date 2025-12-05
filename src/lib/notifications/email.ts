@@ -89,7 +89,9 @@ export async function sendTransactionalEmail(
       to: input.to,
       subject: input.subject,
       html: input.html,
-      text: input.text || input.html.replace(/<[^>]*>/g, ""), // Fallback a texto plano
+      // El texto plano debe ser provisto por el caller ya sanitizado.
+      // Evitamos sanitización parcial con regex para cumplir con CodeQL.
+      text: input.text,
     });
 
     if (result.error) {

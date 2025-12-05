@@ -65,15 +65,19 @@ export function buildShippingEmail(
     shippingInfo = safeShippingProvider;
   }
 
-  // Construir tracking info si existe
-  let trackingInfo = "";
+  // Construir tracking info si existe (HTML)
+  let trackingInfoHtml = "";
   if (safeTrackingNumber) {
-    trackingInfo = `<p><strong>Número de guía:</strong> <code style="background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-family: monospace;">${safeTrackingNumber}</code></p>`;
+    trackingInfoHtml = `<p><strong>Número de guía:</strong> <code style="background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-family: monospace;">${safeTrackingNumber}</code></p>`;
   }
+
+  // Construir tracking info en texto plano
+  const trackingInfoText = safeTrackingNumber ? `Número de guía: ${safeTrackingNumber}` : "";
 
   // Templates según el estado
   let subject = "";
   let bodyContent = "";
+  let textBody = "";
 
   switch (status) {
     case "ready_for_pickup": {
@@ -83,6 +87,7 @@ export function buildShippingEmail(
         ${shippingInfo ? `<p><strong>Método de envío:</strong> ${shippingInfo}</p>` : ""}
         <p>Puedes pasar a recogerlo en nuestro horario de atención.</p>
       `;
+      textBody = `Tu pedido #${safeOrderId} está listo para recoger en tienda.\n${shippingInfo ? `Método de envío: ${shippingInfo}\n` : ""}Pasa a recogerlo en nuestro horario de atención.`;
       break;
     }
     case "in_transit": {
@@ -90,9 +95,10 @@ export function buildShippingEmail(
       bodyContent = `
         <p>Tu pedido <strong>#${safeOrderId}</strong> ya está en camino.</p>
         ${shippingInfo ? `<p><strong>Paquetería:</strong> ${shippingInfo}</p>` : ""}
-        ${trackingInfo}
+        ${trackingInfoHtml}
         <p>Puedes rastrear tu envío usando el número de guía proporcionado.</p>
       `;
+      textBody = `Tu pedido #${safeOrderId} ya está en camino.\n${shippingInfo ? `Paquetería: ${shippingInfo}\n` : ""}${trackingInfoText ? `${trackingInfoText}\n` : ""}Puedes rastrear tu envío usando el número de guía proporcionado.`;
       break;
     }
     case "delivered": {
@@ -100,9 +106,10 @@ export function buildShippingEmail(
       bodyContent = `
         <p>¡Excelente noticia! Tu pedido <strong>#${safeOrderId}</strong> ha sido entregado.</p>
         ${shippingInfo ? `<p><strong>Paquetería:</strong> ${shippingInfo}</p>` : ""}
-        ${trackingInfo}
+        ${trackingInfoHtml}
         <p>Esperamos que disfrutes tu compra. Si tienes alguna pregunta, no dudes en contactarnos.</p>
       `;
+      textBody = `¡Excelente noticia! Tu pedido #${safeOrderId} ha sido entregado.\n${shippingInfo ? `Paquetería: ${shippingInfo}\n` : ""}${trackingInfoText ? `${trackingInfoText}\n` : ""}Esperamos que disfrutes tu compra.`;
       break;
     }
     case "created": {
@@ -110,9 +117,10 @@ export function buildShippingEmail(
       bodyContent = `
         <p>Tu pedido <strong>#${safeOrderId}</strong> está siendo preparado para envío.</p>
         ${shippingInfo ? `<p><strong>Paquetería:</strong> ${shippingInfo}</p>` : ""}
-        ${trackingInfo}
+        ${trackingInfoHtml}
         <p>Te notificaremos cuando tu pedido esté en camino.</p>
       `;
+      textBody = `Tu pedido #${safeOrderId} está siendo preparado para envío.\n${shippingInfo ? `Paquetería: ${shippingInfo}\n` : ""}${trackingInfoText ? `${trackingInfoText}\n` : ""}Te notificaremos cuando tu pedido esté en camino.`;
       break;
     }
     default:
@@ -147,11 +155,11 @@ export function buildShippingEmail(
     </html>
   `;
 
-  // Construir versión texto plano
+  // Construir versión texto plano (sin regexes de sanitización parcial)
   const text = `
 ${greeting}
 
-${bodyContent.replace(/<[^>]*>/g, "").replace(/\n\s+/g, "\n").trim()}
+${textBody}
 
 Ver detalles de tu pedido: ${ordersUrl}
 
