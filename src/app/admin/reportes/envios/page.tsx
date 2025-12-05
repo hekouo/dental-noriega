@@ -71,16 +71,6 @@ export default async function AdminShippingReportPage({ searchParams }: Props) {
         from = new Date(today);
         from.setDate(from.getDate() - 30);
       }
-      case "thismonth": {
-        from = new Date(today.getFullYear(), today.getMonth(), 1);
-        break;
-      }
-      case "all": {
-        // Desde hace 1 año (límite razonable)
-        from = new Date(today);
-        from.setFullYear(from.getFullYear() - 1);
-        break;
-      }
       default: {
         // Default: últimos 30 días
         from = new Date(today);
