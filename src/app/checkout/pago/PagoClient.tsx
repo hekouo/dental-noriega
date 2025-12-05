@@ -387,7 +387,7 @@ export default function PagoClient() {
     const paymentMethod = formData?.paymentMethod || watch("paymentMethod") || "";
 
     // Validar que no haya items con precio 0 si es tarjeta
-    if (paymentMethod === "tarjeta") {
+    if (paymentMethod === "card") {
       const hasZeroPrice = itemsForOrder.some((item) => {
         const priceCents =
           typeof item.price_cents === "number"
@@ -417,7 +417,7 @@ export default function PagoClient() {
       }
       // Si el método de pago es tarjeta, StripePaymentForm ya tiene el orderId
       // Si no es tarjeta, redirigir con el orderId existente
-      if (paymentMethod !== "tarjeta") {
+      if (paymentMethod !== "card") {
         handlePayNowLegacy(currentStoreOrderId);
       }
       return;
@@ -433,11 +433,17 @@ export default function PagoClient() {
         ? selectedShippingOption.priceCents
         : Math.round(shippingCost * 100);
       
+      // Determinar payment_method y payment_status según el método seleccionado
+      const selectedPaymentMethodValue = paymentMethod === "card" ? "card" : paymentMethod === "bank_transfer" ? "bank_transfer" : paymentMethod === "cash" ? "cash" : null;
+      const selectedPaymentStatusValue = selectedPaymentMethodValue === "card" ? "pending" : selectedPaymentMethodValue === "bank_transfer" || selectedPaymentMethodValue === "cash" ? "pending" : null;
+
       const orderPayload = {
         email: datos.email, // Email del checkout para la orden y Stripe
         name: datos.name, // Nombre para metadata
         shippingMethod: displayShippingMethod, // Método de envío (solo lectura)
         shippingCostCents, // Costo de envío en centavos
+        paymentMethod: selectedPaymentMethodValue, // Método de pago seleccionado
+        paymentStatus: selectedPaymentStatusValue, // Estado de pago (pending para métodos manuales)
         // Información de Skydropx si hay opción seleccionada
         shipping: selectedShippingOption
           ? {
@@ -576,9 +582,10 @@ export default function PagoClient() {
       }
 
       // Si el método de pago es tarjeta, StripePaymentForm creará el PaymentIntent internamente
-      if (paymentMethod !== "tarjeta") {
-        // Para otros métodos de pago, usar flujo legacy y redirigir
-        handlePayNowLegacy(newOrderId);
+      if (paymentMethod !== "card") {
+        // Para métodos manuales (bank_transfer o cash), redirigir a página de instrucciones
+        resetCheckout();
+        router.push(`/checkout/pago-pendiente?order=${encodeURIComponent(newOrderId)}`);
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Error inesperado";
@@ -1080,7 +1087,7 @@ export default function PagoClient() {
       )}
 
       {/* Stripe Payment Form si es tarjeta */}
-      {selectedPaymentMethod === "tarjeta" && orderId ? (
+      {selectedPaymentMethod === "card" && orderId ? (
         <div className="space-y-4">
           <div className="bg-gray-50 rounded-lg p-4 mb-4">
             <h2 className="font-semibold mb-2 text-sm text-gray-700">Resumen de pago</h2>
@@ -1167,9 +1174,9 @@ export default function PagoClient() {
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
             <option value="">Selecciona...</option>
-            <option value="efectivo">Efectivo</option>
-            <option value="transferencia">Transferencia bancaria</option>
-            <option value="tarjeta">Tarjeta de crédito/débito (Stripe)</option>
+            <option value="card">Tarjeta de crédito/débito (Stripe)</option>
+            <option value="bank_transfer">Transferencia / depósito bancario (SPEI)</option>
+            <option value="cash">Pago en efectivo (Oxxo / ventanilla)</option>
           </select>
           {errors.paymentMethod && (
             <p className="text-red-500 text-sm mt-1">
@@ -1236,14 +1243,14 @@ export default function PagoClient() {
               disabled={
                 isCreatingOrder ||
                 itemsForOrder.length === 0 ||
-                (selectedPaymentMethod === "tarjeta" && itemsForOrder.some((item) => item.price <= 0))
+                (selectedPaymentMethod === "card" && itemsForOrder.some((item) => item.price <= 0))
               }
             data-testid="btn-pagar-ahora"
             className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 flex-1 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
           >
               {isCreatingOrder
                 ? "Creando orden..."
-                : selectedPaymentMethod === "tarjeta"
+                : selectedPaymentMethod === "card"
                   ? itemsForOrder.some((item) => item.price <= 0)
                     ? "Consultar precio (no disponible con tarjeta)"
                     : "Continuar con pago"

@@ -26,6 +26,9 @@ const CreateOrderRequestSchema = z.object({
   // Mapear standard/express a "delivery" internamente para metadata
   shippingMethod: z.enum(["pickup", "standard", "express"]).optional(),
   shippingCostCents: z.number().int().nonnegative().optional(), // Costo de envío en centavos
+  // Método y estado de pago
+  paymentMethod: z.enum(["card", "bank_transfer", "cash"]).optional(),
+  paymentStatus: z.enum(["pending", "paid", "canceled"]).optional(),
   // Información de Skydropx opcional
   shipping: z.object({
     provider: z.string(),
@@ -282,6 +285,18 @@ export async function POST(req: NextRequest) {
       // shippingRateExtId, shippingEtaMinDays, shippingEtaMaxDays quedan null
     }
 
+    // Determinar payment_method y payment_status
+    // Si viene en el payload, usarlo; si no, inferir según stripe_session_id
+    const paymentMethod: string | null = orderData.paymentMethod || null;
+    let paymentStatus: string | null = orderData.paymentStatus || null;
+    
+    // Si no viene paymentStatus, determinar según método:
+    // - card: "pending" (se actualizará cuando Stripe confirme)
+    // - bank_transfer o cash: "pending"
+    if (!paymentStatus && paymentMethod) {
+      paymentStatus = "pending";
+    }
+
     // Crear orden usando SOLO las columnas válidas del schema real
     const { data: order, error: orderError } = await supabase
       .from("orders")
@@ -302,6 +317,9 @@ export async function POST(req: NextRequest) {
         shipping_eta_max_days: shippingEtaMaxDays,
         // Estado de envío por defecto: "pending"
         shipping_status: "pending",
+        // Método y estado de pago
+        payment_method: paymentMethod,
+        payment_status: paymentStatus,
       })
       .select("id, total_cents")
       .single();
