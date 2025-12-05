@@ -137,7 +137,6 @@ export async function updateShippingStatusAdmin(
     };
 
     // Intentar enviar notificación (no bloquea si falla)
-    let notificationSent = false;
     if (shouldNotify && customerEmail) {
       try {
         const emailContent = buildShippingEmail({

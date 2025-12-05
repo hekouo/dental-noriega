@@ -1,0 +1,122 @@
+Este PR implementa notificaciones de envío basadas en shipping_status y un reporte de envíos en el panel admin.
+
+## Cambios principales
+
+### 1) Notificaciones de envío (shipping_status)
+
+#### Helper genérico de envío de correos (src/lib/notifications/email.ts)
+- Función sendTransactionalEmail() que soporta Resend pero no falla si no está configurado
+- Variables de entorno requeridas (si EMAIL_ENABLED="true"):
+  - RESEND_API_KEY: API key de Resend
+  - EMAIL_FROM: Dirección de correo remitente
+- Si EMAIL_ENABLED no es "true" o faltan variables, solo hace console.warn y devuelve { ok: false, reason: "disabled" }
+- No rompe el flujo si Resend no está instalado o configurado
+
+#### Helper de plantillas de envío (src/lib/notifications/shipping.ts)
+- Función buildShippingEmail() que genera templates HTML y texto plano
+- Estados que generan correos:
+  - ready_for_pickup → "Tu pedido está listo para recoger"
+  - in_transit → "Tu pedido va en camino"
+  - delivered → "Tu pedido ha sido entregado"
+  - created → "Tu envío ha sido generado" (opcional)
+- Templates incluyen: nombre del cliente, ID de orden, método de envío, tracking (si existe), link a /cuenta/pedidos
+
+#### Integración con updateShippingStatusAdmin
+- Envía correo automáticamente cuando cambia shipping_status a uno de los estados notificables
+- Idempotencia: Usa last_notified_shipping_status para evitar notificaciones duplicadas
+- Solo actualiza last_notified_shipping_status si el correo se envió exitosamente
+- No bloquea la actualización del estado si falla el envío del correo
+- Manejo de errores robusto: loguea pero no rompe el flujo principal
+
+### 2) Reporte simple de envíos en admin
+
+#### Helper server-side (src/lib/admin/shippingReport.server.ts)
+- Función getShippingReport({ from, to }) que consulta órdenes con shipping_provider IS NOT NULL
+- Agrupa por shipping_provider y shipping_service_name
+- Calcula: número de envíos, total cobrado en centavos
+- Retorna array de ShippingReportRow
+
+#### Nueva página admin (/admin/reportes/envios)
+- Solo accesible para admin (usa checkAdminAccess())
+- Filtros:
+  - Fechas "Desde" y "Hasta" (inputs tipo date)
+  - Rango rápido: "Últimos 7 días", "Últimos 30 días", "Este mes", "Todo el tiempo"
+  - Botón "Aplicar filtros"
+- Tabla con columnas:
+  - Proveedor (shipping_provider)
+  - Servicio (shipping_service_name o "(sin especificar)")
+  - # Envíos (contador)
+  - Total Cobrado (formateado con formatMXNFromCents)
+- Fila de resumen con totales
+
+#### Navegación
+- Enlace "Reporte de Envíos" en /admin/pedidos (AdminPedidosClient.tsx)
+
+## Migración SQL
+
+- ops/sql/2025-01-XX_add_last_notified_shipping_status.sql: Agrega columna last_notified_shipping_status a orders (opcional, el sistema funciona sin ella pero puede enviar duplicados)
+
+## Configuración
+
+### Para habilitar notificaciones de correo:
+
+1. Instalar Resend (opcional, solo si quieres enviar correos reales):
+   ```bash
+   pnpm add resend
+   ```
+
+2. Configurar variables de entorno:
+   ```env
+   EMAIL_ENABLED="true"
+   RESEND_API_KEY="re_xxxxx"
+   EMAIL_FROM="noreply@tudominio.com"
+   ```
+
+3. Si EMAIL_ENABLED no es "true" o faltan variables, el sistema solo hace console.warn y no envía correos (modo seguro por defecto)
+
+## Verificaciones técnicas
+
+- ✅ pnpm lint (solo warnings preexistentes, 0 errores nuevos)
+- ✅ pnpm typecheck (sin errores)
+- ✅ pnpm build (compilación exitosa)
+
+## Checklist de pruebas manuales
+
+### Notificaciones de envío
+- [ ] Cambiar estado de envío a ready_for_pickup desde admin y verificar que no se envía correo si EMAIL_ENABLED no está configurado (debe aparecer warning en consola)
+- [ ] Configurar EMAIL_ENABLED="true" y RESEND_API_KEY (si tienes cuenta de Resend)
+- [ ] Cambiar estado a ready_for_pickup y verificar que se envía correo (si está configurado)
+- [ ] Cambiar estado a in_transit y verificar correo
+- [ ] Cambiar estado a delivered y verificar correo
+- [ ] Intentar cambiar al mismo estado dos veces y verificar que NO se envía correo duplicado (idempotencia)
+- [ ] Verificar que el cambio de estado funciona aunque falle el envío del correo
+
+### Reporte de envíos
+- [ ] Acceder a /admin/reportes/envios como admin
+- [ ] Verificar que usuarios no admin no pueden acceder (debe redirigir o mostrar 404)
+- [ ] Probar filtros de fecha (Desde/Hasta)
+- [ ] Probar rangos rápidos (Últimos 7 días, 30 días, Este mes, Todo el tiempo)
+- [ ] Verificar que la tabla muestra datos correctos agrupados por proveedor
+- [ ] Verificar que los totales en el footer son correctos
+- [ ] Verificar que el enlace desde /admin/pedidos funciona
+
+## Archivos modificados/creados
+
+**Nuevos:**
+- src/lib/notifications/email.ts - Helper genérico de envío de correos
+- src/lib/notifications/shipping.ts - Plantillas de correo de envío
+- src/lib/admin/shippingReport.server.ts - Helper de reporte de envíos
+- src/app/admin/reportes/envios/page.tsx - Página de reporte admin
+- src/app/admin/reportes/envios/ClientRangeSelect.tsx - Componente cliente para select de rango
+- ops/sql/2025-01-XX_add_last_notified_shipping_status.sql - Migración SQL opcional
+
+**Modificados:**
+- src/lib/actions/shipping.admin.ts - Integración de notificaciones en updateShippingStatusAdmin
+- src/app/admin/pedidos/AdminPedidosClient.tsx - Enlace a reporte de envíos
+
+## TODOs / Notas
+
+- La columna last_notified_shipping_status es opcional: si no existe, el sistema funcionará pero puede enviar notificaciones duplicadas en algunos casos edge
+- Para producción, se recomienda ejecutar la migración SQL para habilitar idempotencia completa
+- Si no quieres usar Resend todavía, simplemente no configures EMAIL_ENABLED="true" y el sistema funcionará sin enviar correos (solo warnings en consola)
+

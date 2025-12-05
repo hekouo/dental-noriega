@@ -35,7 +35,8 @@ export default async function AdminShippingReportPage({ searchParams }: Props) {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   today.setHours(23, 59, 59, 999); // Fin del día
 
-  let from: Date;
+  let from: Date = new Date(today);
+  from.setDate(from.getDate() - 30); // Default: últimos 30 días
   let to: Date = today;
 
   // Si hay parámetros de fecha explícitos, usarlos
@@ -65,16 +66,6 @@ export default async function AdminShippingReportPage({ searchParams }: Props) {
         from = new Date(today);
         from.setFullYear(from.getFullYear() - 1);
         break;
-      }
-      default: {
-        // Default: últimos 30 días
-        from = new Date(today);
-        from.setDate(from.getDate() - 30);
-      }
-      default: {
-        // Default: últimos 30 días
-        from = new Date(today);
-        from.setDate(from.getDate() - 30);
       }
     }
   } else {

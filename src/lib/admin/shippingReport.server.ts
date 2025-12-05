@@ -1,12 +1,25 @@
 import "server-only";
 import { createClient } from "@supabase/supabase-js";
 
+/**
+ * Fila de reporte de envíos agrupada por proveedor y servicio
+ */
+export type ShippingReportRow = {
+  provider: string;
+  serviceName: string | null;
+  ordersCount: number;
+  totalShippingPriceCents: number;
+};
+
+/**
+ * Crea un cliente Supabase con SERVICE_ROLE_KEY (bypassa RLS)
+ */
 function createServiceRoleSupabase() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error("Supabase configuration missing");
+    throw new Error("Faltan variables de Supabase (URL o SERVICE_ROLE_KEY)");
   }
 
   return createClient(supabaseUrl, serviceRoleKey, {
@@ -17,17 +30,10 @@ function createServiceRoleSupabase() {
   });
 }
 
-export type ShippingReportRow = {
-  provider: string;
-  serviceName: string | null;
-  ordersCount: number;
-  totalShippingPriceCents: number;
-};
-
 /**
- * Genera un reporte de envíos agrupado por proveedor y servicio
- * @param params - Parámetros de filtro por rango de fechas
- * @returns Array de filas del reporte
+ * Obtiene un reporte de envíos agrupado por proveedor y servicio
+ * @param params - Parámetros de filtro (rango de fechas)
+ * @returns Lista de filas de reporte
  */
 export async function getShippingReport(params: {
   from: Date;
@@ -36,7 +42,7 @@ export async function getShippingReport(params: {
   const supabase = createServiceRoleSupabase();
 
   try {
-    // Consultar órdenes con shipping_provider no nulo en el rango de fechas
+    // Obtener todas las órdenes con shipping_provider no nulo en el rango de fechas
     const { data: orders, error } = await supabase
       .from("orders")
       .select("shipping_provider, shipping_service_name, shipping_price_cents")
@@ -53,7 +59,7 @@ export async function getShippingReport(params: {
       return [];
     }
 
-    // Agrupar en memoria por provider y service_name
+    // Agrupar en memoria por provider y serviceName
     const grouped = new Map<string, ShippingReportRow>();
 
     for (const order of orders) {
@@ -74,13 +80,11 @@ export async function getShippingReport(params: {
 
       const row = grouped.get(key)!;
       row.ordersCount += 1;
-      
       // Sumar shipping_price_cents (tratar null como 0)
-      const priceCents = order.shipping_price_cents || 0;
-      row.totalShippingPriceCents += priceCents;
+      row.totalShippingPriceCents += order.shipping_price_cents || 0;
     }
 
-    // Convertir Map a Array y ordenar por provider, luego por serviceName
+    // Convertir Map a array y ordenar por provider, luego por serviceName
     const result = Array.from(grouped.values()).sort((a, b) => {
       if (a.provider !== b.provider) {
         return a.provider.localeCompare(b.provider);
