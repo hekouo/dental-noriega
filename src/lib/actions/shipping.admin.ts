@@ -127,16 +127,9 @@ export async function updateShippingStatusAdmin(
       order.last_notified_shipping_status !== newStatus;
 
     // Actualizar el estado
-    const updateData: { shipping_status: ShippingStatus; last_notified_shipping_status?: ShippingStatus } = {
-      shipping_status: newStatus,
-    };
-
-    // Preparar actualización de last_notified_shipping_status después de enviar email
-    let lastNotifiedStatus: ShippingStatus | undefined;
-
     const { error: updateError } = await supabase
       .from("orders")
-      .update(updateData)
+      .update({ shipping_status: newStatus })
       .eq("id", orderId);
 
     if (updateError) {
