@@ -163,7 +163,6 @@ export async function updateShippingStatusAdmin(
 
           if (emailResult.ok) {
             // Actualizar last_notified_shipping_status solo si el email se envió exitosamente
-            lastNotifiedStatus = newStatus;
             await supabase
               .from("orders")
               .update({ last_notified_shipping_status: newStatus })
