@@ -45,12 +45,12 @@ export function buildShippingEmail(
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3002";
   const ordersUrl = `${siteUrl}/cuenta/pedidos`;
 
-  // Escapar datos externos para HTML
+  // Escapar todos los datos externos para prevenir XSS
   const safeCustomerName = customerName ? escapeHtml(customerName) : null;
   const safeShippingProvider = shippingProvider ? escapeHtml(shippingProvider) : null;
   const safeShippingServiceName = shippingServiceName ? escapeHtml(shippingServiceName) : null;
   const safeTrackingNumber = trackingNumber ? escapeHtml(trackingNumber) : null;
-  const safeOrderIdShort = escapeHtml(orderId.slice(0, 8));
+  const safeOrderId = escapeHtml(orderId.slice(0, 8));
 
   // Construir nombre de saludo
   const greeting = safeCustomerName ? `Hola ${safeCustomerName},` : "Hola,";
@@ -79,7 +79,7 @@ export function buildShippingEmail(
     case "ready_for_pickup": {
       subject = "Tu pedido está listo para recoger";
       bodyContent = `
-        <p>Tu pedido <strong>#${safeOrderIdShort}</strong> está listo para recoger en tienda.</p>
+        <p>Tu pedido <strong>#${safeOrderId}</strong> está listo para recoger en tienda.</p>
         ${shippingInfo ? `<p><strong>Método de envío:</strong> ${shippingInfo}</p>` : ""}
         <p>Puedes pasar a recogerlo en nuestro horario de atención.</p>
       `;
@@ -88,7 +88,7 @@ export function buildShippingEmail(
     case "in_transit": {
       subject = "Tu pedido va en camino";
       bodyContent = `
-        <p>Tu pedido <strong>#${safeOrderIdShort}</strong> ya está en camino.</p>
+        <p>Tu pedido <strong>#${safeOrderId}</strong> ya está en camino.</p>
         ${shippingInfo ? `<p><strong>Paquetería:</strong> ${shippingInfo}</p>` : ""}
         ${trackingInfo}
         <p>Puedes rastrear tu envío usando el número de guía proporcionado.</p>
@@ -98,7 +98,7 @@ export function buildShippingEmail(
     case "delivered": {
       subject = "Tu pedido ha sido entregado";
       bodyContent = `
-        <p>¡Excelente noticia! Tu pedido <strong>#${safeOrderIdShort}</strong> ha sido entregado.</p>
+        <p>¡Excelente noticia! Tu pedido <strong>#${safeOrderId}</strong> ha sido entregado.</p>
         ${shippingInfo ? `<p><strong>Paquetería:</strong> ${shippingInfo}</p>` : ""}
         ${trackingInfo}
         <p>Esperamos que disfrutes tu compra. Si tienes alguna pregunta, no dudes en contactarnos.</p>
@@ -108,7 +108,7 @@ export function buildShippingEmail(
     case "created": {
       subject = "Tu envío ha sido generado";
       bodyContent = `
-        <p>Tu pedido <strong>#${safeOrderIdShort}</strong> está siendo preparado para envío.</p>
+        <p>Tu pedido <strong>#${safeOrderId}</strong> está siendo preparado para envío.</p>
         ${shippingInfo ? `<p><strong>Paquetería:</strong> ${shippingInfo}</p>` : ""}
         ${trackingInfo}
         <p>Te notificaremos cuando tu pedido esté en camino.</p>
@@ -119,7 +119,7 @@ export function buildShippingEmail(
       return null;
   }
 
-  // Escapar subject para HTML (aunque normalmente no debería tener HTML, por seguridad)
+  // Escapar subject para HTML (aunque normalmente no debería tener HTML, es una medida de seguridad)
   const safeSubject = escapeHtml(subject);
 
   // Construir HTML completo

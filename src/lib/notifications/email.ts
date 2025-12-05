@@ -31,7 +31,6 @@ export async function sendTransactionalEmail(
   const enabled = process.env.EMAIL_ENABLED === "true";
 
   // Si no está habilitado o faltan configuraciones, solo loguear y retornar
-  // No loguear el HTML completo para evitar log injection
   if (!enabled || !apiKey || !from) {
     console.warn("[email] disabled, would send transactional email", {
       to: input.to,
@@ -70,7 +69,15 @@ export async function sendTransactionalEmail(
         return { ok: false, reason: "missing_config" };
       }
       
-      console.error("[email] Error cargando resend:", requireError);
+      console.error(
+        "[email] Error cargando resend",
+        {
+          error:
+            requireError instanceof Error
+              ? { name: requireError.name, message: requireError.message }
+              : String(requireError),
+        },
+      );
       return { ok: false, reason: "missing_config" };
     }
 
@@ -86,7 +93,16 @@ export async function sendTransactionalEmail(
     });
 
     if (result.error) {
-      console.error("[email] Resend error:", result.error);
+      console.error(
+        "[email] Resend error",
+        {
+          to: input.to,
+          error:
+            result.error instanceof Error
+              ? { name: result.error.name, message: result.error.message }
+              : String(result.error),
+        },
+      );
       return {
         ok: false,
         reason: "send_failed",
@@ -94,10 +110,21 @@ export async function sendTransactionalEmail(
       };
     }
 
-    console.log("[email] Sent successfully to:", input.to);
+    console.log("[email] Sent successfully", {
+      to: input.to,
+    });
     return { ok: true };
   } catch (err) {
-    console.error("[email] Unexpected error:", err);
+    console.error(
+      "[email] Unexpected error",
+      {
+        to: input.to,
+        error:
+          err instanceof Error
+            ? { name: err.name, message: err.message }
+            : String(err),
+      },
+    );
     return {
       ok: false,
       reason: "send_failed",
