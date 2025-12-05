@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import type { ShippingStatus } from "@/lib/orders/shippingStatus";
+import type { PaymentStatus } from "@/lib/orders/paymentStatus";
 import { buildShippingEmail } from "@/lib/notifications/shipping";
 import { sendTransactionalEmail } from "@/lib/notifications/email";
 
@@ -236,6 +237,110 @@ export async function updateShippingStatusAdmin(
   } catch (error) {
     console.error(
       "[updateShippingStatusAdmin] Error inesperado",
+      {
+        orderId,
+        newStatus,
+        error:
+          error instanceof Error
+            ? { name: error.name, message: error.message }
+            : String(error),
+      },
+    );
+    return {
+      success: false,
+      error: "Error inesperado al actualizar el estado",
+    };
+  }
+}
+
+/**
+ * Actualiza el estado de pago de una orden (solo admin)
+ * @param orderId - ID de la orden
+ * @param newStatus - Nuevo estado de pago
+ */
+export async function updatePaymentStatusAdmin(
+  orderId: string,
+  newStatus: PaymentStatus,
+): Promise<{ success: true } | { success: false; error: string }> {
+  try {
+    // Validar que el estado es válido
+    const validStatuses: PaymentStatus[] = ["pending", "paid", "canceled"];
+    
+    if (!validStatuses.includes(newStatus)) {
+      return {
+        success: false,
+        error: "Estado de pago inválido",
+      };
+    }
+
+    // Usar service role para actualizar (solo admin puede llamar esto)
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl || !serviceRoleKey) {
+      console.error("[updatePaymentStatusAdmin] Configuración de Supabase incompleta");
+      return {
+        success: false,
+        error: "Error de configuración del servidor",
+      };
+    }
+
+    const supabase = createClient(supabaseUrl, serviceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
+
+    // Verificar que la orden existe
+    const { data: order, error: fetchError } = await supabase
+      .from("orders")
+      .select("id, payment_status")
+      .eq("id", orderId)
+      .single();
+
+    if (fetchError || !order) {
+      return {
+        success: false,
+        error: "Orden no encontrada",
+      };
+    }
+
+    // Actualizar el estado de pago
+    const { error: updateError } = await supabase
+      .from("orders")
+      .update({
+        payment_status: newStatus,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", orderId);
+
+    if (updateError) {
+      console.error(
+        "[updatePaymentStatusAdmin] Error al actualizar estado en base de datos",
+        {
+          orderId,
+          newStatus,
+          error:
+            updateError instanceof Error
+              ? { name: updateError.name, message: updateError.message }
+              : String(updateError),
+        },
+      );
+      return {
+        success: false,
+        error: "No se pudo actualizar el estado de pago",
+      };
+    }
+
+    // Revalidar rutas
+    revalidatePath("/admin/pedidos");
+    revalidatePath(`/admin/pedidos/${orderId}`);
+
+    return { success: true };
+  } catch (error) {
+    console.error(
+      "[updatePaymentStatusAdmin] Error inesperado",
       {
         orderId,
         newStatus,

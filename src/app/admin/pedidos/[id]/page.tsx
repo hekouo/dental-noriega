@@ -5,7 +5,9 @@ import { getOrderWithItemsAdmin } from "@/lib/supabase/orders.server";
 import { formatMXNFromCents } from "@/lib/utils/currency";
 import { createSkydropxLabelAction } from "@/lib/actions/shipping.admin";
 import { getShippingStatusLabel, getShippingStatusVariant } from "@/lib/orders/shippingStatus";
+import { getPaymentMethodLabel, getPaymentStatusLabel, getPaymentStatusVariant } from "@/lib/orders/paymentStatus";
 import UpdateShippingStatusClient from "./UpdateShippingStatusClient";
+import UpdatePaymentStatusClient from "./UpdatePaymentStatusClient";
 
 export const dynamic = "force-dynamic";
 
@@ -378,6 +380,47 @@ export default async function AdminPedidoDetailPage({
               Esta orden no tiene información de envío. Revisa el checkout.
             </p>
           )}
+        </div>
+
+        {/* Estado de pago */}
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h2 className="text-lg font-semibold mb-4">Estado de Pago</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-gray-600">Método de pago</p>
+              <p className="font-medium">
+                {getPaymentMethodLabel(order.payment_method)}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Estado de pago</p>
+              <span
+                className={`inline-flex px-2 py-1 text-xs font-medium rounded-full mt-1 ${
+                  (() => {
+                    const variant = getPaymentStatusVariant(order.payment_status);
+                    switch (variant) {
+                      case "success":
+                        return "bg-green-100 text-green-700";
+                      case "warning":
+                        return "bg-yellow-100 text-yellow-700";
+                      case "destructive":
+                        return "bg-red-100 text-red-700";
+                      default:
+                        return "bg-gray-100 text-gray-700";
+                    }
+                  })()
+                }`}
+              >
+                {getPaymentStatusLabel(order.payment_status)}
+              </span>
+            </div>
+          </div>
+
+          {/* Controles para actualizar estado de pago */}
+          <UpdatePaymentStatusClient
+            orderId={order.id}
+            currentStatus={order.payment_status}
+          />
         </div>
 
         {/* Productos */}

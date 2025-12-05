@@ -10,6 +10,7 @@ import type {
 } from "@/lib/supabase/orders.server";
 import AccountSectionHeader from "@/components/account/AccountSectionHeader";
 import { getShippingStatusLabel } from "@/lib/orders/shippingStatus";
+import { getPaymentMethodLabel, getPaymentStatusLabel, getPaymentStatusVariant } from "@/lib/orders/paymentStatus";
 
 export default function PedidosPage() {
   const [email, setEmail] = useState("");
@@ -553,6 +554,31 @@ export default function PedidosPage() {
                       <p className="text-sm text-gray-600">
                         {formatDate(order.created_at)}
                       </p>
+                      {/* Método y estado de pago */}
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs text-gray-500">
+                          {getPaymentMethodLabel(order.payment_method)}
+                        </span>
+                        <span
+                          className={`inline-flex px-1.5 py-0.5 text-xs font-medium rounded ${
+                            (() => {
+                              const variant = getPaymentStatusVariant(order.payment_status);
+                              switch (variant) {
+                                case "success":
+                                  return "bg-green-100 text-green-700";
+                                case "warning":
+                                  return "bg-yellow-100 text-yellow-700";
+                                case "destructive":
+                                  return "bg-red-100 text-red-700";
+                                default:
+                                  return "bg-gray-100 text-gray-700";
+                              }
+                            })()
+                          }`}
+                        >
+                          {getPaymentStatusLabel(order.payment_status)}
+                        </span>
+                      </div>
                       {/* Resumen de envío usando campos de shipping */}
                       {(() => {
                         // Priorizar campos de shipping directos sobre metadata
@@ -844,6 +870,52 @@ export default function PedidosPage() {
                   </div>
                 </div>
               )}
+
+              {/* Bloque de información de pago */}
+              <div className="mt-6 pt-4 border-t border-gray-200">
+                <h3 className="text-lg font-semibold mb-4">Información de pago</h3>
+                <div className="space-y-3">
+                  {/* Método de pago */}
+                  <div>
+                    <p className="text-sm text-gray-600">Método de pago</p>
+                    <p className="font-medium">
+                      {getPaymentMethodLabel(orderDetail.payment_method)}
+                    </p>
+                  </div>
+
+                  {/* Estado de pago */}
+                  <div>
+                    <p className="text-sm text-gray-600">Estado de pago</p>
+                    <span
+                      className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                        (() => {
+                          const variant = getPaymentStatusVariant(orderDetail.payment_status);
+                          switch (variant) {
+                            case "success":
+                              return "bg-green-100 text-green-700";
+                            case "warning":
+                              return "bg-yellow-100 text-yellow-700";
+                            case "destructive":
+                              return "bg-red-100 text-red-700";
+                            default:
+                              return "bg-gray-100 text-gray-700";
+                          }
+                        })()
+                      }`}
+                    >
+                      {getPaymentStatusLabel(orderDetail.payment_status)}
+                    </span>
+                    {/* Mensaje contextual para pedidos pendientes de métodos manuales */}
+                    {orderDetail.payment_status === "pending" &&
+                      (orderDetail.payment_method === "bank_transfer" ||
+                        orderDetail.payment_method === "cash") && (
+                        <p className="text-sm text-gray-600 mt-2 italic">
+                          Tu pedido está reservado. En cuanto confirmemos tu pago, actualizaremos el estado a Pagado.
+                        </p>
+                      )}
+                  </div>
+                </div>
+              </div>
 
               {/* Items */}
               {orderDetail.items.length > 0 && (

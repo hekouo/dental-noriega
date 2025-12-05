@@ -38,6 +38,8 @@ export type OrderSummary = {
   shipping_tracking_number: string | null;
   shipping_label_url: string | null;
   shipping_status: string | null;
+  payment_method: string | null;
+  payment_status: string | null;
 };
 
 export type ShippingInfo = {
@@ -128,7 +130,7 @@ export async function getOrdersByEmail(
 
   const { data, error } = await supabase
     .from("orders")
-    .select("id, created_at, status, email, total_cents, metadata, shipping_provider, shipping_service_name, shipping_price_cents, shipping_rate_ext_id, shipping_eta_min_days, shipping_eta_max_days, shipping_tracking_number, shipping_label_url, shipping_status")
+    .select("id, created_at, status, email, total_cents, metadata, shipping_provider, shipping_service_name, shipping_price_cents, shipping_rate_ext_id, shipping_eta_min_days, shipping_eta_max_days, shipping_tracking_number, shipping_label_url, shipping_status, payment_method, payment_status")
     .eq("email", normalizedEmail)
     .order("created_at", { ascending: false })
     .limit(limit);
@@ -185,6 +187,8 @@ export async function getOrdersByEmail(
     shipping_tracking_number: order.shipping_tracking_number || null,
     shipping_label_url: order.shipping_label_url || null,
     shipping_status: order.shipping_status || null,
+    payment_method: order.payment_method || null,
+    payment_status: order.payment_status || null,
   }));
 }
 
@@ -223,7 +227,7 @@ export async function getOrderWithItems(
     // Buscar orden por id (UNA sola búsqueda)
     const { data: orderData, error } = await supabase
       .from("orders")
-      .select("id, created_at, status, email, total_cents, metadata, shipping_provider, shipping_service_name, shipping_price_cents, shipping_rate_ext_id, shipping_eta_min_days, shipping_eta_max_days, shipping_tracking_number, shipping_label_url, shipping_status")
+      .select("id, created_at, status, email, total_cents, metadata, shipping_provider, shipping_service_name, shipping_price_cents, shipping_rate_ext_id, shipping_eta_min_days, shipping_eta_max_days, shipping_tracking_number, shipping_label_url, shipping_status, payment_method, payment_status")
       .eq("id", normalizedOrderId)
       .maybeSingle();
 
@@ -305,6 +309,8 @@ export async function getOrderWithItems(
       shipping_tracking_number: orderData.shipping_tracking_number || null,
       shipping_label_url: orderData.shipping_label_url || null,
       shipping_status: orderData.shipping_status || null,
+      payment_method: orderData.payment_method || null,
+      payment_status: orderData.payment_status || null,
     };
   } catch (err) {
     console.error("[getOrderWithItems] Error inesperado:", err);
@@ -339,7 +345,7 @@ export async function getAllOrdersAdmin(
   try {
     let query = supabase
       .from("orders")
-      .select("id, created_at, status, email, total_cents, metadata, shipping_provider, shipping_service_name, shipping_price_cents, shipping_rate_ext_id, shipping_eta_min_days, shipping_eta_max_days, shipping_tracking_number, shipping_label_url, shipping_status", {
+      .select("id, created_at, status, email, total_cents, metadata, shipping_provider, shipping_service_name, shipping_price_cents, shipping_rate_ext_id, shipping_eta_min_days, shipping_eta_max_days, shipping_tracking_number, shipping_label_url, shipping_status, payment_method, payment_status", {
         count: "exact",
       });
 
@@ -405,6 +411,8 @@ export async function getAllOrdersAdmin(
       shipping_tracking_number: order.shipping_tracking_number || null,
       shipping_label_url: order.shipping_label_url || null,
       shipping_status: order.shipping_status || null,
+      payment_method: order.payment_method || null,
+      payment_status: order.payment_status || null,
     }));
 
     return {
@@ -447,7 +455,7 @@ export async function getOrderWithItemsAdmin(
     // Buscar orden por id
     const { data: orderData, error } = await supabase
       .from("orders")
-      .select("id, created_at, status, email, total_cents, metadata, shipping_provider, shipping_service_name, shipping_price_cents, shipping_rate_ext_id, shipping_eta_min_days, shipping_eta_max_days, shipping_tracking_number, shipping_label_url, shipping_status")
+      .select("id, created_at, status, email, total_cents, metadata, shipping_provider, shipping_service_name, shipping_price_cents, shipping_rate_ext_id, shipping_eta_min_days, shipping_eta_max_days, shipping_tracking_number, shipping_label_url, shipping_status, payment_method, payment_status")
       .eq("id", normalizedOrderId)
       .maybeSingle();
 
@@ -569,6 +577,8 @@ export async function getOrderWithItemsAdmin(
       shipping_tracking_number: orderData.shipping_tracking_number || null,
       shipping_label_url: orderData.shipping_label_url || null,
       shipping_status: orderData.shipping_status || null,
+      payment_method: orderData.payment_method || null,
+      payment_status: orderData.payment_status || null,
     };
   } catch (err) {
     console.error("[getOrderWithItemsAdmin] Error inesperado:", err);

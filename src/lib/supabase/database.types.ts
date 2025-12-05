@@ -157,6 +157,8 @@ export interface Database {
           shipping_tracking_number: string | null;
           shipping_label_url: string | null;
           shipping_status: string | null;
+          payment_method: string | null;
+          payment_status: string | null;
           created_at: string;
         };
         Insert: {
@@ -184,6 +186,8 @@ export interface Database {
           shipping_tracking_number?: string | null;
           shipping_label_url?: string | null;
           shipping_status?: string | null;
+          payment_method?: string | null;
+          payment_status?: string | null;
           created_at?: string;
         };
         Update: {
@@ -211,6 +215,8 @@ export interface Database {
           shipping_tracking_number?: string | null;
           shipping_label_url?: string | null;
           shipping_status?: string | null;
+          payment_method?: string | null;
+          payment_status?: string | null;
           created_at?: string;
         };
       };
