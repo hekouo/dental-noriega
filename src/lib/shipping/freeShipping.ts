@@ -4,6 +4,7 @@
  */
 
 export const FREE_SHIPPING_THRESHOLD_MXN = 2000; // Umbral para envío gratis en MXN
+export const FREE_SHIPPING_THRESHOLD_CENTS = 200000; // Umbral para envío gratis en centavos (2,000.00 MXN)
 
 /**
  * Aplica la regla de envío gratis si el subtotal es >= umbral

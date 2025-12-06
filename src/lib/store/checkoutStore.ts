@@ -49,6 +49,7 @@ export type UiShippingOption = {
   etaMinDays: number | null;
   etaMaxDays: number | null;
   externalRateId: string;
+  originalPriceCents?: number; // Precio original antes de aplicar promo (para mostrar "antes $XXX")
 };
 
 type CheckoutPersisted = {

@@ -262,6 +262,12 @@ function DatosPageContent() {
           return sum + (item.qty || 1) * 1000; // 1kg por producto
         }, 0);
 
+        // Calcular subtotal en centavos para aplicar promo de envío gratis
+        const subtotalCents = selectedItems.reduce((sum, item) => {
+          const priceCents = typeof item.price_cents === "number" ? item.price_cents : typeof item.price === "number" ? Math.round(item.price * 100) : 0;
+          return sum + priceCents * (item.qty || 1);
+        }, 0);
+
         const response = await fetch("/api/shipping/rates", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -273,6 +279,7 @@ function DatosPageContent() {
               country: "MX",
             },
             totalWeightGrams: totalWeightGrams || 1000,
+            subtotalCents,
           }),
           signal: controller.signal,
         });
@@ -975,9 +982,21 @@ function DatosPageContent() {
                         />
                         <div className="flex-1">
                           <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-gray-900">
-                              {shippingOptions[0].label}
-                            </span>
+                            <div>
+                              <span className="text-sm font-medium text-gray-900">
+                                Envío a domicilio (Skydropx)
+                              </span>
+                              {shippingOptions[0].priceCents === 0 && shippingOptions[0].originalPriceCents && (
+                                <p className="text-xs text-green-600 font-medium mt-0.5">
+                                  Envío GRATIS en pedidos desde $2,000 {shippingOptions[0].originalPriceCents > 0 && `(antes ${formatMXNMoney(shippingOptions[0].originalPriceCents / 100)})`}
+                                </p>
+                              )}
+                              {shippingOptions[0].priceCents === 0 && !shippingOptions[0].originalPriceCents && (
+                                <p className="text-xs text-green-600 font-medium mt-0.5">
+                                  Envío GRATIS en tu pedido
+                                </p>
+                              )}
+                            </div>
                             <span className="text-sm font-semibold text-gray-900">
                               {formatMXNMoney(shippingOptions[0].priceCents / 100)}
                             </span>

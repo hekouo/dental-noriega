@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSkydropxRates } from "@/lib/shipping/skydropx.server";
+import { FREE_SHIPPING_THRESHOLD_CENTS } from "@/lib/shipping/freeShipping";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -12,6 +13,7 @@ export type UiShippingOption = {
   etaMinDays: number | null;
   etaMaxDays: number | null;
   externalRateId: string; // el rate id original
+  originalPriceCents?: number; // Precio original antes de aplicar promo (para mostrar "antes $XXX")
 };
 
 type RatesRequest = {
@@ -22,6 +24,7 @@ type RatesRequest = {
     country?: string;
   };
   totalWeightGrams?: number;
+  subtotalCents?: number; // Subtotal del carrito en centavos para aplicar promo de envío gratis
 };
 
 export async function POST(req: NextRequest) {
@@ -35,7 +38,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { address, totalWeightGrams } = body;
+    const { address, totalWeightGrams, subtotalCents } = body;
 
     if (!address.postalCode || !address.state) {
       return NextResponse.json(
@@ -77,6 +80,9 @@ export async function POST(req: NextRequest) {
 
     // Si hay tarifas, devolver ok: true
     if (rates.length > 0) {
+      // Verificar si aplica envío gratis (subtotal >= $2,000 MXN)
+      const appliesFreeShipping = subtotalCents !== undefined && subtotalCents >= FREE_SHIPPING_THRESHOLD_CENTS;
+      
       // Mapear tarifas a formato UI
       const options: UiShippingOption[] = rates
         .map((rate, index) => {
@@ -92,14 +98,18 @@ export async function POST(req: NextRequest) {
                 : "";
           const label = `${rate.service}${etaText}`;
 
+          // Aplicar promo de envío gratis si aplica
+          const finalPriceCents = appliesFreeShipping ? 0 : rate.totalPriceCents;
+
           return {
             code,
             label,
-            priceCents: rate.totalPriceCents,
+            priceCents: finalPriceCents,
             provider: "skydropx" as const,
             etaMinDays: rate.etaMinDays,
             etaMaxDays: rate.etaMaxDays,
             externalRateId: rate.externalRateId,
+            originalPriceCents: appliesFreeShipping ? rate.totalPriceCents : undefined,
           };
         });
       // Ya viene ordenado de getSkydropxRates, pero por seguridad ordenamos de nuevo
