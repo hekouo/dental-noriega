@@ -907,8 +907,7 @@ export default function PedidosPage() {
                     </span>
                     {/* Mensaje contextual para pedidos pendientes de métodos manuales */}
                     {orderDetail.payment_status === "pending" &&
-                      (orderDetail.payment_method === "bank_transfer" ||
-                        orderDetail.payment_method === "cash") && (
+                      orderDetail.payment_method === "bank_transfer" && (
                         <p className="text-sm text-gray-600 mt-2 italic">
                           Tu pedido está reservado. En cuanto confirmemos tu pago, actualizaremos el estado a Pagado.
                         </p>

@@ -9,12 +9,12 @@ export const revalidate = 0;
 export const metadata: Metadata = {
   title: "Pago",
   description:
-    "Completa el pago de tu pedido de forma segura. Aceptamos tarjetas, OXXO y más métodos de pago.",
+    "Completa el pago de tu pedido de forma segura. Aceptamos tarjetas y transferencias bancarias.",
   robots: { index: false, follow: true },
   openGraph: {
     title: "Pago | Depósito Dental Noriega",
     description:
-      "Completa el pago de tu pedido de forma segura. Aceptamos tarjetas, OXXO y más métodos de pago.",
+      "Completa el pago de tu pedido de forma segura. Aceptamos tarjetas y transferencias bancarias.",
     type: "website",
   },
 };

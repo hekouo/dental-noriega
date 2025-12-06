@@ -1,7 +1,7 @@
 /**
  * Métodos de pago disponibles para órdenes
  */
-export type PaymentMethod = "card" | "bank_transfer" | "cash";
+export type PaymentMethod = "card" | "bank_transfer";
 
 /**
  * Estados de pago para órdenes
@@ -13,8 +13,7 @@ export type PaymentStatus = "pending" | "paid" | "canceled";
  */
 export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   card: "Tarjeta de crédito/débito",
-  bank_transfer: "Transferencia / depósito bancario (SPEI)",
-  cash: "Pago en efectivo (Oxxo / ventanilla)",
+  bank_transfer: "Transferencia / Depósito",
 };
 
 /**

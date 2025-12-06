@@ -97,7 +97,6 @@ export default function PagoPendienteClient() {
 
   const paymentMethod = order.payment_method;
   const isBankTransfer = paymentMethod === "bank_transfer";
-  const isCash = paymentMethod === "cash";
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
@@ -140,63 +139,70 @@ export default function PagoPendienteClient() {
           {/* Instrucciones según método */}
           {isBankTransfer && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-              <h2 className="font-semibold text-gray-900 mb-3">
-                Instrucciones para transferencia bancaria
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                Tu pedido fue registrado con pago pendiente
               </h2>
-              <div className="space-y-3 text-sm text-gray-700">
-                <p>
-                  <strong>1. Realiza la transferencia</strong>
-                </p>
-                <p>
-                  Transfiere el monto de <strong>{formatMXNFromCents(order.total_cents)}</strong> a la siguiente cuenta:
-                </p>
-                <div className="bg-white rounded-md p-4 border border-blue-300">
-                  <p className="font-medium mb-2">Datos bancarios:</p>
-                  <p>Banco: [Nombre del banco]</p>
-                  <p>CLABE: [CLABE]</p>
-                  <p>Cuenta: [Número de cuenta]</p>
-                  <p>Beneficiario: Depósito Dental Noriega</p>
+              <p className="text-sm text-gray-700 mb-4">
+                <strong>Método elegido:</strong> Transferencia / Depósito
+              </p>
+              <div className="space-y-4 text-sm text-gray-700">
+                <div>
+                  <p className="font-medium mb-2">
+                    <strong>1. Transfiere o deposita el total de tu pedido</strong>
+                  </p>
+                  <p className="mb-2">
+                    Monto a pagar: <strong>{formatMXNFromCents(order.total_cents)}</strong>
+                  </p>
+                  <div className="bg-white rounded-md p-4 border border-blue-300 mt-2">
+                    <p className="font-medium mb-2">Datos bancarios:</p>
+                    <ul className="list-disc list-inside space-y-1">
+                      <li>Banco: [TODO: completar en el futuro con datos reales]</li>
+                      <li>Cuenta/CLABE: [TODO]</li>
+                      <li>Beneficiario: Depósito Dental Noriega</li>
+                      <li>Referencia: Usa el ID de tu orden <span className="font-mono font-semibold">{order.id.slice(0, 8)}</span> o tu email <span className="font-semibold">{order.contact_email || "del pedido"}</span></li>
+                    </ul>
+                  </div>
                 </div>
-                <p>
-                  <strong>2. Envía el comprobante</strong>
-                </p>
-                <p>
-                  Una vez realizada la transferencia, envía el comprobante por WhatsApp o correo electrónico para que podamos confirmar tu pago y procesar tu pedido.
-                </p>
-                <p className="text-xs text-gray-600 mt-4">
-                  <strong>Nota:</strong> Tu pedido está reservado. En cuanto confirmemos tu pago, actualizaremos el estado a Pagado y procederemos con el envío.
+                <div>
+                  <p className="font-medium mb-2">
+                    <strong>2. Formas de realizar el depósito:</strong>
+                  </p>
+                  <ul className="list-disc list-inside space-y-1 ml-4">
+                    <li>Desde tu app bancaria (transferencia SPEI)</li>
+                    <li>En sucursal bancaria (ventanilla)</li>
+                    <li>En tiendas como Oxxo, 7-Eleven, etc., pidiendo depósito a cuenta/CLABE</li>
+                  </ul>
+                </div>
+                <div>
+                  <p className="font-medium mb-2">
+                    <strong>3. Envía el comprobante</strong>
+                  </p>
+                  <p>
+                    Una vez realizado el pago, envía tu comprobante por WhatsApp al{" "}
+                    <a href="https://wa.me/[NÚMERO WHATSAPP]" target="_blank" rel="noopener noreferrer" className="text-primary-600 underline">
+                      [NÚMERO WHATSAPP]
+                    </a>{" "}
+                    o a nuestro correo{" "}
+                    <a href="mailto:[CORREO]" className="text-primary-600 underline">
+                      [CORREO]
+                    </a>{" "}
+                    para que podamos confirmar tu pedido.
+                  </p>
+                </div>
+                <p className="text-xs text-gray-600 mt-4 bg-yellow-50 p-2 rounded border border-yellow-200">
+                  <strong>Nota importante:</strong> Tu pedido está reservado. En cuanto confirmemos tu pago, actualizaremos el estado a Pagado y procederemos con el envío.
                 </p>
               </div>
             </div>
           )}
 
-          {isCash && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-              <h2 className="font-semibold text-gray-900 mb-3">
-                Instrucciones para pago en efectivo
-              </h2>
-              <div className="space-y-3 text-sm text-gray-700">
-                <p>
-                  <strong>1. Realiza el pago</strong>
-                </p>
-                <p>
-                  Puedes pagar el monto de <strong>{formatMXNFromCents(order.total_cents)}</strong> en:
-                </p>
-                <ul className="list-disc list-inside space-y-1 ml-4">
-                  <li>Oxxo (código de barras o referencia)</li>
-                  <li>Ventanilla bancaria</li>
-                  <li>Tienda física</li>
-                </ul>
-                <p className="mt-4">
-                  <strong>2. Envía el comprobante</strong>
-                </p>
-                <p>
-                  Una vez realizado el pago, envía el comprobante por WhatsApp o correo electrónico para que podamos confirmar tu pago y procesar tu pedido.
-                </p>
-                <p className="text-xs text-gray-600 mt-4">
-                  <strong>Nota:</strong> Tu pedido está reservado. En cuanto confirmemos tu pago, actualizaremos el estado a Pagado y procederemos con el envío.
-                </p>
-              </div>
+          {paymentMethod === "card" && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+              <h2 className="font-semibold text-green-800 mb-2">Pago con Tarjeta</h2>
+              <p className="text-green-700">
+                Tu pago con tarjeta ha sido procesado. Si ves esta página, es posible que haya habido un error de redirección.
+                Por favor, revisa el estado de tu pedido en tu cuenta o contacta a soporte.
+              </p>
             </div>
           )}
 

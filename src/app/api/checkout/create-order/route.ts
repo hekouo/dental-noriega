@@ -27,7 +27,7 @@ const CreateOrderRequestSchema = z.object({
   shippingMethod: z.enum(["pickup", "standard", "express"]).optional(),
   shippingCostCents: z.number().int().nonnegative().optional(), // Costo de envío en centavos
   // Método y estado de pago
-  paymentMethod: z.enum(["card", "bank_transfer", "cash"]).optional(),
+  paymentMethod: z.enum(["card", "bank_transfer"]).optional(),
   paymentStatus: z.enum(["pending", "paid", "canceled"]).optional(),
   // Información de Skydropx opcional
   shipping: z.object({

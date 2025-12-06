@@ -8,8 +8,11 @@ ALTER TABLE public.orders
   ADD COLUMN IF NOT EXISTS payment_status TEXT;
 
 -- Comentarios para documentación
-COMMENT ON COLUMN public.orders.payment_method IS 'Método de pago utilizado: "card" (Stripe), "bank_transfer" (transferencia), "cash" (efectivo)';
-COMMENT ON COLUMN public.orders.payment_status IS 'Estado del pago: "pending", "paid", "canceled"';
+COMMENT ON COLUMN public.orders.payment_method IS
+  'Método de pago utilizado: "card" (Stripe), "bank_transfer" (transferencia/depósito)';
+
+COMMENT ON COLUMN public.orders.payment_status IS
+  'Estado del pago: "pending", "paid", "canceled"';
 
 -- Actualizar pedidos existentes con Stripe para que tengan payment_method = "card" y payment_status = "paid"
 -- Solo si tienen stripe_session_id y status = "paid"

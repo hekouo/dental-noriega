@@ -434,8 +434,8 @@ export default function PagoClient() {
         : Math.round(shippingCost * 100);
       
       // Determinar payment_method y payment_status según el método seleccionado
-      const selectedPaymentMethodValue = paymentMethod === "card" ? "card" : paymentMethod === "bank_transfer" ? "bank_transfer" : paymentMethod === "cash" ? "cash" : null;
-      const selectedPaymentStatusValue = selectedPaymentMethodValue === "card" ? "pending" : selectedPaymentMethodValue === "bank_transfer" || selectedPaymentMethodValue === "cash" ? "pending" : null;
+      const selectedPaymentMethodValue = paymentMethod === "card" ? "card" : paymentMethod === "bank_transfer" ? "bank_transfer" : null;
+      const selectedPaymentStatusValue = selectedPaymentMethodValue === "card" ? "pending" : selectedPaymentMethodValue === "bank_transfer" ? "pending" : null;
 
       const orderPayload = {
         email: datos.email, // Email del checkout para la orden y Stripe
@@ -583,7 +583,7 @@ export default function PagoClient() {
 
       // Si el método de pago es tarjeta, StripePaymentForm creará el PaymentIntent internamente
       if (paymentMethod !== "card") {
-        // Para métodos manuales (bank_transfer o cash), redirigir a página de instrucciones
+        // Para métodos manuales (bank_transfer), redirigir a página de instrucciones
         resetCheckout();
         router.push(`/checkout/pago-pendiente?order=${encodeURIComponent(newOrderId)}`);
       }
@@ -1175,9 +1175,13 @@ export default function PagoClient() {
           >
             <option value="">Selecciona...</option>
             <option value="card">Tarjeta de crédito/débito (Stripe)</option>
-            <option value="bank_transfer">Transferencia / depósito bancario (SPEI)</option>
-            <option value="cash">Pago en efectivo (Oxxo / ventanilla)</option>
+            <option value="bank_transfer">Transferencia o depósito en efectivo</option>
           </select>
+          {watch("paymentMethod") === "bank_transfer" && (
+            <p className="text-sm text-gray-600 mt-1">
+              Te daremos los datos bancarios para transferir o depositar en sucursal, Oxxo, 7-Eleven, etc. Tu pedido se confirma al registrar el pago.
+            </p>
+          )}
           {errors.paymentMethod && (
             <p className="text-red-500 text-sm mt-1">
               {errors.paymentMethod.message}
