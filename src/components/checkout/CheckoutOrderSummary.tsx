@@ -4,6 +4,7 @@ import React from "react";
 import { useCheckoutStore } from "@/lib/store/checkoutStore";
 import { formatMXNFromCents } from "@/lib/utils/currency";
 import { getSelectedItems, getSelectedSubtotalCents } from "@/lib/checkout/selection";
+import { FREE_SHIPPING_THRESHOLD_CENTS } from "@/lib/shipping/freeShipping";
 
 interface CheckoutOrderSummaryProps {
   className?: string;
@@ -140,6 +141,19 @@ export default function CheckoutOrderSummary({
               </span>
               <span className="font-medium">
                 {formatMXNFromCents(shippingCents)}
+              </span>
+            </div>
+          )}
+          {shippingCents === 0 && (
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600">Envío:</span>
+              <span className="font-medium">
+                {formatMXNFromCents(0)}
+                {shippingMethod === "pickup" ? (
+                  <span className="text-gray-500 text-xs ml-1">(recoger en tienda)</span>
+                ) : subtotalCents >= FREE_SHIPPING_THRESHOLD_CENTS ? (
+                  <span className="text-green-600 text-xs ml-1">(promo envío gratis desde $2,000)</span>
+                ) : null}
               </span>
             </div>
           )}

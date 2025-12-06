@@ -7,11 +7,12 @@ import {
   useSelectedTotal,
 } from "@/lib/store/cartSelectors";
 import { useCheckoutStore } from "@/lib/store/checkoutStore";
-import { formatMXN } from "@/lib/utils/currency";
+import { formatMXN, formatMXNFromCents } from "@/lib/utils/currency";
+import { FREE_SHIPPING_THRESHOLD_CENTS } from "@/lib/shipping/freeShipping";
 import { Trash2, Plus, Minus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useCallback, useRef, startTransition } from "react";
+import { useEffect, useCallback, useRef, startTransition, useMemo } from "react";
 import { ROUTES } from "@/lib/routes";
 
 export default function CarritoPage() {
@@ -26,6 +27,18 @@ export default function CarritoPage() {
   const deselectAll = useCartStore((state) => state.deselectAll);
   const ingestFromCart = useCheckoutStore.getState().ingestFromCart;
   const router = useRouter();
+
+  // Calcular subtotal en centavos para la promo de envío gratis
+  const subtotalCents = useMemo(() => {
+    return items
+      .filter((i) => i.selected)
+      .reduce((sum, item) => {
+        const priceCents = typeof item.price_cents === "number" && item.price_cents > 0
+          ? item.price_cents
+          : Math.round(item.price * 100);
+        return sum + priceCents * item.qty;
+      }, 0);
+  }, [items]);
 
   useEffect(() => {
     // Prefetch checkout page for faster navigation
@@ -164,6 +177,28 @@ export default function CarritoPage() {
                 <span>Envío</span>
                 <span>Se calcula en el checkout</span>
               </div>
+              {/* Mensaje de promo de envío gratis */}
+              {subtotalCents > 0 && (
+                <div className="mt-3 pt-3 border-t border-gray-200">
+                  {subtotalCents >= FREE_SHIPPING_THRESHOLD_CENTS ? (
+                    <div className="bg-green-50 border border-green-200 rounded-md p-3 text-center">
+                      <p className="text-sm font-medium text-green-800">
+                        ¡Envío GRATIS aplicado en este pedido!
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="bg-blue-50 border border-blue-200 rounded-md p-3 text-center">
+                      <p className="text-sm text-blue-800">
+                        Te faltan{" "}
+                        <span className="font-semibold">
+                          {formatMXNFromCents(FREE_SHIPPING_THRESHOLD_CENTS - subtotalCents)}
+                        </span>{" "}
+                        para obtener envío GRATIS
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="border-t pt-4 mb-6">
