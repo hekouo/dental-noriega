@@ -15,8 +15,8 @@ export default function PagoPendienteClient() {
     total_cents: number;
     payment_method: string | null;
     payment_status: string | null;
-    contact_name: string | null;
-    contact_email: string | null;
+    email: string | null;
+    metadata: Record<string, unknown> | null;
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,9 +45,9 @@ export default function PagoPendienteClient() {
 
         const { data, error: orderError } = await supabase
           .from("orders")
-          .select("id, total_cents, payment_method, payment_status, contact_name, contact_email")
+          .select("id, total_cents, payment_method, payment_status, email, metadata")
           .eq("id", orderId)
-          .single();
+          .maybeSingle();
 
         if (orderError || !data) {
           setError("No se pudo cargar la información de la orden");
@@ -97,6 +97,14 @@ export default function PagoPendienteClient() {
 
   const paymentMethod = order.payment_method;
   const isBankTransfer = paymentMethod === "bank_transfer";
+
+  // Extraer información de contacto desde metadata
+  const rawMetadata = order.metadata as Record<string, unknown> | null;
+  const contactEmail =
+    (rawMetadata?.contact_email as string | undefined) ??
+    (rawMetadata?.contactEmail as string | undefined) ??
+    order.email ??
+    "";
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
@@ -159,7 +167,7 @@ export default function PagoPendienteClient() {
                       <li>Banco: [TODO: completar en el futuro con datos reales]</li>
                       <li>Cuenta/CLABE: [TODO]</li>
                       <li>Beneficiario: Depósito Dental Noriega</li>
-                      <li>Referencia: Usa el ID de tu orden <span className="font-mono font-semibold">{order.id.slice(0, 8)}</span> o tu email <span className="font-semibold">{order.contact_email || "del pedido"}</span></li>
+                      <li>Referencia: Usa el ID de tu orden <span className="font-mono font-semibold">{order.id.slice(0, 8)}</span> o tu email <span className="font-semibold">{contactEmail || "del pedido"}</span></li>
                     </ul>
                   </div>
                 </div>
