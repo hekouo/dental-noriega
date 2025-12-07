@@ -416,7 +416,13 @@ export default function PagoClient() {
         console.debug("[PagoClient] Reutilizando orderId existente del store:", currentStoreOrderId);
       }
       // Si el método de pago es tarjeta, StripePaymentForm ya tiene el orderId
-      // Si no es tarjeta, redirigir con el orderId existente
+      // Si es bank_transfer, redirigir a página de instrucciones
+      if (paymentMethod === "bank_transfer") {
+        resetCheckout();
+        router.push(`/checkout/pago-pendiente?order=${encodeURIComponent(currentStoreOrderId)}`);
+        return;
+      }
+      // Para otros métodos no-tarjeta (legacy), usar handlePayNowLegacy
       if (paymentMethod !== "card") {
         handlePayNowLegacy(currentStoreOrderId);
       }
