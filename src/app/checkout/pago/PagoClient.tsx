@@ -367,6 +367,166 @@ export default function PagoClient() {
     }
   };
 
+  // Manejar pago con transferencia bancaria
+  const handleBankTransfer = async (_formData?: FormValues) => {
+    if (!datos) {
+      setError("Faltan datos de envío");
+      return;
+    }
+
+    // Validar carrito no vacío
+    if (itemsForOrder.length === 0) {
+      setError("El carrito está vacío");
+      router.push("/catalogo");
+      return;
+    }
+
+    // Verificar si ya hay un orderId en el store
+    const currentStoreOrderId = useCheckoutStore.getState().orderId;
+    
+    // Si ya existe una orden, redirigir directamente
+    if (currentStoreOrderId) {
+      if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
+        console.debug("[PagoClient] Reutilizando orderId existente para bank_transfer:", currentStoreOrderId);
+      }
+      resetCheckout();
+      router.push(`/checkout/pago-pendiente?order=${encodeURIComponent(currentStoreOrderId)}`);
+      return;
+    }
+
+    setIsCreatingOrder(true);
+    setError(null);
+
+    try {
+      const shippingCostCents = selectedShippingOption
+        ? selectedShippingOption.priceCents
+        : Math.round(shippingCost * 100);
+
+      const orderPayload = {
+        email: datos.email,
+        name: datos.name,
+        shippingMethod: displayShippingMethod,
+        shippingCostCents,
+        paymentMethod: "bank_transfer",
+        paymentStatus: "pending",
+        shipping: selectedShippingOption
+          ? {
+              provider: "skydropx",
+              option_code: selectedShippingOption.code,
+              price_cents: selectedShippingOption.priceCents,
+              rate: {
+                external_id: selectedShippingOption.externalRateId,
+                provider: selectedShippingOption.provider,
+                service: selectedShippingOption.label,
+                eta_min_days: selectedShippingOption.etaMinDays,
+                eta_max_days: selectedShippingOption.etaMaxDays,
+              },
+            }
+          : undefined,
+        loyalty: loyaltyApplied && loyaltyPoints?.canApplyDiscount
+          ? {
+              applied: true,
+              pointsToSpend: LOYALTY_MIN_POINTS_FOR_DISCOUNT,
+              discountPercent: LOYALTY_DISCOUNT_PERCENT,
+              discountCents: loyaltyDiscountCents,
+              balanceBefore: loyaltyPoints.pointsBalance,
+            }
+          : undefined,
+        items: itemsForOrder.map((item) => {
+          const qty = item.qty ?? 1;
+          const priceCents =
+            typeof item.price_cents === "number" && item.price_cents > 0
+              ? item.price_cents
+              : typeof item.price === "number" && item.price > 0
+                ? Math.round(item.price * 100)
+                : 0;
+          
+          return {
+            id: item.id,
+            qty,
+            price_cents: priceCents,
+            title: item.title,
+            image_url: item.image_url || null,
+          };
+        }).filter((item) => item.price_cents > 0),
+      };
+      
+      if (orderPayload.items.length === 0) {
+        setError("No hay productos con precio válido para procesar el pago");
+        setToast({ message: "Verifica que todos los productos tengan precio", type: "error" });
+        setIsCreatingOrder(false);
+        return;
+      }
+
+      const orderResponse = await fetch("/api/checkout/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(orderPayload),
+      });
+
+      if (!orderResponse.ok) {
+        const errorData = await orderResponse.json().catch(() => ({}));
+        const errorMessage = (errorData as { error?: string }).error || `Error al crear la orden: ${orderResponse.status}`;
+        
+        if (orderResponse.status >= 500 || orderResponse.status === 0) {
+          setErrorType("recoverable");
+          throw new Error(`Error de conexión. Por favor, intenta de nuevo. ${errorMessage}`);
+        }
+        
+        setErrorType("fatal");
+        throw new Error(errorMessage);
+      }
+
+      const orderResult = await orderResponse.json();
+      const newOrderId = (orderResult as { order_id?: string }).order_id;
+
+      if (!newOrderId) {
+        setErrorType("fatal");
+        throw new Error("No se recibió order_id de la API. Por favor, contacta con soporte.");
+      }
+
+      // Guardar orderId en el store
+      setStoreOrderId(newOrderId);
+      setOrderId(newOrderId);
+
+      // Persistir en localStorage
+      if (typeof window !== "undefined") {
+        const orderData = {
+          orderRef: newOrderId,
+          order_id: newOrderId,
+          status: "pending",
+          total_cents: orderResult.total_cents ?? Math.round(total * 100),
+          items: itemsForOrder.map((item) => ({
+            id: item.id,
+            qty: item.qty ?? 1,
+            title: item.title,
+            price_cents: typeof item.price_cents === "number" && item.price_cents > 0
+              ? item.price_cents
+              : typeof item.price === "number" && item.price > 0
+                ? Math.round(item.price * 100)
+                : 0,
+            image_url: item.image_url,
+          })),
+          created_at: new Date().toISOString(),
+        };
+        localStorage.setItem("DDN_LAST_ORDER_V1", JSON.stringify(orderData));
+      }
+
+      // Redirigir a página de pago pendiente
+      resetCheckout();
+      router.push(`/checkout/pago-pendiente?order=${encodeURIComponent(newOrderId)}`);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Error inesperado";
+      setError(errorMessage);
+      setToast({ message: errorMessage, type: "error" });
+      setIsCreatingOrder(false);
+      
+      if (!errorType) {
+        setErrorType("recoverable");
+      }
+    }
+  };
+
   // Crear orden y generar PaymentIntent si es tarjeta
   // TODO: Refactor this function to reduce cognitive complexity. Rule temporarily disabled to keep CI passing.
   // eslint-disable-next-line sonarjs/cognitive-complexity
@@ -416,13 +576,8 @@ export default function PagoClient() {
         console.debug("[PagoClient] Reutilizando orderId existente del store:", currentStoreOrderId);
       }
       // Si el método de pago es tarjeta, StripePaymentForm ya tiene el orderId
-      // Si es bank_transfer, redirigir a página de instrucciones
-      if (paymentMethod === "bank_transfer") {
-        resetCheckout();
-        router.push(`/checkout/pago-pendiente?order=${encodeURIComponent(currentStoreOrderId)}`);
-        return;
-      }
       // Para otros métodos no-tarjeta (legacy), usar handlePayNowLegacy
+      // NOTA: bank_transfer nunca debería llegar aquí porque tiene su propia función handleBankTransfer
       if (paymentMethod !== "card") {
         handlePayNowLegacy(currentStoreOrderId);
       }
@@ -588,8 +743,9 @@ export default function PagoClient() {
       }
 
       // Si el método de pago es tarjeta, StripePaymentForm creará el PaymentIntent internamente
+      // NOTA: bank_transfer nunca debería llegar aquí porque tiene su propia función handleBankTransfer
       if (paymentMethod !== "card") {
-        // Para métodos manuales (bank_transfer), redirigir a página de instrucciones
+        // Para otros métodos manuales (legacy), redirigir a página de instrucciones
         resetCheckout();
         router.push(`/checkout/pago-pendiente?order=${encodeURIComponent(newOrderId)}`);
       }
@@ -1148,7 +1304,14 @@ export default function PagoClient() {
         </div>
       ) : (
         /* Formulario de pago tradicional */
-        <form onSubmit={handleSubmit(handleCreateOrderAndPaymentIntent)} className="space-y-4">
+        <form onSubmit={handleSubmit((formData) => {
+          const paymentMethod = formData.paymentMethod || watch("paymentMethod") || "";
+          if (paymentMethod === "bank_transfer") {
+            handleBankTransfer(formData);
+          } else {
+            handleCreateOrderAndPaymentIntent(formData);
+          }
+        })} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Tratamiento *
