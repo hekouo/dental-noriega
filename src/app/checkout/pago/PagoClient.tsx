@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, type SubmitHandler } from "react-hook-form";
 import Link from "next/link";
 import { useState, useEffect, useMemo, useRef } from "react";
 import {
@@ -367,10 +367,205 @@ export default function PagoClient() {
     }
   };
 
+  // Handler principal del formulario
+  const onSubmit: SubmitHandler<FormValues> = async (formData) => {
+    const method = formData.paymentMethod;
+
+    if (method === "bank_transfer") {
+      await handleBankTransfer(formData);
+      return;
+    }
+
+    // Cualquier otro método (solo "card")
+    await handleCreateOrderAndPaymentIntent(formData);
+  };
+
+  // Manejar pago con transferencia bancaria
+  const handleBankTransfer = async (formData: FormValues) => {
+    try {
+      setIsCreatingOrder(true);
+      setError(null);
+
+      const method = formData.paymentMethod;
+      if (method !== "bank_transfer") {
+        console.error("[handleBankTransfer] llamado con método distinto de bank_transfer", { method });
+        setIsCreatingOrder(false);
+        return;
+      }
+
+      if (!datos) {
+        setError("Faltan datos de envío");
+        setToast({ message: "Faltan datos de envío", type: "error" });
+        setIsCreatingOrder(false);
+        return;
+      }
+
+      // Validar carrito no vacío
+      if (itemsForOrder.length === 0) {
+        setError("El carrito está vacío");
+        setToast({ message: "El carrito está vacío", type: "error" });
+        setIsCreatingOrder(false);
+        router.push("/catalogo");
+        return;
+      }
+
+      const currentOrderId = useCheckoutStore.getState().orderId;
+
+      // 1) Si ya hay orden en el store, ir directo a pago pendiente
+      if (currentOrderId) {
+        if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
+          console.debug("[handleBankTransfer] Reutilizando orderId existente:", currentOrderId);
+        }
+        router.push(`/checkout/pago-pendiente?order=${encodeURIComponent(currentOrderId)}`);
+        return;
+      }
+
+      // 2) Si NO hay orden, crear una nueva
+      const shippingCostCents = selectedShippingOption
+        ? selectedShippingOption.priceCents
+        : Math.round(shippingCost * 100);
+
+      const orderPayload = {
+        email: datos.email,
+        name: datos.name,
+        shippingMethod: displayShippingMethod,
+        shippingCostCents,
+        paymentMethod: "bank_transfer",
+        paymentStatus: "pending",
+        shipping: selectedShippingOption
+          ? {
+              provider: "skydropx",
+              option_code: selectedShippingOption.code,
+              price_cents: selectedShippingOption.priceCents,
+              rate: {
+                external_id: selectedShippingOption.externalRateId,
+                provider: selectedShippingOption.provider,
+                service: selectedShippingOption.label,
+                eta_min_days: selectedShippingOption.etaMinDays,
+                eta_max_days: selectedShippingOption.etaMaxDays,
+              },
+            }
+          : undefined,
+        loyalty: loyaltyApplied && loyaltyPoints?.canApplyDiscount
+          ? {
+              applied: true,
+              pointsToSpend: LOYALTY_MIN_POINTS_FOR_DISCOUNT,
+              discountPercent: LOYALTY_DISCOUNT_PERCENT,
+              discountCents: loyaltyDiscountCents,
+              balanceBefore: loyaltyPoints.pointsBalance,
+            }
+          : undefined,
+        items: itemsForOrder.map((item) => {
+          const qty = item.qty ?? 1;
+          const priceCents =
+            typeof item.price_cents === "number" && item.price_cents > 0
+              ? item.price_cents
+              : typeof item.price === "number" && item.price > 0
+                ? Math.round(item.price * 100)
+                : 0;
+          
+          return {
+            id: item.id,
+            qty,
+            price_cents: priceCents,
+            title: item.title,
+            image_url: item.image_url || null,
+          };
+        }).filter((item) => item.price_cents > 0),
+      };
+      
+      if (orderPayload.items.length === 0) {
+        setError("No hay productos con precio válido para procesar el pago");
+        setToast({ message: "Verifica que todos los productos tengan precio", type: "error" });
+        setIsCreatingOrder(false);
+        return;
+      }
+
+      const orderResponse = await fetch("/api/checkout/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(orderPayload),
+      });
+
+      if (!orderResponse.ok) {
+        const errorData = await orderResponse.json().catch(() => ({}));
+        const errorMessage = (errorData as { error?: string }).error || `Error al crear la orden: ${orderResponse.status}`;
+        
+        if (orderResponse.status >= 500 || orderResponse.status === 0) {
+          setErrorType("recoverable");
+          throw new Error(`Error de conexión. Por favor, intenta de nuevo. ${errorMessage}`);
+        }
+        
+        setErrorType("fatal");
+        throw new Error(errorMessage);
+      }
+
+      const orderResult = await orderResponse.json();
+      const newOrderId = (orderResult as { order_id?: string }).order_id;
+
+      if (!newOrderId) {
+        console.error("[handleBankTransfer] create-order no devolvió order_id", { orderResult });
+        setErrorType("fatal");
+        setToast({ message: "No se pudo crear tu pedido para transferencia. Inténtalo de nuevo.", type: "error" });
+        setIsCreatingOrder(false);
+        return;
+      }
+
+      // 3) Guardar orderId en el store y redirigir
+      setStoreOrderId(newOrderId);
+      setOrderId(newOrderId);
+
+      // Persistir en localStorage
+      if (typeof window !== "undefined") {
+        const orderData = {
+          orderRef: newOrderId,
+          order_id: newOrderId,
+          status: "pending",
+          total_cents: orderResult.total_cents ?? Math.round(total * 100),
+          items: itemsForOrder.map((item) => ({
+            id: item.id,
+            qty: item.qty ?? 1,
+            title: item.title,
+            price_cents: typeof item.price_cents === "number" && item.price_cents > 0
+              ? item.price_cents
+              : typeof item.price === "number" && item.price > 0
+                ? Math.round(item.price * 100)
+                : 0,
+            image_url: item.image_url,
+          })),
+          created_at: new Date().toISOString(),
+        };
+        localStorage.setItem("DDN_LAST_ORDER_V1", JSON.stringify(orderData));
+      }
+
+      // Redirigir a página de pago pendiente (NO usar resetCheckout antes de redirigir)
+      router.push(`/checkout/pago-pendiente?order=${encodeURIComponent(newOrderId)}`);
+    } catch (err) {
+      console.error("[handleBankTransfer] error", { error: err });
+      const errorMessage = err instanceof Error ? err.message : "Hubo un problema al preparar tu pago por transferencia.";
+      setError(errorMessage);
+      setToast({ message: errorMessage, type: "error" });
+      setIsCreatingOrder(false);
+      
+      if (!errorType) {
+        setErrorType("recoverable");
+      }
+    }
+  };
+
   // Crear orden y generar PaymentIntent si es tarjeta
   // TODO: Refactor this function to reduce cognitive complexity. Rule temporarily disabled to keep CI passing.
   // eslint-disable-next-line sonarjs/cognitive-complexity
   const handleCreateOrderAndPaymentIntent = async (formData?: FormValues) => {
+    // Obtener método de pago del formulario o del watch
+    const paymentMethod = formData?.paymentMethod || watch("paymentMethod") || "";
+
+    // Guard: nunca procesar bank_transfer aquí
+    if (paymentMethod === "bank_transfer") {
+      console.error("[handleCreateOrderAndPaymentIntent] llamado por error con bank_transfer");
+      return;
+    }
+
     if (!datos) {
       setError("Faltan datos de envío");
       return;
@@ -382,9 +577,6 @@ export default function PagoClient() {
       router.push("/catalogo");
       return;
     }
-
-    // Obtener método de pago del formulario o del watch
-    const paymentMethod = formData?.paymentMethod || watch("paymentMethod") || "";
 
     // Validar que no haya items con precio 0 si es tarjeta
     if (paymentMethod === "card") {
@@ -416,13 +608,8 @@ export default function PagoClient() {
         console.debug("[PagoClient] Reutilizando orderId existente del store:", currentStoreOrderId);
       }
       // Si el método de pago es tarjeta, StripePaymentForm ya tiene el orderId
-      // Si es bank_transfer, redirigir a página de instrucciones
-      if (paymentMethod === "bank_transfer") {
-        resetCheckout();
-        router.push(`/checkout/pago-pendiente?order=${encodeURIComponent(currentStoreOrderId)}`);
-        return;
-      }
       // Para otros métodos no-tarjeta (legacy), usar handlePayNowLegacy
+      // NOTA: bank_transfer nunca debería llegar aquí porque tiene su propia función handleBankTransfer
       if (paymentMethod !== "card") {
         handlePayNowLegacy(currentStoreOrderId);
       }
@@ -588,8 +775,9 @@ export default function PagoClient() {
       }
 
       // Si el método de pago es tarjeta, StripePaymentForm creará el PaymentIntent internamente
+      // NOTA: bank_transfer nunca debería llegar aquí porque tiene su propia función handleBankTransfer
       if (paymentMethod !== "card") {
-        // Para métodos manuales (bank_transfer), redirigir a página de instrucciones
+        // Para otros métodos manuales (legacy), redirigir a página de instrucciones
         resetCheckout();
         router.push(`/checkout/pago-pendiente?order=${encodeURIComponent(newOrderId)}`);
       }
@@ -1148,7 +1336,7 @@ export default function PagoClient() {
         </div>
       ) : (
         /* Formulario de pago tradicional */
-        <form onSubmit={handleSubmit(handleCreateOrderAndPaymentIntent)} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Tratamiento *
