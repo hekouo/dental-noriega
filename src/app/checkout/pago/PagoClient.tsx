@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, type SubmitHandler } from "react-hook-form";
 import Link from "next/link";
 import { useState, useEffect, useMemo, useRef } from "react";
 import {
@@ -367,37 +367,60 @@ export default function PagoClient() {
     }
   };
 
+  // Handler principal del formulario
+  const onSubmit: SubmitHandler<FormValues> = async (formData) => {
+    const method = formData.paymentMethod;
+
+    if (method === "bank_transfer") {
+      await handleBankTransfer(formData);
+      return;
+    }
+
+    // Cualquier otro método (solo "card")
+    await handleCreateOrderAndPaymentIntent(formData);
+  };
+
   // Manejar pago con transferencia bancaria
-  const handleBankTransfer = async (_formData?: FormValues) => {
-    if (!datos) {
-      setError("Faltan datos de envío");
-      return;
-    }
-
-    // Validar carrito no vacío
-    if (itemsForOrder.length === 0) {
-      setError("El carrito está vacío");
-      router.push("/catalogo");
-      return;
-    }
-
-    // Verificar si ya hay un orderId en el store
-    const currentStoreOrderId = useCheckoutStore.getState().orderId;
-    
-    // Si ya existe una orden, redirigir directamente
-    if (currentStoreOrderId) {
-      if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
-        console.debug("[PagoClient] Reutilizando orderId existente para bank_transfer:", currentStoreOrderId);
-      }
-      resetCheckout();
-      router.push(`/checkout/pago-pendiente?order=${encodeURIComponent(currentStoreOrderId)}`);
-      return;
-    }
-
-    setIsCreatingOrder(true);
-    setError(null);
-
+  const handleBankTransfer = async (formData: FormValues) => {
     try {
+      setIsCreatingOrder(true);
+      setError(null);
+
+      const method = formData.paymentMethod;
+      if (method !== "bank_transfer") {
+        console.error("[handleBankTransfer] llamado con método distinto de bank_transfer", { method });
+        setIsCreatingOrder(false);
+        return;
+      }
+
+      if (!datos) {
+        setError("Faltan datos de envío");
+        setToast({ message: "Faltan datos de envío", type: "error" });
+        setIsCreatingOrder(false);
+        return;
+      }
+
+      // Validar carrito no vacío
+      if (itemsForOrder.length === 0) {
+        setError("El carrito está vacío");
+        setToast({ message: "El carrito está vacío", type: "error" });
+        setIsCreatingOrder(false);
+        router.push("/catalogo");
+        return;
+      }
+
+      const currentOrderId = useCheckoutStore.getState().orderId;
+
+      // 1) Si ya hay orden en el store, ir directo a pago pendiente
+      if (currentOrderId) {
+        if (process.env.NEXT_PUBLIC_CHECKOUT_DEBUG === "1") {
+          console.debug("[handleBankTransfer] Reutilizando orderId existente:", currentOrderId);
+        }
+        router.push(`/checkout/pago-pendiente?order=${encodeURIComponent(currentOrderId)}`);
+        return;
+      }
+
+      // 2) Si NO hay orden, crear una nueva
       const shippingCostCents = selectedShippingOption
         ? selectedShippingOption.priceCents
         : Math.round(shippingCost * 100);
@@ -481,11 +504,14 @@ export default function PagoClient() {
       const newOrderId = (orderResult as { order_id?: string }).order_id;
 
       if (!newOrderId) {
+        console.error("[handleBankTransfer] create-order no devolvió order_id", { orderResult });
         setErrorType("fatal");
-        throw new Error("No se recibió order_id de la API. Por favor, contacta con soporte.");
+        setToast({ message: "No se pudo crear tu pedido para transferencia. Inténtalo de nuevo.", type: "error" });
+        setIsCreatingOrder(false);
+        return;
       }
 
-      // Guardar orderId en el store
+      // 3) Guardar orderId en el store y redirigir
       setStoreOrderId(newOrderId);
       setOrderId(newOrderId);
 
@@ -512,11 +538,11 @@ export default function PagoClient() {
         localStorage.setItem("DDN_LAST_ORDER_V1", JSON.stringify(orderData));
       }
 
-      // Redirigir a página de pago pendiente
-      resetCheckout();
+      // Redirigir a página de pago pendiente (NO usar resetCheckout antes de redirigir)
       router.push(`/checkout/pago-pendiente?order=${encodeURIComponent(newOrderId)}`);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Error inesperado";
+      console.error("[handleBankTransfer] error", { error: err });
+      const errorMessage = err instanceof Error ? err.message : "Hubo un problema al preparar tu pago por transferencia.";
       setError(errorMessage);
       setToast({ message: errorMessage, type: "error" });
       setIsCreatingOrder(false);
@@ -531,6 +557,15 @@ export default function PagoClient() {
   // TODO: Refactor this function to reduce cognitive complexity. Rule temporarily disabled to keep CI passing.
   // eslint-disable-next-line sonarjs/cognitive-complexity
   const handleCreateOrderAndPaymentIntent = async (formData?: FormValues) => {
+    // Obtener método de pago del formulario o del watch
+    const paymentMethod = formData?.paymentMethod || watch("paymentMethod") || "";
+
+    // Guard: nunca procesar bank_transfer aquí
+    if (paymentMethod === "bank_transfer") {
+      console.error("[handleCreateOrderAndPaymentIntent] llamado por error con bank_transfer");
+      return;
+    }
+
     if (!datos) {
       setError("Faltan datos de envío");
       return;
@@ -542,9 +577,6 @@ export default function PagoClient() {
       router.push("/catalogo");
       return;
     }
-
-    // Obtener método de pago del formulario o del watch
-    const paymentMethod = formData?.paymentMethod || watch("paymentMethod") || "";
 
     // Validar que no haya items con precio 0 si es tarjeta
     if (paymentMethod === "card") {
@@ -1304,14 +1336,7 @@ export default function PagoClient() {
         </div>
       ) : (
         /* Formulario de pago tradicional */
-        <form onSubmit={handleSubmit((formData) => {
-          const paymentMethod = formData.paymentMethod || watch("paymentMethod") || "";
-          if (paymentMethod === "bank_transfer") {
-            handleBankTransfer(formData);
-          } else {
-            handleCreateOrderAndPaymentIntent(formData);
-          }
-        })} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Tratamiento *
