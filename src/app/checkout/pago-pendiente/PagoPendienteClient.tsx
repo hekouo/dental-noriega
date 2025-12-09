@@ -18,11 +18,11 @@ export default function PagoPendienteClient({ order, error }: Props) {
         <div className="bg-red-50 border border-red-200 rounded-lg p-6">
           <h1 className="text-xl font-semibold text-red-800 mb-2">Error</h1>
           <p className="text-red-600 mb-4">
-            {error === "not-found" 
-              ? "No se encontró la orden" 
+            {error === "not-found"
+              ? "No se encontró la orden"
               : error === "load-error"
-              ? "No se pudo cargar la información de la orden"
-              : "No se encontró la orden"}
+                ? "No se pudo cargar la información de la orden"
+                : "No se encontró la orden"}
           </p>
           <Link
             href="/cuenta/pedidos"
@@ -107,7 +107,7 @@ export default function PagoPendienteClient({ order, error }: Props) {
                 </div>
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                   <p className="text-sm text-yellow-800">
-                    <strong>Por favor coloca en CONCEPTO:</strong> Tu nombre y apellido.
+                    <strong>Favor de poner en CONCEPTO tu nombre y apellido.</strong>
                   </p>
                 </div>
                 <div className="text-sm text-gray-700">
