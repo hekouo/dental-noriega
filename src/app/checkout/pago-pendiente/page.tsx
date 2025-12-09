@@ -1,6 +1,7 @@
-import { Suspense } from "react";
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import PagoPendienteClient from "./PagoPendienteClient";
+import { getPendingBankTransferOrder } from "@/lib/orders/getPendingBankTransferOrder.server";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -11,11 +12,34 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function PagoPendientePage() {
+type Props = {
+  searchParams: Promise<{
+    order?: string;
+  }>;
+};
+
+export default async function PagoPendientePage({ searchParams }: Props) {
+  const params = await searchParams;
+  const orderId = params.order;
+
+  // Si no hay orderId, mostrar error directamente
+  if (!orderId || typeof orderId !== "string") {
+    return (
+      <PagoPendienteClient
+        order={null}
+        error="not-found"
+      />
+    );
+  }
+
+  // Cargar la orden en el servidor
+  const { order, error } = await getPendingBankTransferOrder(orderId);
+
   return (
-    <Suspense fallback={<div>Cargando...</div>}>
-      <PagoPendienteClient />
-    </Suspense>
+    <PagoPendienteClient
+      order={order}
+      error={error}
+    />
   );
 }
 

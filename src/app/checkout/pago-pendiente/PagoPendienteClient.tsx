@@ -1,101 +1,29 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { formatMXNFromCents } from "@/lib/utils/currency";
 import { getPaymentMethodLabel, getPaymentStatusLabel } from "@/lib/orders/paymentStatus";
-import { getBrowserSupabase } from "@/lib/supabase/client";
+import type { PendingOrder } from "@/lib/orders/getPendingBankTransferOrder.server";
 
-type PendingOrder = {
-  id: string;
-  total_cents: number;
-  payment_method: "card" | "bank_transfer" | null;
-  payment_status: "pending" | "paid" | "canceled" | null;
-  email: string | null;
-  metadata: Record<string, unknown> | null;
+type Props = {
+  order: PendingOrder | null;
+  error: "load-error" | "not-found" | null;
 };
 
-export default function PagoPendienteClient() {
-  const searchParams = useSearchParams();
-  const orderId = searchParams?.get("order");
-  const [order, setOrder] = useState<PendingOrder | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    // Si no hay orderId, mostrar error sin intentar cargar
-    if (!orderId || typeof orderId !== "string") {
-      setError("No se encontró información de la orden");
-      setLoading(false);
-      return;
-    }
-
-    async function loadOrder() {
-      try {
-        const supabase = getBrowserSupabase();
-        if (!supabase) {
-          setError("No se pudo conectar con el servidor");
-          setLoading(false);
-          return;
-        }
-
-        // orderId ya está validado arriba, pero TypeScript no lo sabe
-        if (!orderId || typeof orderId !== "string") {
-          setError("ID de orden inválido");
-          setLoading(false);
-          return;
-        }
-
-        const { data, error: orderError } = await supabase
-          .from("orders")
-          .select("id, total_cents, payment_method, payment_status, email, metadata")
-          .eq("id", orderId)
-          .maybeSingle();
-
-        if (orderError) {
-          console.error("Error loading pending order", { orderId, error: orderError });
-          setError("No se pudo cargar la información de la orden");
-          setLoading(false);
-          return;
-        }
-
-        if (!data) {
-          console.error("Order not found", { orderId });
-          setError("No se encontró la orden");
-          setLoading(false);
-          return;
-        }
-
-        setOrder(data);
-      } catch (err) {
-        console.error("Error loading pending order", { orderId, error: err });
-        setError("Error al cargar la orden");
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadOrder();
-  }, [orderId]);
-
-  if (loading) {
-    return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Cargando información...</p>
-        </div>
-      </div>
-    );
-  }
-
+export default function PagoPendienteClient({ order, error }: Props) {
+  // Si hay error o no hay orden, mostrar bloque de error
   if (error || !order) {
     return (
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
         <div className="bg-red-50 border border-red-200 rounded-lg p-6">
           <h1 className="text-xl font-semibold text-red-800 mb-2">Error</h1>
-          <p className="text-red-600 mb-4">{error || "No se encontró la orden"}</p>
+          <p className="text-red-600 mb-4">
+            {error === "not-found" 
+              ? "No se encontró la orden" 
+              : error === "load-error"
+              ? "No se pudo cargar la información de la orden"
+              : "No se encontró la orden"}
+          </p>
           <Link
             href="/cuenta/pedidos"
             className="text-primary-600 hover:text-primary-700 underline"
@@ -187,7 +115,7 @@ export default function PagoPendienteClient() {
                     Puedes depositar en ventanilla, cajero, o tiendas como Oxxo, 7-Eleven, etc. usando la tarjeta o la CLABE.
                   </p>
                   <p className="text-xs text-gray-600 mt-3">
-                    <strong>Nota importante:</strong> Tu pedido está reservado. En cuanto confirmemos tu pago, actualizaremos el estado a Pagado y procederemos con el envío.
+                    <strong>Nota importante:</strong> En cuanto recibamos tu comprobante y se acredite el pago, marcaremos tu pedido como pagado y te enviaremos la confirmación.
                   </p>
                 </div>
               </div>
