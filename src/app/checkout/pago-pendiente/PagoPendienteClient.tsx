@@ -7,21 +7,24 @@ import { formatMXNFromCents } from "@/lib/utils/currency";
 import { getPaymentMethodLabel, getPaymentStatusLabel } from "@/lib/orders/paymentStatus";
 import { getBrowserSupabase } from "@/lib/supabase/client";
 
+type PendingOrder = {
+  id: string;
+  total_cents: number;
+  payment_method: "card" | "bank_transfer" | null;
+  payment_status: "pending" | "paid" | "canceled" | null;
+  email: string | null;
+  metadata: Record<string, unknown> | null;
+};
+
 export default function PagoPendienteClient() {
   const searchParams = useSearchParams();
   const orderId = searchParams?.get("order");
-  const [order, setOrder] = useState<{
-    id: string;
-    total_cents: number;
-    payment_method: string | null;
-    payment_status: string | null;
-    email: string | null;
-    metadata: Record<string, unknown> | null;
-  } | null>(null);
+  const [order, setOrder] = useState<PendingOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Si no hay orderId, mostrar error sin intentar cargar
     if (!orderId || typeof orderId !== "string") {
       setError("No se encontró información de la orden");
       setLoading(false);
@@ -37,6 +40,7 @@ export default function PagoPendienteClient() {
           return;
         }
 
+        // orderId ya está validado arriba, pero TypeScript no lo sabe
         if (!orderId || typeof orderId !== "string") {
           setError("ID de orden inválido");
           setLoading(false);
@@ -49,16 +53,24 @@ export default function PagoPendienteClient() {
           .eq("id", orderId)
           .maybeSingle();
 
-        if (orderError || !data) {
+        if (orderError) {
+          console.error("Error loading pending order", { orderId, error: orderError });
           setError("No se pudo cargar la información de la orden");
+          setLoading(false);
+          return;
+        }
+
+        if (!data) {
+          console.error("Order not found", { orderId });
+          setError("No se encontró la orden");
           setLoading(false);
           return;
         }
 
         setOrder(data);
       } catch (err) {
+        console.error("Error loading pending order", { orderId, error: err });
         setError("Error al cargar la orden");
-        console.error(err);
       } finally {
         setLoading(false);
       }
@@ -97,14 +109,6 @@ export default function PagoPendienteClient() {
 
   const paymentMethod = order.payment_method;
   const isBankTransfer = paymentMethod === "bank_transfer";
-
-  // Extraer información de contacto desde metadata
-  const rawMetadata = order.metadata as Record<string, unknown> | null;
-  const contactEmail =
-    (rawMetadata?.contact_email as string | undefined) ??
-    (rawMetadata?.contactEmail as string | undefined) ??
-    order.email ??
-    "";
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
@@ -146,60 +150,46 @@ export default function PagoPendienteClient() {
 
           {/* Instrucciones según método */}
           {isBankTransfer && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                Tu pedido fue registrado con pago pendiente
-              </h2>
-              <p className="text-sm text-gray-700 mb-4">
-                <strong>Método elegido:</strong> Transferencia / Depósito
-              </p>
-              <div className="space-y-4 text-sm text-gray-700">
-                <div>
-                  <p className="font-medium mb-2">
-                    <strong>1. Transfiere o deposita el total de tu pedido</strong>
-                  </p>
-                  <p className="mb-2">
-                    Monto a pagar: <strong>{formatMXNFromCents(order.total_cents)}</strong>
-                  </p>
-                  <div className="bg-white rounded-md p-4 border border-blue-300 mt-2">
-                    <p className="font-medium mb-2">Datos bancarios:</p>
-                    <ul className="list-disc list-inside space-y-1">
-                      <li>Banco: [TODO: completar en el futuro con datos reales]</li>
-                      <li>Cuenta/CLABE: [TODO]</li>
-                      <li>Beneficiario: Depósito Dental Noriega</li>
-                      <li>Referencia: Usa el ID de tu orden <span className="font-mono font-semibold">{order.id.slice(0, 8)}</span> o tu email <span className="font-semibold">{contactEmail || "del pedido"}</span></li>
-                    </ul>
+            <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+              <div className="bg-primary-50 px-6 py-4 border-b border-primary-200">
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Datos para transferencia o depósito
+                </h2>
+              </div>
+              <div className="px-6 py-6 space-y-4">
+                <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
+                  <div className="space-y-3 text-sm">
+                    <div>
+                      <span className="font-semibold text-gray-700">Banco:</span>
+                      <span className="ml-2 text-gray-900">BANAMEX</span>
+                    </div>
+                    <div>
+                      <span className="font-semibold text-gray-700">Beneficiario:</span>
+                      <span className="ml-2 text-gray-900">Carlos Javier Noriega Álvarez</span>
+                    </div>
+                    <div>
+                      <span className="font-semibold text-gray-700">CLABE:</span>
+                      <span className="ml-2 font-mono text-gray-900">002180051867448125</span>
+                    </div>
+                    <div>
+                      <span className="font-semibold text-gray-700">Tarjeta de débito:</span>
+                      <span className="ml-2 font-mono text-gray-900">5204 1674 6723 1890</span>
+                    </div>
                   </div>
                 </div>
-                <div>
-                  <p className="font-medium mb-2">
-                    <strong>2. Formas de realizar el depósito:</strong>
-                  </p>
-                  <ul className="list-disc list-inside space-y-1 ml-4">
-                    <li>Desde tu app bancaria (transferencia SPEI)</li>
-                    <li>En sucursal bancaria (ventanilla)</li>
-                    <li>En tiendas como Oxxo, 7-Eleven, etc., pidiendo depósito a cuenta/CLABE</li>
-                  </ul>
-                </div>
-                <div>
-                  <p className="font-medium mb-2">
-                    <strong>3. Envía el comprobante</strong>
-                  </p>
-                  <p>
-                    Una vez realizado el pago, envía tu comprobante por WhatsApp al{" "}
-                    <a href="https://wa.me/[NÚMERO WHATSAPP]" target="_blank" rel="noopener noreferrer" className="text-primary-600 underline">
-                      [NÚMERO WHATSAPP]
-                    </a>{" "}
-                    o a nuestro correo{" "}
-                    <a href="mailto:[CORREO]" className="text-primary-600 underline">
-                      [CORREO]
-                    </a>{" "}
-                    para que podamos confirmar tu pedido.
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <p className="text-sm text-yellow-800">
+                    <strong>Por favor coloca en CONCEPTO:</strong> Tu nombre y apellido.
                   </p>
                 </div>
-                <p className="text-xs text-gray-600 mt-4 bg-yellow-50 p-2 rounded border border-yellow-200">
-                  <strong>Nota importante:</strong> Tu pedido está reservado. En cuanto confirmemos tu pago, actualizaremos el estado a Pagado y procederemos con el envío.
-                </p>
+                <div className="text-sm text-gray-700">
+                  <p className="mb-2">
+                    Puedes depositar en ventanilla, cajero, o tiendas como Oxxo, 7-Eleven, etc. usando la tarjeta o la CLABE.
+                  </p>
+                  <p className="text-xs text-gray-600 mt-3">
+                    <strong>Nota importante:</strong> Tu pedido está reservado. En cuanto confirmemos tu pago, actualizaremos el estado a Pagado y procederemos con el envío.
+                  </p>
+                </div>
               </div>
             </div>
           )}
