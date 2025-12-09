@@ -1,9 +1,12 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { formatMXNFromCents } from "@/lib/utils/currency";
 import { getPaymentMethodLabel, getPaymentStatusLabel } from "@/lib/orders/paymentStatus";
 import type { PendingOrder } from "@/lib/orders/getPendingBankTransferOrder.server";
+import { useCartStore } from "@/lib/store/cartStore";
+import { useCheckoutStore } from "@/lib/store/checkoutStore";
 
 type Props = {
   order: PendingOrder | null;
@@ -11,6 +14,19 @@ type Props = {
 };
 
 export default function PagoPendienteClient({ order, error }: Props) {
+  const clearCart = useCartStore((s) => s.clearCart);
+  const resetCheckout = useCheckoutStore((s) => s.reset);
+
+  // Limpiar carrito y checkout store cuando hay una orden válida
+  useEffect(() => {
+    if (order && !error) {
+      // Limpiar carrito local
+      clearCart();
+      // Resetear checkout store (incluye orderId, items, etc.)
+      resetCheckout();
+    }
+  }, [order, error, clearCart, resetCheckout]);
+
   // Si hay error o no hay orden, mostrar bloque de error
   if (error || !order) {
     return (
@@ -117,6 +133,37 @@ export default function PagoPendienteClient({ order, error }: Props) {
                   <p className="text-xs text-gray-600 mt-3">
                     <strong>Nota importante:</strong> En cuanto recibamos tu comprobante y se acredite el pago, marcaremos tu pedido como pagado y te enviaremos la confirmación.
                   </p>
+                </div>
+                {/* Instrucciones para enviar comprobante */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-5">
+                  <h3 className="font-semibold text-gray-900 mb-3">Después de hacer tu pago</h3>
+                  <ul className="space-y-2 text-sm text-gray-700 mb-4 list-disc list-inside">
+                    <li>Guarda una foto o PDF de tu comprobante.</li>
+                    <li>Envíalo por WhatsApp al +52 553 103 3715.</li>
+                    <li>Incluye tu nombre completo y tu número de orden.</li>
+                  </ul>
+                  {(() => {
+                    const orderShortId = order.id.slice(0, 8);
+                    const rawMetadata = (order.metadata ?? null) as
+                      | { contact_name?: string; contactName?: string }
+                      | null;
+                    const customerName =
+                      rawMetadata?.contact_name ??
+                      rawMetadata?.contactName ??
+                      "Cliente";
+                    const whatsappMessage = `Hola, ya realicé mi pago por transferencia o depósito.\n\nMi número de orden es: ${orderShortId}\nMi nombre: ${customerName}`;
+                    const whatsappUrl = `https://wa.me/525531033715?text=${encodeURIComponent(whatsappMessage)}`;
+                    return (
+                      <a
+                        href={whatsappUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center justify-center px-6 py-3 bg-green-600 text-white font-medium rounded-md hover:bg-green-700 transition-colors"
+                      >
+                        Enviar comprobante por WhatsApp
+                      </a>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
