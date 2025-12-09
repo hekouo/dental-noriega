@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import PagoPendienteClient from "./PagoPendienteClient";
 import { getPendingBankTransferOrder } from "@/lib/orders/getPendingBankTransferOrder.server";
 
@@ -13,16 +13,14 @@ export const metadata: Metadata = {
 };
 
 type Props = {
-  searchParams: Promise<{
-    order?: string;
-  }>;
+  searchParams: Promise<{ order?: string }>;
 };
 
 export default async function PagoPendientePage({ searchParams }: Props) {
   const params = await searchParams;
   const orderId = params.order;
 
-  // Si no hay orderId, mostrar error directamente
+  // Si no hay orderId, renderizar directamente el estado de error
   if (!orderId || typeof orderId !== "string") {
     return (
       <PagoPendienteClient
@@ -36,10 +34,9 @@ export default async function PagoPendientePage({ searchParams }: Props) {
   const { order, error } = await getPendingBankTransferOrder(orderId);
 
   return (
-    <PagoPendienteClient
-      order={order}
-      error={error}
-    />
+    <Suspense fallback={<div>Cargando...</div>}>
+      <PagoPendienteClient order={order} error={error} />
+    </Suspense>
   );
 }
 
