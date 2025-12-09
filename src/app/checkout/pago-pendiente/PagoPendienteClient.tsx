@@ -1,9 +1,12 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { formatMXNFromCents } from "@/lib/utils/currency";
 import { getPaymentMethodLabel, getPaymentStatusLabel } from "@/lib/orders/paymentStatus";
 import type { PendingOrder } from "@/lib/orders/getPendingBankTransferOrder.server";
+import { useCartStore } from "@/lib/store/cartStore";
+import { useCheckoutStore } from "@/lib/store/checkoutStore";
 
 type Props = {
   order: PendingOrder | null;
@@ -11,6 +14,19 @@ type Props = {
 };
 
 export default function PagoPendienteClient({ order, error }: Props) {
+  const clearCart = useCartStore((s) => s.clearCart);
+  const resetCheckout = useCheckoutStore((s) => s.reset);
+
+  // Limpiar carrito y checkout store cuando hay una orden válida
+  useEffect(() => {
+    if (order && !error) {
+      // Limpiar carrito local
+      clearCart();
+      // Resetear checkout store (incluye orderId, items, etc.)
+      resetCheckout();
+    }
+  }, [order, error, clearCart, resetCheckout]);
+
   // Si hay error o no hay orden, mostrar bloque de error
   if (error || !order) {
     return (

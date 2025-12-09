@@ -8,6 +8,7 @@ export type PendingOrder = {
   payment_status: "pending" | "paid" | "canceled" | null;
   email: string | null;
   metadata: Record<string, unknown> | null;
+  user_id: string | null;
 };
 
 export async function getPendingBankTransferOrder(orderId: string): Promise<{
@@ -32,7 +33,7 @@ export async function getPendingBankTransferOrder(orderId: string): Promise<{
 
     const { data, error } = await supabase
       .from("orders")
-      .select("id, total_cents, payment_method, payment_status, email, metadata")
+      .select("id, total_cents, payment_method, payment_status, email, metadata, user_id")
       .eq("id", orderId)
       .maybeSingle();
 

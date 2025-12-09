@@ -16,6 +16,7 @@ import { trackPurchase } from "@/lib/analytics/events";
 import { AnimatedPoints } from "@/components/ui/AnimatedPoints";
 import { launchPaymentCoins } from "@/lib/ui/confetti";
 import { LoyaltyPointsBar } from "@/components/ui/LoyaltyPointsBar";
+import { clearCartAction } from "@/lib/actions/cart.server";
 
 type LastOrder = {
   orderRef: string;
@@ -146,6 +147,12 @@ export default function GraciasContent() {
         clearCart();
         clearSelection();
         resetAfterSuccess(); // CRÍTICO: Limpiar orderId del store para nueva compra
+        // Limpiar carrito en Supabase (no crítico si falla)
+        clearCartAction().catch((err) => {
+          if (process.env.NODE_ENV === "development") {
+            console.warn("[GraciasContent] Error al limpiar carrito en Supabase:", err);
+          }
+        });
         setCartCleared(true);
         
         // Limpiar también localStorage para evitar que se restaure orderId viejo
@@ -315,6 +322,12 @@ export default function GraciasContent() {
               clearCart();
               clearSelection();
               resetAfterSuccess(); // CRÍTICO: Limpiar orderId del store para nueva compra
+              // Limpiar carrito en Supabase (no crítico si falla)
+              clearCartAction().catch((err) => {
+                if (process.env.NODE_ENV === "development") {
+                  console.warn("[GraciasContent] Error al limpiar carrito en Supabase:", err);
+                }
+              });
               setCartCleared(true);
               
               // Limpiar también localStorage para evitar que se restaure orderId viejo
@@ -509,6 +522,12 @@ export default function GraciasContent() {
               clearCart();
               clearSelection();
               resetAfterSuccess(); // CRÍTICO: Limpiar orderId del store para nueva compra
+              // Limpiar carrito en Supabase (no crítico si falla)
+              clearCartAction().catch((err) => {
+                if (process.env.NODE_ENV === "development") {
+                  console.warn("[GraciasContent] Error al limpiar carrito en Supabase:", err);
+                }
+              });
               setCartCleared(true);
               
               // Limpiar también localStorage para evitar que se restaure orderId viejo
