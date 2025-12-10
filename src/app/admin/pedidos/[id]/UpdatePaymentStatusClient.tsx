@@ -28,8 +28,15 @@ export default function UpdatePaymentStatusClient({
     try {
       const result = await updatePaymentStatusAdmin(orderId, selectedStatus);
 
-      if (!result.success) {
-        setError(result.error || "Error al actualizar el estado");
+      if (!result.ok) {
+        // Mapear códigos de error a mensajes
+        const errorMessage =
+          result.code === "order-not-found"
+            ? "Orden no encontrada"
+            : result.code === "fetch-error" || result.code === "update-error" || result.code === "config-error"
+              ? "Error al obtener la orden"
+              : "Error al actualizar el estado";
+        setError(errorMessage);
         return;
       }
 
