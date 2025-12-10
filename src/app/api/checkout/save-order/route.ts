@@ -225,7 +225,6 @@ export async function POST(req: NextRequest) {
       contact_name: metadataFromPayload.contact_name || null,
       contact_email: metadataFromPayload.contact_email || orderData.email || null,
       contact_phone: metadataFromPayload.contact_phone || null,
-      whatsapp: metadataFromPayload.whatsapp || metadataFromPayload.contact_phone || null, // WhatsApp (prioridad: whatsapp > contact_phone)
       contact_address: metadataFromPayload.contact_address || null,
       contact_city: metadataFromPayload.contact_city || null,
       contact_state: metadataFromPayload.contact_state || null,

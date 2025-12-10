@@ -186,6 +186,7 @@ export async function POST(req: NextRequest) {
     const shippingCostCents = orderData.shippingCostCents ?? 0;
     
     // Construir metadata con información adicional
+    const phone = orderData.phone || null;
     const metadata: Record<string, unknown> = {
       subtotal_cents: total_cents, // Por ahora subtotal = total (sin envío ni descuento aún)
       shipping_cost_cents: shippingCostCents, // Costo de envío en centavos
@@ -193,8 +194,8 @@ export async function POST(req: NextRequest) {
       shipping_method: shippingMethodForMetadata, // Guardar valor original: pickup, standard, express
       contact_name: orderData.name || null,
       contact_email: orderData.email || null,
-      contact_phone: orderData.phone || null,
-      whatsapp: orderData.phone || null, // Usar el mismo teléfono para WhatsApp
+      contact_phone: phone || null,
+      whatsapp: phone || null, // Usar el mismo teléfono como WhatsApp por defecto
     };
 
     // Incluir información de Skydropx si está presente

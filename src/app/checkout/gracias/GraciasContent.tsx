@@ -276,7 +276,6 @@ export default function GraciasContent() {
                   contact_name: checkoutDatos.name || null,
                   contact_email: checkoutDatos.email || null,
                   contact_phone: checkoutDatos.phone || null,
-                  whatsapp: checkoutDatos.phone || null, // Usar el mismo teléfono para WhatsApp
                   contact_address: checkoutDatos.address || null,
                   contact_city: checkoutDatos.city || null,
                   contact_state: checkoutDatos.state || null,
