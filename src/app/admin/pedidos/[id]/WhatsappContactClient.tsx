@@ -2,6 +2,7 @@
 
 import { formatE164ToReadable } from "@/lib/utils/phone";
 import { formatMXNFromCents } from "@/lib/utils/currency";
+import { BANK_TRANSFER_INFO } from "@/lib/payments/bank-transfer-constants";
 
 type Props = {
   shortId: string;
@@ -11,10 +12,43 @@ type Props = {
   whatsappE164?: string | null;
 };
 
+/**
+ * Construye el mensaje de WhatsApp para el admin
+ */
+function buildWhatsappMessage(
+  shortId: string,
+  totalCents: number | null,
+  contactName: string | null,
+): string {
+  const name = contactName || "Cliente";
+  const total =
+    totalCents !== null
+      ? formatMXNFromCents(totalCents)
+      : "tu pedido";
+
+  const lines = [
+    `Hola ${name}, te escribimos de Depósito Dental Noriega 👋`,
+    ``,
+    `Te compartimos los datos para completar el pago de tu pedido #${shortId}.`,
+    `Total a pagar: ${total}.`,
+    ``,
+    `Datos para transferencia o depósito:`,
+    `Banco: ${BANK_TRANSFER_INFO.bankName}`,
+    `Beneficiario: ${BANK_TRANSFER_INFO.beneficiary}`,
+    `CLABE: ${BANK_TRANSFER_INFO.clabe}`,
+    `Tarjeta de débito: ${BANK_TRANSFER_INFO.debitCard}`,
+    ``,
+    BANK_TRANSFER_INFO.conceptNote,
+    ``,
+    `Cuando hagas tu pago, por favor responde este mensaje con tu comprobante para marcar tu pedido como pagado ✅`,
+  ];
+
+  return lines.join("\n");
+}
+
 export default function WhatsappContactClient({
   shortId,
   totalCents,
-  paymentMethod,
   contactName,
   whatsappE164,
 }: Props) {
@@ -33,23 +67,7 @@ export default function WhatsappContactClient({
   }
 
   // Construir mensaje de WhatsApp
-  const paymentMethodLabel =
-    paymentMethod === "card"
-      ? "Tarjeta de crédito/débito"
-      : paymentMethod === "bank_transfer"
-        ? "Transferencia / depósito"
-        : "Otro método";
-
-  const totalFormatted = totalCents !== null ? formatMXNFromCents(totalCents) : "N/A";
-
-  const message = `Hola${contactName ? ` ${contactName}` : ""}, soy de Depósito Dental Noriega 👋
-
-Tu pedido #${shortId} está registrado con:
-• Método de pago: ${paymentMethodLabel}
-• Total: ${totalFormatted}
-
-Cuando tengas tu comprobante, por favor mándalo por aquí.`;
-
+  const message = buildWhatsappMessage(shortId, totalCents, contactName ?? null);
   const whatsappUrl = `https://wa.me/${whatsappE164}?text=${encodeURIComponent(message)}`;
 
   const handleOpenWhatsApp = () => {
