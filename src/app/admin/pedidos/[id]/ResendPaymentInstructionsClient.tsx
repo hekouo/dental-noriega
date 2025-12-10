@@ -40,7 +40,7 @@ export default function ResendPaymentInstructionsClient({ orderId }: Props) {
             text: errorText,
           });
         }
-      } catch (error) {
+      } catch {
         setMessage({
           type: "error",
           text: "Error inesperado al reenviar instrucciones.",
