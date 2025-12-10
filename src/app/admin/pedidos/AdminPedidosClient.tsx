@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { formatMXNFromCents } from "@/lib/utils/currency";
@@ -32,6 +32,7 @@ export default function AdminPedidosClient({
   const [statusFilter, setStatusFilter] = useState(filters.status);
   const [emailFilter, setEmailFilter] = useState(filters.email);
   const [dateRangeFilter, setDateRangeFilter] = useState(filters.dateRange);
+  const [paymentFilter, setPaymentFilter] = useState<"all" | "bank_pending" | "bank_all">("all");
 
   const updateFilters = () => {
     const params = new URLSearchParams();
@@ -82,6 +83,36 @@ export default function AdminPedidosClient({
     return methodMap[method || ""] || method || "N/A";
   };
 
+  // Filtro client-side para pagos por transferencia
+  const filteredOrders = useMemo(
+    () =>
+      orders.filter((order) => {
+        if (paymentFilter === "all") return true;
+        if (paymentFilter === "bank_all") {
+          return order.payment_method === "bank_transfer";
+        }
+        if (paymentFilter === "bank_pending") {
+          return (
+            order.payment_method === "bank_transfer" &&
+            order.payment_status === "pending"
+          );
+        }
+        return true;
+      }),
+    [orders, paymentFilter],
+  );
+
+  // Helper para badge de método de pago
+  const getPaymentMethodBadgeClasses = (method: string | null | undefined) => {
+    if (method === "bank_transfer") {
+      return "bg-amber-100 text-amber-800";
+    }
+    if (method === "card") {
+      return "bg-blue-100 text-blue-800";
+    }
+    return "bg-gray-100 text-gray-700";
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <header className="mb-6">
@@ -100,6 +131,45 @@ export default function AdminPedidosClient({
           </Link>
         </div>
       </header>
+
+      {/* Filtros rápidos de transferencia */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setPaymentFilter("all")}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+              paymentFilter === "all"
+                ? "bg-primary-600 text-white"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            Todos
+          </button>
+          <button
+            type="button"
+            onClick={() => setPaymentFilter("bank_pending")}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+              paymentFilter === "bank_pending"
+                ? "bg-primary-600 text-white"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            Solo transferencias pendientes
+          </button>
+          <button
+            type="button"
+            onClick={() => setPaymentFilter("bank_all")}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+              paymentFilter === "bank_all"
+                ? "bg-primary-600 text-white"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            Solo transferencias (todos los estados)
+          </button>
+        </div>
+      </div>
 
       {/* Filtros */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
@@ -195,7 +265,8 @@ export default function AdminPedidosClient({
 
       {/* Resumen */}
       <div className="mb-4 text-sm text-gray-600">
-        Mostrando {orders.length} de {total} pedidos
+        Mostrando {filteredOrders.length} de {total} pedidos
+        {paymentFilter !== "all" && ` (filtrado por transferencias)`}
       </div>
 
       {/* Tabla de pedidos */}
@@ -237,14 +308,14 @@ export default function AdminPedidosClient({
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {orders.length === 0 ? (
+              {filteredOrders.length === 0 ? (
                 <tr>
                   <td colSpan={10} className="px-4 py-8 text-center text-gray-500">
                     No se encontraron pedidos con los filtros aplicados
                   </td>
                 </tr>
               ) : (
-                orders.map((order) => (
+                filteredOrders.map((order) => (
                   <tr key={order.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                       {formatDate(order.created_at)}
@@ -272,8 +343,14 @@ export default function AdminPedidosClient({
                         {formatStatus(order.status)}
                       </span>
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                      {getPaymentMethodLabel(order.payment_method)}
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span
+                        className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getPaymentMethodBadgeClasses(
+                          order.payment_method,
+                        )}`}
+                      >
+                        {getPaymentMethodLabel(order.payment_method)}
+                      </span>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <span
@@ -317,27 +394,31 @@ export default function AdminPedidosClient({
                       )}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <span
-                        className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                          (() => {
-                            const variant = getShippingStatusVariant(order.shipping_status);
-                            switch (variant) {
-                              case "success":
-                                return "bg-green-100 text-green-700";
-                              case "warning":
-                                return "bg-yellow-100 text-yellow-700";
-                              case "info":
-                                return "bg-blue-100 text-blue-700";
-                              case "destructive":
-                                return "bg-red-100 text-red-700";
-                              default:
-                                return "bg-gray-100 text-gray-700";
-                            }
-                          })()
-                        }`}
-                      >
-                        {getShippingStatusLabel(order.shipping_status)}
-                      </span>
+                      {order.shipping_provider || order.shipping_status ? (
+                        <span
+                          className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                            (() => {
+                              const variant = getShippingStatusVariant(order.shipping_status);
+                              switch (variant) {
+                                case "success":
+                                  return "bg-green-100 text-green-700";
+                                case "warning":
+                                  return "bg-yellow-100 text-yellow-700";
+                                case "info":
+                                  return "bg-blue-100 text-blue-700";
+                                case "destructive":
+                                  return "bg-red-100 text-red-700";
+                                default:
+                                  return "bg-gray-100 text-gray-700";
+                              }
+                            })()
+                          }`}
+                        >
+                          {getShippingStatusLabel(order.shipping_status)}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-400">No enviado</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-right">
                       {order.total_cents !== null
