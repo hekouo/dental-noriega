@@ -77,8 +77,10 @@ export async function createSkydropxLabelAction(
 export async function updateShippingStatusAdmin(
   orderId: string,
   newStatus: ShippingStatus,
-): Promise<{ success: true } | { success: false; error: string }> {
+): Promise<{ ok: true } | { ok: false; code: "order-not-found" | "fetch-error" | "update-error" | "invalid-status" | "config-error" }> {
   try {
+    console.log("[updateShippingStatusAdmin] Iniciando", { orderId, newStatus });
+
     // Validar que el estado es válido
     const validStatuses: ShippingStatus[] = [
       "pending",
@@ -90,9 +92,10 @@ export async function updateShippingStatusAdmin(
     ];
     
     if (!validStatuses.includes(newStatus)) {
+      console.error("[updateShippingStatusAdmin] Estado inválido", { orderId, newStatus });
       return {
-        success: false,
-        error: "Estado de envío inválido",
+        ok: false,
+        code: "invalid-status",
       };
     }
 
@@ -101,10 +104,10 @@ export async function updateShippingStatusAdmin(
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!supabaseUrl || !serviceRoleKey) {
-      console.error("[updateShippingStatusAdmin] Configuración de Supabase incompleta");
+      console.error("[updateShippingStatusAdmin] Configuración de Supabase incompleta", { orderId });
       return {
-        success: false,
-        error: "Error de configuración del servidor",
+        ok: false,
+        code: "config-error",
       };
     }
 
@@ -115,33 +118,42 @@ export async function updateShippingStatusAdmin(
       },
     });
 
-    // Obtener la orden con todos los campos necesarios para notificaciones
+    // SELECT inicial: solo columnas que realmente existen y necesitamos
     const { data: order, error: fetchError } = await supabase
       .from("orders")
-      .select(
-        "id, email, contact_email, contact_name, metadata, shipping_provider, shipping_service_name, shipping_tracking_number, shipping_status, last_notified_shipping_status",
-      )
+      .select("id, shipping_status, shipping_provider, shipping_service_name, shipping_tracking_number, contact_email, contact_name, email")
       .eq("id", orderId)
-      .single();
+      .maybeSingle();
 
-    if (fetchError || !order) {
+    if (fetchError) {
+      console.error("[updateShippingStatusAdmin] Error al obtener orden", {
+        orderId,
+        newStatus,
+        error: fetchError,
+      });
       return {
-        success: false,
-        error: "Orden no encontrada",
+        ok: false,
+        code: "fetch-error",
       };
     }
 
-    // Obtener email del cliente (prioridad: contact_email > email > metadata.contact_email)
-    const customerEmail = order.contact_email || order.email || (order.metadata as { contact_email?: string } | null)?.contact_email || null;
-    const customerName = order.contact_name || (order.metadata as { contact_name?: string } | null)?.contact_name || null;
+    if (!order) {
+      console.warn("[updateShippingStatusAdmin] Orden no encontrada", { orderId });
+      return {
+        ok: false,
+        code: "order-not-found",
+      };
+    }
+
+    // Obtener email del cliente (prioridad: contact_email > email)
+    const customerEmail = order.contact_email || order.email || null;
+    const customerName = order.contact_name || null;
 
     // Verificar idempotencia: solo notificar si el estado cambió
-    const shouldNotify =
-      order.shipping_status !== newStatus &&
-      order.last_notified_shipping_status !== newStatus;
+    const shouldNotify = order.shipping_status !== newStatus;
 
     // Actualizar el estado
-    const updateData: { shipping_status: ShippingStatus; updated_at?: string; last_notified_shipping_status?: ShippingStatus } = {
+    const updateData: { shipping_status: ShippingStatus; updated_at: string } = {
       shipping_status: newStatus,
       updated_at: new Date().toISOString(),
     };
@@ -168,13 +180,12 @@ export async function updateShippingStatusAdmin(
           });
 
           if (emailResult.ok) {
-            // Actualizar last_notified_shipping_status solo si el email se envió exitosamente
-            updateData.last_notified_shipping_status = newStatus;
             console.log(
               "[updateShippingStatusAdmin] Notificación enviada exitosamente",
               {
                 orderId,
                 newStatus,
+                customerEmail,
               },
             );
           } else {
@@ -183,6 +194,7 @@ export async function updateShippingStatusAdmin(
               {
                 orderId,
                 newStatus,
+                customerEmail,
                 reason: emailResult.reason,
                 error: emailResult.error,
               },
@@ -196,6 +208,7 @@ export async function updateShippingStatusAdmin(
           {
             orderId,
             newStatus,
+            customerEmail,
             error:
               emailError instanceof Error
                 ? { name: emailError.name, message: emailError.message }
@@ -206,49 +219,61 @@ export async function updateShippingStatusAdmin(
     }
 
     // Actualizar el estado en la base de datos
-    const { error: updateError } = await supabase
+    const { data: updateResult, error: updateError } = await supabase
       .from("orders")
       .update(updateData)
-      .eq("id", orderId);
+      .eq("id", orderId)
+      .select("id")
+      .maybeSingle();
 
     if (updateError) {
-      console.error(
-        "[updateShippingStatusAdmin] Error al actualizar estado en base de datos",
-        {
-          orderId,
-          newStatus,
-          error:
-            updateError instanceof Error
-              ? { name: updateError.name, message: updateError.message }
-              : String(updateError),
-        },
-      );
+      console.error("[updateShippingStatusAdmin] Error al actualizar estado", {
+        orderId,
+        newStatus,
+        payload: updateData,
+        error: updateError,
+      });
       return {
-        success: false,
-        error: "No se pudo actualizar el estado de envío",
+        ok: false,
+        code: "update-error",
       };
     }
+
+    if (!updateResult) {
+      console.warn("[updateShippingStatusAdmin] No se actualizó ninguna fila", {
+        orderId,
+        newStatus,
+        payload: updateData,
+      });
+      return {
+        ok: false,
+        code: "order-not-found",
+      };
+    }
+
+    console.log("[updateShippingStatusAdmin] Estado actualizado exitosamente", {
+      orderId,
+      newStatus,
+      previousStatus: order.shipping_status,
+    });
 
     // Revalidar rutas
     revalidatePath("/admin/pedidos");
     revalidatePath(`/admin/pedidos/${orderId}`);
 
-    return { success: true };
+    return { ok: true };
   } catch (error) {
-    console.error(
-      "[updateShippingStatusAdmin] Error inesperado",
-      {
-        orderId,
-        newStatus,
-        error:
-          error instanceof Error
-            ? { name: error.name, message: error.message }
-            : String(error),
-      },
-    );
+    console.error("[updateShippingStatusAdmin] Error inesperado", {
+      orderId,
+      newStatus,
+      error:
+        error instanceof Error
+          ? { name: error.name, message: error.message, stack: error.stack }
+          : String(error),
+    });
     return {
-      success: false,
-      error: "Error inesperado al actualizar el estado",
+      ok: false,
+      code: "update-error",
     };
   }
 }
@@ -261,15 +286,18 @@ export async function updateShippingStatusAdmin(
 export async function updatePaymentStatusAdmin(
   orderId: string,
   newStatus: PaymentStatus,
-): Promise<{ success: true } | { success: false; error: string }> {
+): Promise<{ ok: true } | { ok: false; code: "order-not-found" | "fetch-error" | "update-error" | "invalid-status" | "config-error" }> {
   try {
+    console.log("[updatePaymentStatusAdmin] Iniciando", { orderId, newStatus });
+
     // Validar que el estado es válido
     const validStatuses: PaymentStatus[] = ["pending", "paid", "canceled"];
     
     if (!validStatuses.includes(newStatus)) {
+      console.error("[updatePaymentStatusAdmin] Estado inválido", { orderId, newStatus });
       return {
-        success: false,
-        error: "Estado de pago inválido",
+        ok: false,
+        code: "invalid-status",
       };
     }
 
@@ -278,10 +306,10 @@ export async function updatePaymentStatusAdmin(
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!supabaseUrl || !serviceRoleKey) {
-      console.error("[updatePaymentStatusAdmin] Configuración de Supabase incompleta");
+      console.error("[updatePaymentStatusAdmin] Configuración de Supabase incompleta", { orderId });
       return {
-        success: false,
-        error: "Error de configuración del servidor",
+        ok: false,
+        code: "config-error",
       };
     }
 
@@ -292,67 +320,94 @@ export async function updatePaymentStatusAdmin(
       },
     });
 
-    // Verificar que la orden existe
+    // SELECT inicial: solo columnas que realmente existen
     const { data: order, error: fetchError } = await supabase
       .from("orders")
       .select("id, payment_status")
       .eq("id", orderId)
-      .single();
+      .maybeSingle();
 
-    if (fetchError || !order) {
+    if (fetchError) {
+      console.error("[updatePaymentStatusAdmin] Error al obtener orden", {
+        orderId,
+        newStatus,
+        error: fetchError,
+      });
       return {
-        success: false,
-        error: "Orden no encontrada",
+        ok: false,
+        code: "fetch-error",
+      };
+    }
+
+    if (!order) {
+      console.warn("[updatePaymentStatusAdmin] Orden no encontrada", { orderId });
+      return {
+        ok: false,
+        code: "order-not-found",
       };
     }
 
     // Actualizar el estado de pago
-    const { error: updateError } = await supabase
+    const updateData = {
+      payment_status: newStatus,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data: updateResult, error: updateError } = await supabase
       .from("orders")
-      .update({
-        payment_status: newStatus,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", orderId);
+      .update(updateData)
+      .eq("id", orderId)
+      .select("id")
+      .maybeSingle();
 
     if (updateError) {
-      console.error(
-        "[updatePaymentStatusAdmin] Error al actualizar estado en base de datos",
-        {
-          orderId,
-          newStatus,
-          error:
-            updateError instanceof Error
-              ? { name: updateError.name, message: updateError.message }
-              : String(updateError),
-        },
-      );
+      console.error("[updatePaymentStatusAdmin] Error al actualizar estado", {
+        orderId,
+        newStatus,
+        payload: updateData,
+        error: updateError,
+      });
       return {
-        success: false,
-        error: "No se pudo actualizar el estado de pago",
+        ok: false,
+        code: "update-error",
       };
     }
+
+    if (!updateResult) {
+      console.warn("[updatePaymentStatusAdmin] No se actualizó ninguna fila", {
+        orderId,
+        newStatus,
+        payload: updateData,
+      });
+      return {
+        ok: false,
+        code: "order-not-found",
+      };
+    }
+
+    console.log("[updatePaymentStatusAdmin] Estado actualizado exitosamente", {
+      orderId,
+      newStatus,
+      previousStatus: order.payment_status,
+    });
 
     // Revalidar rutas
     revalidatePath("/admin/pedidos");
     revalidatePath(`/admin/pedidos/${orderId}`);
 
-    return { success: true };
+    return { ok: true };
   } catch (error) {
-    console.error(
-      "[updatePaymentStatusAdmin] Error inesperado",
-      {
-        orderId,
-        newStatus,
-        error:
-          error instanceof Error
-            ? { name: error.name, message: error.message }
-            : String(error),
-      },
-    );
+    console.error("[updatePaymentStatusAdmin] Error inesperado", {
+      orderId,
+      newStatus,
+      error:
+        error instanceof Error
+          ? { name: error.name, message: error.message, stack: error.stack }
+          : String(error),
+    });
     return {
-      success: false,
-      error: "Error inesperado al actualizar el estado",
+      ok: false,
+      code: "update-error",
     };
   }
 }
