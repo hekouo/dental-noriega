@@ -7,6 +7,8 @@ import type { ShippingStatus } from "@/lib/orders/shippingStatus";
 import type { PaymentStatus } from "@/lib/orders/paymentStatus";
 import { buildShippingEmail } from "@/lib/notifications/shipping";
 import { sendTransactionalEmail } from "@/lib/notifications/email";
+import { buildBankTransferEmail } from "@/lib/notifications/payment";
+import { checkAdminAccess } from "@/lib/admin/access";
 
 /**
  * Crea una guía de envío en Skydropx para una orden
@@ -122,9 +124,21 @@ export async function updateShippingStatusAdmin(
         "id, email, contact_email, contact_name, metadata, shipping_provider, shipping_service_name, shipping_tracking_number, shipping_status, last_notified_shipping_status",
       )
       .eq("id", orderId)
-      .single();
+      .maybeSingle();
 
-    if (fetchError || !order) {
+    if (fetchError) {
+      console.error("[updateShippingStatusAdmin] Error al obtener orden", {
+        orderId,
+        error: fetchError,
+      });
+      return {
+        success: false,
+        error: "Error al obtener la orden",
+      };
+    }
+
+    if (!order) {
+      console.warn("[updateShippingStatusAdmin] Orden no encontrada", { orderId });
       return {
         success: false,
         error: "Orden no encontrada",
@@ -206,10 +220,12 @@ export async function updateShippingStatusAdmin(
     }
 
     // Actualizar el estado en la base de datos
-    const { error: updateError } = await supabase
+    const { data: updateResult, error: updateError } = await supabase
       .from("orders")
       .update(updateData)
-      .eq("id", orderId);
+      .eq("id", orderId)
+      .select("id")
+      .maybeSingle();
 
     if (updateError) {
       console.error(
@@ -226,6 +242,20 @@ export async function updateShippingStatusAdmin(
       return {
         success: false,
         error: "No se pudo actualizar el estado de envío",
+      };
+    }
+
+    if (!updateResult) {
+      console.warn(
+        "[updateShippingStatusAdmin] No se actualizó ninguna fila",
+        {
+          orderId,
+          newStatus,
+        },
+      );
+      return {
+        success: false,
+        error: "Orden no encontrada",
       };
     }
 
@@ -297,9 +327,21 @@ export async function updatePaymentStatusAdmin(
       .from("orders")
       .select("id, payment_status")
       .eq("id", orderId)
-      .single();
+      .maybeSingle();
 
-    if (fetchError || !order) {
+    if (fetchError) {
+      console.error("[updatePaymentStatusAdmin] Error al obtener orden", {
+        orderId,
+        error: fetchError,
+      });
+      return {
+        success: false,
+        error: "Error al obtener la orden",
+      };
+    }
+
+    if (!order) {
+      console.warn("[updatePaymentStatusAdmin] Orden no encontrada", { orderId });
       return {
         success: false,
         error: "Orden no encontrada",
@@ -307,13 +349,15 @@ export async function updatePaymentStatusAdmin(
     }
 
     // Actualizar el estado de pago
-    const { error: updateError } = await supabase
+    const { data: updateResult, error: updateError } = await supabase
       .from("orders")
       .update({
         payment_status: newStatus,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", orderId);
+      .eq("id", orderId)
+      .select("id")
+      .maybeSingle();
 
     if (updateError) {
       console.error(
@@ -330,6 +374,20 @@ export async function updatePaymentStatusAdmin(
       return {
         success: false,
         error: "No se pudo actualizar el estado de pago",
+      };
+    }
+
+    if (!updateResult) {
+      console.warn(
+        "[updatePaymentStatusAdmin] No se actualizó ninguna fila",
+        {
+          orderId,
+          newStatus,
+        },
+      );
+      return {
+        success: false,
+        error: "Orden no encontrada",
       };
     }
 
@@ -353,6 +411,141 @@ export async function updatePaymentStatusAdmin(
     return {
       success: false,
       error: "Error inesperado al actualizar el estado",
+    };
+  }
+}
+
+/**
+ * Reenvía las instrucciones de pago por transferencia al cliente (solo admin)
+ * @param orderId - ID de la orden
+ */
+export async function resendBankTransferInstructionsAdmin(
+  orderId: string,
+): Promise<{ ok: true } | { ok: false; error: "unauthorized" | "order_not_found" | "invalid_payment_method" | "no_email" | "email_disabled" | "send_failed"; errorMessage?: string }> {
+  try {
+    // Verificar acceso admin
+    const access = await checkAdminAccess();
+    if (access.status !== "allowed") {
+      return { ok: false, error: "unauthorized" };
+    }
+
+    // Usar service role para leer la orden
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl || !serviceRoleKey) {
+      console.error("[resendBankTransferInstructionsAdmin] Configuración de Supabase incompleta");
+      return { ok: false, error: "send_failed", errorMessage: "Configuración incompleta" };
+    }
+
+    const supabase = createClient(supabaseUrl, serviceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
+
+    // Cargar la orden
+    const { data: order, error: fetchError } = await supabase
+      .from("orders")
+      .select("id, email, payment_method, payment_status, total_cents, metadata")
+      .eq("id", orderId)
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error("[resendBankTransferInstructionsAdmin] Error al obtener orden", {
+        orderId,
+        error: fetchError,
+      });
+      return { ok: false, error: "order_not_found" };
+    }
+
+    if (!order) {
+      return { ok: false, error: "order_not_found" };
+    }
+
+    // Verificar que es transferencia pendiente
+    if (order.payment_method !== "bank_transfer") {
+      return { ok: false, error: "invalid_payment_method" };
+    }
+
+    if (order.payment_status !== "pending") {
+      // No es crítico, pero idealmente solo se reenvía si está pendiente
+      console.warn("[resendBankTransferInstructionsAdmin] Reenviando instrucciones para orden que no está pendiente", {
+        orderId,
+        payment_status: order.payment_status,
+      });
+    }
+
+    // Obtener email del cliente
+    const rawMetadata = (order.metadata ?? null) as
+      | { contact_email?: string; contactEmail?: string; contact_name?: string; contactName?: string }
+      | null;
+    const customerEmail = rawMetadata?.contact_email ?? rawMetadata?.contactEmail ?? order.email;
+    const customerName = rawMetadata?.contact_name ?? rawMetadata?.contactName ?? null;
+
+    if (!customerEmail) {
+      return { ok: false, error: "no_email" };
+    }
+
+    // Verificar si email está habilitado
+    const emailEnabled = process.env.EMAIL_ENABLED === "true";
+    if (!emailEnabled) {
+      console.warn("[resendBankTransferInstructionsAdmin] Email deshabilitado, no se enviará correo", {
+        orderId,
+        customerEmail,
+      });
+      return { ok: false, error: "email_disabled" };
+    }
+
+    // Construir y enviar el correo
+    const totalCents = order.total_cents ?? 0;
+    const emailContent = buildBankTransferEmail({
+      orderId: order.id,
+      customerEmail,
+      customerName,
+      totalCents,
+    });
+
+    const emailResult = await sendTransactionalEmail({
+      to: customerEmail,
+      subject: emailContent.subject,
+      html: emailContent.html,
+      text: emailContent.text,
+    });
+
+    if (!emailResult.ok) {
+      console.error("[resendBankTransferInstructionsAdmin] Error al enviar correo", {
+        orderId,
+        customerEmail,
+        reason: emailResult.reason,
+        error: emailResult.error,
+      });
+      return {
+        ok: false,
+        error: emailResult.reason === "disabled" ? "email_disabled" : "send_failed",
+        errorMessage: emailResult.error,
+      };
+    }
+
+    console.log("[resendBankTransferInstructionsAdmin] Instrucciones reenviadas exitosamente", {
+      orderId,
+      customerEmail,
+    });
+
+    return { ok: true };
+  } catch (error) {
+    console.error("[resendBankTransferInstructionsAdmin] Error inesperado", {
+      orderId,
+      error:
+        error instanceof Error
+          ? { name: error.name, message: error.message }
+          : String(error),
+    });
+    return {
+      ok: false,
+      error: "send_failed",
+      errorMessage: error instanceof Error ? error.message : "Error desconocido",
     };
   }
 }

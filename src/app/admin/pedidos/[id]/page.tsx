@@ -8,6 +8,8 @@ import { getShippingStatusLabel, getShippingStatusVariant } from "@/lib/orders/s
 import { getPaymentMethodLabel, getPaymentStatusLabel, getPaymentStatusVariant } from "@/lib/orders/paymentStatus";
 import UpdateShippingStatusClient from "./UpdateShippingStatusClient";
 import UpdatePaymentStatusClient from "./UpdatePaymentStatusClient";
+import ShippingSummaryClient from "./ShippingSummaryClient";
+import ResendPaymentInstructionsClient from "./ResendPaymentInstructionsClient";
 
 export const dynamic = "force-dynamic";
 
@@ -268,6 +270,13 @@ export default async function AdminPedidoDetailPage({
         {/* Datos de envío */}
         <div className="px-6 py-4 border-b border-gray-200">
           <h2 className="text-lg font-semibold mb-3">Datos de envío</h2>
+          {/* Resumen de estado de envío */}
+          <ShippingSummaryClient
+            shippingProvider={order.shipping_provider}
+            shippingServiceName={order.shipping_service_name}
+            shippingStatus={order.shipping_status}
+            shippingTrackingNumber={order.shipping_tracking_number}
+          />
           {order.shipping_provider ? (
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
@@ -421,6 +430,17 @@ export default async function AdminPedidoDetailPage({
             orderId={order.id}
             currentStatus={order.payment_status}
           />
+
+          {/* Botón para reenviar instrucciones de pago por transferencia */}
+          {order.payment_method === "bank_transfer" &&
+            order.payment_status === "pending" &&
+            (order.email ||
+              (order.metadata as { contact_email?: string; contactEmail?: string } | null)
+                ?.contact_email ||
+              (order.metadata as { contact_email?: string; contactEmail?: string } | null)
+                ?.contactEmail) && (
+              <ResendPaymentInstructionsClient orderId={order.id} />
+            )}
         </div>
 
         {/* Productos */}
