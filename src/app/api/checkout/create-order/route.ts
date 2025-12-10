@@ -22,6 +22,7 @@ const CreateOrderRequestSchema = z.object({
   items: z.array(OrderItemSchema).min(1),
   email: z.string().email().optional(),
   name: z.string().min(2).optional(),
+  phone: z.string().optional(), // Teléfono del cliente
   // Aceptar los valores reales del frontend: pickup, standard, express
   // Mapear standard/express a "delivery" internamente para metadata
   shippingMethod: z.enum(["pickup", "standard", "express"]).optional(),
@@ -192,6 +193,8 @@ export async function POST(req: NextRequest) {
       shipping_method: shippingMethodForMetadata, // Guardar valor original: pickup, standard, express
       contact_name: orderData.name || null,
       contact_email: orderData.email || null,
+      contact_phone: orderData.phone || null,
+      whatsapp: orderData.phone || null, // Usar el mismo teléfono para WhatsApp
     };
 
     // Incluir información de Skydropx si está presente
