@@ -827,7 +827,7 @@ export default function PedidosPage() {
 
                     {/* Tracking */}
                     {orderDetail.shipping_tracking_number ? (
-                      <div className="space-y-2">
+                    <div className="space-y-2">
                         <div>
                           <p className="text-sm text-gray-600">Número de guía</p>
                           <p className="font-medium font-mono text-sm">
@@ -1057,7 +1057,7 @@ export default function PedidosPage() {
                   </div>
                 );
               })()}
-            </div>
+                </div>
             </div>
           )}
         </div>
