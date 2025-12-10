@@ -10,6 +10,8 @@ import UpdateShippingStatusClient from "./UpdateShippingStatusClient";
 import UpdatePaymentStatusClient from "./UpdatePaymentStatusClient";
 import ShippingSummaryClient from "./ShippingSummaryClient";
 import ResendPaymentInstructionsClient from "./ResendPaymentInstructionsClient";
+import WhatsappContactClient from "./WhatsappContactClient";
+import { normalizePhoneToE164Mx } from "@/lib/utils/phone";
 
 export const dynamic = "force-dynamic";
 
@@ -101,6 +103,22 @@ export default async function AdminPedidoDetailPage({
   const discountCents = order.metadata?.discount_cents ?? 0;
   const shippingCents = order.metadata?.shipping_cost_cents ?? 0;
   const totalCents = order.total_cents ?? subtotalCents - discountCents + shippingCents;
+
+  // Extraer teléfono de WhatsApp desde metadata (orden de prioridad)
+  const rawMetadata = (order.metadata ?? null) as
+    | {
+        whatsapp?: string;
+        phone?: string;
+        contact_phone?: string;
+        contact_name?: string;
+        contactName?: string;
+      }
+    | null;
+  const rawPhone =
+    rawMetadata?.whatsapp ?? rawMetadata?.phone ?? rawMetadata?.contact_phone ?? null;
+  const whatsappE164 = normalizePhoneToE164Mx(rawPhone);
+  const contactName = rawMetadata?.contact_name ?? rawMetadata?.contactName ?? null;
+  const orderShortId = order.id.slice(0, 8);
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -441,6 +459,15 @@ export default async function AdminPedidoDetailPage({
                 ?.contactEmail) && (
               <ResendPaymentInstructionsClient orderId={order.id} />
             )}
+
+          {/* Contacto por WhatsApp */}
+          <WhatsappContactClient
+            shortId={orderShortId}
+            totalCents={totalCents}
+            paymentMethod={order.payment_method as "card" | "bank_transfer" | null}
+            contactName={contactName}
+            whatsappE164={whatsappE164}
+          />
         </div>
 
         {/* Productos */}
