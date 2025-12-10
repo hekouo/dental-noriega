@@ -2,20 +2,16 @@
 
 import { formatE164ToReadable } from "@/lib/utils/phone";
 import { formatMXNFromCents } from "@/lib/utils/currency";
-import { getPaymentMethodLabel } from "@/lib/orders/paymentStatus";
 
 type Props = {
-  orderId: string;
   shortId: string;
   totalCents: number | null;
   paymentMethod: "card" | "bank_transfer" | null;
-  paymentStatus: "pending" | "paid" | "canceled" | null;
   contactName?: string | null;
   whatsappE164?: string | null;
 };
 
 export default function WhatsappContactClient({
-  orderId,
   shortId,
   totalCents,
   paymentMethod,

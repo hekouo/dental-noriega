@@ -462,11 +462,9 @@ export default async function AdminPedidoDetailPage({
 
           {/* Contacto por WhatsApp */}
           <WhatsappContactClient
-            orderId={order.id}
             shortId={orderShortId}
             totalCents={totalCents}
             paymentMethod={order.payment_method as "card" | "bank_transfer" | null}
-            paymentStatus={order.payment_status as "pending" | "paid" | "canceled" | null}
             contactName={contactName}
             whatsappE164={whatsappE164}
           />

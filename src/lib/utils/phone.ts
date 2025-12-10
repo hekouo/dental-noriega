@@ -17,7 +17,7 @@ export function normalizePhoneToE164Mx(raw: unknown): string | null {
   let cleaned = String(raw).trim();
 
   // Quitar espacios, guiones, paréntesis y otros caracteres no numéricos
-  cleaned = cleaned.replace(/[\s\-\(\)\.]/g, "");
+  cleaned = cleaned.replace(/[\s\-().]/g, "");
 
   // Si no quedan solo dígitos, es inválido
   if (!/^\d+$/.test(cleaned)) {
