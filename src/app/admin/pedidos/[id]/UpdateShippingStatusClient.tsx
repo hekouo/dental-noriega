@@ -29,14 +29,13 @@ export default function UpdateShippingStatusClient({
 
       if (!result.ok) {
         // Mapear códigos de error a mensajes
-        const errorMessages: Record<string, string> = {
-          "order-not-found": "Orden no encontrada",
-          "fetch-error": "Error al obtener la orden",
-          "update-error": "Error al actualizar el estado de envío",
-          "invalid-status": "Estado de envío inválido",
-          "config-error": "Error de configuración del servidor",
-        };
-        setError(errorMessages[result.code] || "Error al actualizar el estado");
+        const errorMessage =
+          result.code === "order-not-found"
+            ? "Orden no encontrada"
+            : result.code === "fetch-error" || result.code === "update-error" || result.code === "config-error"
+              ? "Error al obtener la orden"
+              : "Error al actualizar el estado";
+        setError(errorMessage);
         return;
       }
 
