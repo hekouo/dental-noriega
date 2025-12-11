@@ -85,33 +85,36 @@ export function QuantitySelector({
 
       {/* Botones de acción */}
       <div className="flex flex-col gap-3">
-        <BuyNowButton
-          productId={`${sectionSlug}/${product.slug}`}
-          productTitle={product.title}
-          productPrice={product.price}
-          qty={quantity}
-          image_url={product.image || product.imageResolved}
-          className="w-full relative inline-flex items-center justify-center rounded-2xl px-4 py-3 text-sm font-semibold text-white bg-gradient-to-b from-rose-500 to-rose-700 shadow-[0_6px_0_0_rgba(159,18,57,1),0_12px_24px_rgba(0,0,0,0.25)] ring-1 ring-inset ring-rose-800/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-rose-500 active:translate-y-[2px] active:shadow-[0_4px_0_0_rgba(159,18,57,1),0_8px_16px_rgba(0,0,0,0.2)] transition-transform"
-        />
-
+        {/* CTA Primario: Agregar al carrito */}
         <AddToCartBtn
           productId={`${sectionSlug}/${product.slug}`}
           productTitle={product.title}
           productPrice={product.price}
           qty={quantity}
           image_url={product.image || product.imageResolved}
-          className="w-full relative inline-flex items-center justify-center rounded-2xl px-4 py-3 text-sm font-semibold text-neutral-900 bg-gradient-to-b from-white to-neutral-200 shadow-[inset_0_2px_6px_rgba(255,255,255,0.9),0_6px_14px_rgba(0,0,0,0.20)] ring-1 ring-inset ring-neutral-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-neutral-400 active:translate-y-[2px] active:shadow-[inset_0_1px_3px_rgba(255,255,255,0.8),0_4px_10px_rgba(0,0,0,0.18)] transition-transform"
+          className="w-full relative inline-flex items-center justify-center rounded-2xl px-4 py-3 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 shadow-[0_6px_0_0_rgba(37,99,235,1),0_12px_24px_rgba(0,0,0,0.25)] ring-1 ring-inset ring-primary-800/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary-500 active:translate-y-[2px] active:shadow-[0_4px_0_0_rgba(37,99,235,1),0_8px_16px_rgba(0,0,0,0.2)] transition-transform"
         >
           <ShoppingCart size={20} />
           <span>Agregar al carrito</span>
         </AddToCartBtn>
 
+        {/* CTA Secundario: Comprar ahora */}
+        <BuyNowButton
+          productId={`${sectionSlug}/${product.slug}`}
+          productTitle={product.title}
+          productPrice={product.price}
+          qty={quantity}
+          image_url={product.image || product.imageResolved}
+          className="w-full relative inline-flex items-center justify-center rounded-2xl px-4 py-3 text-sm font-medium text-primary-600 bg-white border-2 border-primary-600 hover:bg-primary-50 shadow-[0_2px_4px_rgba(0,0,0,0.1)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary-500 transition-colors"
+        />
+
+        {/* Acción alternativa: WhatsApp */}
         <a
           href={whatsappHref}
           target="_blank"
           rel="noopener noreferrer"
           className={[
-            "w-full relative inline-flex items-center justify-center rounded-2xl px-4 py-3 text-sm font-semibold gap-2",
+            "w-full relative inline-flex items-center justify-center rounded-2xl px-4 py-3 text-sm font-medium gap-2",
             "text-white bg-gradient-to-b from-emerald-500 to-emerald-700",
             "shadow-[0_6px_0_0_rgba(4,120,87,1),0_12px_24px_rgba(0,0,0,0.25)]",
             "ring-1 ring-inset ring-emerald-800/40",

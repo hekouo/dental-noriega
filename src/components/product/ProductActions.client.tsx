@@ -169,26 +169,29 @@ export default function ProductActions({ product }: Props) {
         </div>
 
         <div className="space-y-2">
+          {/* CTA Primario: Agregar al carrito */}
           <button
             onClick={handleAddToCart}
             disabled={!canBuy}
             aria-label="Agregar al carrito"
-            className="w-full bg-primary-600 text-white px-6 py-3 rounded-md hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+            className="w-full bg-primary-600 text-white px-6 py-3 rounded-md hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 font-semibold"
             title="Agregar al carrito"
           >
             Agregar al carrito
           </button>
 
+          {/* CTA Secundario: Comprar ahora */}
           <button
             onClick={handleBuyNow}
             disabled={!canBuy}
             aria-label="Comprar ahora"
-            className="w-full bg-green-600 text-white px-6 py-3 rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2"
+            className="w-full border-2 border-primary-600 text-primary-600 bg-white px-6 py-3 rounded-md hover:bg-primary-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 font-medium"
             title="Comprar ahora"
           >
             Comprar ahora
           </button>
 
+          {/* Acción alternativa: WhatsApp */}
           {whatsappUrl ? (
             <a
               href={whatsappUrl}
@@ -203,7 +206,7 @@ export default function ProductActions({ product }: Props) {
                   title: product.title,
                 });
               }}
-              className="w-full bg-green-500 text-white px-6 py-3 rounded-md hover:bg-green-600 transition-colors font-semibold flex items-center justify-center gap-2"
+              className="w-full bg-emerald-500 text-white px-6 py-3 rounded-md hover:bg-emerald-600 transition-colors font-medium flex items-center justify-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
             >
               <MessageCircle className="w-5 h-5" />
               Consultar por WhatsApp
@@ -211,7 +214,7 @@ export default function ProductActions({ product }: Props) {
           ) : (
             <button
               disabled
-              className="w-full bg-gray-400 text-white px-6 py-3 rounded-md cursor-not-allowed font-semibold flex items-center justify-center gap-2"
+              className="w-full bg-gray-400 text-white px-6 py-3 rounded-md cursor-not-allowed font-medium flex items-center justify-center gap-2"
               title="WhatsApp no configurado"
             >
               <MessageCircle className="w-5 h-5" />

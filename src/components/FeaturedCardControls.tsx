@@ -143,12 +143,13 @@ export default function FeaturedCardControls({ item, compact = false }: Props) {
             disabled={isAdding}
             ariaLabel="Cantidad"
           />
+          {/* CTA Primario: Agregar al carrito */}
           <button
             type="button"
             onClick={onAdd}
             aria-busy={isAdding}
             aria-label="Agregar al carrito"
-            className="inline-flex items-center gap-2 rounded-xl bg-black px-4 py-2 text-white hover:bg-black/90 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+            className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-4 py-2 text-white hover:bg-primary-700 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 font-medium transition-colors"
             disabled={isAdding}
             title="Agregar al carrito"
           >
@@ -186,12 +187,13 @@ export default function FeaturedCardControls({ item, compact = false }: Props) {
           ariaLabel="Cantidad"
         />
 
+        {/* CTA Primario: Agregar al carrito */}
         <button
           type="button"
           onClick={onAdd}
           aria-busy={isAdding}
           aria-label="Agregar al carrito"
-          className="inline-flex items-center gap-2 rounded-xl bg-black px-4 py-2 text-white hover:bg-black/90 disabled:opacity-60 h-9 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+          className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-4 py-2 text-white hover:bg-primary-700 disabled:opacity-60 h-9 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 font-medium transition-colors"
           disabled={isAdding}
           title="Agregar al carrito"
         >

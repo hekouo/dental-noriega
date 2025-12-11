@@ -90,24 +90,26 @@ export default function AddToCartControls({ product }: Props) {
           max={99}
           disabled={!canBuy || isAdding}
         />
+        {/* CTA Primario: Agregar al carrito */}
         <button
           type="button"
           onClick={onAdd}
           disabled={!canBuy || isAdding}
           aria-busy={isAdding}
           aria-label={`Agregar ${product.title} al carrito`}
-          className="flex-1 px-4 py-2 rounded-lg bg-black text-white hover:bg-black/90 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 transition-colors"
+          className="flex-1 px-4 py-2 rounded-lg bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 transition-colors font-semibold"
         >
           {isAdding ? "Agregando..." : "Agregar al carrito"}
         </button>
       </div>
+      {/* CTA Secundario: Comprar ahora */}
       <button
         type="button"
         onClick={onBuyNow}
         disabled={!canBuy || isAdding}
         aria-busy={isAdding}
         aria-label={`Comprar ${product.title} ahora`}
-        className="w-full px-4 py-2 rounded-lg border-2 border-black text-black hover:bg-black hover:text-white disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 transition-colors font-semibold"
+        className="w-full px-4 py-2 rounded-lg border-2 border-primary-600 text-primary-600 bg-white hover:bg-primary-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 transition-colors font-medium"
       >
         Comprar ahora
       </button>
