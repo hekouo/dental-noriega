@@ -28,3 +28,34 @@ export function applyFreeShippingIfEligible({
   return shippingCostCents;
 }
 
+/**
+ * Calcula el progreso hacia el envío gratis
+ * @param subtotalCents Subtotal de productos en centavos
+ * @returns Objeto con información del progreso (reached, remainingCents, progressPercent)
+ */
+export function getFreeShippingProgress(subtotalCents: number) {
+  if (subtotalCents <= 0) {
+    return {
+      reached: false,
+      remainingCents: FREE_SHIPPING_THRESHOLD_CENTS,
+      progressPercent: 0,
+    };
+  }
+
+  const remainingCents = Math.max(
+    0,
+    FREE_SHIPPING_THRESHOLD_CENTS - subtotalCents,
+  );
+
+  const progressPercent = Math.min(
+    100,
+    Math.round((subtotalCents / FREE_SHIPPING_THRESHOLD_CENTS) * 100),
+  );
+
+  return {
+    reached: remainingCents <= 0,
+    remainingCents,
+    progressPercent,
+  };
+}
+

@@ -5,6 +5,7 @@ import { useCheckoutStore } from "@/lib/store/checkoutStore";
 import { formatMXNFromCents } from "@/lib/utils/currency";
 import { getSelectedItems, getSelectedSubtotalCents } from "@/lib/checkout/selection";
 import { FREE_SHIPPING_THRESHOLD_CENTS } from "@/lib/shipping/freeShipping";
+import FreeShippingProgress from "@/components/cart/FreeShippingProgress";
 
 interface CheckoutOrderSummaryProps {
   className?: string;
@@ -155,6 +156,13 @@ export default function CheckoutOrderSummary({
                   <span className="text-green-600 text-xs ml-1">(promo envío gratis desde $2,000)</span>
                 ) : null}
               </span>
+            </div>
+          )}
+
+          {/* Barra de progreso de envío gratis */}
+          {shippingMethod !== "pickup" && (
+            <div className="pt-2">
+              <FreeShippingProgress subtotalCents={subtotalCents} />
             </div>
           )}
 

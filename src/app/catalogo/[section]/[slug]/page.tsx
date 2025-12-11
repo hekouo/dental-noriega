@@ -15,6 +15,7 @@ import { LOYALTY_POINTS_PER_MXN } from "@/lib/loyalty/config";
 import { AnimatedPoints } from "@/components/ui/AnimatedPoints";
 import { LoyaltyPointsBar } from "@/components/ui/LoyaltyPointsBar";
 import Breadcrumbs from "@/components/navigation/Breadcrumbs";
+import FreeShippingProgressPDP from "@/components/cart/FreeShippingProgressPDP";
 import {
   getBreadcrumbsJsonLd,
   getProductJsonLd,
@@ -251,9 +252,10 @@ export default async function ProductDetailPage({ params }: Props) {
                   <p className="text-sm text-gray-500">
                     Envío gratis desde ${FREE_SHIPPING_THRESHOLD_MXN.toLocaleString("es-MX")} MXN en productos.
                   </p>
+                  <FreeShippingProgressPDP />
                   {product.price > 0 && (
                     <>
-                      <p className="text-sm text-amber-700">
+                      <p className="text-sm text-amber-700 mt-3">
                         Acumulas aprox.{" "}
                         <AnimatedPoints
                           value={Math.floor(product.price * LOYALTY_POINTS_PER_MXN)}
