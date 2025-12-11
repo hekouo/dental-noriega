@@ -27,6 +27,8 @@ import { isValidEmail } from "@/lib/validation/email";
 import {
   LOYALTY_MIN_POINTS_FOR_DISCOUNT,
   LOYALTY_DISCOUNT_PERCENT,
+  getTierForPoints,
+  hasEnoughPointsForDiscount,
 } from "@/lib/loyalty/config";
 import { applyFreeShippingIfEligible } from "@/lib/shipping/freeShipping";
 
@@ -1075,62 +1077,75 @@ export default function PagoClient() {
       </div>
 
       {/* Puntos de lealtad */}
-      {loyaltyPoints !== null && (
-        <div className="bg-blue-50 rounded-lg p-4 mb-6 border border-blue-200">
-          <div className="flex items-start justify-between mb-3">
-            <div>
-              <h2 className="font-semibold text-sm text-gray-700 mb-1">
-                Tus puntos
-              </h2>
-              <p className="text-sm text-gray-600">
-                Tienes <strong>{loyaltyPoints.pointsBalance.toLocaleString()}</strong> puntos disponibles
-              </p>
+      {loyaltyPoints !== null && (() => {
+        const pointsAvailable = loyaltyPoints.pointsBalance;
+        const tier = getTierForPoints(pointsAvailable);
+        const canUseDiscount = hasEnoughPointsForDiscount(pointsAvailable);
+        
+        // Mapear colores del tier a clases Tailwind
+        const tierColorClasses: Record<string, { bg: string; text: string }> = {
+          slate: { bg: "bg-slate-100", text: "text-slate-800" },
+          blue: { bg: "bg-sky-100", text: "text-sky-800" },
+          amber: { bg: "bg-amber-100", text: "text-amber-800" },
+          purple: { bg: "bg-violet-100", text: "text-violet-800" },
+        };
+        const tierColor = tierColorClasses[tier.color] || tierColorClasses.slate;
+        
+        return (
+          <div className="bg-blue-50 rounded-lg p-4 mb-6 border border-blue-200">
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <h2 className="font-semibold text-sm text-gray-700">
+                    Tus puntos
+                  </h2>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${tierColor.bg} ${tierColor.text}`}>
+                    {tier.name}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-600">
+                  Tienes <strong>{pointsAvailable.toLocaleString()}</strong> puntos disponibles.
+                </p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              {canUseDiscount ? (
+                <p className="text-sm font-medium text-green-700 mb-2">
+                  Puedes usar tus puntos para obtener 5% de descuento en este pedido.
+                </p>
+              ) : (
+                <p className="text-sm text-gray-600 mb-2">
+                  Cuando llegues a 1,000 puntos podrás activar 5% de descuento en un pedido.
+                </p>
+              )}
+              <label className={`flex items-start ${canUseDiscount ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}>
+                <input
+                  type="checkbox"
+                  checked={loyaltyApplied}
+                  onChange={(e) => setLoyaltyApplied(e.target.checked)}
+                  disabled={!canUseDiscount}
+                  className="mt-1 mr-2"
+                />
+                <div className="flex-1">
+                  <span className="text-sm text-gray-700">
+                    Usar mis puntos para obtener {LOYALTY_DISCOUNT_PERCENT}% de descuento en este pedido
+                  </span>
+                  {!canUseDiscount && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Necesitas al menos {LOYALTY_MIN_POINTS_FOR_DISCOUNT.toLocaleString()} puntos para activar este beneficio.
+                    </p>
+                  )}
+                  {loyaltyApplied && canUseDiscount && (
+                    <p className="text-xs text-green-600 mt-1">
+                      Aplicaremos un {LOYALTY_DISCOUNT_PERCENT}% de descuento sobre el total del pedido usando tus puntos.
+                    </p>
+                  )}
+                </div>
+              </label>
             </div>
           </div>
-          <div className="space-y-2">
-            {loyaltyPoints.canApplyDiscount ? (
-              <>
-                <label className="flex items-start cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={loyaltyApplied}
-                    onChange={(e) => setLoyaltyApplied(e.target.checked)}
-                    className="mt-1 mr-2"
-                  />
-                  <div className="flex-1">
-                    <span className="text-sm text-gray-700">
-                      Usar mis puntos para obtener {LOYALTY_DISCOUNT_PERCENT}% de descuento en este pedido (requiere al menos {LOYALTY_MIN_POINTS_FOR_DISCOUNT.toLocaleString()} puntos).
-                    </span>
-                    {loyaltyApplied && (
-                      <p className="text-xs text-gray-500 mt-1">
-                        Aplicaremos un {LOYALTY_DISCOUNT_PERCENT}% de descuento sobre el total del pedido usando tus puntos.
-                      </p>
-                    )}
-                  </div>
-                </label>
-              </>
-            ) : (
-              <>
-                <label className="flex items-start cursor-not-allowed opacity-60">
-                  <input
-                    type="checkbox"
-                    disabled
-                    className="mt-1 mr-2"
-                  />
-                  <div className="flex-1">
-                    <span className="text-sm text-gray-700">
-                      Usar mis puntos para obtener {LOYALTY_DISCOUNT_PERCENT}% de descuento en este pedido (requiere al menos {LOYALTY_MIN_POINTS_FOR_DISCOUNT.toLocaleString()} puntos).
-                    </span>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Te faltan <strong>{(LOYALTY_MIN_POINTS_FOR_DISCOUNT - loyaltyPoints.pointsBalance).toLocaleString()}</strong> puntos para poder usar el descuento de lealtad.
-                    </p>
-                  </div>
-                </label>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Resumen de productos */}
       <div className="bg-gray-50 rounded-lg p-4 mb-6">
