@@ -22,8 +22,9 @@ jobs:
 
       # No hace falta instalar pnpm ni deps para generar SBOM con Anchore
       - name: Generate SBOM (CycloneDX JSON)
-        uses: anchore/sbom-action@v0.15.0
+        uses: anchore/sbom-action@v0.20.11
         with:
+          syft-version: v1.38.2
           path: .
           format: cyclonedx-json
           output-file: sbom.cdx.json
