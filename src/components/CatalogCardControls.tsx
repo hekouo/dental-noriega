@@ -65,11 +65,12 @@ export default function CatalogCardControls({ item }: Props) {
           compact
           ariaLabel="Cantidad"
         />
+        {/* CTA Primario: Agregar al carrito */}
         <button
           onClick={onAdd}
           disabled={!canBuy}
           aria-label="Agregar al carrito"
-          className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm bg-black text-white disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+          className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 font-medium transition-colors"
           title="Agregar al carrito"
         >
           <svg
