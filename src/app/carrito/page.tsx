@@ -7,8 +7,8 @@ import {
   useSelectedTotal,
 } from "@/lib/store/cartSelectors";
 import { useCheckoutStore } from "@/lib/store/checkoutStore";
-import { formatMXN, formatMXNFromCents } from "@/lib/utils/currency";
-import { FREE_SHIPPING_THRESHOLD_CENTS } from "@/lib/shipping/freeShipping";
+import { formatMXN } from "@/lib/utils/currency";
+import FreeShippingProgress from "@/components/cart/FreeShippingProgress";
 import { Trash2, Plus, Minus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -177,28 +177,10 @@ export default function CarritoPage() {
                 <span>Envío</span>
                 <span>Se calcula en el checkout</span>
               </div>
-              {/* Mensaje de promo de envío gratis */}
-              {subtotalCents > 0 && (
-                <div className="mt-3 pt-3 border-t border-gray-200">
-                  {subtotalCents >= FREE_SHIPPING_THRESHOLD_CENTS ? (
-                    <div className="bg-green-50 border border-green-200 rounded-md p-3 text-center">
-                      <p className="text-sm font-medium text-green-800">
-                        ¡Envío GRATIS aplicado en este pedido!
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="bg-blue-50 border border-blue-200 rounded-md p-3 text-center">
-                      <p className="text-sm text-blue-800">
-                        Te faltan{" "}
-                        <span className="font-semibold">
-                          {formatMXNFromCents(FREE_SHIPPING_THRESHOLD_CENTS - subtotalCents)}
-                        </span>{" "}
-                        para obtener envío GRATIS
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
+              {/* Barra de progreso de envío gratis */}
+              <div className="mt-3 pt-3 border-t border-gray-200">
+                <FreeShippingProgress subtotalCents={subtotalCents} />
+              </div>
             </div>
 
             <div className="border-t pt-4 mb-6">
