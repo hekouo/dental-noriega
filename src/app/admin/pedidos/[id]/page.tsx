@@ -11,6 +11,7 @@ import UpdatePaymentStatusClient from "./UpdatePaymentStatusClient";
 import ShippingSummaryClient from "./ShippingSummaryClient";
 import ResendPaymentInstructionsClient from "./ResendPaymentInstructionsClient";
 import WhatsappContactClient from "./WhatsappContactClient";
+import AdminNotesClient from "./AdminNotesClient";
 import { normalizePhoneToE164Mx } from "@/lib/utils/phone";
 
 export const dynamic = "force-dynamic";
@@ -468,6 +469,9 @@ export default async function AdminPedidoDetailPage({
             contactName={contactName}
             whatsappE164={whatsappE164}
           />
+
+          {/* Notas internas */}
+          <AdminNotesClient orderId={order.id} initialNotes={order.admin_notes} />
         </div>
 
         {/* Productos */}
