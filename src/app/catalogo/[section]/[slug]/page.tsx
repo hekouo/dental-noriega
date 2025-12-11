@@ -11,11 +11,9 @@ import { ROUTES } from "@/lib/routes";
 import { SITE } from "@/lib/site";
 import PdpRelatedSection from "./PdpRelatedSection";
 import { FREE_SHIPPING_THRESHOLD_MXN } from "@/lib/shipping/freeShipping";
-import { LOYALTY_POINTS_PER_MXN } from "@/lib/loyalty/config";
-import { AnimatedPoints } from "@/components/ui/AnimatedPoints";
-import { LoyaltyPointsBar } from "@/components/ui/LoyaltyPointsBar";
 import Breadcrumbs from "@/components/navigation/Breadcrumbs";
 import FreeShippingProgressPDP from "@/components/cart/FreeShippingProgressPDP";
+import ProductLoyaltyInfo from "@/components/pdp/ProductLoyaltyInfo";
 import {
   getBreadcrumbsJsonLd,
   getProductJsonLd,
@@ -254,20 +252,9 @@ export default async function ProductDetailPage({ params }: Props) {
                   </p>
                   <FreeShippingProgressPDP />
                   {product.price > 0 && (
-                    <>
-                      <p className="text-sm text-amber-700 mt-3">
-                        Acumulas aprox.{" "}
-                        <AnimatedPoints
-                          value={Math.floor(product.price * LOYALTY_POINTS_PER_MXN)}
-                          className="font-semibold"
-                        />{" "}
-                        puntos con este producto.
-                      </p>
-                      <LoyaltyPointsBar
-                        value={Math.floor(product.price * LOYALTY_POINTS_PER_MXN)}
-                        className="mt-1"
-                      />
-                    </>
+                    <ProductLoyaltyInfo
+                      priceCents={Math.round(product.price * 100)}
+                    />
                   )}
                 </div>
               </div>
