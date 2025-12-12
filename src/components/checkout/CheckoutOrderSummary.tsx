@@ -6,6 +6,7 @@ import { formatMXNFromCents } from "@/lib/utils/currency";
 import { getSelectedItems, getSelectedSubtotalCents } from "@/lib/checkout/selection";
 import { FREE_SHIPPING_THRESHOLD_CENTS } from "@/lib/shipping/freeShipping";
 import FreeShippingProgress from "@/components/cart/FreeShippingProgress";
+import RelatedProductsCompact from "./RelatedProductsCompact";
 
 interface CheckoutOrderSummaryProps {
   className?: string;
@@ -174,6 +175,14 @@ export default function CheckoutOrderSummary({
             </span>
           </div>
         </div>
+
+        {/* Productos relacionados compactos - solo si hay ≤3 items y subtotal < umbral de envío gratis */}
+        {selectedItems.length <= 3 && subtotalCents < FREE_SHIPPING_THRESHOLD_CENTS && (
+          <RelatedProductsCompact
+            productIds={selectedItems.map((item) => item.id)}
+            limit={3}
+          />
+        )}
       </div>
     </div>
   );
