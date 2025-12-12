@@ -9,6 +9,7 @@ import {
 import { useCheckoutStore } from "@/lib/store/checkoutStore";
 import { formatMXN } from "@/lib/utils/currency";
 import FreeShippingProgress from "@/components/cart/FreeShippingProgress";
+import RelatedProducts from "@/components/cart/RelatedProducts";
 import { Trash2, Plus, Minus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -157,6 +158,14 @@ export default function CarritoPage() {
               </button>
             </div>
           ))}
+          
+          {/* Productos relacionados */}
+          {items.length > 0 && (
+            <RelatedProducts
+              productIds={items.map((item) => item.id)}
+              limit={8}
+            />
+          )}
         </div>
 
         {/* Summary */}
