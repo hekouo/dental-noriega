@@ -11,8 +11,14 @@ import type {
 import AccountSectionHeader from "@/components/account/AccountSectionHeader";
 import { getShippingStatusLabel } from "@/lib/orders/shippingStatus";
 import { getPaymentMethodLabel, getPaymentStatusLabel, getPaymentStatusVariant } from "@/lib/orders/paymentStatus";
+import {
+  getTierForPoints,
+  getNextTierInfo,
+  hasEnoughPointsForDiscount,
+  LOYALTY_MIN_POINTS_FOR_DISCOUNT,
+  LOYALTY_POINTS_PER_MXN,
+} from "@/lib/loyalty/config";
 import LoyaltyRewardsTable from "@/components/loyalty/LoyaltyRewardsTable";
-import LoyaltySummaryCard from "@/components/loyalty/LoyaltySummaryCard";
 import RepeatOrderButton from "./RepeatOrderButton.client";
 
 export default function PedidosPage() {
@@ -477,15 +483,92 @@ export default function PedidosPage() {
         )}
 
         {/* Panel de puntos de lealtad */}
-        {email.trim() && isValidEmail(email) && (
-          <LoyaltySummaryCard
-            pointsBalance={loyaltyPoints?.pointsBalance ?? 0}
-            lifetimeEarned={loyaltyPoints?.lifetimeEarned ?? 0}
-            loading={loading}
-            error={loyaltyError}
-            showLinkToDetail={true}
-          />
-        )}
+        {email.trim() && isValidEmail(email) && (() => {
+          const pointsCurrent = loyaltyPoints?.pointsBalance ?? 0;
+          const tier = getTierForPoints(pointsCurrent);
+          const { nextTier, pointsToNext } = getNextTierInfo(pointsCurrent);
+          const canUseDiscount = hasEnoughPointsForDiscount(pointsCurrent);
+          
+          // Mapear colores del tier a clases Tailwind
+          const tierColorClasses: Record<string, { bg: string; text: string }> = {
+            slate: { bg: "bg-slate-100", text: "text-slate-800" },
+            blue: { bg: "bg-sky-100", text: "text-sky-800" },
+            amber: { bg: "bg-amber-100", text: "text-amber-800" },
+            purple: { bg: "bg-violet-100", text: "text-violet-800" },
+          };
+          const tierColor = tierColorClasses[tier.color] || tierColorClasses.slate;
+          
+          return (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 sm:p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-gray-900">Tus puntos</h2>
+                <span className={`px-3 py-1 rounded-full text-xs font-medium ${tierColor.bg} ${tierColor.text}`}>
+                  {tier.name}
+                </span>
+              </div>
+              {loading ? (
+                <p className="text-gray-600">Cargando puntos...</p>
+              ) : loyaltyPoints !== null ? (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-700">Puntos actuales:</span>
+                    <span className="text-2xl font-bold text-primary-600">
+                      {pointsCurrent.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-700">Has acumulado:</span>
+                    <span className="text-lg font-semibold text-gray-900">
+                      {loyaltyPoints.lifetimeEarned.toLocaleString()} puntos en total
+                    </span>
+                  </div>
+                  
+                  {/* Progreso hacia siguiente nivel */}
+                  {nextTier ? (
+                    <div className="pt-3 border-t border-blue-200 space-y-2">
+                      <p className="text-sm text-gray-600">
+                        Te faltan <strong>{pointsToNext?.toLocaleString()}</strong> puntos para llegar a <strong>{nextTier.name}</strong>.
+                      </p>
+                      <div className="w-full bg-gray-200 rounded-full h-2.5">
+                        <div
+                          className="bg-emerald-500 h-2.5 rounded-full transition-all duration-300"
+                          style={{
+                            width: `${Math.min(100, Math.max(0, ((pointsCurrent - tier.minPoints) / (nextTier.minPoints - tier.minPoints)) * 100))}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="pt-3 border-t border-blue-200">
+                      <p className="text-sm text-gray-600 font-medium">
+                        Has alcanzado el nivel máximo de lealtad.
+                      </p>
+                    </div>
+                  )}
+                  
+                  <div className="pt-3 border-t border-blue-200">
+                    <p className="text-sm text-gray-600">
+                      {LOYALTY_POINTS_PER_MXN} punto por cada ${LOYALTY_POINTS_PER_MXN} MXN que pagas en tus pedidos.
+                    </p>
+                    {canUseDiscount ? (
+                      <p className="text-sm font-medium text-green-700 mt-2">
+                        Tienes suficientes puntos para usar el 5% de descuento en tu próxima compra.
+                      </p>
+                    ) : (
+                      <p className="text-sm text-gray-600 mt-2">
+                        A partir de {LOYALTY_MIN_POINTS_FOR_DISCOUNT.toLocaleString()} puntos puedes activar un 5% de descuento en un pedido.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ) : loyaltyError ? (
+                <p className="text-yellow-700 text-sm">{loyaltyError}</p>
+              ) : (
+                <p className="text-gray-600">No se pudieron cargar los puntos.</p>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Tabla de recompensas y niveles */}
         {email.trim() && isValidEmail(email) && loyaltyPoints !== null && (
