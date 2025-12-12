@@ -17,6 +17,7 @@ import { AnimatedPoints } from "@/components/ui/AnimatedPoints";
 import { launchPaymentCoins } from "@/lib/ui/confetti";
 import { LoyaltyPointsBar } from "@/components/ui/LoyaltyPointsBar";
 import { clearCartAction } from "@/lib/actions/cart.server";
+import OrderPointsInfo from "@/components/loyalty/OrderPointsInfo";
 
 type LastOrder = {
   orderRef: string;
@@ -1115,6 +1116,16 @@ export default function GraciasContent() {
             <div className="flex justify-between font-semibold pt-3 mt-3 border-t-2 border-gray-300">
               <span className="text-gray-900">Total:</span>
               <span className="text-gray-900">{formatMXNMoney(displayTotal)}</span>
+            </div>
+          )}
+
+          {/* Información de puntos de lealtad */}
+          {orderDataFromStorage?.total_cents && displayStatus === "paid" && (
+            <div className="mt-4">
+              <OrderPointsInfo
+                totalCents={orderDataFromStorage.total_cents}
+                messageType="earned"
+              />
             </div>
           )}
         </div>

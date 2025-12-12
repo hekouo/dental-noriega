@@ -15,6 +15,8 @@ import {
   normalizeSortParam,
   normalizePriceRangeParam,
 } from "@/lib/catalog/config";
+import { getFeaturedItems } from "@/lib/catalog/getFeatured.server";
+import FeaturedGrid from "@/components/FeaturedGrid";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -66,6 +68,9 @@ export default async function BuscarPage({ searchParams }: Props) {
   const sort = normalizeSortParam(searchParams.sort);
   const inStockOnly = searchParams.inStock === "true";
   const priceRange = normalizePriceRangeParam(searchParams.priceRange);
+
+  // Obtener productos destacados para recomendaciones
+  const featuredItems = await getFeaturedItems();
 
   if (!q) {
     return (
@@ -132,17 +137,29 @@ export default async function BuscarPage({ searchParams }: Props) {
   // Calcular hasNextPage si no viene en la respuesta
   const calculatedHasNextPage = hasNextPage ?? items.length === perPage;
 
+  // Filtrar destacados para evitar duplicados con resultados
+  const resultIds = new Set(items.map((item) => item.id));
+  const filteredFeatured = featuredItems.filter(
+    (item) => !resultIds.has(item.product_id),
+  );
+
+  // Determinar si hay pocos resultados (≤3)
+  const hasFewResults = total > 0 && total <= 3;
+
   return (
     <section className="space-y-6" role="search">
       {/* Analytics tracking */}
       {total > 0 && <SearchTracker query={q} resultsCount={total} />}
 
+      {/* Cabecera mejorada */}
       <div>
-        <h1 className="text-3xl font-bold mb-2 text-gray-900">
-          Resultados de búsqueda
+        <h1 className="text-xl sm:text-2xl font-semibold mb-2 text-gray-900">
+          {q ? `Resultados para "${q}"` : "Buscar productos"}
         </h1>
-        <p className="text-gray-600 mb-6 text-sm">
-          Encuentra los productos que necesitas
+        <p className="text-sm text-slate-600 mb-4">
+          {total > 0
+            ? `Se encontraron ${total} producto${total !== 1 ? "s" : ""}`
+            : `No encontramos resultados para "${q}"`}
         </p>
         <SearchInput />
       </div>
@@ -150,13 +167,9 @@ export default async function BuscarPage({ searchParams }: Props) {
       {items.length > 0 && (
         <>
           <div className="mb-6 space-y-4">
-            <p className="text-gray-700">
-              {total} resultado{total !== 1 ? "s" : ""} para{" "}
-              <strong className="text-gray-900">"{q}"</strong>
-              {page > 1 && (
-                <span className="text-gray-500 text-sm"> (página {page})</span>
-              )}
-            </p>
+            {page > 1 && (
+              <p className="text-gray-500 text-sm">Página {page}</p>
+            )}
             <div className="flex flex-col gap-4">
               <FiltersSelect
                 inStockOnly={inStockOnly}
@@ -184,35 +197,56 @@ export default async function BuscarPage({ searchParams }: Props) {
       )}
 
       {items.length === 0 && (
-        <div className="bg-white rounded-lg border border-gray-200 p-8 text-center max-w-2xl mx-auto">
-          <div className="w-16 h-16 mx-auto rounded-full bg-gray-100 flex items-center justify-center mb-4">
-            <Search className="w-8 h-8 text-gray-400" aria-hidden="true" />
-          </div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">
-            No encontramos resultados para "{q}"
-          </h2>
-          <p className="text-sm text-gray-600 mb-6">
-            Prueba con otro término (por ejemplo, "brackets", "guantes", "resortes") o escríbenos por WhatsApp y te ayudamos a encontrar el producto.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Link
-              href={ROUTES.catalogIndex()}
-              className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
-            >
-              Ver todo el catálogo
-            </Link>
-            {getWhatsAppUrl(`Hola, busco productos relacionados con "${q}" en Depósito Dental Noriega.`) && (
+        <>
+          <div className="bg-white rounded-lg border border-gray-200 p-8 text-center max-w-2xl mx-auto">
+            <div className="w-16 h-16 mx-auto rounded-full bg-gray-100 flex items-center justify-center mb-4">
+              <Search className="w-8 h-8 text-gray-400" aria-hidden="true" />
+            </div>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">
+              No encontramos resultados para "{q}"
+            </h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Revisa la ortografía o prueba con términos más generales.
+            </p>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-left">
+              <p className="text-sm font-medium text-blue-900 mb-2">
+                Sugerencias:
+              </p>
+              <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
+                <li>Prueba buscar por marca, tipo de producto o sección.</li>
+                <li>Ejemplo: "guantes", "brackets", "resina".</li>
+              </ul>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Link
-                href={getWhatsAppUrl(`Hola, busco productos relacionados con "${q}" en Depósito Dental Noriega.`)!}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-6 py-3 border border-green-500 text-green-700 rounded-lg hover:bg-green-50 transition-colors font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2"
+                href={ROUTES.catalogIndex()}
+                className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
               >
-                Hablar por WhatsApp
+                Ver todo el catálogo
               </Link>
-            )}
+              {getWhatsAppUrl(`Hola, busco productos relacionados con "${q}" en Depósito Dental Noriega.`) && (
+                <Link
+                  href={getWhatsAppUrl(`Hola, busco productos relacionados con "${q}" en Depósito Dental Noriega.`)!}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-6 py-3 border border-green-500 text-green-700 rounded-lg hover:bg-green-50 transition-colors font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2"
+                >
+                  Hablar por WhatsApp
+                </Link>
+              )}
+            </div>
           </div>
-        </div>
+
+          {/* Productos destacados cuando no hay resultados */}
+          {filteredFeatured.length > 0 && (
+            <div className="mt-8">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">
+                Te recomendamos estos productos destacados
+              </h2>
+              <FeaturedGrid items={filteredFeatured.slice(0, 8)} />
+            </div>
+          )}
+        </>
       )}
 
       {items.length > 0 && (
@@ -248,6 +282,16 @@ export default async function BuscarPage({ searchParams }: Props) {
               ...(priceRange !== "all" ? { priceRange } : {}),
             }}
           />
+
+          {/* Sección "También te puede interesar" cuando hay pocos resultados */}
+          {hasFewResults && filteredFeatured.length > 0 && (
+            <div className="mt-12 pt-8 border-t border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">
+                También te puede interesar
+              </h2>
+              <FeaturedGrid items={filteredFeatured.slice(0, 8)} />
+            </div>
+          )}
         </>
       )}
     </section>

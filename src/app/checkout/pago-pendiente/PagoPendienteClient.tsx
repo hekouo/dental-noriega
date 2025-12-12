@@ -7,6 +7,7 @@ import { getPaymentMethodLabel, getPaymentStatusLabel } from "@/lib/orders/payme
 import type { PendingOrder } from "@/lib/orders/getPendingBankTransferOrder.server";
 import { useCartStore } from "@/lib/store/cartStore";
 import { useCheckoutStore } from "@/lib/store/checkoutStore";
+import OrderPointsInfo from "@/components/loyalty/OrderPointsInfo";
 
 type Props = {
   order: PendingOrder | null;
@@ -165,6 +166,16 @@ export default function PagoPendienteClient({ order, error }: Props) {
                     );
                   })()}
                 </div>
+
+                {/* Información de puntos de lealtad */}
+                {order.total_cents && (
+                  <div className="mt-4">
+                    <OrderPointsInfo
+                      totalCents={order.total_cents}
+                      messageType="pending"
+                    />
+                  </div>
+                )}
               </div>
             </div>
           )}

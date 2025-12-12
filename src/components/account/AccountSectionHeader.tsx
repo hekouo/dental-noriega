@@ -10,12 +10,13 @@ type AccountSectionHeaderProps = {
     email?: string | null;
     fullName?: string | null;
   } | null;
-  currentSection?: "perfil" | "pedidos" | "direcciones" | "pagos";
+  currentSection?: "perfil" | "pedidos" | "direcciones" | "pagos" | "puntos";
 };
 
 const navItems = [
   { key: "perfil", label: "Perfil", href: "/cuenta/perfil" },
   { key: "pedidos", label: "Pedidos", href: "/cuenta/pedidos" },
+  { key: "puntos", label: "Puntos", href: "/cuenta/puntos" },
   { key: "direcciones", label: "Direcciones", href: "/cuenta/direcciones" },
 ];
 
