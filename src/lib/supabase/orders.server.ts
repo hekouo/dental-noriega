@@ -96,7 +96,7 @@ const isMissingTableError = (error?: PostgrestError | null) => {
 /**
  * Normaliza un email: trim y lowercase
  */
-function normalizeEmail(email: string | null | undefined): string | null {
+export function normalizeEmail(email: string | null | undefined): string | null {
   if (!email) return null;
   return email.trim().toLowerCase();
 }

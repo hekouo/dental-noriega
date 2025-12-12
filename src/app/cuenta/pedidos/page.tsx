@@ -19,6 +19,7 @@ import {
   LOYALTY_POINTS_PER_MXN,
 } from "@/lib/loyalty/config";
 import LoyaltyRewardsTable from "@/components/loyalty/LoyaltyRewardsTable";
+import RepeatOrderButton from "./RepeatOrderButton.client";
 
 export default function PedidosPage() {
   const [email, setEmail] = useState("");
@@ -729,17 +730,22 @@ export default function PedidosPage() {
                           {formatMXNFromCents(order.total_cents)}
                         </p>
                       )}
-                      <button
-                        type="button"
-                        onClick={() => handleViewDetail(order.id)}
-                        disabled={loadingDetail && selectedOrderId === order.id}
-                        className="mt-2 text-sm text-primary-600 hover:text-primary-700 underline disabled:opacity-50 disabled:cursor-not-allowed"
-                        aria-label={`Ver detalle del pedido ${order.shortId}`}
-                      >
-                        {loadingDetail && selectedOrderId === order.id
-                          ? "Cargando detalle..."
-                          : "Ver detalle"}
-                      </button>
+                      <div className="mt-2 space-y-2">
+                        <button
+                          type="button"
+                          onClick={() => handleViewDetail(order.id)}
+                          disabled={loadingDetail && selectedOrderId === order.id}
+                          className="block text-sm text-primary-600 hover:text-primary-700 underline disabled:opacity-50 disabled:cursor-not-allowed"
+                          aria-label={`Ver detalle del pedido ${order.shortId}`}
+                        >
+                          {loadingDetail && selectedOrderId === order.id
+                            ? "Cargando detalle..."
+                            : "Ver detalle"}
+                        </button>
+                        {isAuthenticated && userEmail && (
+                          <RepeatOrderButton orderId={order.id} />
+                        )}
+                      </div>
                     </div>
                   </div>
                   </div>
