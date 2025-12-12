@@ -1,74 +1,56 @@
 "use server";
 
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
 import { createActionSupabase } from "@/lib/supabase/server-actions";
 import { getOrderWithItems } from "@/lib/supabase/orders.server";
-import { getOrCreateCartForUser } from "@/lib/cart/getOrCreateCart.server";
-import { createClient } from "@supabase/supabase-js";
-
-/**
- * Crea un cliente Supabase con SERVICE_ROLE_KEY (bypassa RLS)
- */
-function createServiceRoleSupabase() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error("Faltan variables de Supabase (URL o SERVICE_ROLE_KEY)");
-  }
-
-  return createClient(supabaseUrl, serviceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  });
-}
+import { normalizeEmail } from "@/lib/supabase/orders.server";
 
 const RepeatOrderInputSchema = z.object({
   orderId: z.string().uuid("OrderId debe ser un UUID válido"),
 });
 
 type RepeatOrderResult =
-  | { ok: true; redirectTo: string }
-  | { ok: false; code: "unauthenticated" | "order-not-found" | "cart-error" | "invalid-input" };
+  | { ok: true; redirectTo: "/carrito" }
+  | { ok: false; code: "unauthenticated" | "order-not-found" | "order-not-owned" | "no-items" | "cart-error" };
 
 /**
  * Repite un pedido anterior agregando sus productos al carrito actual
- * @param input Objeto con orderId
+ * @param input - Objeto con orderId
  * @returns Resultado de la operación
  */
 export async function repeatOrderAction(
-  input: z.infer<typeof RepeatOrderInputSchema>,
+  input: unknown,
 ): Promise<RepeatOrderResult> {
   // Validar input
-  const validationResult = RepeatOrderInputSchema.safeParse(input);
-  if (!validationResult.success) {
-    console.error("[repeatOrderAction] Input inválido:", validationResult.error);
-    return { ok: false, code: "invalid-input" };
+  const parsed = RepeatOrderInputSchema.safeParse(input);
+  if (!parsed.success) {
+    console.error("[repeatOrderAction] Input inválido:", parsed.error);
+    return { ok: false, code: "order-not-found" };
   }
 
-  const { orderId } = validationResult.data;
+  const { orderId } = parsed.data;
 
   try {
     // 1. Obtener usuario actual
-    const authSupabase = createActionSupabase();
+    const supabase = createActionSupabase();
     const {
       data: { user },
       error: authError,
-    } = await authSupabase.auth.getUser();
+    } = await supabase.auth.getUser();
 
-    if (authError || !user) {
-      console.warn("[repeatOrderAction] Usuario no autenticado");
+    if (authError || !user?.email) {
+      console.warn("[repeatOrderAction] Usuario no autenticado:", authError?.message);
       return { ok: false, code: "unauthenticated" };
     }
 
-    const userId = user.id;
-    const userEmail = user.email;
+    const userEmail = normalizeEmail(user.email);
+    if (!userEmail) {
+      console.warn("[repeatOrderAction] Email del usuario inválido");
+      return { ok: false, code: "unauthenticated" };
+    }
 
     // 2. Obtener la orden y sus items
-    const order = await getOrderWithItems(orderId, userEmail || null);
+    const order = await getOrderWithItems(orderId, userEmail);
 
     if (!order) {
       console.warn("[repeatOrderAction] Orden no encontrada:", { orderId, userEmail });
@@ -76,127 +58,98 @@ export async function repeatOrderAction(
     }
 
     // 3. Validar que la orden pertenece al usuario
-    if (order.ownedByEmail === false) {
+    const orderEmail = normalizeEmail(order.email);
+    if (orderEmail !== userEmail) {
       console.warn("[repeatOrderAction] Orden no pertenece al usuario:", {
         orderId,
-        orderEmail: order.email,
         userEmail,
+        orderEmail,
       });
-      return { ok: false, code: "order-not-found" };
+      return { ok: false, code: "order-not-owned" };
     }
 
-    // 4. Obtener o crear el carrito del usuario
-    const cartId = await getOrCreateCartForUser(authSupabase, userId);
-
-    if (!cartId) {
-      console.error("[repeatOrderAction] Error al obtener/crear carrito:", { userId });
-      return { ok: false, code: "cart-error" };
+    // 4. Validar que hay items
+    if (!order.items || order.items.length === 0) {
+      console.warn("[repeatOrderAction] Orden sin items:", { orderId });
+      return { ok: false, code: "no-items" };
     }
 
-    // 5. Obtener productos activos para validar
-    const serviceSupabase = createServiceRoleSupabase();
-    const productIds = order.items.map((item) => item.product_id).filter(Boolean);
-    
-    let activeProducts: Set<string> = new Set();
-    if (productIds.length > 0) {
-      const { data: products } = await serviceSupabase
-        .from("api_catalog_with_images")
-        .select("id")
-        .in("id", productIds)
-        .eq("active", true);
+    // 5. Preparar items para el carrito
+    // Los items se devolverán al cliente para que los agregue al store
+    // Por ahora solo validamos y devolvemos éxito
+    // El cliente se encargará de agregar los items al carrito usando addToCart
 
-      if (products) {
-        activeProducts = new Set(products.map((p) => p.id));
-      }
+    // Log para debugging
+    if (process.env.NODE_ENV === "development") {
+      console.log("[repeatOrderAction] Orden válida, items preparados:", {
+        orderId,
+        itemsCount: order.items.length,
+      });
     }
-
-    // 6. Agregar items al carrito
-    const itemsToAdd = order.items.filter((item) => {
-      // Solo agregar si el producto existe y está activo
-      if (!item.product_id) return false;
-      return activeProducts.has(item.product_id);
-    });
-
-    if (itemsToAdd.length === 0) {
-      console.warn("[repeatOrderAction] No hay productos válidos para agregar:", { orderId });
-      // Aún así redirigir al carrito (puede que ya tenga otros items)
-      revalidatePath("/carrito");
-      return { ok: true, redirectTo: "/carrito" };
-    }
-
-    // Obtener items existentes en el carrito para sumar cantidades
-    const { data: existingItems } = await authSupabase
-      .from("cart_items")
-      .select("sku, qty")
-      .eq("cart_id", cartId);
-
-    const existingItemsMap = new Map(
-      (existingItems || []).map((item) => [item.sku, item.qty]),
-    );
-
-    // Preparar items para upsert
-    const cartItemsToUpsert = itemsToAdd.map((item) => {
-      const existingQty = existingItemsMap.get(item.product_id) || 0;
-      const newQty = existingQty + item.qty;
-
-      return {
-        cart_id: cartId,
-        sku: item.product_id,
-        name: item.title,
-        price: item.unit_price_cents / 100, // Convertir centavos a pesos
-        qty: newQty,
-      };
-    });
-
-    // Separar en updates e inserts
-    const toUpdate = cartItemsToUpsert.filter((item) =>
-      existingItemsMap.has(item.sku),
-    );
-    const toInsert = cartItemsToUpsert.filter(
-      (item) => !existingItemsMap.has(item.sku),
-    );
-
-    // Actualizar items existentes
-    for (const item of toUpdate) {
-      const { error: updateError } = await authSupabase
-        .from("cart_items")
-        .update({ qty: item.qty, price: item.price })
-        .eq("cart_id", cartId)
-        .eq("sku", item.sku);
-
-      if (updateError) {
-        console.error("[repeatOrderAction] Error al actualizar item:", {
-          cartId,
-          sku: item.sku,
-          error: updateError.message,
-        });
-        // Continuar con los demás items
-      }
-    }
-
-    // Insertar nuevos items
-    if (toInsert.length > 0) {
-      const { error: insertError } = await authSupabase
-        .from("cart_items")
-        .insert(toInsert);
-
-      if (insertError) {
-        console.error("[repeatOrderAction] Error al insertar items:", {
-          cartId,
-          error: insertError.message,
-        });
-        return { ok: false, code: "cart-error" };
-      }
-    }
-
-    // Revalidar páginas relevantes
-    revalidatePath("/carrito");
-    revalidatePath("/cuenta/pedidos");
 
     return { ok: true, redirectTo: "/carrito" };
   } catch (error) {
     console.error("[repeatOrderAction] Error inesperado:", error);
     return { ok: false, code: "cart-error" };
+  }
+}
+
+/**
+ * Obtiene los items de una orden para repetir (helper para el cliente)
+ * @param orderId - ID de la orden
+ * @returns Items de la orden o null si hay error
+ */
+export async function getOrderItemsForRepeat(
+  orderId: string,
+): Promise<Array<{
+  productId: string;
+  title: string;
+  qty: number;
+  price: number;
+  price_cents: number;
+  image_url?: string | null;
+}> | null> {
+  try {
+    const supabase = createActionSupabase();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user?.email) {
+      return null;
+    }
+
+    const userEmail = normalizeEmail(user.email);
+    if (!userEmail) {
+      return null;
+    }
+
+    const order = await getOrderWithItems(orderId, userEmail);
+
+    if (!order || !order.items || order.items.length === 0) {
+      return null;
+    }
+
+    // Validar que la orden pertenece al usuario
+    const orderEmail = normalizeEmail(order.email);
+    if (orderEmail !== userEmail) {
+      return null;
+    }
+
+    // Convertir order_items a formato de carrito
+    return order.items
+      .filter((item) => item.product_id) // Solo items con product_id válido
+      .map((item) => ({
+        productId: item.product_id!,
+        title: item.title,
+        qty: item.qty,
+        price: item.unit_price_cents / 100, // Convertir centavos a pesos
+        price_cents: item.unit_price_cents,
+        image_url: item.image_url,
+      }));
+  } catch (error) {
+    console.error("[getOrderItemsForRepeat] Error:", error);
+    return null;
   }
 }
 

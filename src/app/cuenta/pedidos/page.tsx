@@ -742,7 +742,7 @@ export default function PedidosPage() {
                             ? "Cargando detalle..."
                             : "Ver detalle"}
                         </button>
-                        {isAuthenticated && (
+                        {isAuthenticated && userEmail && (
                           <RepeatOrderButton orderId={order.id} />
                         )}
                       </div>
