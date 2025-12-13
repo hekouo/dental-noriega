@@ -11,6 +11,9 @@ export async function GET(request: NextRequest) {
     const limitParam = searchParams.get("limit");
 
     if (!productIdsParam) {
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[api/products/related] No productIds param provided");
+      }
       return NextResponse.json({ products: [] }, { status: 200 });
     }
 
@@ -18,10 +21,21 @@ export async function GET(request: NextRequest) {
     const limit = limitParam ? parseInt(limitParam, 10) : 8;
 
     if (productIds.length === 0) {
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[api/products/related] Empty productIds array after parsing");
+      }
       return NextResponse.json({ products: [] }, { status: 200 });
     }
 
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[api/products/related] Fetching related products for:", productIds, "limit:", limit);
+    }
+
     const products = await getRelatedProductsForCart(productIds, limit);
+
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[api/products/related] Returning", products.length, "products");
+    }
 
     return NextResponse.json(
       {
