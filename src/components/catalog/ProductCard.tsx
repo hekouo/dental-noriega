@@ -10,7 +10,10 @@ import { formatMXN, mxnFromCents } from "@/lib/utils/currency";
 import { normalizePrice, hasPurchasablePrice } from "@/lib/catalog/model";
 import { getWhatsAppHref } from "@/lib/whatsapp";
 import { FREE_SHIPPING_THRESHOLD_MXN } from "@/lib/shipping/freeShipping";
-import { LOYALTY_POINTS_PER_MXN } from "@/lib/loyalty/config";
+import {
+  estimatePointsForPriceCents,
+  estimateFutureValueFromPoints,
+} from "@/lib/loyalty/utils";
 import { trackAddToCart, trackWhatsappClick } from "@/lib/analytics/events";
 import { launchCartConfetti } from "@/lib/ui/confetti";
 
@@ -208,13 +211,20 @@ export default function ProductCard({
       )}
 
       {/* Puntos estimados */}
-      {price !== null && (
-        <p className="mt-0.5 text-[11px] text-amber-700">
-          Acumulas aprox.{" "}
-          {Math.floor(price * LOYALTY_POINTS_PER_MXN).toLocaleString("es-MX")}{" "}
-          puntos con este producto.
-        </p>
-      )}
+      {(() => {
+        if (priceCents <= 0) return null;
+        const points = estimatePointsForPriceCents(priceCents);
+        if (points <= 0) return null;
+        const futureValue = estimateFutureValueFromPoints(points);
+        return (
+          <p className="mt-0.5 text-[11px] text-amber-700 leading-tight">
+            Acumulas aprox. {points.toLocaleString("es-MX")} pts
+            {futureValue > 0 && (
+              <> (~{formatMXN(futureValue)} MXN en futuras compras)</>
+            )}
+          </p>
+        );
+      })()}
 
       {/* Controles: cantidad y agregar al carrito */}
       <div className="mt-auto pt-2 space-y-2">
