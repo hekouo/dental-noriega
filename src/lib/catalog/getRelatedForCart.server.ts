@@ -287,4 +287,3 @@ async function getFallbackProducts(
     return [];
   }
 }
-
