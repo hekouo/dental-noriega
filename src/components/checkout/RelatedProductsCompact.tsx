@@ -47,23 +47,13 @@ export default function RelatedProductsCompact({
         const response = await fetch(`/api/products/related?${params.toString()}`);
         if (response.ok) {
           const data = await response.json();
-          const fetchedProducts = data.products || [];
-          
-          // El API debe garantizar que siempre retorne algo cuando hay items en el carrito
-          setProducts(fetchedProducts);
-        } else {
-          // Si el API falla, no mostrar nada (no romper el flujo de pago)
-          if (process.env.NODE_ENV === "development") {
-            console.warn("[RelatedProductsCompact] API error, will show empty");
-          }
-          setProducts([]);
+          setProducts(data.products || []);
         }
       } catch (error) {
         // Silenciar errores - no romper el flujo de pago
         if (process.env.NODE_ENV === "development") {
           console.error("[RelatedProductsCompact] Error:", error);
         }
-        setProducts([]);
       } finally {
         setLoading(false);
       }
@@ -72,8 +62,6 @@ export default function RelatedProductsCompact({
     fetchRelated();
   }, [productIds, limit]);
 
-  // Mostrar solo si hay productos y no está cargando
-  // El API debe garantizar que siempre retorne algo cuando hay items en el carrito
   if (loading || products.length === 0) {
     return null;
   }
