@@ -54,9 +54,10 @@ export async function getRelatedProductsForCart(
 
     if (!cartProducts || cartProducts.length === 0) {
       if (process.env.NODE_ENV !== "production") {
-        console.log("[getRelatedProductsForCart] No cart products found in DB for IDs:", productIds);
+        console.log("[getRelatedProductsForCart] No cart products found in DB for IDs:", productIds, "- using fallback");
       }
-      return [];
+      // Si no encontramos los productos del carrito en la BD, usar fallback con destacados
+      return await getFallbackProducts(productIds, limit);
     }
 
     if (process.env.NODE_ENV !== "production") {
@@ -70,9 +71,10 @@ export async function getRelatedProductsForCart(
 
     if (sections.length === 0) {
       if (process.env.NODE_ENV !== "production") {
-        console.log("[getRelatedProductsForCart] No valid sections found");
+        console.log("[getRelatedProductsForCart] No valid sections found - using fallback");
       }
-      return [];
+      // Si no hay secciones válidas, usar fallback con destacados
+      return await getFallbackProducts(productIds, limit);
     }
 
     if (process.env.NODE_ENV !== "production") {
@@ -90,8 +92,9 @@ export async function getRelatedProductsForCart(
       .limit(limit * 3); // Obtener más para tener opciones después de filtrar
 
     if (error) {
-      console.error("[getRelatedProductsForCart] Error al obtener productos relacionados:", error);
-      return [];
+      console.error("[getRelatedProductsForCart] Error al obtener productos relacionados:", error, "- using fallback");
+      // En caso de error, usar fallback con destacados
+      return await getFallbackProducts(productIds, limit);
     }
 
     if (!data || data.length === 0) {
@@ -150,17 +153,28 @@ export async function getRelatedProductsForCart(
 
 /**
  * Fallback: obtener productos destacados excluyendo los del carrito
+ * Si falla, intenta obtener productos directamente de api_catalog_with_images
  */
 async function getFallbackProducts(
   excludeIds: string[],
   limit: number,
 ): Promise<ApiCatalogProduct[]> {
+  const sb = createClient();
+  if (!sb) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[getRelatedProductsForCart] Fallback: missing supabase client");
+    }
+    return [];
+  }
+
+  const excludeSet = new Set(excludeIds.map(id => String(id)));
+
   try {
+    // Primero intentar con productos destacados
     const featuredItems = await getFeaturedItems();
-    const excludeSet = new Set(excludeIds);
     
     const filtered = featuredItems
-      .filter((item) => !excludeSet.has(item.product_id))
+      .filter((item) => !excludeSet.has(String(item.product_id)))
       .slice(0, limit)
       .map((item) => ({
         id: item.product_id,
@@ -174,13 +188,102 @@ async function getFallbackProducts(
         is_active: item.is_active ?? true,
       }));
 
-    if (process.env.NODE_ENV !== "production") {
-      console.log("[getRelatedProductsForCart] Fallback: returning", filtered.length, "featured products");
+    if (filtered.length >= limit) {
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[getRelatedProductsForCart] Fallback: returning", filtered.length, "featured products");
+      }
+      return filtered;
     }
 
-    return filtered;
+    // Si no hay suficientes destacados, completar con productos activos de la vista
+    const { data, error } = await sb
+      .from("api_catalog_with_images")
+      .select("*")
+      .order("price_cents", { ascending: true })
+      .limit(limit * 2);
+
+    if (!error && data && data.length > 0) {
+      const additional = data
+        .filter((row) => {
+          const rowId = String(row.id);
+          return !excludeSet.has(rowId) && 
+                 !filtered.some(f => String(f.id) === rowId);
+        })
+        .map((row) => mapDbToCatalogItem(row as DbRow))
+        .filter((item) => item.is_active)
+        .slice(0, limit - filtered.length);
+
+      const result = [...filtered, ...additional];
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[getRelatedProductsForCart] Fallback: returning", result.length, "products (featured + catalog)");
+      }
+      return result;
+    }
+
+    // Si todo falla, retornar al menos los destacados que tengamos
+    if (filtered.length > 0) {
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[getRelatedProductsForCart] Fallback: returning", filtered.length, "featured products (partial)");
+      }
+      return filtered;
+    }
+
+    // Último recurso: obtener cualquier producto activo
+    const { data: anyData, error: anyError } = await sb
+      .from("api_catalog_with_images")
+      .select("*")
+      .order("price_cents", { ascending: true })
+      .limit(limit);
+
+    if (!anyError && anyData && anyData.length > 0) {
+      const result = anyData
+        .filter((row) => {
+          const rowId = String(row.id);
+          return !excludeSet.has(rowId);
+        })
+        .map((row) => mapDbToCatalogItem(row as DbRow))
+        .filter((item) => item.is_active)
+        .slice(0, limit);
+
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[getRelatedProductsForCart] Fallback: returning", result.length, "products from catalog (last resort)");
+      }
+      return result;
+    }
+
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[getRelatedProductsForCart] Fallback: no products found at all");
+    }
+    return [];
   } catch (error) {
     console.error("[getRelatedProductsForCart] Error en fallback:", error);
+    
+    // Último intento: obtener productos directamente sin filtros complejos
+    try {
+      const { data, error: directError } = await sb
+        .from("api_catalog_with_images")
+        .select("*")
+        .limit(limit);
+
+      if (!directError && data && data.length > 0) {
+        const result = data
+          .filter((row) => {
+            const rowId = String(row.id);
+            return !excludeSet.has(rowId);
+          })
+          .map((row) => mapDbToCatalogItem(row as DbRow))
+          .filter((item) => item.is_active)
+          .slice(0, limit);
+
+        if (process.env.NODE_ENV !== "production") {
+          console.log("[getRelatedProductsForCart] Fallback (error recovery): returning", result.length, "products");
+        }
+        return result;
+      }
+    } catch (finalError) {
+      console.error("[getRelatedProductsForCart] Final fallback error:", finalError);
+    }
+
     return [];
   }
 }

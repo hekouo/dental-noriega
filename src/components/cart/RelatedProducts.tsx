@@ -45,10 +45,30 @@ export default function RelatedProducts({
         const response = await fetch(`/api/products/related?${params.toString()}`);
         if (response.ok) {
           const data = await response.json();
-          setProducts(data.products || []);
+          const fetchedProducts = data.products || [];
+          
+          // Si no hay productos relacionados, el API debería retornar destacados como fallback
+          // Pero si aún así está vacío, intentar obtener destacados directamente
+          if (fetchedProducts.length === 0) {
+            if (process.env.NODE_ENV !== "production") {
+              console.log("[RelatedProducts] No products from API, fetching featured as fallback");
+            }
+            // El API ya debería haber hecho el fallback, pero por si acaso...
+            // Dejamos que el componente muestre lo que venga del API
+            setProducts([]);
+          } else {
+            setProducts(fetchedProducts);
+          }
+        } else {
+          // Si el API falla, intentar obtener destacados directamente
+          if (process.env.NODE_ENV !== "production") {
+            console.warn("[RelatedProducts] API error, will show empty (API should handle fallback)");
+          }
+          setProducts([]);
         }
       } catch (error) {
         console.error("[RelatedProducts] Error al obtener productos relacionados:", error);
+        setProducts([]);
       } finally {
         setLoading(false);
       }
@@ -57,7 +77,25 @@ export default function RelatedProducts({
     fetchRelated();
   }, [productIds, limit]);
 
-  if (loading || products.length === 0) {
+  // Mostrar solo si hay productos y no está cargando
+  // El API debe garantizar que siempre retorne algo cuando hay items en el carrito
+  if (loading) {
+    return (
+      <div className="mt-12 pt-8 border-t border-gray-200">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">
+          También te puede interesar
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="bg-gray-100 rounded-lg h-64 animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (products.length === 0) {
+    // No mostrar nada si no hay productos (el API debería garantizar que siempre haya algo)
     return null;
   }
 
