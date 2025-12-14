@@ -79,15 +79,15 @@ export default async function BuscarPage({ searchParams }: Props) {
           <h1 className="text-3xl font-bold mb-2 text-gray-900">
             Buscar productos
           </h1>
-          <p className="text-gray-600 mb-6 text-sm">
-            Encuentra los productos que necesitas
+          <p className="text-sm text-slate-600 mb-6">
+            Escribe el nombre del producto, marca o categoría que necesitas.
           </p>
           <SearchInput />
         </div>
-        <div className="text-center py-12">
-          <p className="text-gray-500 mb-2">Escribe algo para buscar</p>
-          <p className="text-sm text-gray-400">
-            Puedes buscar por nombre, categoría o descripción
+        <div className="mt-8">
+          <p className="text-sm font-medium text-gray-700 mb-3">Ejemplos:</p>
+          <p className="text-sm text-gray-600">
+            guantes de nitrilo · brackets metálicos · arcos NITI · puntas profilaxis
           </p>
         </div>
       </section>
@@ -159,7 +159,7 @@ export default async function BuscarPage({ searchParams }: Props) {
         <p className="text-sm text-slate-600 mb-4">
           {total > 0
             ? `Se encontraron ${total} producto${total !== 1 ? "s" : ""}`
-            : `No encontramos resultados para "${q}"`}
+            : ""}
         </p>
         <SearchInput />
       </div>
@@ -206,15 +206,22 @@ export default async function BuscarPage({ searchParams }: Props) {
               No encontramos resultados para "{q}"
             </h2>
             <p className="text-sm text-gray-600 mb-4">
-              Revisa la ortografía o prueba con términos más generales.
+              Prueba con estas opciones:
             </p>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-left">
-              <p className="text-sm font-medium text-blue-900 mb-2">
-                Sugerencias:
-              </p>
-              <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
-                <li>Prueba buscar por marca, tipo de producto o sección.</li>
-                <li>Ejemplo: "guantes", "brackets", "resina".</li>
+            <div className="bg-sky-50 border border-sky-200 rounded-lg p-4 mb-6 text-left">
+              <ul className="text-sm text-slate-700 space-y-2 list-none">
+                <li className="flex items-start">
+                  <span className="text-sky-600 mr-2">•</span>
+                  <span>Revisa la ortografía del nombre del producto.</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="text-sky-600 mr-2">•</span>
+                  <span>Prueba con un término más general (por ejemplo, "guantes" en lugar de la marca exacta).</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="text-sky-600 mr-2">•</span>
+                  <span>Busca por tipo de producto (por ejemplo, "resina", "brackets", "arcos").</span>
+                </li>
               </ul>
             </div>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -286,9 +293,12 @@ export default async function BuscarPage({ searchParams }: Props) {
           {/* Sección "También te puede interesar" cuando hay pocos resultados */}
           {hasFewResults && filteredFeatured.length > 0 && (
             <div className="mt-12 pt-8 border-t border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">
                 También te puede interesar
               </h2>
+              <p className="text-sm text-slate-600 mb-4">
+                Otros productos similares que suelen revisar nuestros clientes.
+              </p>
               <FeaturedGrid items={filteredFeatured.slice(0, 8)} />
             </div>
           )}
