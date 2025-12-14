@@ -218,9 +218,9 @@ export default function ProductCard({
         const futureValue = estimateFutureValueFromPoints(points);
         return (
           <p className="mt-0.5 text-[11px] text-amber-700 leading-tight">
-            Acumulas aprox. {points.toLocaleString("es-MX")} pts
+            Ganarás aprox. {points.toLocaleString("es-MX")} pts
             {futureValue > 0 && (
-              <> (~{formatMXN(futureValue)} MXN en futuras compras)</>
+              <> (~{formatMXN(futureValue)} MXN de ahorro en futuras compras)</>
             )}
           </p>
         );

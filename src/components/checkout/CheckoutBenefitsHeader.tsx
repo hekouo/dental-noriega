@@ -62,7 +62,7 @@ export default function CheckoutBenefitsHeader({
           <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800">
             Ganarás aprox. {estimatedPoints.toLocaleString("es-MX")} pts
             {futureValue > 0 && (
-              <> (~{formatMXN(futureValue)} MXN)</>
+              <> (~{formatMXN(futureValue)} MXN de ahorro)</>
             )}
           </span>
         )}

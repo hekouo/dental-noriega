@@ -60,13 +60,13 @@ export default function LoyaltySummaryCard({
       ) : (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <span className="text-gray-700">Puntos actuales:</span>
+            <span className="text-gray-700">Puntos disponibles:</span>
             <span className="text-2xl font-bold text-primary-600">
               {pointsCurrent.toLocaleString()}
             </span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-gray-700">Has acumulado:</span>
+            <span className="text-gray-700">Puntos acumulados:</span>
             <span className="text-lg font-semibold text-gray-900">
               {lifetimeEarned.toLocaleString()} puntos en total
             </span>
@@ -105,17 +105,17 @@ export default function LoyaltySummaryCard({
 
           <div className="pt-3 border-t border-blue-200">
             <p className="text-sm text-gray-600">
-              {LOYALTY_POINTS_PER_MXN} punto por cada ${LOYALTY_POINTS_PER_MXN} MXN que pagas en
+              Ganas {LOYALTY_POINTS_PER_MXN} punto por cada ${LOYALTY_POINTS_PER_MXN} MXN que pagas en
               tus pedidos.
             </p>
             {canUseDiscount ? (
               <p className="text-sm font-medium text-green-700 mt-2">
-                Tienes suficientes puntos para usar el 5% de descuento en tu próxima compra.
+                Puedes aplicar un 5% de descuento en tu siguiente compra.
               </p>
             ) : (
               <p className="text-sm text-gray-600 mt-2">
-                A partir de {LOYALTY_MIN_POINTS_FOR_DISCOUNT.toLocaleString()} puntos puedes
-                activar un 5% de descuento en un pedido.
+                Con {LOYALTY_MIN_POINTS_FOR_DISCOUNT.toLocaleString()} puntos puedes
+                aplicar un 5% de descuento en un pedido.
               </p>
             )}
           </div>
@@ -127,7 +127,7 @@ export default function LoyaltySummaryCard({
                 href="/cuenta/puntos"
                 className="text-sm text-primary-600 hover:text-primary-700 underline underline-offset-2 font-medium"
               >
-                Ver detalle de tus puntos y logros →
+                Ver historial completo y logros →
               </Link>
             </div>
           )}

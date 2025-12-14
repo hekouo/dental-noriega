@@ -53,7 +53,7 @@ export default function LoyaltyRewardsTable({ currentPoints }: Props) {
           Niveles y recompensas
         </h2>
         <p className="text-sm text-gray-600">
-          Los niveles se basan en los puntos acumulados a lo largo de todas tus compras.
+          Los niveles se basan en los puntos que has acumulado en todas tus compras.
         </p>
       </div>
 

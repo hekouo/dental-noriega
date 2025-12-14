@@ -92,7 +92,7 @@ export default function LoyaltyAchievements({
     <div className="mt-6 bg-white rounded-lg border border-gray-200 p-6">
       <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-3">Logros</h2>
       <p className="text-sm text-gray-600 mb-6">
-        Desbloquea logros especiales mientras compras y acumulas puntos.
+        Desbloquea logros especiales mientras realizas compras y acumulas puntos.
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

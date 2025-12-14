@@ -925,7 +925,7 @@ export default function GraciasContent() {
                   className="mt-1"
                 />
                 <p className="text-blue-700 text-sm mt-2">
-                  Tu nuevo balance es{" "}
+                  Tu saldo actual es{" "}
                   <AnimatedPoints
                     value={newBalance}
                     from={previousBalance}
@@ -940,7 +940,7 @@ export default function GraciasContent() {
             return (
               <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <p className="text-blue-900 font-medium mb-1">
-                  Tu balance actual de puntos es{" "}
+                  Tu saldo actual de puntos es{" "}
                   <AnimatedPoints
                     value={newBalance}
                     className="font-semibold"
@@ -953,7 +953,7 @@ export default function GraciasContent() {
                   className="mt-1"
                 />
                 <p className="text-blue-700 text-sm mt-2">
-                  Tus puntos de esta compra se verán reflejados en unos minutos.
+                  Los puntos de esta compra se actualizarán en unos minutos.
                 </p>
               </div>
             );
