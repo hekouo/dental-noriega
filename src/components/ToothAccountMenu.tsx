@@ -6,6 +6,7 @@ import { useCartStore, selectCartCount } from "@/lib/store/cartStore";
 import { getBrowserSupabase } from "@/lib/supabase/client";
 import { getUserInitial } from "@/lib/account/avatar";
 import type { User } from "@supabase/supabase-js";
+import { LoyaltyHeaderBadge } from "@/components/header/LoyaltyHeaderBadge";
 
 export function ToothAccountMenu() {
   const qty = useCartStore(selectCartCount);
@@ -69,22 +70,26 @@ export function ToothAccountMenu() {
 
       {/* Botón principal: avatar o "Iniciar sesión" */}
       {user ? (
-        <button
-          aria-label="Mi cuenta"
-          aria-expanded={open}
-          onClick={() => setOpen((v) => !v)}
-          className="flex items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded-lg px-2 py-1 hover:bg-gray-50 transition"
-        >
-          <div className="h-9 w-9 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-semibold shadow-sm">
-            {getUserInitial({
-              fullName: user.user_metadata?.full_name || user.user_metadata?.fullName || null,
-              email: user.email || null,
-            })}
-          </div>
-          <span className="hidden sm:inline-block ml-2 text-sm font-medium text-gray-700">
-            Cuenta
-          </span>
-        </button>
+        <div className="flex items-center gap-3">
+          {/* Badge de puntos de lealtad */}
+          <LoyaltyHeaderBadge />
+          <button
+            aria-label="Mi cuenta"
+            aria-expanded={open}
+            onClick={() => setOpen((v) => !v)}
+            className="flex items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded-lg px-2 py-1 hover:bg-gray-50 transition"
+          >
+            <div className="h-9 w-9 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-semibold shadow-sm">
+              {getUserInitial({
+                fullName: user.user_metadata?.full_name || user.user_metadata?.fullName || null,
+                email: user.email || null,
+              })}
+            </div>
+            <span className="hidden sm:inline-block ml-2 text-sm font-medium text-gray-700">
+              Cuenta
+            </span>
+          </button>
+        </div>
       ) : (
         <Link
           href="/cuenta"
