@@ -47,7 +47,7 @@ export default function OrderPointsInfo({
                   <span className="font-semibold">
                     {formatMXNFromCents(estimatedFutureValue * 100)}
                   </span>{" "}
-                  en futuros descuentos.
+                  de ahorro en futuras compras.
                 </p>
               )}
             </>
@@ -66,7 +66,7 @@ export default function OrderPointsInfo({
                   <span className="font-semibold">
                     {formatMXNFromCents(estimatedFutureValue * 100)}
                   </span>{" "}
-                  en futuros descuentos.
+                  de ahorro en futuras compras.
                 </p>
               )}
             </>

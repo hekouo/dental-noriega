@@ -511,13 +511,13 @@ export default function PedidosPage() {
               ) : loyaltyPoints !== null ? (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-700">Puntos actuales:</span>
+                    <span className="text-gray-700">Puntos disponibles:</span>
                     <span className="text-2xl font-bold text-primary-600">
                       {pointsCurrent.toLocaleString()}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-700">Has acumulado:</span>
+                    <span className="text-gray-700">Puntos acumulados:</span>
                     <span className="text-lg font-semibold text-gray-900">
                       {loyaltyPoints.lifetimeEarned.toLocaleString()} puntos en total
                     </span>
@@ -548,15 +548,15 @@ export default function PedidosPage() {
                   
                   <div className="pt-3 border-t border-blue-200">
                     <p className="text-sm text-gray-600">
-                      {LOYALTY_POINTS_PER_MXN} punto por cada ${LOYALTY_POINTS_PER_MXN} MXN que pagas en tus pedidos.
+                      Ganas {LOYALTY_POINTS_PER_MXN} punto por cada ${LOYALTY_POINTS_PER_MXN} MXN que pagas en tus pedidos.
                     </p>
                     {canUseDiscount ? (
                       <p className="text-sm font-medium text-green-700 mt-2">
-                        Tienes suficientes puntos para usar el 5% de descuento en tu próxima compra.
+                        Puedes aplicar un 5% de descuento en tu siguiente compra.
                       </p>
                     ) : (
                       <p className="text-sm text-gray-600 mt-2">
-                        A partir de {LOYALTY_MIN_POINTS_FOR_DISCOUNT.toLocaleString()} puntos puedes activar un 5% de descuento en un pedido.
+                        Con {LOYALTY_MIN_POINTS_FOR_DISCOUNT.toLocaleString()} puntos puedes aplicar un 5% de descuento en un pedido.
                       </p>
                     )}
                   </div>
@@ -1106,7 +1106,7 @@ export default function PedidosPage() {
                         )}
                         {hasSpent && spent && (
                           <div className="flex justify-between text-sm">
-                            <span className="text-gray-600">Puntos usados:</span>
+                            <span className="text-gray-600">Puntos aplicados:</span>
                             <span className="text-orange-600 font-medium">
                               -{spent.toLocaleString()}
                             </span>
@@ -1114,9 +1114,9 @@ export default function PedidosPage() {
                         )}
                         {(hasEarned || hasSpent) && (
                           <div className="flex justify-between text-sm font-semibold pt-2 border-t border-gray-200">
-                            <span className="text-gray-700">Puntos netos:</span>
+                            <span className="text-gray-700">Saldo neto:</span>
                             <span className="text-gray-900">
-                              {netPoints.toLocaleString()}
+                              {netPoints.toLocaleString()} pts
                             </span>
                           </div>
                         )}

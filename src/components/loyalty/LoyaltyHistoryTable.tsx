@@ -33,7 +33,7 @@ export default function LoyaltyHistoryTable({ entries }: Props) {
         </h2>
         <p className="text-sm text-gray-600">
           Aún no tienes historial de puntos. Cuando realices tus compras, verás aquí los puntos que
-          ganas y usas.
+          ganas y los descuentos que aplicas.
         </p>
       </div>
     );
@@ -62,9 +62,9 @@ export default function LoyaltyHistoryTable({ entries }: Props) {
               const movementText = hasEarned
                 ? hasSpent
                   ? "Compra pagada + Descuento aplicado"
-                  : "Compra pagada"
+                  : "Puntos ganados por compra"
                 : hasSpent
-                  ? "Descuento aplicado con puntos"
+                  ? "Descuento aplicado"
                   : "—";
 
               return (
