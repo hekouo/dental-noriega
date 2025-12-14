@@ -15,6 +15,7 @@ import { formatMXN as formatMXNMoney } from "@/lib/utils/money";
 import CheckoutStepper from "@/components/checkout/CheckoutStepper";
 import CheckoutOrderSummary from "@/components/checkout/CheckoutOrderSummary";
 import CheckoutDebugPanel from "@/components/CheckoutDebugPanel";
+import CheckoutBenefitsHeader from "@/components/checkout/CheckoutBenefitsHeader";
 import { cpToZone, quote } from "@/lib/shipping/config";
 import { cartKg } from "@/lib/shipping/weights";
 import { track } from "@/lib/analytics";
@@ -1000,6 +1001,12 @@ export default function PagoClient() {
           </Link>
         </div>
       </div>
+
+      {/* Header de beneficios */}
+      <CheckoutBenefitsHeader
+        subtotalCents={productsSubtotalCents}
+        shippingMethod={displayShippingMethod}
+      />
 
       {/* Método de envío (solo lectura) */}
       <div className="bg-gray-50 rounded-lg p-4 mb-6">
