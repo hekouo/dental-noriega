@@ -1,11 +1,13 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { getFreeShippingProgress } from "@/lib/shipping/freeShipping";
 import {
   estimatePointsForPriceCents,
   estimateFutureValueFromPoints,
 } from "@/lib/loyalty/utils";
 import { formatMXNFromCents, formatMXN } from "@/lib/utils/currency";
+import { trackCheckoutBenefitsShown } from "@/lib/analytics/events";
 
 type CheckoutBenefitsHeaderProps = {
   subtotalCents: number;
@@ -19,10 +21,7 @@ export default function CheckoutBenefitsHeader({
   subtotalCents,
   shippingMethod,
 }: CheckoutBenefitsHeaderProps) {
-  // No renderizar si no hay subtotal válido
-  if (subtotalCents <= 0) {
-    return null;
-  }
+  const trackedRef = useRef(false);
 
   // Calcular progreso de envío gratis
   const { reached, remainingCents } = getFreeShippingProgress(subtotalCents);
@@ -36,6 +35,26 @@ export default function CheckoutBenefitsHeader({
 
   // Determinar si mostrar sección de puntos
   const showPoints = estimatedPoints > 0;
+
+  // Trackear cuando se muestra el header (antes de cualquier return)
+  useEffect(() => {
+    if (subtotalCents > 0 && (showShipping || showPoints) && !trackedRef.current) {
+      trackedRef.current = true;
+      trackCheckoutBenefitsShown({
+        subtotalCents,
+        hasFreeShipping: reached,
+        freeShippingRemainingCents: reached ? 0 : remainingCents,
+        estimatedPoints,
+        estimatedValueMxn: futureValue,
+        shippingMethod: (shippingMethod as "pickup" | "standard" | "express") || "standard",
+      });
+    }
+  }, [subtotalCents, reached, remainingCents, estimatedPoints, futureValue, shippingMethod, showShipping, showPoints]);
+
+  // No renderizar si no hay subtotal válido
+  if (subtotalCents <= 0) {
+    return null;
+  }
 
   // Si no hay nada que mostrar, no renderizar
   if (!showShipping && !showPoints) {

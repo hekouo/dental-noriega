@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useCartStore } from "@/lib/store/cartStore";
+import { trackRelatedProductsShown, trackRelatedProductClicked, trackRelatedProductAddToCart } from "@/lib/analytics/events";
 
 type RelatedProductsCompactProps = {
   productIds: string[];
@@ -31,6 +32,8 @@ export default function RelatedProductsCompact({
   const [products, setProducts] = useState<RelatedProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const addToCart = useCartStore((s) => s.addToCart);
+  const cartItemsCount = useCartStore((s) => s.cartItems.length);
+  const trackedRef = useRef(false);
 
   useEffect(() => {
     if (!productIds || productIds.length === 0) {
@@ -72,6 +75,18 @@ export default function RelatedProductsCompact({
     fetchRelated();
   }, [productIds, limit]);
 
+  // Trackear cuando se muestran productos relacionados
+  useEffect(() => {
+    if (products.length > 0 && !trackedRef.current) {
+      trackedRef.current = true;
+      trackRelatedProductsShown({
+        source: "checkout",
+        productsCount: products.length,
+        cartItemsCount,
+      });
+    }
+  }, [products.length, cartItemsCount]);
+
   // Mostrar solo si hay productos y no está cargando
   // El API debe garantizar que siempre retorne algo cuando hay items en el carrito
   if (loading || products.length === 0) {
@@ -84,13 +99,23 @@ export default function RelatedProductsCompact({
         También te puede interesar
       </h3>
       <div className="space-y-2">
-        {products.map((product) => (
+        {products.map((product, index) => (
           <div
             key={product.id}
             className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors"
           >
             {product.image_url && (
-              <div className="w-12 h-12 flex-shrink-0 rounded overflow-hidden bg-gray-100">
+              <div
+                className="w-12 h-12 flex-shrink-0 rounded overflow-hidden bg-gray-100 cursor-pointer"
+                onClick={() => {
+                  trackRelatedProductClicked({
+                    source: "checkout",
+                    productId: product.id,
+                    sectionSlug: product.section,
+                    position: index + 1,
+                  });
+                }}
+              >
                 <img
                   src={product.image_url}
                   alt={product.title}
@@ -98,7 +123,17 @@ export default function RelatedProductsCompact({
                 />
               </div>
             )}
-            <div className="flex-1 min-w-0">
+            <div
+              className="flex-1 min-w-0 cursor-pointer"
+              onClick={() => {
+                trackRelatedProductClicked({
+                  source: "checkout",
+                  productId: product.id,
+                  sectionSlug: product.section,
+                  position: index + 1,
+                });
+              }}
+            >
               <p className="text-xs font-medium text-gray-900 truncate">
                 {product.title}
               </p>
@@ -108,6 +143,11 @@ export default function RelatedProductsCompact({
             </div>
             <button
               onClick={() => {
+                trackRelatedProductAddToCart({
+                  source: "checkout",
+                  productId: product.id,
+                  cartItemsBefore: cartItemsCount,
+                });
                 addToCart({
                   id: product.id,
                   title: product.title,

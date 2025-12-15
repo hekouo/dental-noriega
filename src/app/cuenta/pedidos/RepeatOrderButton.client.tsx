@@ -4,15 +4,25 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { getOrderItemsForRepeat } from "@/lib/actions/account-repeat-order";
 import { useCartStore } from "@/lib/store/cartStore";
+import { trackLoyaltyRepeatOrderClicked } from "@/lib/analytics/events";
 
 interface RepeatOrderButtonProps {
   orderId: string;
+  itemsCount?: number;
+  subtotalCents?: number;
 }
+
+const DEFAULT_ITEMS_COUNT = 0;
+const DEFAULT_SUBTOTAL_CENTS = 0;
 
 /**
  * Botón para repetir un pedido agregando sus productos al carrito
  */
-export default function RepeatOrderButton({ orderId }: RepeatOrderButtonProps) {
+export default function RepeatOrderButton({
+  orderId,
+  itemsCount,
+  subtotalCents,
+}: RepeatOrderButtonProps) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const addToCart = useCartStore((state) => state.addToCart);
@@ -27,6 +37,15 @@ export default function RepeatOrderButton({ orderId }: RepeatOrderButtonProps) {
           alert("No se pudieron cargar los productos de este pedido.");
           return;
         }
+
+        // Trackear evento después de obtener items (para tener el count real)
+        const actualItemsCount = items.length;
+        const actualSubtotalCents = items.reduce((sum, item) => sum + (item.price_cents * item.qty), 0);
+        trackLoyaltyRepeatOrderClicked({
+          orderId,
+          itemsCount: (itemsCount ?? DEFAULT_ITEMS_COUNT) > 0 ? (itemsCount ?? DEFAULT_ITEMS_COUNT) : actualItemsCount,
+          subtotalCents: (subtotalCents ?? DEFAULT_SUBTOTAL_CENTS) > 0 ? (subtotalCents ?? DEFAULT_SUBTOTAL_CENTS) : actualSubtotalCents,
+        });
 
         // 2. Agregar cada item al carrito
         for (const item of items) {

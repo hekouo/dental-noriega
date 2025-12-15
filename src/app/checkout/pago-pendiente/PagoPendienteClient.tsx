@@ -173,6 +173,7 @@ export default function PagoPendienteClient({ order, error }: Props) {
                     <OrderPointsInfo
                       totalCents={order.total_cents}
                       messageType="pending"
+                      orderId={order.id}
                     />
                   </div>
                 )}

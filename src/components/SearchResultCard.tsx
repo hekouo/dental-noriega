@@ -3,11 +3,12 @@
 import ProductCard from "@/components/catalog/ProductCard";
 import type { CatalogItem } from "@/lib/supabase/catalog";
 import type { ProductCardProps } from "@/components/catalog/ProductCard";
-import { track } from "@/lib/analytics";
+import { trackSearchClickResult } from "@/lib/analytics/events";
 
 type Props = {
   item: CatalogItem;
   highlightQuery?: string;
+  position?: number;
 };
 
 /**
@@ -30,13 +31,16 @@ function toProductCardProps(item: CatalogItem, highlightQuery?: string): Product
 /**
  * SearchResultCard: wrapper que usa ProductCard canónico con highlight
  */
-export default function SearchResultCard({ item, highlightQuery }: Props) {
+export default function SearchResultCard({ item, highlightQuery, position }: Props) {
   const handleClick = () => {
-    track("select_item", {
-      id: item.id,
-      title: item.title,
-      section: item.section,
-    });
+    if (highlightQuery && position !== undefined) {
+      trackSearchClickResult({
+        query: highlightQuery,
+        productId: item.id,
+        sectionSlug: item.section,
+        position,
+      });
+    }
   };
 
   return (

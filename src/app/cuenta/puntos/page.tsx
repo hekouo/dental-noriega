@@ -8,6 +8,7 @@ import LoyaltyRewardsTable from "@/components/loyalty/LoyaltyRewardsTable";
 import LoyaltyHistoryTable from "@/components/loyalty/LoyaltyHistoryTable";
 import LoyaltyAchievements from "@/components/loyalty/LoyaltyAchievements";
 import AccountSectionHeader from "@/components/account/AccountSectionHeader";
+import LoyaltyPageTracker from "./LoyaltyPageTracker.client";
 
 /**
  * Página dedicada de puntos de lealtad
@@ -61,6 +62,12 @@ export default async function PuntosPage() {
       />
 
       <div className="mt-6 space-y-6">
+        {/* Tracker de analytics */}
+        <LoyaltyPageTracker
+          currentPoints={loyaltySummary?.pointsBalance ?? 0}
+          totalPoints={loyaltySummary?.lifetimeEarned ?? 0}
+        />
+
         {/* Sección 1: Resumen de puntos */}
         <LoyaltySummaryCard
           pointsBalance={loyaltySummary?.pointsBalance ?? 0}
