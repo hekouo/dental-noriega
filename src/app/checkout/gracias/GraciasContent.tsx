@@ -18,6 +18,7 @@ import { launchPaymentCoins } from "@/lib/ui/confetti";
 import { LoyaltyPointsBar } from "@/components/ui/LoyaltyPointsBar";
 import { clearCartAction } from "@/lib/actions/cart.server";
 import OrderPointsInfo from "@/components/loyalty/OrderPointsInfo";
+import { OrderWhatsAppBlock } from "@/components/checkout/OrderWhatsAppBlock";
 
 type LastOrder = {
   orderRef: string;
@@ -1129,6 +1130,20 @@ export default function GraciasContent() {
               />
             </div>
           )}
+
+          {/* Bloque de WhatsApp */}
+          {orderRef && orderDataFromStorage?.total_cents && displayStatus === "paid" && (() => {
+            const checkoutDatos = useCheckoutStore.getState().datos;
+            return (
+              <OrderWhatsAppBlock
+                context="paid"
+                orderRef={orderRef}
+                totalCents={orderDataFromStorage.total_cents}
+                customerName={checkoutDatos?.name || null}
+                customerEmail={checkoutDatos?.email || null}
+              />
+            );
+          })()}
         </div>
       )}
 
