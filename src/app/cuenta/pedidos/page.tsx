@@ -743,7 +743,11 @@ export default function PedidosPage() {
                             : "Ver detalle"}
                         </button>
                         {isAuthenticated && userEmail && (
-                          <RepeatOrderButton orderId={order.id} />
+                          <RepeatOrderButton
+                            orderId={order.id}
+                            itemsCount={0} // OrderSummary no tiene items, se calculará en el cliente
+                            subtotalCents={order.metadata?.subtotal_cents || order.total_cents || 0}
+                          />
                         )}
                       </div>
                     </div>

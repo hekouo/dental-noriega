@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { track } from "@/lib/analytics";
+import { trackSearchPerformed } from "@/lib/analytics/events";
 
 type Props = {
   query: string;
@@ -17,13 +17,13 @@ export default function SearchTracker({ query, resultsCount }: Props) {
     // Solo trackear una vez por query
     if (
       trimmedQuery &&
-      resultsCount > 0 &&
       trackedRef.current !== trimmedQuery
     ) {
       trackedRef.current = trimmedQuery;
-      track("search", {
-        q: trimmedQuery,
-        total: resultsCount,
+      trackSearchPerformed({
+        query: trimmedQuery,
+        resultsCount,
+        hasResults: resultsCount > 0,
       });
     }
   }, [query, resultsCount]);

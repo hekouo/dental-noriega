@@ -1125,6 +1125,7 @@ export default function GraciasContent() {
               <OrderPointsInfo
                 totalCents={orderDataFromStorage.total_cents}
                 messageType="earned"
+                orderId={orderRef || undefined}
               />
             </div>
           )}

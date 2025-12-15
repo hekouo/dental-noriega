@@ -130,3 +130,154 @@ export function trackWhatsappClick(params: {
   });
 }
 
+/**
+ * Trackea cuando el usuario realiza una búsqueda
+ */
+export function trackSearchPerformed(params: {
+  query: string;
+  resultsCount: number;
+  hasResults: boolean;
+}): void {
+  trackEvent("search_performed", {
+    query: params.query,
+    results_count: params.resultsCount,
+    has_results: params.hasResults,
+  });
+}
+
+/**
+ * Trackea cuando el usuario hace clic en un resultado de búsqueda
+ */
+export function trackSearchClickResult(params: {
+  query: string;
+  productId: string;
+  sectionSlug?: string;
+  position: number;
+}): void {
+  trackEvent("search_click_result", {
+    query: params.query,
+    product_id: params.productId,
+    section_slug: params.sectionSlug ?? null,
+    position: params.position,
+  });
+}
+
+/**
+ * Trackea cuando se muestran productos relacionados
+ */
+export function trackRelatedProductsShown(params: {
+  source: "cart" | "checkout" | "search_no_results" | "search_low_results";
+  productsCount: number;
+  cartItemsCount?: number;
+  query?: string;
+}): void {
+  trackEvent("related_products_shown", {
+    source: params.source,
+    products_count: params.productsCount,
+    cart_items_count: params.cartItemsCount ?? null,
+    query: params.query ?? null,
+  });
+}
+
+/**
+ * Trackea cuando el usuario hace clic en un producto relacionado
+ */
+export function trackRelatedProductClicked(params: {
+  source: "cart" | "checkout" | "search_no_results" | "search_low_results";
+  productId: string;
+  sectionSlug?: string;
+  position: number;
+}): void {
+  trackEvent("related_product_clicked", {
+    source: params.source,
+    product_id: params.productId,
+    section_slug: params.sectionSlug ?? null,
+    position: params.position,
+  });
+}
+
+/**
+ * Trackea cuando el usuario agrega un producto relacionado al carrito desde checkout
+ */
+export function trackRelatedProductAddToCart(params: {
+  source: "checkout";
+  productId: string;
+  cartItemsBefore: number;
+}): void {
+  trackEvent("related_product_add_to_cart", {
+    source: params.source,
+    product_id: params.productId,
+    cart_items_before: params.cartItemsBefore,
+  });
+}
+
+/**
+ * Trackea cuando el usuario gana puntos de lealtad
+ */
+export function trackLoyaltyPointsEarned(params: {
+  orderId: string;
+  points: number;
+  estimatedValueMxn: number;
+  status: "earned" | "pending";
+}): void {
+  trackEvent("loyalty_points_earned", {
+    order_id: params.orderId,
+    points: params.points,
+    estimated_value_mxn: params.estimatedValueMxn,
+    status: params.status,
+  });
+}
+
+/**
+ * Trackea cuando el usuario ve su página de puntos de lealtad
+ */
+export function trackLoyaltyAccountViewed(params: {
+  currentPoints: number;
+  totalPoints: number;
+  tierId: string;
+  tierName: string;
+}): void {
+  trackEvent("loyalty_account_viewed", {
+    current_points: params.currentPoints,
+    total_points: params.totalPoints,
+    tier_id: params.tierId,
+    tier_name: params.tierName,
+  });
+}
+
+/**
+ * Trackea cuando el usuario hace clic en repetir pedido
+ */
+export function trackLoyaltyRepeatOrderClicked(params: {
+  orderId: string;
+  itemsCount: number;
+  subtotalCents: number;
+}): void {
+  trackEvent("loyalty_repeat_order_clicked", {
+    order_id: params.orderId,
+    items_count: params.itemsCount,
+    subtotal_cents: params.subtotalCents,
+  });
+}
+
+/**
+ * Trackea cuando se muestra el header de beneficios en checkout
+ */
+export function trackCheckoutBenefitsShown(params: {
+  subtotalCents: number;
+  hasFreeShipping: boolean;
+  freeShippingRemainingCents: number;
+  estimatedPoints: number;
+  estimatedValueMxn: number;
+  shippingMethod: "pickup" | "standard" | "express";
+}): void {
+  trackEvent("checkout_benefits_shown", {
+    subtotal_cents: params.subtotalCents,
+    has_free_shipping: params.hasFreeShipping,
+    free_shipping_remaining_cents: params.freeShippingRemainingCents,
+    estimated_points: params.estimatedPoints,
+    estimated_value_mxn: params.estimatedValueMxn,
+    shipping_method: params.shippingMethod,
+  });
+}
+

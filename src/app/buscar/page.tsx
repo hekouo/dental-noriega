@@ -250,7 +250,11 @@ export default async function BuscarPage({ searchParams }: Props) {
               <h2 className="text-xl font-semibold text-gray-900 mb-4">
                 Te recomendamos estos productos destacados
               </h2>
-              <FeaturedGrid items={filteredFeatured.slice(0, 8)} />
+              <FeaturedGrid
+                items={filteredFeatured.slice(0, 8)}
+                source="search_no_results"
+                query={q}
+              />
             </div>
           )}
         </>
@@ -259,7 +263,7 @@ export default async function BuscarPage({ searchParams }: Props) {
       {items.length > 0 && (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {items.map((it) => (
+            {items.map((it, index) => (
               <SearchResultCard
                 key={it.id}
                 item={{
@@ -273,6 +277,7 @@ export default async function BuscarPage({ searchParams }: Props) {
                   is_active: true,
                 }}
                 highlightQuery={q}
+                position={index + 1}
               />
             ))}
           </div>
@@ -299,7 +304,11 @@ export default async function BuscarPage({ searchParams }: Props) {
               <p className="text-sm text-slate-600 mb-4">
                 Otros productos similares que suelen revisar nuestros clientes.
               </p>
-              <FeaturedGrid items={filteredFeatured.slice(0, 8)} />
+              <FeaturedGrid
+                items={filteredFeatured.slice(0, 8)}
+                source="search_low_results"
+                query={q}
+              />
             </div>
           )}
         </>

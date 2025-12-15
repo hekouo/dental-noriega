@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import ProductCard from "@/components/catalog/ProductCard";
+import { useCartStore } from "@/lib/store/cartStore";
+import { trackRelatedProductsShown, trackRelatedProductClicked } from "@/lib/analytics/events";
 
 type RelatedProductsProps = {
   productIds: string[];
@@ -29,6 +31,8 @@ export default function RelatedProducts({
 }: RelatedProductsProps) {
   const [products, setProducts] = useState<RelatedProduct[]>([]);
   const [loading, setLoading] = useState(true);
+  const trackedRef = useRef(false);
+  const cartItemsCount = useCartStore((s) => s.cartItems.length);
 
   useEffect(() => {
     if (!productIds || productIds.length === 0) {
@@ -77,6 +81,18 @@ export default function RelatedProducts({
     fetchRelated();
   }, [productIds, limit]);
 
+  // Trackear cuando se muestran productos relacionados
+  useEffect(() => {
+    if (products.length > 0 && !trackedRef.current) {
+      trackedRef.current = true;
+      trackRelatedProductsShown({
+        source: "cart",
+        productsCount: products.length,
+        cartItemsCount,
+      });
+    }
+  }, [products.length, cartItemsCount]);
+
   // Mostrar solo si hay productos y no está cargando
   // El API debe garantizar que siempre retorne algo cuando hay items en el carrito
   if (loading) {
@@ -105,20 +121,31 @@ export default function RelatedProducts({
         También te puede interesar
       </h2>
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {products.map((product) => (
-          <ProductCard
+        {products.map((product, index) => (
+          <div
             key={product.id}
-            id={product.id}
-            section={product.section}
-            product_slug={product.product_slug}
-            title={product.title}
-            price_cents={product.price_cents}
-            image_url={product.image_url}
-            in_stock={product.in_stock}
-            is_active={product.is_active}
-            description={product.description}
-            sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
-          />
+            onClick={() => {
+              trackRelatedProductClicked({
+                source: "cart",
+                productId: product.id,
+                sectionSlug: product.section,
+                position: index + 1,
+              });
+            }}
+          >
+            <ProductCard
+              id={product.id}
+              section={product.section}
+              product_slug={product.product_slug}
+              title={product.title}
+              price_cents={product.price_cents}
+              image_url={product.image_url}
+              in_stock={product.in_stock}
+              is_active={product.is_active}
+              description={product.description}
+              sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            />
+          </div>
         ))}
       </div>
     </div>

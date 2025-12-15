@@ -1,12 +1,15 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { estimatePointsForPriceCents, estimateFutureValueFromPoints } from "@/lib/loyalty/utils";
 import { formatMXNFromCents } from "@/lib/utils/currency";
+import { trackLoyaltyPointsEarned } from "@/lib/analytics/events";
 
 type Props = {
   totalCents: number;
   messageType: "earned" | "pending";
   className?: string;
+  orderId?: string;
 };
 
 /**
@@ -16,9 +19,24 @@ export default function OrderPointsInfo({
   totalCents,
   messageType,
   className = "",
+  orderId,
 }: Props) {
+  const trackedRef = useRef(false);
   const estimatedPoints = estimatePointsForPriceCents(totalCents);
   const estimatedFutureValue = estimateFutureValueFromPoints(estimatedPoints);
+
+  // Trackear cuando se muestra la información de puntos (antes de cualquier return)
+  useEffect(() => {
+    if (orderId && estimatedPoints > 0 && totalCents > 0 && !trackedRef.current) {
+      trackedRef.current = true;
+      trackLoyaltyPointsEarned({
+        orderId,
+        points: estimatedPoints,
+        estimatedValueMxn: estimatedFutureValue,
+        status: messageType,
+      });
+    }
+  }, [orderId, estimatedPoints, estimatedFutureValue, messageType, totalCents]);
 
   // No mostrar si no hay puntos estimados
   if (estimatedPoints <= 0 || totalCents <= 0) {
