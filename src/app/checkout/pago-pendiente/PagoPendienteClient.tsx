@@ -8,6 +8,7 @@ import type { PendingOrder } from "@/lib/orders/getPendingBankTransferOrder.serv
 import { useCartStore } from "@/lib/store/cartStore";
 import { useCheckoutStore } from "@/lib/store/checkoutStore";
 import OrderPointsInfo from "@/components/loyalty/OrderPointsInfo";
+import { OrderWhatsAppBlock } from "@/components/checkout/OrderWhatsAppBlock";
 
 type Props = {
   order: PendingOrder | null;
@@ -143,28 +144,6 @@ export default function PagoPendienteClient({ order, error }: Props) {
                     <li>Envíalo por WhatsApp al +52 553 103 3715.</li>
                     <li>Incluye tu nombre completo y tu número de orden.</li>
                   </ul>
-                  {(() => {
-                    const orderShortId = order.id.slice(0, 8);
-                    const rawMetadata = (order.metadata ?? null) as
-                      | { contact_name?: string; contactName?: string }
-                      | null;
-                    const customerName =
-                      rawMetadata?.contact_name ??
-                      rawMetadata?.contactName ??
-                      "Cliente";
-                    const whatsappMessage = `Hola, ya realicé mi pago por transferencia o depósito.\n\nMi número de orden es: ${orderShortId}\nMi nombre: ${customerName}`;
-                    const whatsappUrl = `https://wa.me/525531033715?text=${encodeURIComponent(whatsappMessage)}`;
-                    return (
-                      <a
-                        href={whatsappUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center justify-center px-6 py-3 bg-green-600 text-white font-medium rounded-md hover:bg-green-700 transition-colors"
-                      >
-                        Enviar comprobante por WhatsApp
-                      </a>
-                    );
-                  })()}
                 </div>
 
                 {/* Información de puntos de lealtad */}
@@ -177,6 +156,31 @@ export default function PagoPendienteClient({ order, error }: Props) {
                     />
                   </div>
                 )}
+
+                {/* Bloque de WhatsApp */}
+                {order.total_cents && (() => {
+                  const rawMetadata = (order.metadata ?? null) as
+                    | { contact_name?: string; contactName?: string; contact_email?: string; contactEmail?: string }
+                    | null;
+                  const customerName =
+                    rawMetadata?.contact_name ??
+                    rawMetadata?.contactName ??
+                    null;
+                  const customerEmail =
+                    order.email ??
+                    rawMetadata?.contact_email ??
+                    rawMetadata?.contactEmail ??
+                    null;
+                  return (
+                    <OrderWhatsAppBlock
+                      context="pending"
+                      orderRef={order.id}
+                      totalCents={order.total_cents}
+                      customerName={customerName}
+                      customerEmail={customerEmail}
+                    />
+                  );
+                })()}
               </div>
             </div>
           )}
