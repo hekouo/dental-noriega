@@ -2,7 +2,9 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useCartStore } from "@/lib/store/cartStore";
+import { useCheckoutStore } from "@/lib/store/checkoutStore";
 import { trackRelatedProductsShown, trackRelatedProductClicked, trackRelatedProductAddToCart } from "@/lib/analytics/events";
+import Toast from "@/components/ui/Toast";
 
 type RelatedProductsCompactProps = {
   productIds: string[];
@@ -32,8 +34,10 @@ export default function RelatedProductsCompact({
   const [products, setProducts] = useState<RelatedProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const addToCart = useCartStore((s) => s.addToCart);
+  const upsertSingleToCheckout = useCheckoutStore((s) => s.upsertSingleToCheckout);
   const cartItemsCount = useCartStore((s) => s.cartItems.length);
   const trackedRef = useRef(false);
+  const [toast, setToast] = useState<{ message: string; type: "success" } | null>(null);
 
   useEffect(() => {
     if (!productIds || productIds.length === 0) {
@@ -148,6 +152,7 @@ export default function RelatedProductsCompact({
                   productId: product.id,
                   cartItemsBefore: cartItemsCount,
                 });
+                // Agregar al carrito global para consistencia
                 addToCart({
                   id: product.id,
                   title: product.title,
@@ -157,6 +162,17 @@ export default function RelatedProductsCompact({
                   qty: 1,
                   selected: true,
                 });
+                // Agregar al checkout store para que se refleje en el resumen y la orden
+                upsertSingleToCheckout({
+                  id: product.id,
+                  title: product.title,
+                  price: product.price_cents / 100,
+                  price_cents: product.price_cents,
+                  image_url: product.image_url || undefined,
+                  qty: 1,
+                  selected: true,
+                });
+                setToast({ message: "Producto agregado a este pedido.", type: "success" });
               }}
               className="px-3 py-1 text-xs bg-primary-600 text-white rounded hover:bg-primary-700 transition-colors flex-shrink-0"
             >
@@ -165,6 +181,13 @@ export default function RelatedProductsCompact({
           </div>
         ))}
       </div>
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
     </div>
   );
 }
