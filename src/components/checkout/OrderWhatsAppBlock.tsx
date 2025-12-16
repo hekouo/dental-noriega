@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { buildWhatsAppOrderUrl, type WhatsAppOrderContext } from "@/lib/whatsapp/order";
+import { buildWhatsAppOrderUrl } from "@/lib/whatsapp/order";
 
 interface OrderWhatsAppBlockProps {
-  context: WhatsAppOrderContext;
+  context: "paid" | "pending";
   orderRef: string;
   totalCents: number;
   customerName?: string | null;

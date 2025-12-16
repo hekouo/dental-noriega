@@ -1,4 +1,4 @@
-export type WhatsAppOrderContext = "paid" | "pending";
+export type WhatsAppOrderContext = "paid" | "pending" | "checkout-help";
 
 function getWhatsAppPhone(): string | null {
   if (typeof process.env.NEXT_PUBLIC_WHATSAPP_PHONE !== "string") return null;
@@ -19,18 +19,85 @@ function formatMXNFromCents(totalCents: number): string {
   });
 }
 
+function formatShippingMethod(method?: string): string {
+  const methodMap: Record<string, string> = {
+    pickup: "Recoger en tienda",
+    standard: "Envío estándar",
+    express: "Envío express",
+    delivery: "Entrega",
+  };
+  return methodMap[method || ""] || method || "No especificado";
+}
+
+// Parámetros para contextos con orden (paid, pending)
 interface BuildWhatsAppOrderUrlParams {
-  context: WhatsAppOrderContext;
+  context: "paid" | "pending";
   orderRef: string;
   totalCents: number;
   customerName?: string | null;
   customerEmail?: string | null;
 }
 
-export function buildWhatsAppOrderUrl(params: BuildWhatsAppOrderUrlParams): string | null {
+// Parámetros para contexto de ayuda en checkout (sin orden)
+interface BuildWhatsAppCheckoutHelpUrlParams {
+  context: "checkout-help";
+  subtotalCents: number;
+  shippingMethod?: string;
+  itemsCount?: number;
+  customerName?: string | null;
+  customerEmail?: string | null;
+}
+
+export function buildWhatsAppOrderUrl(
+  params: BuildWhatsAppOrderUrlParams | BuildWhatsAppCheckoutHelpUrlParams,
+): string | null {
   const phone = getWhatsAppPhone();
   if (!phone) return null;
 
+  if (params.context === "checkout-help") {
+    const {
+      subtotalCents,
+      shippingMethod,
+      itemsCount,
+      customerName,
+      customerEmail,
+    } = params;
+    const subtotalMXN = formatMXNFromCents(subtotalCents);
+
+    const firstLine = "Hola, necesito ayuda con mi pedido antes de pagar.";
+
+    const detailsLines: string[] = [];
+
+    if (subtotalCents > 0) {
+      detailsLines.push(`Subtotal aproximado: ${subtotalMXN}`);
+    }
+
+    if (shippingMethod) {
+      detailsLines.push(`Método de envío: ${formatShippingMethod(shippingMethod)}`);
+    }
+
+    if (itemsCount && itemsCount > 0) {
+      detailsLines.push(`Productos en el pedido: ${itemsCount}`);
+    }
+
+    if (customerName) {
+      detailsLines.push(`Nombre: ${customerName}`);
+    }
+    if (customerEmail) {
+      detailsLines.push(`Correo: ${customerEmail}`);
+    }
+
+    const closing =
+      "¿Me puedes ayudar con dudas de transferencia o pago con tarjeta, por favor?";
+
+    const messageParts = [firstLine, "", ...detailsLines, "", closing].filter(Boolean);
+    const fullMessage = messageParts.join("\n");
+
+    const encoded = encodeURIComponent(fullMessage);
+    return `https://wa.me/${phone}?text=${encoded}`;
+  }
+
+  // Contextos con orden (paid, pending)
   const { context, orderRef, totalCents, customerName, customerEmail } = params;
   const totalMXN = formatMXNFromCents(totalCents);
 
