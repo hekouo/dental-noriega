@@ -20,6 +20,7 @@ import {
 } from "@/lib/loyalty/config";
 import LoyaltyRewardsTable from "@/components/loyalty/LoyaltyRewardsTable";
 import RepeatOrderButton from "./RepeatOrderButton.client";
+import { OrderWhatsAppBlock } from "@/components/checkout/OrderWhatsAppBlock";
 
 export default function PedidosPage() {
   const [email, setEmail] = useState("");
@@ -987,6 +988,25 @@ export default function PedidosPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Bloque de WhatsApp */}
+              {orderDetail.total_cents !== null && orderDetail.total_cents > 0 && (() => {
+                const paymentStatus = orderDetail.payment_status;
+                const context = paymentStatus === "pending" ? "pending" : "paid";
+                const orderRef = orderDetail.shortId || orderDetail.id.slice(0, 8);
+                const customerName = orderDetail.metadata?.contact_name || null;
+                const customerEmail = orderDetail.metadata?.contact_email || orderDetail.email || null;
+
+                return (
+                  <OrderWhatsAppBlock
+                    context={context}
+                    orderRef={orderRef}
+                    totalCents={orderDetail.total_cents}
+                    customerName={customerName}
+                    customerEmail={customerEmail}
+                  />
+                );
+              })()}
 
               {/* Items */}
               {orderDetail.items.length > 0 && (
