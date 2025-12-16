@@ -16,6 +16,7 @@ import CheckoutStepper from "@/components/checkout/CheckoutStepper";
 import CheckoutOrderSummary from "@/components/checkout/CheckoutOrderSummary";
 import CheckoutDebugPanel from "@/components/CheckoutDebugPanel";
 import CheckoutBenefitsHeader from "@/components/checkout/CheckoutBenefitsHeader";
+import CheckoutWhatsAppHelpBlock from "@/components/checkout/CheckoutWhatsAppHelpBlock";
 import { cpToZone, quote } from "@/lib/shipping/config";
 import { cartKg } from "@/lib/shipping/weights";
 import { track } from "@/lib/analytics";
@@ -1503,8 +1504,9 @@ export default function PagoClient() {
 
         {/* Resumen del pedido - lado derecho en desktop */}
         <div className="lg:col-span-1">
-          <div className="lg:sticky lg:top-6">
+          <div className="lg:sticky lg:top-6 space-y-6">
             <CheckoutOrderSummary />
+            <CheckoutWhatsAppHelpBlock />
           </div>
         </div>
       </div>
