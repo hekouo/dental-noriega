@@ -18,6 +18,7 @@ export type CartItem = {
   variantId?: string;
   qty: number;
   selected: boolean;
+  variant_detail?: string; // Detalle de variante seleccionada (ej: "Medida: 0.016\" · Arcada: Superior")
 };
 
 type CartState = {

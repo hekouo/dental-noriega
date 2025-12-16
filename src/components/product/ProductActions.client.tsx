@@ -10,6 +10,9 @@ import { Truck, MessageCircle, ShieldCheck } from "lucide-react";
 import { getWhatsAppProductUrl } from "@/lib/whatsapp/config";
 import { trackAddToCart, trackWhatsappClick } from "@/lib/analytics/events";
 import { launchCartConfetti, launchPaymentCoins } from "@/lib/ui/confetti";
+import { requiresVariants } from "@/lib/products/variants";
+import ProductVariantSelectors from "@/components/pdp/ProductVariantSelectors";
+import { toast } from "sonner";
 
 type Product = {
   id: string;
@@ -28,6 +31,7 @@ type Props = {
 
 export default function ProductActions({ product }: Props) {
   const [qty, setQty] = useState(1);
+  const [variantDetail, setVariantDetail] = useState<string | null>(null);
   const addToCart = useCartStore((s) => s.addToCart);
   const upsertSingleToCheckout = useCheckoutStore(
     (s) => s.upsertSingleToCheckout,
@@ -41,8 +45,25 @@ export default function ProductActions({ product }: Props) {
   const price = mxnFromCents(product.price_cents);
   const formattedPrice = formatMXNFromCents(product.price_cents);
 
+  // Verificar si el producto requiere variantes
+  const variantType = requiresVariants(product.title, product.product_slug);
+
   function handleAddToCart() {
     if (!canBuy || busyRef.current) return;
+
+    // Validar variantes si son requeridas
+    if (variantType && !variantDetail) {
+      let message = "Por favor selecciona todas las opciones requeridas";
+      if (variantType === "arco-niti-redondo" || variantType === "arco-niti-rectangular") {
+        message = "Selecciona medida y arcada antes de agregar este arco a tu pedido";
+      } else if (variantType === "tubos-malla") {
+        message = "Selecciona la pieza antes de agregar este producto a tu pedido";
+      } else if (variantType === "brackets-carton") {
+        message = "Selecciona el sistema antes de agregar este producto a tu pedido";
+      }
+      toast.error(message);
+      return;
+    }
 
     busyRef.current = true;
     addToCart({
@@ -52,10 +73,11 @@ export default function ProductActions({ product }: Props) {
       qty,
       image_url: product.image_url ?? undefined,
       selected: true,
+      variant_detail: variantDetail || undefined,
     });
 
     setTimeout(() => (busyRef.current = false), 250);
-    console.info("✅ Agregado al carrito:", product.title, "x", qty);
+    console.info("✅ Agregado al carrito:", product.title, "x", qty, variantDetail ? `(${variantDetail})` : "");
 
     // Analytics: add_to_cart
     trackAddToCart({
@@ -75,6 +97,20 @@ export default function ProductActions({ product }: Props) {
   function handleBuyNow() {
     if (!canBuy || busyRef.current) return;
 
+    // Validar variantes si son requeridas
+    if (variantType && !variantDetail) {
+      let message = "Por favor selecciona todas las opciones requeridas";
+      if (variantType === "arco-niti-redondo" || variantType === "arco-niti-rectangular") {
+        message = "Selecciona medida y arcada antes de agregar este arco a tu pedido";
+      } else if (variantType === "tubos-malla") {
+        message = "Selecciona la pieza antes de agregar este producto a tu pedido";
+      } else if (variantType === "brackets-carton") {
+        message = "Selecciona el sistema antes de agregar este producto a tu pedido";
+      }
+      toast.error(message);
+      return;
+    }
+
     busyRef.current = true;
     
     // Agregar al carrito usando getState() para asegurar ejecución antes del push
@@ -86,6 +122,7 @@ export default function ProductActions({ product }: Props) {
       qty,
       image_url: product.image_url ?? undefined,
       selected: true,
+      variant_detail: variantDetail || undefined,
     });
 
     // Guardar en checkoutStore directamente
@@ -95,6 +132,7 @@ export default function ProductActions({ product }: Props) {
       price,
       qty,
       image_url: product.image_url ?? undefined,
+      variant_detail: variantDetail || undefined,
     });
 
     // Analítica: buy_now
@@ -150,6 +188,14 @@ export default function ProductActions({ product }: Props) {
         <div className="px-3 py-2 bg-red-100 text-red-800 rounded-lg text-sm font-medium">
           Agotado
         </div>
+      )}
+
+      {/* Selectores de variantes */}
+      {variantType && (
+        <ProductVariantSelectors
+          variantType={variantType}
+          onSelectionChange={setVariantDetail}
+        />
       )}
 
       {/* Controles de cantidad y botones */}

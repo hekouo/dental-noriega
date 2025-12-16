@@ -475,6 +475,7 @@ export default function PagoClient() {
             price_cents: priceCents,
             title: item.title,
             image_url: item.image_url || null,
+            variant_detail: item.variant_detail || undefined,
           };
         }).filter((item) => item.price_cents > 0),
       };
