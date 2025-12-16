@@ -1004,6 +1004,11 @@ export default function PedidosPage() {
                     totalCents={orderDetail.total_cents}
                     customerName={customerName}
                     customerEmail={customerEmail}
+                    orderId={orderDetail.id}
+                    shortId={orderDetail.shortId || null}
+                    paymentMethod={orderDetail.payment_method || null}
+                    paymentStatus={orderDetail.payment_status || null}
+                    source="account_order"
                   />
                 );
               })()}

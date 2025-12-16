@@ -1141,6 +1141,11 @@ export default function GraciasContent() {
                 totalCents={orderDataFromStorage.total_cents}
                 customerName={checkoutDatos?.name || null}
                 customerEmail={checkoutDatos?.email || null}
+                orderId={orderRef}
+                shortId={null}
+                paymentMethod={null}
+                paymentStatus="paid"
+                source="thankyou_paid"
               />
             );
           })()}

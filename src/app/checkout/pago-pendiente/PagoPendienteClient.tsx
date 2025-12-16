@@ -178,6 +178,11 @@ export default function PagoPendienteClient({ order, error }: Props) {
                       totalCents={order.total_cents}
                       customerName={customerName}
                       customerEmail={customerEmail}
+                      orderId={order.id}
+                      shortId={null}
+                      paymentMethod={order.payment_method || null}
+                      paymentStatus={order.payment_status || null}
+                      source="thankyou_pending"
                     />
                   );
                 })()}

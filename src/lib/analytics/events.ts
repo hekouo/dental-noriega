@@ -281,3 +281,40 @@ export function trackCheckoutBenefitsShown(params: {
   });
 }
 
+/**
+ * Trackea cuando el usuario hace clic en el botón de WhatsApp de ayuda en checkout
+ */
+export function trackWhatsAppCheckoutHelpClick(params: {
+  subtotalCents: number;
+  itemsCount: number;
+  shippingMethod?: string | null;
+}): void {
+  trackEvent("whatsapp_checkout_help_click", {
+    source: "checkout_payment",
+    subtotal_cents: params.subtotalCents,
+    items_count: params.itemsCount,
+    shipping_method: params.shippingMethod ?? null,
+  });
+}
+
+/**
+ * Trackea cuando el usuario hace clic en el botón de WhatsApp de soporte de pedido
+ */
+export function trackWhatsAppOrderSupportClick(params: {
+  source: "thankyou_paid" | "thankyou_pending" | "account_order";
+  orderId: string;
+  shortId?: string | null;
+  totalCents: number;
+  paymentMethod?: string | null;
+  paymentStatus?: string | null;
+}): void {
+  trackEvent("whatsapp_order_support_click", {
+    source: params.source,
+    order_id: params.orderId,
+    short_id: params.shortId ?? null,
+    total_cents: params.totalCents,
+    payment_method: params.paymentMethod ?? null,
+    payment_status: params.paymentStatus ?? null,
+  });
+}
+
