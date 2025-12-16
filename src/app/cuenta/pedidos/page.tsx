@@ -1007,7 +1007,7 @@ export default function PedidosPage() {
                     orderId={orderDetail.id}
                     shortId={orderDetail.shortId || null}
                     paymentMethod={orderDetail.payment_method || null}
-                    paymentStatus={orderDetail.payment_status || null}
+                    paymentStatus={paymentStatus || null}
                     source="account_order"
                   />
                 );

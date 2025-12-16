@@ -654,6 +654,9 @@ export default function GraciasContent() {
     items?: Array<{ id: string; qty: number; title?: string }>;
     total_cents?: number;
     status?: string;
+    payment_method?: string | null;
+    payment_status?: string | null;
+    shortId?: string | null;
   } | null>(null);
 
   useEffect(() => {
@@ -1134,6 +1137,11 @@ export default function GraciasContent() {
           {/* Bloque de WhatsApp */}
           {orderRef && orderDataFromStorage?.total_cents && displayStatus === "paid" && (() => {
             const checkoutDatos = useCheckoutStore.getState().datos;
+            const orderData = orderDataFromStorage as {
+              payment_method?: string | null;
+              payment_status?: string | null;
+              shortId?: string | null;
+            };
             return (
               <OrderWhatsAppBlock
                 context="paid"
@@ -1142,9 +1150,9 @@ export default function GraciasContent() {
                 customerName={checkoutDatos?.name || null}
                 customerEmail={checkoutDatos?.email || null}
                 orderId={orderRef}
-                shortId={null}
-                paymentMethod={null}
-                paymentStatus="paid"
+                shortId={orderData?.shortId || null}
+                paymentMethod={orderData?.payment_method || null}
+                paymentStatus={orderData?.payment_status || "paid"}
                 source="thankyou_paid"
               />
             );

@@ -48,6 +48,7 @@ export default function CheckoutWhatsAppHelpBlock() {
             rel="noreferrer"
             onClick={() => {
               trackWhatsAppCheckoutHelpClick({
+                source: "checkout_payment",
                 subtotalCents,
                 itemsCount: selectedItems.length,
                 shippingMethod: shippingMethod || null,

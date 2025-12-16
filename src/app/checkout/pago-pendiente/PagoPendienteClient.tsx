@@ -160,7 +160,7 @@ export default function PagoPendienteClient({ order, error }: Props) {
                 {/* Bloque de WhatsApp */}
                 {order.total_cents && (() => {
                   const rawMetadata = (order.metadata ?? null) as
-                    | { contact_name?: string; contactName?: string; contact_email?: string; contactEmail?: string }
+                    | { contact_name?: string; contactName?: string; contact_email?: string; contactEmail?: string; shortId?: string }
                     | null;
                   const customerName =
                     rawMetadata?.contact_name ??
@@ -179,9 +179,9 @@ export default function PagoPendienteClient({ order, error }: Props) {
                       customerName={customerName}
                       customerEmail={customerEmail}
                       orderId={order.id}
-                      shortId={null}
+                      shortId={rawMetadata?.shortId || null}
                       paymentMethod={order.payment_method || null}
-                      paymentStatus={order.payment_status || null}
+                      paymentStatus={order.payment_status || "pending"}
                       source="thankyou_pending"
                     />
                   );

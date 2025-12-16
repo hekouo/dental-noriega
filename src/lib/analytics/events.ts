@@ -282,15 +282,16 @@ export function trackCheckoutBenefitsShown(params: {
 }
 
 /**
- * Trackea cuando el usuario hace clic en el botón de WhatsApp de ayuda en checkout
+ * Trackea cuando el usuario hace clic en WhatsApp para ayuda en checkout
  */
 export function trackWhatsAppCheckoutHelpClick(params: {
+  source: "checkout_payment";
   subtotalCents: number;
   itemsCount: number;
   shippingMethod?: string | null;
 }): void {
   trackEvent("whatsapp_checkout_help_click", {
-    source: "checkout_payment",
+    source: params.source,
     subtotal_cents: params.subtotalCents,
     items_count: params.itemsCount,
     shipping_method: params.shippingMethod ?? null,
@@ -298,7 +299,7 @@ export function trackWhatsAppCheckoutHelpClick(params: {
 }
 
 /**
- * Trackea cuando el usuario hace clic en el botón de WhatsApp de soporte de pedido
+ * Trackea cuando el usuario hace clic en WhatsApp para soporte de pedido
  */
 export function trackWhatsAppOrderSupportClick(params: {
   source: "thankyou_paid" | "thankyou_pending" | "account_order";
