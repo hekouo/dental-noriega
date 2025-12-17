@@ -49,9 +49,9 @@ export default function ProductActions({ product }: Props) {
   function handleAddToCart() {
     if (!canBuy || busyRef.current) return;
 
-    // Validar variantes si el producto las requiere
+    // Validar variantes si son requeridas
     if (needsVariants && !variantDetail) {
-      toast.error("Por favor, selecciona todas las opciones requeridas antes de agregar al carrito");
+      toast.error("Selecciona todas las opciones requeridas antes de agregar este producto al pedido");
       return;
     }
 
@@ -87,9 +87,9 @@ export default function ProductActions({ product }: Props) {
   function handleBuyNow() {
     if (!canBuy || busyRef.current) return;
 
-    // Validar variantes si el producto las requiere
+    // Validar variantes si son requeridas
     if (needsVariants && !variantDetail) {
-      toast.error("Por favor, selecciona todas las opciones requeridas antes de comprar");
+      toast.error("Selecciona todas las opciones requeridas antes de comprar este producto");
       return;
     }
 
@@ -172,7 +172,7 @@ export default function ProductActions({ product }: Props) {
         </div>
       )}
 
-      {/* Selectores de variantes */}
+      {/* Selectores de variantes (si aplica) */}
       {needsVariants && (
         <ProductVariantSelectors
           productTitle={product.title}

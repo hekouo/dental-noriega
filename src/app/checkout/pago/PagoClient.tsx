@@ -56,11 +56,6 @@ type ExtendedDatosForm = DatosForm & {
   notes?: string;
 };
 
-// Helper para construir título con variant_detail si existe
-function getItemTitleWithVariant(item: { title: string; variant_detail?: string | null }): string {
-  return item.variant_detail ? `${item.title} — ${item.variant_detail}` : item.title;
-}
-
 export default function PagoClient() {
   const router = useRouter();
   const datos = useCheckoutStore((s) => s.datos);
@@ -478,7 +473,7 @@ export default function PagoClient() {
             id: item.id,
             qty,
             price_cents: priceCents,
-            title: getItemTitleWithVariant(item),
+            title: item.title,
             image_url: item.image_url || null,
           };
         }).filter((item) => item.price_cents > 0),
@@ -535,7 +530,7 @@ export default function PagoClient() {
           items: itemsForOrder.map((item) => ({
             id: item.id,
             qty: item.qty ?? 1,
-            title: getItemTitleWithVariant(item),
+            title: item.title,
             price_cents: typeof item.price_cents === "number" && item.price_cents > 0
               ? item.price_cents
               : typeof item.price === "number" && item.price > 0
@@ -693,17 +688,13 @@ export default function PagoClient() {
             });
           }
           
-          // Incluir variant_detail en el título si existe
-          const titleWithVariant = item.variant_detail
-            ? `${item.title} — ${item.variant_detail}`
-            : item.title;
-
           return {
             id: item.id,
             qty,
             price_cents: priceCents,
-            title: titleWithVariant, // Título del producto para order_items (con variant_detail si aplica)
+            title: item.title, // Título del producto para order_items
             image_url: item.image_url || null, // URL de imagen del producto
+            variant_detail: item.variant_detail || null, // Detalle de variantes seleccionadas
           };
         }).filter((item) => item.price_cents > 0), // Filtrar items sin precio válido
       };
@@ -770,7 +761,7 @@ export default function PagoClient() {
           items: itemsForOrder.map((item) => ({
             id: item.id,
             qty: item.qty ?? 1,
-            title: getItemTitleWithVariant(item),
+            title: item.title,
             price_cents: typeof item.price_cents === "number" && item.price_cents > 0
               ? item.price_cents
               : typeof item.price === "number" && item.price > 0
@@ -842,7 +833,7 @@ export default function PagoClient() {
           return {
             product_id: item.id,
             slug: getItemSlug(item),
-            title: getItemTitleWithVariant(item),
+            title: item.title,
             price_cents: priceCents,
             qty,
           };
@@ -904,7 +895,7 @@ export default function PagoClient() {
         coupon: couponCode || undefined,
         items: itemsForOrder.map((item) => ({
           id: item.id,
-          name: getItemTitleWithVariant(item),
+          name: item.title,
           price: item.price,
           qty: item.qty,
         })),
@@ -1173,15 +1164,8 @@ export default function PagoClient() {
         <ul className="space-y-1">
           {itemsForOrder.map((item) => (
             <li key={item.id} className="flex justify-between text-sm">
-              <div className="flex-1 min-w-0">
-                <span>{item.title}</span>
-                {item.variant_detail && (
-                  <span className="block text-xs text-gray-600 italic mt-0.5">
-                    {item.variant_detail}
-                  </span>
-                )}
-              </div>
-              <span className="ml-2">
+              <span>{item.title}</span>
+              <span>
                 {formatMXNMoney(item.price)} x{item.qty}
               </span>
             </li>
@@ -1360,7 +1344,7 @@ export default function PagoClient() {
               qty: item.qty ?? 1,
               section: (item as ExtendedCheckoutItem).section || (item as ExtendedCheckoutItem).product?.section,
               slug: (item as ExtendedCheckoutItem).slug || (item as ExtendedCheckoutItem).product_slug || (item as ExtendedCheckoutItem).product?.slug,
-              title: getItemTitleWithVariant(item),
+              title: item.title,
             }))}
             onSuccess={(orderId) => {
               // NO limpiar carrito aquí - se limpiará en /checkout/gracias cuando la orden sea 'paid'

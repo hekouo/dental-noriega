@@ -14,6 +14,7 @@ const OrderItemSchema = z.object({
   qty: z.number().int().positive(),
   unitPriceCents: z.number().int().nonnegative(),
   image_url: z.string().url().optional().nullable(),
+  variant_detail: z.string().optional().nullable(), // Detalle de variantes seleccionadas
 });
 
 const SaveOrderRequestSchema = z.object({
@@ -375,14 +376,21 @@ export async function POST(req: NextRequest) {
             console.warn("[save-order] Orden ya pagada sin items, no se insertan items nuevos");
           }
         } else {
-        const orderItems = orderData.items.map((item) => ({
-          order_id: orderData.order_id,
-          product_id: item.productId || null,
-          title: item.title,
-          unit_price_cents: item.unitPriceCents,
-          qty: item.qty,
-          image_url: item.image_url || null,
-        }));
+        const orderItems = orderData.items.map((item) => {
+          // Incluir variant_detail en el título si existe
+          const fullTitle = item.variant_detail
+            ? `${item.title} — ${item.variant_detail}`
+            : item.title;
+          
+          return {
+            order_id: orderData.order_id,
+            product_id: item.productId || null,
+            title: fullTitle, // Título con variant_detail si aplica
+            unit_price_cents: item.unitPriceCents,
+            qty: item.qty,
+            image_url: item.image_url || null,
+          };
+        });
 
         const { error: itemsError } = await supabase
           .from("order_items")
@@ -467,14 +475,21 @@ export async function POST(req: NextRequest) {
 
       // Crear items de la orden solo si la orden es nueva
       // IMPORTANTE: unit_price_cents es el precio UNITARIO en centavos
-      const orderItems = orderData.items.map((item) => ({
-        order_id: orderData.order_id,
-        product_id: item.productId || null,
-        title: item.title,
-        unit_price_cents: item.unitPriceCents, // INT en centavos - precio UNITARIO
-        qty: item.qty,
-        image_url: item.image_url || null,
-      }));
+      const orderItems = orderData.items.map((item) => {
+        // Incluir variant_detail en el título si existe
+        const fullTitle = item.variant_detail
+          ? `${item.title} — ${item.variant_detail}`
+          : item.title;
+        
+        return {
+          order_id: orderData.order_id,
+          product_id: item.productId || null,
+          title: fullTitle, // Título con variant_detail si aplica
+          unit_price_cents: item.unitPriceCents, // INT en centavos - precio UNITARIO
+          qty: item.qty,
+          image_url: item.image_url || null,
+        };
+      });
 
       const { error: itemsError } = await supabase
         .from("order_items")
