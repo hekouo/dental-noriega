@@ -439,6 +439,39 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Guardar stripe_payment_intent_id en orders.metadata
+    try {
+      const { data: currentOrder } = await supabase
+        .from("orders")
+        .select("metadata")
+        .eq("id", order_id)
+        .single();
+
+      const currentMetadata = (currentOrder?.metadata as Record<string, unknown>) || {};
+
+      await supabase
+        .from("orders")
+        .update({
+          metadata: {
+            ...currentMetadata,
+            stripe_payment_intent_id: paymentIntent.id,
+          },
+        })
+        .eq("id", order_id);
+
+      if (debug) {
+        console.info("[create-payment-intent] stripe_payment_intent_id guardado en metadata:", {
+          order_id,
+          payment_intent_id: paymentIntent.id,
+        });
+      }
+    } catch (metadataError) {
+      // No fallar si falla guardar metadata (no crítico)
+      if (debug) {
+        console.warn("[create-payment-intent] Error al guardar stripe_payment_intent_id en metadata:", metadataError);
+      }
+    }
+
     return NextResponse.json({
       client_secret: paymentIntent.client_secret,
       payment_intent_id: paymentIntent.id,
