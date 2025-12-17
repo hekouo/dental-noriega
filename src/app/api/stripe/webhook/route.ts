@@ -66,8 +66,8 @@ export async function POST(req: NextRequest) {
       auth: {
         autoRefreshToken: false,
         persistSession: false,
-      },
-    });
+    },
+  });
 
     if (event.type === "payment_intent.succeeded") {
       const paymentIntent = event.data.object as Stripe.PaymentIntent;

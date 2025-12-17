@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCheckoutStore } from "@/lib/store/checkoutStore";
 import { getSelectedItems, getSelectedSubtotalCents } from "@/lib/checkout/selection";
 import { buildWhatsAppOrderUrl } from "@/lib/whatsapp/order";
+import { trackWhatsAppCheckoutHelpClick } from "@/lib/analytics/events";
 
 export default function CheckoutWhatsAppHelpBlock() {
   const checkoutItems = useCheckoutStore((s) => s.checkoutItems);
@@ -45,6 +46,14 @@ export default function CheckoutWhatsAppHelpBlock() {
             href={href}
             target="_blank"
             rel="noreferrer"
+            onClick={() => {
+              trackWhatsAppCheckoutHelpClick({
+                source: "checkout_payment",
+                subtotalCents,
+                itemsCount: selectedItems.length,
+                shippingMethod: shippingMethod || null,
+              });
+            }}
             className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
           >
             <span>Pedir ayuda por WhatsApp</span>
