@@ -6,7 +6,6 @@ import {
   VARIANT_OPTIONS,
   formatVariantDetail,
   validateVariantSelections,
-  type VariantConfig,
 } from "@/lib/products/variants";
 
 type Props = {
@@ -19,13 +18,13 @@ export default function ProductVariantSelectors({
   onSelectionChange,
 }: Props) {
   const config = getVariantConfig(productTitle);
+  const [selections, setSelections] = useState<Record<string, string>>({});
 
   if (!config) {
     return null;
   }
 
   const variantOptions = VARIANT_OPTIONS[config.variantType];
-  const [selections, setSelections] = useState<Record<string, string>>({});
 
   const handleSelectionChange = (key: string, value: string) => {
     const newSelections = { ...selections, [key]: value };

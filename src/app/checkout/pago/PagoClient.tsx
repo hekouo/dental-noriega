@@ -469,11 +469,16 @@ export default function PagoClient() {
                 ? Math.round(item.price * 100)
                 : 0;
           
+          // Incluir variant_detail en el título si existe
+          const titleWithVariant = item.variant_detail
+            ? `${item.title} — ${item.variant_detail}`
+            : item.title;
+          
           return {
             id: item.id,
             qty,
             price_cents: priceCents,
-            title: item.title,
+            title: titleWithVariant,
             image_url: item.image_url || null,
           };
         }).filter((item) => item.price_cents > 0),
@@ -688,13 +693,17 @@ export default function PagoClient() {
             });
           }
           
+          // Incluir variant_detail en el título si existe
+          const titleWithVariant = item.variant_detail
+            ? `${item.title} — ${item.variant_detail}`
+            : item.title;
+          
           return {
             id: item.id,
             qty,
             price_cents: priceCents,
-            title: item.title, // Título del producto para order_items
+            title: titleWithVariant, // Título del producto con variant_detail si existe
             image_url: item.image_url || null, // URL de imagen del producto
-            variant_detail: item.variant_detail || null, // Detalle de variantes seleccionadas
           };
         }).filter((item) => item.price_cents > 0), // Filtrar items sin precio válido
       };

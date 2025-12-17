@@ -16,7 +16,6 @@ const OrderItemSchema = z.object({
   price_cents: z.number().int().nonnegative(),
   title: z.string().min(1).optional(), // Título del producto (se usa si está disponible)
   image_url: z.string().url().optional().nullable(), // URL de imagen del producto
-  variant_detail: z.string().optional().nullable(), // Detalle de variantes seleccionadas
 });
 
 const CreateOrderRequestSchema = z.object({
@@ -362,16 +361,10 @@ export async function POST(req: NextRequest) {
             price_cents: item.price_cents,
           });
         }
-        // Incluir variant_detail en el título si existe
-        const baseTitle = item.title || `Producto ${item.id}`;
-        const fullTitle = item.variant_detail
-          ? `${baseTitle} — ${item.variant_detail}`
-          : baseTitle;
-        
         return {
           order_id: order.id,
           product_id: item.id || null, // UUID si es válido, sino null
-          title: fullTitle, // Título con variant_detail si aplica
+          title: item.title || `Producto ${item.id}`, // Usar título del payload si está disponible
           unit_price_cents: item.price_cents, // INT en centavos - precio UNITARIO del producto
           qty: item.qty, // Cantidad comprada
           image_url: item.image_url || null, // URL de imagen si está disponible
