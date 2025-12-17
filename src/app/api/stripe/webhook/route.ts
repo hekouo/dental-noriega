@@ -17,6 +17,180 @@ const stripe = process.env.STRIPE_SECRET_KEY
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+/**
+ * Registra un evento de Stripe en la tabla stripe_webhook_events para idempotencia.
+ * Retorna true si el evento ya fue procesado (idempotencia), false si es nuevo.
+ */
+async function registerWebhookEvent(
+  supabase: any, // Usar any porque stripe_webhook_events no está en tipos generados
+  event: Stripe.Event,
+): Promise<{ alreadyProcessed: boolean; orderId: string | null; paymentIntentId: string | null; chargeId: string | null }> {
+  const eventId = event.id;
+  const eventType = event.type;
+
+  // Extraer order_id, payment_intent_id, charge_id según el tipo de evento
+  let orderId: string | null = null;
+  let paymentIntentId: string | null = null;
+  let chargeId: string | null = null;
+
+  if (event.data.object) {
+    const obj = event.data.object as unknown as Record<string, unknown>;
+
+    // Para payment_intent.*, extraer de metadata.order_id y el id del objeto
+    if (eventType.startsWith("payment_intent.")) {
+      paymentIntentId = typeof obj.id === "string" ? obj.id : null;
+      const metadata = obj.metadata as Record<string, unknown> | undefined;
+      if (metadata?.order_id && typeof metadata.order_id === "string") {
+        orderId = metadata.order_id;
+      }
+    }
+
+    // Para charge.refunded, extraer charge.id y payment_intent del charge
+    if (eventType === "charge.refunded") {
+      chargeId = typeof obj.id === "string" ? obj.id : null;
+      const paymentIntent = obj.payment_intent;
+      if (paymentIntent && typeof paymentIntent === "string") {
+        paymentIntentId = paymentIntent;
+      }
+      // Intentar obtener order_id desde el PaymentIntent (necesitamos consultarlo)
+      if (paymentIntentId && stripe) {
+        try {
+          const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
+          const metadata = pi.metadata as Record<string, unknown> | undefined;
+          if (metadata?.order_id && typeof metadata.order_id === "string") {
+            orderId = metadata.order_id;
+          }
+        } catch (err) {
+          if (process.env.NODE_ENV === "development") {
+            console.warn("[webhook] No se pudo obtener PaymentIntent para charge.refunded:", err);
+          }
+        }
+      }
+    }
+  }
+
+  // Intentar insertar el evento (idempotencia por PRIMARY KEY)
+  // Nota: stripe_webhook_events no está en los tipos generados
+  const { error: insertError } = await supabase
+    .from("stripe_webhook_events")
+    .insert({
+      id: eventId,
+      type: eventType,
+      order_id: orderId || null,
+      payment_intent_id: paymentIntentId || null,
+      charge_id: chargeId || null,
+    });
+
+  // Si el error es de violación de clave primaria (evento ya existe), retornar que ya fue procesado
+  if (insertError) {
+    // En PostgreSQL/Supabase, el código de error para violación de clave única es "23505"
+    if (insertError.code === "23505" || insertError.message.includes("duplicate key")) {
+      if (process.env.NODE_ENV === "development") {
+        console.log("[webhook] Evento ya procesado (idempotencia):", eventId);
+      }
+      return { alreadyProcessed: true, orderId, paymentIntentId, chargeId };
+    }
+    // Otro error: loguear pero continuar (podría ser un problema de conexión)
+    console.error("[webhook] Error al registrar evento:", insertError);
+    if (process.env.NODE_ENV === "development") {
+      console.error("[webhook] Error details:", {
+        eventId,
+        error: insertError.message,
+        code: insertError.code,
+      });
+    }
+  }
+
+  return { alreadyProcessed: false, orderId, paymentIntentId, chargeId };
+}
+
+/**
+ * Obtiene el estado actual de payment_status de una orden.
+ * Retorna null si la orden no existe o no tiene payment_status.
+ */
+async function getOrderPaymentStatus(
+  supabase: any, // Usar any para flexibilidad con tipos de Supabase
+  orderId: string,
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("orders")
+    .select("payment_status")
+    .eq("id", orderId)
+    .single();
+
+  if (error || !data) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[webhook] No se pudo obtener payment_status de orden:", {
+        orderId,
+        error: error?.message,
+      });
+    }
+    return null;
+  }
+
+  return (data as { payment_status?: string | null })?.payment_status || null;
+}
+
+/**
+ * Actualiza el estado de una orden, protegiendo estados finales.
+ * No degrada refunded -> paid/pending, ni paid -> pending.
+ */
+async function updateOrderStatus(
+  supabase: any, // Usar any para flexibilidad con tipos de Supabase
+  orderId: string,
+  newPaymentStatus: string,
+  updates: Record<string, unknown>,
+): Promise<{ success: boolean; error?: string }> {
+  // Obtener estado actual
+  const currentStatus = await getOrderPaymentStatus(supabase, orderId);
+
+  // Protección de estados finales
+  if (currentStatus === "refunded") {
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[webhook] Intento de cambiar estado refunded, ignorado:", {
+        orderId,
+        currentStatus,
+        newPaymentStatus,
+      });
+    }
+    return { success: false, error: "Cannot update order with refunded status" };
+  }
+
+  if (currentStatus === "paid" && newPaymentStatus === "pending") {
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[webhook] Intento de degradar paid -> pending, ignorado:", {
+        orderId,
+        currentStatus,
+        newPaymentStatus,
+      });
+    }
+    return { success: false, error: "Cannot degrade paid status to pending" };
+  }
+
+  // Actualizar orden (payment_status existe en el schema pero puede no estar en tipos generados)
+  const { error: updateError } = await supabase
+    .from("orders")
+    .update({
+      payment_status: newPaymentStatus,
+      ...updates,
+    })
+    .eq("id", orderId);
+
+  if (updateError) {
+    console.error("[webhook] Error al actualizar orden:", updateError);
+    if (process.env.NODE_ENV === "development") {
+      console.error("[webhook] Update error details:", {
+        orderId,
+        error: updateError.message,
+        code: updateError.code,
+      });
+    }
+    return { success: false, error: updateError.message };
+  }
+
+  return { success: true };
+}
+
 export async function POST(req: NextRequest) {
   noStore();
   try {
@@ -34,7 +208,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const body = await req.text();
+    // Leer RAW body como ArrayBuffer para verificación de firma
+    const bodyBuffer = await req.arrayBuffer();
+    const body = Buffer.from(bodyBuffer);
     const signature = req.headers.get("stripe-signature");
 
     if (!signature) {
@@ -52,224 +228,334 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Verificar firma del webhook
     let event: Stripe.Event;
     try {
       event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
     } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      if (process.env.NODE_ENV === "development") {
+        console.error("[webhook] Signature verification failed:", errorMessage);
+      }
       return NextResponse.json(
-        { error: `Webhook signature verification failed: ${err}` },
+        { error: `Webhook signature verification failed: ${errorMessage}` },
         { status: 400 },
       );
     }
 
+    // Crear cliente de Supabase con service role
     const supabase = createClient(supabaseUrl, serviceRoleKey, {
       auth: {
         autoRefreshToken: false,
         persistSession: false,
-    },
-  });
+      },
+    });
 
+    // Registrar evento para idempotencia
+    const { alreadyProcessed, orderId } = await registerWebhookEvent(
+      supabase,
+      event,
+    );
+
+    // Si el evento ya fue procesado, responder 200 y salir
+    if (alreadyProcessed) {
+      return NextResponse.json({ received: true, idempotent: true });
+    }
+
+    // Procesar evento según su tipo
     if (event.type === "payment_intent.succeeded") {
       const paymentIntent = event.data.object as Stripe.PaymentIntent;
-      const order_id = paymentIntent.metadata.order_id;
+      const extractedOrderId = orderId || paymentIntent.metadata.order_id;
 
-      if (order_id) {
-        // Actualizar orden a paid
-        const { error: updateError } = await supabase
+      if (!extractedOrderId) {
+        if (process.env.NODE_ENV === "development") {
+          console.warn("[webhook] payment_intent.succeeded sin order_id:", {
+            paymentIntentId: paymentIntent.id,
+          });
+        }
+        return NextResponse.json({ received: true });
+      }
+
+      // Obtener metadata actual de la orden
+      const { data: orderData } = await supabase
+        .from("orders")
+        .select("metadata")
+        .eq("id", extractedOrderId)
+        .single();
+
+      const currentMetadata = (orderData?.metadata as Record<string, unknown>) || {};
+
+      // Actualizar orden a paid
+      const updateResult = await updateOrderStatus(
+        supabase,
+        extractedOrderId,
+        "paid",
+        {
+          status: "paid",
+          payment_id: paymentIntent.id,
+          payment_amount: paymentIntent.amount / 100,
+          metadata: {
+            ...currentMetadata,
+            stripe_payment_intent_id: paymentIntent.id,
+          },
+        },
+      );
+
+      if (!updateResult.success) {
+        if (process.env.NODE_ENV === "development") {
+          console.error("[webhook] Error al actualizar orden a paid:", updateResult.error);
+        }
+        return NextResponse.json({ received: true }); // Responder 200 aunque falle para no reintentar
+      }
+
+      // Procesar puntos de lealtad (idempotente)
+      try {
+        const { processLoyaltyForOrder } = await import("@/lib/loyalty/processOrder.server");
+        await processLoyaltyForOrder(extractedOrderId);
+      } catch (loyaltyError) {
+        // No fallar el webhook si falla la lógica de puntos
+        console.error("[webhook] Error al procesar puntos:", loyaltyError);
+        if (process.env.NODE_ENV === "development") {
+          console.error("[webhook] Loyalty error details:", {
+            order_id: extractedOrderId,
+            error: loyaltyError instanceof Error ? loyaltyError.message : String(loyaltyError),
+          });
+        }
+      }
+
+      // Crear envío en Skydropx si está configurado (código existente)
+      try {
+        const { data: orderDataForShipping } = await supabase
           .from("orders")
-          .update({
-            status: "paid",
-            payment_id: paymentIntent.id,
-            payment_amount: paymentIntent.amount / 100,
-          })
-          .eq("id", order_id);
+          .select("metadata, order_items(*)")
+          .eq("id", extractedOrderId)
+          .single();
 
-        // Procesar puntos de lealtad después de actualizar la orden a "paid"
-        // El helper processLoyaltyForOrder es idempotente y maneja todo el flujo
-        if (!updateError) {
-          try {
-            const { processLoyaltyForOrder } = await import("@/lib/loyalty/processOrder.server");
-            await processLoyaltyForOrder(order_id);
-          } catch (loyaltyError) {
-            // No fallar el webhook si falla la lógica de puntos
-            console.error("[webhook] Error al procesar puntos:", loyaltyError);
-            if (process.env.NODE_ENV === "development") {
-              console.error("[webhook] Error details:", {
-                order_id,
-                error: loyaltyError instanceof Error ? loyaltyError.message : String(loyaltyError),
-              });
-            }
-          }
+        if (orderDataForShipping?.metadata) {
+          const metadata = orderDataForShipping.metadata as Record<string, unknown>;
+          const shipping = metadata.shipping as
+            | {
+                provider?: string;
+                option_code?: string;
+                rate?: {
+                  external_id?: string;
+                  provider?: string;
+                  service?: string;
+                };
+              }
+            | undefined;
 
-          // Crear envío en Skydropx si está configurado y hay información de shipping
-          try {
-            const { data: orderData } = await supabase
-              .from("orders")
-              .select("metadata, order_items(*)")
-              .eq("id", order_id)
-              .single();
+          // Solo crear envío si hay información de Skydropx en metadata
+          if (
+            shipping?.provider === "skydropx" &&
+            shipping.rate?.external_id &&
+            metadata.contact_address &&
+            metadata.contact_city &&
+            metadata.contact_state &&
+            metadata.contact_cp
+          ) {
+            const { createSkydropxShipment } = await import("@/lib/shipping/skydropx.server");
 
-            if (orderData?.metadata) {
-              const metadata = orderData.metadata as Record<string, unknown>;
-              const shipping = metadata.shipping as
-                | {
-                    provider?: string;
-                    option_code?: string;
-                    rate?: {
-                      external_id?: string;
-                      provider?: string;
-                      service?: string;
-                    };
-                  }
-                | undefined;
+            // Calcular peso total de los productos
+            const orderItems = (orderDataForShipping.order_items as Array<{ qty: number }>) || [];
+            const totalWeightGrams = orderItems.reduce((sum, item) => sum + (item.qty || 1) * 1000, 0);
 
-              // Solo crear envío si hay información de Skydropx en metadata
-              if (
-                shipping?.provider === "skydropx" &&
-                shipping.rate?.external_id &&
-                metadata.contact_address &&
-                metadata.contact_city &&
-                metadata.contact_state &&
-                metadata.contact_cp
-              ) {
-                const { createSkydropxShipment } = await import("@/lib/shipping/skydropx.server");
+            // Construir productos para declarar en el envío
+            const products = (orderDataForShipping.order_items as Array<{
+              title?: string;
+              sku?: string;
+              unit_price_cents?: number;
+              qty?: number;
+            }>).map((item) => ({
+              name: item.title || "Producto",
+              sku: item.sku || undefined,
+              price: item.unit_price_cents ? item.unit_price_cents / 100 : undefined,
+              quantity: item.qty || 1,
+            }));
 
-                // Calcular peso total de los productos
-                const orderItems = (orderData.order_items as Array<{ qty: number }>) || [];
-                const totalWeightGrams = orderItems.reduce((sum, item) => sum + (item.qty || 1) * 1000, 0);
+            const shipmentResult = await createSkydropxShipment({
+              rateId: shipping.rate.external_id,
+              destination: {
+                postalCode: String(metadata.contact_cp),
+                state: String(metadata.contact_state),
+                city: String(metadata.contact_city),
+                country: "MX",
+                name: String(metadata.contact_name || ""),
+                phone: metadata.contact_phone ? String(metadata.contact_phone) : undefined,
+                email: metadata.contact_email ? String(metadata.contact_email) : undefined,
+                addressLine1: metadata.contact_address ? String(metadata.contact_address) : undefined,
+              },
+              pkg: {
+                weightGrams: totalWeightGrams || 1000,
+              },
+              products,
+            });
 
-                // Construir productos para declarar en el envío
-                const products = (orderData.order_items as Array<{
-                  title?: string;
-                  sku?: string;
-                  unit_price_cents?: number;
-                  qty?: number;
-                }>).map((item) => ({
-                  name: item.title || "Producto",
-                  sku: item.sku || undefined,
-                  price: item.unit_price_cents ? item.unit_price_cents / 100 : undefined,
-                  quantity: item.qty || 1,
-                }));
+            if (shipmentResult.success && shipmentResult.shipmentId) {
+              // Actualizar metadata con información del envío creado
+              const updatedShipping = {
+                ...shipping,
+                shipment: {
+                  id: shipmentResult.shipmentId,
+                  tracking_number: shipmentResult.trackingNumber || null,
+                  label_url: shipmentResult.labelUrl || null,
+                  carrier_name: shipmentResult.carrierName || null,
+                  workflow_status: shipmentResult.workflowStatus || null,
+                  payment_status: shipmentResult.paymentStatus || null,
+                  total: shipmentResult.total || null,
+                  packages: shipmentResult.packages || [],
+                },
+                integration_status: "success" as const,
+              };
 
-                const shipmentResult = await createSkydropxShipment({
-                  rateId: shipping.rate.external_id,
-                  destination: {
-                    postalCode: String(metadata.contact_cp),
-                    state: String(metadata.contact_state),
-                    city: String(metadata.contact_city),
-                    country: "MX",
-                    name: String(metadata.contact_name || ""),
-                    phone: metadata.contact_phone ? String(metadata.contact_phone) : undefined,
-                    email: metadata.contact_email ? String(metadata.contact_email) : undefined,
-                    addressLine1: metadata.contact_address ? String(metadata.contact_address) : undefined,
+              await supabase
+                .from("orders")
+                .update({
+                  metadata: {
+                    ...metadata,
+                    shipping: updatedShipping,
                   },
-                  pkg: {
-                    weightGrams: totalWeightGrams || 1000,
-                  },
-                  products,
+                })
+                .eq("id", extractedOrderId);
+
+              if (process.env.NODE_ENV !== "production") {
+                console.log("[webhook] Envío Skydropx creado:", {
+                  order_id: extractedOrderId,
+                  shipment_id: shipmentResult.shipmentId,
+                  tracking_number: shipmentResult.trackingNumber,
                 });
+              }
+            } else {
+              // Guardar error en metadata sin romper el flujo
+              const updatedShipping = {
+                ...shipping,
+                integration_status: "error" as const,
+                integration_error: shipmentResult.error || "Error desconocido al crear envío",
+              };
 
-                if (shipmentResult.success && shipmentResult.shipmentId) {
-                  // Actualizar metadata con información del envío creado
-                  const updatedShipping = {
-                    ...shipping,
-                    shipment: {
-                      id: shipmentResult.shipmentId,
-                      tracking_number: shipmentResult.trackingNumber || null,
-                      label_url: shipmentResult.labelUrl || null,
-                      carrier_name: shipmentResult.carrierName || null,
-                      workflow_status: shipmentResult.workflowStatus || null,
-                      payment_status: shipmentResult.paymentStatus || null,
-                      total: shipmentResult.total || null,
-                      packages: shipmentResult.packages || [],
-                    },
-                    integration_status: "success" as const,
-                  };
+              await supabase
+                .from("orders")
+                .update({
+                  metadata: {
+                    ...metadata,
+                    shipping: updatedShipping,
+                  },
+                })
+                .eq("id", extractedOrderId);
 
-                  await supabase
-                    .from("orders")
-                    .update({
-                      metadata: {
-                        ...metadata,
-                        shipping: updatedShipping,
-                      },
-                    })
-                    .eq("id", order_id);
-
-                  if (process.env.NODE_ENV !== "production") {
-                    console.log("[webhook] Envío Skydropx creado:", {
-                      order_id,
-                      shipment_id: shipmentResult.shipmentId,
-                      tracking_number: shipmentResult.trackingNumber,
-                    });
-                  }
-                } else {
-                  // Guardar error en metadata sin romper el flujo
-                  const updatedShipping = {
-                    ...shipping,
-                    integration_status: "error" as const,
-                    integration_error: shipmentResult.error || "Error desconocido al crear envío",
-                  };
-
-                  await supabase
-                    .from("orders")
-                    .update({
-                      metadata: {
-                        ...metadata,
-                        shipping: updatedShipping,
-                      },
-                    })
-                    .eq("id", order_id);
-
-                  if (process.env.NODE_ENV !== "production") {
-                    console.warn("[webhook] Error al crear envío Skydropx:", {
-                      order_id,
-                      error: shipmentResult.error,
-                    });
-                  }
-                }
+              if (process.env.NODE_ENV !== "production") {
+                console.warn("[webhook] Error al crear envío Skydropx:", {
+                  order_id: extractedOrderId,
+                  error: shipmentResult.error,
+                });
               }
             }
-          } catch (skydropxError) {
-            // No fallar el webhook si falla la creación del envío
-            console.error("[webhook] Error al crear envío Skydropx:", skydropxError);
-            if (process.env.NODE_ENV === "development") {
-              console.error("[webhook] Skydropx error details:", {
-                order_id,
-                error: skydropxError instanceof Error ? skydropxError.message : String(skydropxError),
-              });
-            }
           }
-        } else {
-          if (process.env.NODE_ENV === "development") {
-            console.error("[webhook] Error al actualizar orden a paid:", {
-              order_id,
-              error: updateError.message,
-            });
-          }
+        }
+      } catch (skydropxError) {
+        // No fallar el webhook si falla la creación del envío
+        console.error("[webhook] Error al crear envío Skydropx:", skydropxError);
+        if (process.env.NODE_ENV === "development") {
+          console.error("[webhook] Skydropx error details:", {
+            order_id: extractedOrderId,
+            error: skydropxError instanceof Error ? skydropxError.message : String(skydropxError),
+          });
         }
       }
     } else if (event.type === "payment_intent.payment_failed") {
       const paymentIntent = event.data.object as Stripe.PaymentIntent;
-      const order_id = paymentIntent.metadata.order_id;
+      const extractedOrderId = orderId || paymentIntent.metadata.order_id;
 
-      if (order_id) {
-        await supabase
-          .from("orders")
-          .update({
-            status: "failed",
-          })
-          .eq("id", order_id);
+      if (!extractedOrderId) {
+        if (process.env.NODE_ENV === "development") {
+          console.warn("[webhook] payment_intent.payment_failed sin order_id:", {
+            paymentIntentId: paymentIntent.id,
+          });
+        }
+        return NextResponse.json({ received: true });
       }
+
+      // Obtener metadata actual
+      const { data: orderData } = await supabase
+        .from("orders")
+        .select("metadata")
+        .eq("id", extractedOrderId)
+        .single();
+
+      const currentMetadata = (orderData?.metadata as Record<string, unknown>) || {};
+
+      // Determinar payment_status: si existe columna "failed", usarla; si no, dejar "pending" pero guardar reason
+      const failureReason = paymentIntent.last_payment_error?.message || "Payment failed";
+      const paymentStatus = "failed"; // Asumiendo que existe en el schema
+
+      await updateOrderStatus(
+        supabase,
+        extractedOrderId,
+        paymentStatus,
+        {
+          metadata: {
+            ...currentMetadata,
+            payment_failure_reason: failureReason,
+            payment_failed_at: new Date().toISOString(),
+          },
+        },
+      );
+    } else if (event.type === "charge.refunded") {
+      const charge = event.data.object as Stripe.Charge;
+      const extractedOrderId = orderId;
+
+      if (!extractedOrderId) {
+        if (process.env.NODE_ENV === "development") {
+          console.warn("[webhook] charge.refunded sin order_id:", {
+            chargeId: charge.id,
+            paymentIntentId: charge.payment_intent,
+          });
+        }
+        return NextResponse.json({ received: true });
+      }
+
+      // Obtener metadata actual
+      const { data: orderData } = await supabase
+        .from("orders")
+        .select("metadata")
+        .eq("id", extractedOrderId)
+        .single();
+
+      const currentMetadata = (orderData?.metadata as Record<string, unknown>) || {};
+
+      // Calcular monto reembolsado
+      const amountRefunded = charge.amount_refunded || 0;
+      const refundData = {
+        charge_id: charge.id,
+        amount_refunded: amountRefunded,
+        amount_refunded_mxn: amountRefunded / 100,
+        currency: charge.currency,
+        refunded_at: new Date().toISOString(),
+        event_id: event.id,
+      };
+
+      await updateOrderStatus(
+        supabase,
+        extractedOrderId,
+        "refunded",
+        {
+          metadata: {
+            ...currentMetadata,
+            refund: refundData,
+          },
+        },
+      );
     }
 
     return NextResponse.json({ received: true });
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Error procesando webhook";
+    console.error("[webhook] Error general:", errorMessage);
+    if (process.env.NODE_ENV === "development") {
+      console.error("[webhook] Error stack:", error instanceof Error ? error.stack : String(error));
+    }
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error ? error.message : "Error procesando webhook",
-      },
+      { error: errorMessage },
       { status: 500 },
     );
   }
