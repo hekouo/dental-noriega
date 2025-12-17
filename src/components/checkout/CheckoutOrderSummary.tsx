@@ -96,6 +96,11 @@ export default function CheckoutOrderSummary({
                   <p className="font-medium text-sm text-gray-900 truncate">
                     {item.title || "Producto sin nombre"}
                   </p>
+                  {item.variant_detail && (
+                    <p className="text-xs text-gray-600 mt-1 italic">
+                      {item.variant_detail}
+                    </p>
+                  )}
                   <p className="text-xs text-gray-500 mt-1">
                     Cantidad: {qty}
                   </p>

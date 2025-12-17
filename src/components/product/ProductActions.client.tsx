@@ -10,6 +10,9 @@ import { Truck, MessageCircle, ShieldCheck } from "lucide-react";
 import { getWhatsAppProductUrl } from "@/lib/whatsapp/config";
 import { trackAddToCart, trackWhatsappClick } from "@/lib/analytics/events";
 import { launchCartConfetti, launchPaymentCoins } from "@/lib/ui/confetti";
+import ProductVariantSelectors from "@/components/pdp/ProductVariantSelectors";
+import { requiresVariants, getVariantConfig } from "@/lib/products/variants";
+import Toast from "@/components/ui/Toast";
 
 type Product = {
   id: string;
@@ -28,6 +31,8 @@ type Props = {
 
 export default function ProductActions({ product }: Props) {
   const [qty, setQty] = useState(1);
+  const [variantDetail, setVariantDetail] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: "error" | "success" } | null>(null);
   const addToCart = useCartStore((s) => s.addToCart);
   const upsertSingleToCheckout = useCheckoutStore(
     (s) => s.upsertSingleToCheckout,
@@ -40,9 +45,28 @@ export default function ProductActions({ product }: Props) {
   const canBuy = !soldOut;
   const price = mxnFromCents(product.price_cents);
   const formattedPrice = formatMXNFromCents(product.price_cents);
+  const needsVariants = requiresVariants(product.title);
 
   function handleAddToCart() {
     if (!canBuy || busyRef.current) return;
+
+    // Validar variantes si son requeridas
+    if (needsVariants && !variantDetail) {
+      const config = getVariantConfig(product.title);
+      if (config) {
+        let message = "Selecciona las opciones requeridas antes de agregar este producto a tu pedido.";
+        if (config.variantType === "arco-niti-redondo" || config.variantType === "arco-niti-rectangular") {
+          message = "Selecciona medida y arcada antes de agregar este arco a tu pedido.";
+        } else if (config.variantType === "tubos-malla") {
+          message = "Selecciona la pieza antes de agregar este producto a tu pedido.";
+        } else if (config.variantType === "brackets-carton") {
+          message = "Selecciona el sistema antes de agregar este producto a tu pedido.";
+        }
+        setToast({ message, type: "error" });
+        setTimeout(() => setToast(null), 4000);
+        return;
+      }
+    }
 
     busyRef.current = true;
     addToCart({
@@ -52,10 +76,11 @@ export default function ProductActions({ product }: Props) {
       qty,
       image_url: product.image_url ?? undefined,
       selected: true,
+      variant_detail: variantDetail || undefined,
     });
 
     setTimeout(() => (busyRef.current = false), 250);
-    console.info("✅ Agregado al carrito:", product.title, "x", qty);
+    console.info("✅ Agregado al carrito:", product.title, "x", qty, variantDetail ? `(${variantDetail})` : "");
 
     // Analytics: add_to_cart
     trackAddToCart({
@@ -75,6 +100,24 @@ export default function ProductActions({ product }: Props) {
   function handleBuyNow() {
     if (!canBuy || busyRef.current) return;
 
+    // Validar variantes si son requeridas
+    if (needsVariants && !variantDetail) {
+      const config = getVariantConfig(product.title);
+      if (config) {
+        let message = "Selecciona las opciones requeridas antes de comprar este producto.";
+        if (config.variantType === "arco-niti-redondo" || config.variantType === "arco-niti-rectangular") {
+          message = "Selecciona medida y arcada antes de comprar este arco.";
+        } else if (config.variantType === "tubos-malla") {
+          message = "Selecciona la pieza antes de comprar este producto.";
+        } else if (config.variantType === "brackets-carton") {
+          message = "Selecciona el sistema antes de comprar este producto.";
+        }
+        setToast({ message, type: "error" });
+        setTimeout(() => setToast(null), 4000);
+        return;
+      }
+    }
+
     busyRef.current = true;
     
     // Agregar al carrito usando getState() para asegurar ejecución antes del push
@@ -86,6 +129,7 @@ export default function ProductActions({ product }: Props) {
       qty,
       image_url: product.image_url ?? undefined,
       selected: true,
+      variant_detail: variantDetail || undefined,
     });
 
     // Guardar en checkoutStore directamente
@@ -95,6 +139,7 @@ export default function ProductActions({ product }: Props) {
       price,
       qty,
       image_url: product.image_url ?? undefined,
+      variant_detail: variantDetail || undefined,
     });
 
     // Analítica: buy_now
@@ -145,11 +190,29 @@ export default function ProductActions({ product }: Props) {
 
   return (
     <div className="space-y-4">
+      {/* Toast de notificación */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          duration={4000}
+          onClose={() => setToast(null)}
+        />
+      )}
+
       {/* Badge de stock */}
       {soldOut && (
         <div className="px-3 py-2 bg-red-100 text-red-800 rounded-lg text-sm font-medium">
           Agotado
         </div>
+      )}
+
+      {/* Selectores de variantes */}
+      {needsVariants && (
+        <ProductVariantSelectors
+          productTitle={product.title}
+          onSelectionChange={setVariantDetail}
+        />
       )}
 
       {/* Controles de cantidad y botones */}

@@ -16,6 +16,7 @@ export type CartItem = {
   price_cents?: number; // Precio en centavos (opcional para compatibilidad)
   image_url?: string;
   variantId?: string;
+  variant_detail?: string; // Detalle de variantes seleccionadas (ej: "Medida: 0.016" · Arcada: Superior")
   qty: number;
   selected: boolean;
 };
