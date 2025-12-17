@@ -1036,16 +1036,28 @@ export default function PedidosPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                        {orderDetail.items.map((item) => (
-                          <tr key={item.id}>
-                            <td className="px-4 py-3">
-                              <p className="font-medium">{item.title}</p>
-                              {item.product_id && (
-                                <p className="text-sm text-gray-500">
-                                  ID: {item.product_id.substring(0, 8)}...
-                                </p>
-                              )}
-                            </td>
+                        {orderDetail.items.map((item) => {
+                          // El variant_detail ya está incluido en item.title si existe
+                          // (se guarda como "Título — Variant Detail" en save-order)
+                          const titleParts = item.title.split(" — ");
+                          const baseTitle = titleParts[0];
+                          const variantDetail = titleParts.length > 1 ? titleParts.slice(1).join(" — ") : null;
+
+                          return (
+                            <tr key={item.id}>
+                              <td className="px-4 py-3">
+                                <p className="font-medium">{baseTitle}</p>
+                                {variantDetail && (
+                                  <p className="text-xs text-gray-600 italic mt-1">
+                                    {variantDetail}
+                                  </p>
+                                )}
+                                {item.product_id && (
+                                  <p className="text-sm text-gray-500">
+                                    ID: {item.product_id.substring(0, 8)}...
+                                  </p>
+                                )}
+                              </td>
                             <td className="px-4 py-3 text-center">
                               {item.qty}
                             </td>
@@ -1058,7 +1070,8 @@ export default function PedidosPage() {
                               )}
                             </td>
                           </tr>
-                        ))}
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>

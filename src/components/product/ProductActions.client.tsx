@@ -10,8 +10,8 @@ import { Truck, MessageCircle, ShieldCheck } from "lucide-react";
 import { getWhatsAppProductUrl } from "@/lib/whatsapp/config";
 import { trackAddToCart, trackWhatsappClick } from "@/lib/analytics/events";
 import { launchCartConfetti, launchPaymentCoins } from "@/lib/ui/confetti";
-import { requiresVariants } from "@/lib/products/variants";
 import ProductVariantSelectors from "@/components/pdp/ProductVariantSelectors";
+import { requiresVariants } from "@/lib/products/variants";
 import { toast } from "sonner";
 
 type Product = {
@@ -44,24 +44,14 @@ export default function ProductActions({ product }: Props) {
   const canBuy = !soldOut;
   const price = mxnFromCents(product.price_cents);
   const formattedPrice = formatMXNFromCents(product.price_cents);
-
-  // Verificar si el producto requiere variantes
-  const variantType = requiresVariants(product.title, product.product_slug);
+  const needsVariants = requiresVariants(product.title);
 
   function handleAddToCart() {
     if (!canBuy || busyRef.current) return;
 
-    // Validar variantes si son requeridas
-    if (variantType && !variantDetail) {
-      let message = "Por favor selecciona todas las opciones requeridas";
-      if (variantType === "arco-niti-redondo" || variantType === "arco-niti-rectangular") {
-        message = "Selecciona medida y arcada antes de agregar este arco a tu pedido";
-      } else if (variantType === "tubos-malla") {
-        message = "Selecciona la pieza antes de agregar este producto a tu pedido";
-      } else if (variantType === "brackets-carton") {
-        message = "Selecciona el sistema antes de agregar este producto a tu pedido";
-      }
-      toast.error(message);
+    // Validar variantes si el producto las requiere
+    if (needsVariants && !variantDetail) {
+      toast.error("Por favor, selecciona todas las opciones requeridas antes de agregar al carrito");
       return;
     }
 
@@ -72,8 +62,8 @@ export default function ProductActions({ product }: Props) {
       price,
       qty,
       image_url: product.image_url ?? undefined,
+      variant_detail: variantDetail || null,
       selected: true,
-      variant_detail: variantDetail || undefined,
     });
 
     setTimeout(() => (busyRef.current = false), 250);
@@ -97,17 +87,9 @@ export default function ProductActions({ product }: Props) {
   function handleBuyNow() {
     if (!canBuy || busyRef.current) return;
 
-    // Validar variantes si son requeridas
-    if (variantType && !variantDetail) {
-      let message = "Por favor selecciona todas las opciones requeridas";
-      if (variantType === "arco-niti-redondo" || variantType === "arco-niti-rectangular") {
-        message = "Selecciona medida y arcada antes de agregar este arco a tu pedido";
-      } else if (variantType === "tubos-malla") {
-        message = "Selecciona la pieza antes de agregar este producto a tu pedido";
-      } else if (variantType === "brackets-carton") {
-        message = "Selecciona el sistema antes de agregar este producto a tu pedido";
-      }
-      toast.error(message);
+    // Validar variantes si el producto las requiere
+    if (needsVariants && !variantDetail) {
+      toast.error("Por favor, selecciona todas las opciones requeridas antes de comprar");
       return;
     }
 
@@ -121,8 +103,8 @@ export default function ProductActions({ product }: Props) {
       price,
       qty,
       image_url: product.image_url ?? undefined,
+      variant_detail: variantDetail || null,
       selected: true,
-      variant_detail: variantDetail || undefined,
     });
 
     // Guardar en checkoutStore directamente
@@ -132,7 +114,7 @@ export default function ProductActions({ product }: Props) {
       price,
       qty,
       image_url: product.image_url ?? undefined,
-      variant_detail: variantDetail || undefined,
+      variant_detail: variantDetail || null,
     });
 
     // Analítica: buy_now
@@ -191,9 +173,9 @@ export default function ProductActions({ product }: Props) {
       )}
 
       {/* Selectores de variantes */}
-      {variantType && (
+      {needsVariants && (
         <ProductVariantSelectors
-          variantType={variantType}
+          productTitle={product.title}
           onSelectionChange={setVariantDetail}
         />
       )}

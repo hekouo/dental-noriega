@@ -97,7 +97,7 @@ export default function CheckoutOrderSummary({
                     {item.title || "Producto sin nombre"}
                   </p>
                   {item.variant_detail && (
-                    <p className="text-xs text-gray-600 mt-1">
+                    <p className="text-xs text-gray-600 mt-1 italic">
                       {item.variant_detail}
                     </p>
                   )}

@@ -19,8 +19,8 @@ export type CartItem = {
   price_cents?: number; // Precio en centavos (opcional para compatibilidad)
   image_url?: string;
   variantId?: string;
+  variant_detail?: string | null; // Detalle de variantes seleccionadas (ej: "Medida: 0.016\" · Arcada: Superior")
   qty: number;
-  variant_detail?: string; // Detalle de variante seleccionada (ej: "Medida: 0.016\" · Arcada: Superior")
 };
 
 export type CheckoutItem = CartItem & {
@@ -36,7 +36,7 @@ type Item = {
   title?: string;
   image_url?: string;
   variantId?: string;
-  variant_detail?: string; // Detalle de variante seleccionada
+  variant_detail?: string | null;
 };
 
 export type CheckoutStep = "datos" | "pago" | "gracias";
@@ -159,7 +159,6 @@ export const useCheckoutStore = create<State>()(
             ...it,
             price_cents: priceCents,
             selected: true,
-            variant_detail: it.variant_detail,
           } as CheckoutItem;
           
           const prev = byId.get(it.id);
@@ -170,10 +169,8 @@ export const useCheckoutStore = create<State>()(
             const mergedQty = (prev.qty ?? 1) + (it.qty ?? 1);
             // Preservar price_cents del item previo si existe, sino usar el nuevo
             const mergedPriceCents = prev.price_cents ?? priceCents;
-            // Preservar variant_detail del nuevo item si existe, sino mantener el previo
-            const mergedVariantDetail = it.variant_detail || prev.variant_detail;
-            if (mergedQty !== prev.qty || !prev.selected || mergedPriceCents !== prev.price_cents || mergedVariantDetail !== prev.variant_detail) {
-              byId.set(it.id, { ...prev, qty: mergedQty, selected: true, price_cents: mergedPriceCents, variant_detail: mergedVariantDetail });
+            if (mergedQty !== prev.qty || !prev.selected || mergedPriceCents !== prev.price_cents) {
+              byId.set(it.id, { ...prev, qty: mergedQty, selected: true, price_cents: mergedPriceCents });
               changed = true;
             }
           }
@@ -227,13 +224,11 @@ export const useCheckoutStore = create<State>()(
             qty: (curr.qty ?? 0) + (item.qty ?? 1),
             selected: true,
             price_cents: finalPriceCents,
-            variant_detail: item.variant_detail || curr.variant_detail,
           };
           if (
             nextItem.qty === curr.qty &&
             !!nextItem.selected === !!curr.selected &&
-            nextItem.price_cents === curr.price_cents &&
-            nextItem.variant_detail === curr.variant_detail
+            nextItem.price_cents === curr.price_cents
           )
             return state;
           nextItems = state.checkoutItems.slice();

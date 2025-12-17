@@ -233,13 +233,12 @@ export default function GraciasContent() {
         
         // Guardar orden completa en Supabase si tenemos los datos necesarios
         if (checkoutDatos?.email && orderDataFromStorage?.items && Array.isArray(orderDataFromStorage.items)) {
-          const itemsForSave = orderDataFromStorage.items.map((item: { id?: string; title?: string; qty?: number; price_cents?: number; image_url?: string; variant_detail?: string }) => ({
+          const itemsForSave = orderDataFromStorage.items.map((item: { id?: string; title?: string; qty?: number; price_cents?: number; image_url?: string }) => ({
             productId: item.id || undefined,
             title: item.title || `Producto ${item.id || "unknown"}`,
             qty: item.qty || 1,
             unitPriceCents: item.price_cents || 0,
             image_url: item.image_url || undefined,
-            variant_detail: item.variant_detail || undefined,
           }));
           
           const totalCents = orderDataFromStorage.total_cents || 0;
@@ -401,13 +400,12 @@ export default function GraciasContent() {
                 
                 // Guardar orden completa en Supabase si tenemos los datos necesarios
                 if (checkoutDatos?.email && orderDataFromStorage?.items && Array.isArray(orderDataFromStorage.items)) {
-                  const itemsForSave = orderDataFromStorage.items.map((item: { id?: string; title?: string; qty?: number; price_cents?: number; image_url?: string; variant_detail?: string }) => ({
+                  const itemsForSave = orderDataFromStorage.items.map((item: { id?: string; title?: string; qty?: number; price_cents?: number; image_url?: string }) => ({
                     productId: item.id || undefined,
                     title: item.title || `Producto ${item.id || "unknown"}`,
                     qty: item.qty || 1,
                     unitPriceCents: item.price_cents || 0,
                     image_url: item.image_url || undefined,
-                    variant_detail: item.variant_detail || undefined,
                   }));
                   
                   const totalCents = orderDataFromStorage.total_cents || pi.amount || 0;

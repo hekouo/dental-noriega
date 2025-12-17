@@ -1,145 +1,127 @@
 /**
- * Helper para identificar productos que requieren selección de variantes
- * y definir las opciones disponibles
+ * Configuración de variantes para productos de ortodoncia
  */
 
-export type VariantType =
-  | "arco-niti-redondo"
-  | "arco-niti-rectangular"
-  | "tubos-malla"
-  | "brackets-carton";
-
 export type VariantConfig = {
-  type: VariantType;
-  required: boolean;
-  options: {
-    medida?: string[];
-    arcada?: string[];
-    pieza?: string[];
-    sistema?: string[];
-  };
+  productTitle: string;
+  productSlug?: string;
+  variantType: "arco-niti-redondo" | "arco-niti-rectangular" | "tubos-malla" | "brackets-carton";
+};
+
+// Identificadores de productos que requieren variantes
+const VARIANT_PRODUCTS: VariantConfig[] = [
+  {
+    productTitle: "ARCO NITI REDONDO 12, 14, 16, 18 PAQUETE CON 10",
+    variantType: "arco-niti-redondo",
+  },
+  {
+    productTitle: "ARCO NITI RECTANGULAR PAQUETE CON 10",
+    variantType: "arco-niti-rectangular",
+  },
+  {
+    productTitle: "TUBOS CON MALLA 1EROS o 2o molar KIT CON 200 tubos",
+    variantType: "tubos-malla",
+  },
+  {
+    productTitle: "BRACKETS CARTÓN MBT, ROTH, EDGEWISE",
+    variantType: "brackets-carton",
+  },
+];
+
+/**
+ * Verifica si un producto requiere selección de variantes
+ */
+export function requiresVariants(productTitle: string): boolean {
+  return VARIANT_PRODUCTS.some(
+    (p) => p.productTitle.toUpperCase() === productTitle.toUpperCase(),
+  );
+}
+
+/**
+ * Obtiene la configuración de variantes para un producto
+ */
+export function getVariantConfig(productTitle: string): VariantConfig | null {
+  return (
+    VARIANT_PRODUCTS.find(
+      (p) => p.productTitle.toUpperCase() === productTitle.toUpperCase(),
+    ) || null
+  );
+}
+
+/**
+ * Opciones de variantes para cada tipo
+ */
+export const VARIANT_OPTIONS = {
+  "arco-niti-redondo": {
+    medida: {
+      label: "Medida del arco",
+      options: ['0.012"', '0.014"', '0.016"', '0.018"'],
+      required: true,
+    },
+    arcada: {
+      label: "Arcada",
+      options: ["Superior", "Inferior"],
+      required: true,
+    },
+  },
+  "arco-niti-rectangular": {
+    medida: {
+      label: "Medida del arco",
+      options: [
+        '0.016" x 0.016"',
+        '0.016" x 0.022"',
+        '0.017" x 0.025"',
+        '0.018" x 0.025"',
+        '0.019" x 0.025"',
+      ],
+      required: true,
+    },
+    arcada: {
+      label: "Arcada",
+      options: ["Superior", "Inferior"],
+      required: true,
+    },
+  },
+  "tubos-malla": {
+    pieza: {
+      label: "Pieza",
+      options: ["1eros molares", "2dos molares"],
+      required: true,
+    },
+  },
+  "brackets-carton": {
+    sistema: {
+      label: "Sistema",
+      options: ["MBT", "Roth", "Edgewise"],
+      required: true,
+    },
+  },
 };
 
 /**
- * Identifica si un producto requiere selección de variantes
+ * Genera el texto de variant_detail a partir de las selecciones
  */
-export function requiresVariants(productTitle: string, productSlug?: string): VariantType | null {
-  const titleLower = productTitle.toLowerCase();
-  const slugLower = productSlug?.toLowerCase() || "";
-
-  // ARCO NITI REDONDO 12, 14, 16, 18 PAQUETE CON 10
-  if (
-    titleLower.includes("arco niti redondo") ||
-    titleLower.includes("arco niti") && titleLower.includes("redondo")
-  ) {
-    return "arco-niti-redondo";
-  }
-
-  // ARCO NITI RECTANGULAR PAQUETE CON 10
-  if (
-    titleLower.includes("arco niti rectangular") ||
-    (titleLower.includes("arco niti") && titleLower.includes("rectangular"))
-  ) {
-    return "arco-niti-rectangular";
-  }
-
-  // TUBOS CON MALLA 1EROS o 2o molar KIT CON 200 tubos
-  if (
-    titleLower.includes("tubos con malla") ||
-    titleLower.includes("tubos") && titleLower.includes("malla")
-  ) {
-    return "tubos-malla";
-  }
-
-  // BRACKETS CARTÓN MBT, ROTH, EDGEWISE
-  if (
-    titleLower.includes("brackets cartón") ||
-    titleLower.includes("brackets carton") ||
-    (titleLower.includes("brackets") && (titleLower.includes("mbt") || titleLower.includes("roth") || titleLower.includes("edgewise")))
-  ) {
-    return "brackets-carton";
-  }
-
-  return null;
-}
-
-/**
- * Obtiene la configuración de variantes para un tipo
- */
-export function getVariantConfig(type: VariantType): VariantConfig {
-  switch (type) {
-    case "arco-niti-redondo":
-      return {
-        type: "arco-niti-redondo",
-        required: true,
-        options: {
-          medida: ['0.012"', '0.014"', '0.016"', '0.018"'],
-          arcada: ["Superior", "Inferior"],
-        },
-      };
-    case "arco-niti-rectangular":
-      return {
-        type: "arco-niti-rectangular",
-        required: true,
-        options: {
-          medida: [
-            '0.016" x 0.016"',
-            '0.016" x 0.022"',
-            '0.017" x 0.025"',
-            '0.018" x 0.025"',
-            '0.019" x 0.025"',
-          ],
-          arcada: ["Superior", "Inferior"],
-        },
-      };
-    case "tubos-malla":
-      return {
-        type: "tubos-malla",
-        required: true,
-        options: {
-          pieza: ["1eros molares", "2dos molares"],
-        },
-      };
-    case "brackets-carton":
-      return {
-        type: "brackets-carton",
-        required: true,
-        options: {
-          sistema: ["MBT", "Roth", "Edgewise"],
-        },
-      };
-  }
-}
-
-/**
- * Construye el texto de variant_detail a partir de las selecciones
- */
-export function buildVariantDetail(
-  type: VariantType,
-  selections: Record<string, string | undefined>,
+export function formatVariantDetail(
+  variantType: VariantConfig["variantType"],
+  selections: Record<string, string>,
 ): string {
   const parts: string[] = [];
 
-  switch (type) {
-    case "arco-niti-redondo":
-    case "arco-niti-rectangular":
-      if (selections.medida) {
-        parts.push(`Medida: ${selections.medida}`);
-      }
-      if (selections.arcada) {
-        parts.push(`Arcada: ${selections.arcada}`);
-      }
-      break;
-    case "tubos-malla":
-      if (selections.pieza) {
-        parts.push(`Pieza: ${selections.pieza}`);
-      }
-      break;
-    case "brackets-carton":
-      if (selections.sistema) {
-        parts.push(`Sistema: ${selections.sistema}`);
-      }
-      break;
+  if (variantType === "arco-niti-redondo" || variantType === "arco-niti-rectangular") {
+    if (selections.medida) {
+      parts.push(`Medida: ${selections.medida}`);
+    }
+    if (selections.arcada) {
+      parts.push(`Arcada: ${selections.arcada}`);
+    }
+  } else if (variantType === "tubos-malla") {
+    if (selections.pieza) {
+      parts.push(`Pieza: ${selections.pieza}`);
+    }
+  } else if (variantType === "brackets-carton") {
+    if (selections.sistema) {
+      parts.push(`Sistema: ${selections.sistema}`);
+    }
   }
 
   return parts.join(" · ");
@@ -148,24 +130,17 @@ export function buildVariantDetail(
 /**
  * Valida que todas las variantes requeridas estén seleccionadas
  */
-export function validateVariants(
-  type: VariantType,
-  selections: Record<string, string | undefined>,
+export function validateVariantSelections(
+  variantType: VariantConfig["variantType"],
+  selections: Record<string, string>,
 ): { valid: boolean; missing: string[] } {
-  const config = getVariantConfig(type);
+  const config = VARIANT_OPTIONS[variantType];
   const missing: string[] = [];
 
-  if (config.options.medida && !selections.medida) {
-    missing.push("Medida del arco");
-  }
-  if (config.options.arcada && !selections.arcada) {
-    missing.push("Arcada");
-  }
-  if (config.options.pieza && !selections.pieza) {
-    missing.push("Pieza");
-  }
-  if (config.options.sistema && !selections.sistema) {
-    missing.push("Sistema");
+  for (const [key, option] of Object.entries(config)) {
+    if (option.required && !selections[key]) {
+      missing.push(option.label);
+    }
   }
 
   return {

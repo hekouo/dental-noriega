@@ -1,151 +1,71 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
-  type VariantType,
   getVariantConfig,
-  buildVariantDetail,
-  validateVariants,
+  VARIANT_OPTIONS,
+  formatVariantDetail,
+  validateVariantSelections,
+  type VariantConfig,
 } from "@/lib/products/variants";
 
 type Props = {
-  variantType: VariantType;
+  productTitle: string;
   onSelectionChange: (variantDetail: string | null) => void;
-  initialVariantDetail?: string;
 };
 
 export default function ProductVariantSelectors({
-  variantType,
+  productTitle,
   onSelectionChange,
-  initialVariantDetail,
 }: Props) {
-  const config = getVariantConfig(variantType);
+  const config = getVariantConfig(productTitle);
+
+  if (!config) {
+    return null;
+  }
+
+  const variantOptions = VARIANT_OPTIONS[config.variantType];
   const [selections, setSelections] = useState<Record<string, string>>({});
 
-  // Parsear initialVariantDetail si existe
-  useEffect(() => {
-    if (initialVariantDetail) {
-      const parsed: Record<string, string> = {};
-      const parts = initialVariantDetail.split(" · ");
-      for (const part of parts) {
-        if (part.includes("Medida:")) {
-          parsed.medida = part.replace("Medida:", "").trim();
-        } else if (part.includes("Arcada:")) {
-          parsed.arcada = part.replace("Arcada:", "").trim();
-        } else if (part.includes("Pieza:")) {
-          parsed.pieza = part.replace("Pieza:", "").trim();
-        } else if (part.includes("Sistema:")) {
-          parsed.sistema = part.replace("Sistema:", "").trim();
-        }
-      }
-      setSelections(parsed);
-    }
-  }, [initialVariantDetail]);
+  const handleSelectionChange = (key: string, value: string) => {
+    const newSelections = { ...selections, [key]: value };
+    setSelections(newSelections);
 
-  // Notificar cambios
-  useEffect(() => {
-    const validation = validateVariants(variantType, selections);
+    const validation = validateVariantSelections(config.variantType, newSelections);
     if (validation.valid) {
-      const detail = buildVariantDetail(variantType, selections);
-      onSelectionChange(detail);
+      const variantDetail = formatVariantDetail(config.variantType, newSelections);
+      onSelectionChange(variantDetail);
     } else {
       onSelectionChange(null);
     }
-  }, [variantType, selections, onSelectionChange]);
-
-  const handleChange = (field: string, value: string) => {
-    setSelections((prev) => ({ ...prev, [field]: value }));
   };
 
-  const validation = validateVariants(variantType, selections);
-
   return (
-    <div className="mt-4 space-y-4">
-      {config.options.medida && (
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Medida del arco <span className="text-red-500">*</span>
+    <div className="mt-4 space-y-4 border-t border-gray-200 pt-4">
+      <p className="text-sm font-medium text-gray-700">
+        Selecciona las opciones requeridas:
+      </p>
+      {Object.entries(variantOptions).map(([key, option]) => (
+        <div key={key}>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            {option.label}
+            {option.required && <span className="text-red-500 ml-1">*</span>}
           </label>
           <select
-            value={selections.medida || ""}
-            onChange={(e) => handleChange("medida", e.target.value)}
+            value={selections[key] || ""}
+            onChange={(e) => handleSelectionChange(key, e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            required={option.required}
           >
-            <option value="">Selecciona una medida</option>
-            {config.options.medida.map((medida) => (
-              <option key={medida} value={medida}>
-                {medida}
+            <option value="">Selecciona {option.label.toLowerCase()}</option>
+            {option.options.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt}
               </option>
             ))}
           </select>
         </div>
-      )}
-
-      {config.options.arcada && (
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Arcada <span className="text-red-500">*</span>
-          </label>
-          <select
-            value={selections.arcada || ""}
-            onChange={(e) => handleChange("arcada", e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-          >
-            <option value="">Selecciona una arcada</option>
-            {config.options.arcada.map((arcada) => (
-              <option key={arcada} value={arcada}>
-                {arcada}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-
-      {config.options.pieza && (
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Pieza <span className="text-red-500">*</span>
-          </label>
-          <select
-            value={selections.pieza || ""}
-            onChange={(e) => handleChange("pieza", e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-          >
-            <option value="">Selecciona una pieza</option>
-            {config.options.pieza.map((pieza) => (
-              <option key={pieza} value={pieza}>
-                {pieza}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-
-      {config.options.sistema && (
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Sistema <span className="text-red-500">*</span>
-          </label>
-          <select
-            value={selections.sistema || ""}
-            onChange={(e) => handleChange("sistema", e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-          >
-            <option value="">Selecciona un sistema</option>
-            {config.options.sistema.map((sistema) => (
-              <option key={sistema} value={sistema}>
-                {sistema}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-
-      {!validation.valid && validation.missing.length > 0 && (
-        <p className="text-sm text-amber-600 mt-2">
-          Por favor selecciona: {validation.missing.join(", ")}
-        </p>
-      )}
+      ))}
     </div>
   );
 }
