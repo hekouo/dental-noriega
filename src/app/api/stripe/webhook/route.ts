@@ -61,9 +61,51 @@ async function registerWebhookEvent(
             orderId = metadata.order_id;
           }
         } catch (err) {
-          if (process.env.NODE_ENV === "development") {
-            console.warn("[webhook] No se pudo obtener PaymentIntent para charge.refunded:", err);
+          console.warn("[webhook] No se pudo obtener PaymentIntent para charge.refunded:", {
+            paymentIntentId,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
+    }
+
+    // Para charge.refund.updated y refund.updated, extraer información similar
+    if (eventType === "charge.refund.updated" || eventType === "refund.updated") {
+      const refund = obj as unknown as Stripe.Refund;
+      // Refund tiene charge (string) y payment_intent (string | PaymentIntent | null)
+      const refundCharge = refund.charge;
+      chargeId = typeof refundCharge === "string" ? refundCharge : null;
+      
+      const refundPaymentIntent = refund.payment_intent;
+      if (refundPaymentIntent && typeof refundPaymentIntent === "string") {
+        paymentIntentId = refundPaymentIntent;
+      } else if (chargeId && stripe) {
+        // Intentar obtener payment_intent desde el charge
+        try {
+          const charge = await stripe.charges.retrieve(chargeId);
+          if (charge.payment_intent && typeof charge.payment_intent === "string") {
+            paymentIntentId = charge.payment_intent;
           }
+        } catch (err) {
+          console.warn("[webhook] No se pudo obtener charge para refund.updated:", {
+            chargeId,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
+      // Intentar resolver order_id si tenemos payment_intent_id
+      if (paymentIntentId && stripe) {
+        try {
+          const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
+          const metadata = pi.metadata as Record<string, unknown> | undefined;
+          if (metadata?.order_id && typeof metadata.order_id === "string") {
+            orderId = metadata.order_id;
+          }
+        } catch (err) {
+          console.warn("[webhook] No se pudo obtener PaymentIntent para refund.updated:", {
+            paymentIntentId,
+            error: err instanceof Error ? err.message : String(err),
+          });
         }
       }
     }
@@ -85,9 +127,11 @@ async function registerWebhookEvent(
   if (insertError) {
     // En PostgreSQL/Supabase, el código de error para violación de clave única es "23505"
     if (insertError.code === "23505" || insertError.message.includes("duplicate key")) {
-      if (process.env.NODE_ENV === "development") {
-        console.log("[webhook] Evento ya procesado (idempotencia):", eventId);
-      }
+      console.log("[webhook] Evento ya procesado (idempotencia):", {
+        eventId,
+        type: eventType,
+        orderId: orderId || "no mapeado",
+      });
       return { alreadyProcessed: true, orderId, paymentIntentId, chargeId };
     }
     // Otro error: loguear pero continuar (podría ser un problema de conexión)
@@ -99,6 +143,15 @@ async function registerWebhookEvent(
         code: insertError.code,
       });
     }
+  } else {
+    // Evento nuevo registrado exitosamente
+    console.log("[webhook] Evento nuevo registrado:", {
+      eventId,
+      type: eventType,
+      orderId: orderId || "no mapeado",
+      paymentIntentId: paymentIntentId || null,
+      chargeId: chargeId || null,
+    });
   }
 
   return { alreadyProcessed: false, orderId, paymentIntentId, chargeId };
@@ -309,11 +362,10 @@ export async function POST(req: NextRequest) {
         ));
 
       if (!extractedOrderId) {
-        if (process.env.NODE_ENV === "development") {
-          console.warn("[webhook] payment_intent.succeeded sin order_id:", {
-            paymentIntentId: paymentIntent.id,
-          });
-        }
+        console.warn("[webhook] payment_intent.succeeded sin order_id (evento registrado pero no procesado):", {
+          eventId: event.id,
+          paymentIntentId: paymentIntent.id,
+        });
         return NextResponse.json({ received: true });
       }
 
@@ -326,13 +378,12 @@ export async function POST(req: NextRequest) {
 
       const currentMetadata = (orderData?.metadata as Record<string, unknown>) || {};
 
-      // Actualizar orden a paid
+      // Actualizar orden a paid (solo payment_status, NO tocar status)
       const updateResult = await updateOrderStatus(
         supabase,
         extractedOrderId,
         "paid",
         {
-          status: "paid",
           payment_id: paymentIntent.id,
           payment_amount: paymentIntent.amount / 100,
           metadata: {
@@ -515,11 +566,10 @@ export async function POST(req: NextRequest) {
         ));
 
       if (!extractedOrderId) {
-        if (process.env.NODE_ENV === "development") {
-          console.warn("[webhook] payment_intent.payment_failed sin order_id:", {
-            paymentIntentId: paymentIntent.id,
-          });
-        }
+        console.warn("[webhook] payment_intent.payment_failed sin order_id (evento registrado pero no procesado):", {
+          eventId: event.id,
+          paymentIntentId: paymentIntent.id,
+        });
         return NextResponse.json({ received: true });
       }
 
@@ -550,15 +600,22 @@ export async function POST(req: NextRequest) {
       );
     } else if (event.type === "charge.refunded") {
       const charge = event.data.object as Stripe.Charge;
-      const extractedOrderId = orderId;
+      // Intentar resolver order_id con fallback si no vino de registerWebhookEvent
+      let extractedOrderId = orderId;
+      if (!extractedOrderId && charge.payment_intent && typeof charge.payment_intent === "string") {
+        extractedOrderId = await resolveOrderIdFromPaymentIntent(
+          supabase,
+          charge.payment_intent,
+          undefined,
+        );
+      }
 
       if (!extractedOrderId) {
-        if (process.env.NODE_ENV === "development") {
-          console.warn("[webhook] charge.refunded sin order_id:", {
-            chargeId: charge.id,
-            paymentIntentId: charge.payment_intent,
-          });
-        }
+        console.warn("[webhook] charge.refunded sin order_id (evento registrado pero no procesado):", {
+          eventId: event.id,
+          chargeId: charge.id,
+          paymentIntentId: charge.payment_intent || null,
+        });
         return NextResponse.json({ received: true });
       }
 
@@ -593,6 +650,18 @@ export async function POST(req: NextRequest) {
           },
         },
       );
+    } else if (
+      event.type === "charge.refund.updated" ||
+      event.type === "refund.updated"
+    ) {
+      // Eventos de observación: solo registrar, no cambiar order
+      // Estos eventos se registran en stripe_webhook_events pero no procesan cambios
+      console.log("[webhook] Evento de observación (refund.updated) registrado:", {
+        eventId: event.id,
+        type: event.type,
+        orderId: orderId || "no mapeado",
+      });
+      // No hacer nada más, solo responder 200
     }
 
     return NextResponse.json({ received: true });
