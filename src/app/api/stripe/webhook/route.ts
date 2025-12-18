@@ -191,6 +191,40 @@ async function updateOrderStatus(
   return { success: true };
 }
 
+/**
+ * Resuelve el order_id desde un PaymentIntent.
+ * Prioridad: 1) metadata.order_id, 2) buscar por stripe_payment_intent_id en orders.metadata
+ */
+async function resolveOrderIdFromPaymentIntent(
+  supabase: any,
+  paymentIntentId: string,
+  metadataOrderId?: string,
+): Promise<string | null> {
+  // Prioridad 1: metadata.order_id
+  if (metadataOrderId && typeof metadataOrderId === "string") {
+    return metadataOrderId;
+  }
+
+  // Prioridad 2: buscar por stripe_payment_intent_id en orders.metadata
+  try {
+    const { data: orders, error } = await supabase
+      .from("orders")
+      .select("id")
+      .eq("metadata->>stripe_payment_intent_id", paymentIntentId)
+      .limit(1);
+
+    if (!error && orders && orders.length > 0) {
+      return orders[0].id;
+    }
+  } catch (err) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[webhook] Error al buscar orden por stripe_payment_intent_id:", err);
+    }
+  }
+
+  return null;
+}
+
 export async function POST(req: NextRequest) {
   noStore();
   try {
@@ -265,7 +299,14 @@ export async function POST(req: NextRequest) {
     // Procesar evento según su tipo
     if (event.type === "payment_intent.succeeded") {
       const paymentIntent = event.data.object as Stripe.PaymentIntent;
-      const extractedOrderId = orderId || paymentIntent.metadata.order_id;
+      // Resolver order_id con fallback
+      const extractedOrderId =
+        orderId ||
+        (await resolveOrderIdFromPaymentIntent(
+          supabase,
+          paymentIntent.id,
+          paymentIntent.metadata.order_id,
+        ));
 
       if (!extractedOrderId) {
         if (process.env.NODE_ENV === "development") {
@@ -464,7 +505,14 @@ export async function POST(req: NextRequest) {
       }
     } else if (event.type === "payment_intent.payment_failed") {
       const paymentIntent = event.data.object as Stripe.PaymentIntent;
-      const extractedOrderId = orderId || paymentIntent.metadata.order_id;
+      // Resolver order_id con fallback
+      const extractedOrderId =
+        orderId ||
+        (await resolveOrderIdFromPaymentIntent(
+          supabase,
+          paymentIntent.id,
+          paymentIntent.metadata.order_id,
+        ));
 
       if (!extractedOrderId) {
         if (process.env.NODE_ENV === "development") {
