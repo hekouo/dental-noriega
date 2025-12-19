@@ -2,7 +2,9 @@ import "server-only";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getProduct } from "@/lib/catalog/getProduct.server";
-import ImageWithFallback from "@/components/ui/ImageWithFallback";
+import { getProductImages } from "@/lib/catalog/getProductImages.server";
+import { sortProductImages } from "@/lib/catalog/sortProductImages";
+import ProductGallery from "@/components/pdp/ProductGallery";
 import ProductActions from "@/components/product/ProductActions.client";
 import ProductViewTracker from "@/components/ProductViewTracker.client";
 import RecentlyViewedTracker from "@/components/catalog/RecentlyViewedTracker.client";
@@ -110,6 +112,10 @@ export default async function ProductDetailPage({ params }: Props) {
     return notFound(); // 404 limpio, no error
   }
 
+  // Obtener imágenes del producto desde product_images
+  const productImages = await getProductImages(product.id);
+  const sortedImages = sortProductImages(productImages);
+
   const image_url = product.image_url;
   const price = new Intl.NumberFormat("es-MX", {
     style: "currency",
@@ -193,19 +199,13 @@ export default async function ProductDetailPage({ params }: Props) {
 
         <div className="max-w-6xl mx-auto px-4 py-6 sm:py-8">
           <div className="grid lg:grid-cols-2 gap-6 sm:gap-8">
-            {/* Imagen */}
+            {/* Galería de imágenes */}
             <div className="space-y-4">
-              <div className="relative w-full aspect-square bg-white rounded-lg overflow-hidden shadow-sm">
-                <ImageWithFallback
-                  src={image_url}
-                  alt={product.title}
-                  width={800}
-                  height={800}
-                  className="w-full h-full object-contain"
-                  sizes="(max-width: 768px) 100vw, 50vw"
-                  priority
-                />
-              </div>
+              <ProductGallery
+                images={sortedImages}
+                title={product.title}
+                fallbackImage={image_url}
+              />
             </div>
 
             {/* Información del producto */}
