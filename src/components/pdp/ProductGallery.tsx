@@ -96,6 +96,7 @@ export default function ProductGallery({ images, title, fallbackImage }: Props) 
               onTouchEnd={handleSwipeEnd}
             >
               <ImageWithFallback
+                key={currentImage.url}
                 src={currentImage.url}
                 alt={`${title} - Imagen ${selectedIndex + 1}`}
                 width={800}
@@ -284,6 +285,7 @@ export default function ProductGallery({ images, title, fallbackImage }: Props) 
             onClick={(e) => e.stopPropagation()}
           >
             <ImageWithFallback
+              key={`lightbox-${currentImage.url}`}
               src={currentImage.url}
               alt={`${title} - Vista ampliada`}
               width={1200}
