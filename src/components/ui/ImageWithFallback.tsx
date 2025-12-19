@@ -1,6 +1,6 @@
 "use client";
 import Image, { ImageProps } from "next/image";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { normalizeImageUrl } from "@/lib/utils/images";
 
 type Props = Omit<ImageProps, "src" | "alt"> & {
@@ -27,6 +27,13 @@ export default function ImageWithFallback({
   const norm = useMemo(() => normalizeImageUrl(src), [src]);
   const [current, setCurrent] = useState<string>(norm ?? fallbackSrc);
   const [failed, setFailed] = useState<boolean>(!norm);
+
+  // Resetear estado cuando cambia src para permitir reintentos
+  useEffect(() => {
+    const normalized = normalizeImageUrl(src);
+    setCurrent(normalized ?? fallbackSrc);
+    setFailed(!normalized);
+  }, [src, fallbackSrc]);
 
   const wrapperStyle = square ? { aspectRatio: "1 / 1" } : undefined;
   const resolvedSizes =
