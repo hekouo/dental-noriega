@@ -121,6 +121,11 @@ export default function CarritoPage() {
               </div>
               <div className="flex-1">
                 <h3 className="font-semibold mb-1">{item.title}</h3>
+                {item.variant_detail && (
+                  <p className="text-xs text-gray-600 mt-1 italic">
+                    {item.variant_detail}
+                  </p>
+                )}
                 <p className="text-sm text-gray-500">ID: {item.id}</p>
                 <p className="text-primary-600 font-bold mt-2">
                   {formatMXN(item.price)}

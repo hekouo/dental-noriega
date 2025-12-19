@@ -12,6 +12,8 @@ import { trackAddToCart, trackWhatsappClick } from "@/lib/analytics/events";
 import { launchCartConfetti, launchPaymentCoins } from "@/lib/ui/confetti";
 import ProductVariantSelectors from "@/components/pdp/ProductVariantSelectors";
 import { requiresVariants, getVariantConfig } from "@/lib/products/variants";
+import ColorSelector from "@/components/pdp/ColorSelector";
+import { hasColorOptions, formatColorVariantDetail } from "@/lib/products/colors";
 import Toast from "@/components/ui/Toast";
 
 type Product = {
@@ -32,6 +34,8 @@ type Props = {
 export default function ProductActions({ product }: Props) {
   const [qty, setQty] = useState(1);
   const [variantDetail, setVariantDetail] = useState<string | null>(null);
+  const [selectedColor, setSelectedColor] = useState<string | null>(null);
+  const [colorNotes, setColorNotes] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: "error" | "success" } | null>(null);
   const addToCart = useCartStore((s) => s.addToCart);
   const upsertSingleToCheckout = useCheckoutStore(
@@ -46,6 +50,7 @@ export default function ProductActions({ product }: Props) {
   const price = mxnFromCents(product.price_cents);
   const formattedPrice = formatMXNFromCents(product.price_cents);
   const needsVariants = requiresVariants(product.title);
+  const needsColor = hasColorOptions(product.product_slug, product.title);
 
   function handleAddToCart() {
     if (!canBuy || busyRef.current) return;
@@ -68,6 +73,24 @@ export default function ProductActions({ product }: Props) {
       }
     }
 
+    // Validar color si es requerido
+    if (needsColor && !selectedColor) {
+      setToast({
+        message: "Selecciona un color antes de agregar este producto a tu pedido.",
+        type: "error",
+      });
+      setTimeout(() => setToast(null), 4000);
+      return;
+    }
+
+    // Combinar variant_detail de variantes y color
+    const colorDetail = selectedColor
+      ? formatColorVariantDetail(selectedColor, colorNotes)
+      : null;
+    const combinedVariantDetail = [variantDetail, colorDetail]
+      .filter(Boolean)
+      .join(" · ") || undefined;
+
     busyRef.current = true;
     addToCart({
       id: product.id,
@@ -76,11 +99,17 @@ export default function ProductActions({ product }: Props) {
       qty,
       image_url: product.image_url ?? undefined,
       selected: true,
-      variant_detail: variantDetail || undefined,
+      variant_detail: combinedVariantDetail,
     });
 
     setTimeout(() => (busyRef.current = false), 250);
-    console.info("✅ Agregado al carrito:", product.title, "x", qty, variantDetail ? `(${variantDetail})` : "");
+    console.info(
+      "✅ Agregado al carrito:",
+      product.title,
+      "x",
+      qty,
+      combinedVariantDetail ? `(${combinedVariantDetail})` : "",
+    );
 
     // Analytics: add_to_cart
     trackAddToCart({
@@ -118,6 +147,24 @@ export default function ProductActions({ product }: Props) {
       }
     }
 
+    // Validar color si es requerido
+    if (needsColor && !selectedColor) {
+      setToast({
+        message: "Selecciona un color antes de comprar este producto.",
+        type: "error",
+      });
+      setTimeout(() => setToast(null), 4000);
+      return;
+    }
+
+    // Combinar variant_detail de variantes y color
+    const colorDetail = selectedColor
+      ? formatColorVariantDetail(selectedColor, colorNotes)
+      : null;
+    const combinedVariantDetail = [variantDetail, colorDetail]
+      .filter(Boolean)
+      .join(" · ") || undefined;
+
     busyRef.current = true;
     
     // Agregar al carrito usando getState() para asegurar ejecución antes del push
@@ -129,7 +176,7 @@ export default function ProductActions({ product }: Props) {
       qty,
       image_url: product.image_url ?? undefined,
       selected: true,
-      variant_detail: variantDetail || undefined,
+      variant_detail: combinedVariantDetail,
     });
 
     // Guardar en checkoutStore directamente
@@ -139,7 +186,7 @@ export default function ProductActions({ product }: Props) {
       price,
       qty,
       image_url: product.image_url ?? undefined,
-      variant_detail: variantDetail || undefined,
+      variant_detail: combinedVariantDetail,
     });
 
     // Analítica: buy_now
@@ -213,6 +260,35 @@ export default function ProductActions({ product }: Props) {
           productTitle={product.title}
           onSelectionChange={setVariantDetail}
         />
+      )}
+
+      {/* Selector de color */}
+      {needsColor && (
+        <ColorSelector
+          productSlug={product.product_slug}
+          productTitle={product.title}
+          value={selectedColor}
+          notes={colorNotes}
+          onChange={(color, notes) => {
+            setSelectedColor(color);
+            setColorNotes(notes);
+          }}
+          required={true}
+        />
+      )}
+
+      {/* Mostrar color seleccionado debajo del nombre */}
+      {needsColor && selectedColor && (
+        <div className="text-sm text-gray-600">
+          <span className="font-medium">Color:</span>{" "}
+          {selectedColor}
+          {colorNotes && (
+            <>
+              {" "}
+              <span className="text-gray-500">· Preferencia: {colorNotes}</span>
+            </>
+          )}
+        </div>
       )}
 
       {/* Controles de cantidad y botones */}

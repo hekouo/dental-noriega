@@ -16,6 +16,7 @@ const OrderItemSchema = z.object({
   price_cents: z.number().int().nonnegative(),
   title: z.string().min(1).optional(), // Título del producto (se usa si está disponible)
   image_url: z.string().url().optional().nullable(), // URL de imagen del producto
+  variant_detail: z.string().optional().nullable(), // Detalle de variantes (color, medidas, etc.)
 });
 
 const CreateOrderRequestSchema = z.object({
@@ -354,6 +355,7 @@ export async function POST(req: NextRequest) {
     if (!existingItems || existingItems.length === 0) {
       // Crear items de la orden usando SOLO las columnas válidas del schema real
       // IMPORTANTE: unit_price_cents es el precio UNITARIO en centavos (no el total del item)
+      const { variantDetailToJSON } = await import("@/lib/products/parseVariantDetail");
       const orderItems = orderData.items.map((item) => {
         if (item.price_cents <= 0) {
           console.warn("[create-order] Item con precio inválido:", {
@@ -361,6 +363,8 @@ export async function POST(req: NextRequest) {
             price_cents: item.price_cents,
           });
         }
+        // Convertir variant_detail de string a JSON
+        const variantDetailJSON = variantDetailToJSON(item.variant_detail || null);
         return {
           order_id: order.id,
           product_id: item.id || null, // UUID si es válido, sino null
@@ -368,6 +372,7 @@ export async function POST(req: NextRequest) {
           unit_price_cents: item.price_cents, // INT en centavos - precio UNITARIO del producto
           qty: item.qty, // Cantidad comprada
           image_url: item.image_url || null, // URL de imagen si está disponible
+          variant_detail: variantDetailJSON, // JSON con detalles de variantes (color, notas, etc.)
         };
       });
 
