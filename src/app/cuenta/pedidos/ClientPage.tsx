@@ -28,6 +28,7 @@ type OrderItem = {
   quantity: number;
   product_name: string;
   price: number;
+  variant_detail?: unknown; // JSONB desde Supabase
 };
 
 type Order = {
@@ -126,19 +127,45 @@ export default function PedidosPageClient() {
                       Productos ({order.order_items?.length || 0})
                     </h4>
                     <div className="space-y-2">
-                      {order.order_items?.map((item: OrderItem) => (
-                        <div
-                          key={item.id}
-                          className="flex justify-between text-sm"
-                        >
-                          <span className="text-gray-600">
-                            {item.quantity}x {item.product_name}
-                          </span>
-                          <span className="font-medium">
-                            {formatMXN(item.price * item.quantity)}
-                          </span>
-                        </div>
-                      ))}
+                      {order.order_items?.map((item: OrderItem) => {
+                        // Parsear variant_detail desde JSON si existe
+                        let variantDetailText: string | null = null;
+                        if (item.variant_detail) {
+                          try {
+                            const variantDetailJSON = typeof item.variant_detail === "string"
+                              ? JSON.parse(item.variant_detail)
+                              : item.variant_detail;
+                            // Importar helper de forma síncrona (es un helper simple)
+                            const { variantDetailFromJSON } = require("@/lib/products/parseVariantDetail");
+                            variantDetailText = variantDetailFromJSON(variantDetailJSON);
+                          } catch {
+                            // Si falla el parseo, usar como string
+                            variantDetailText = typeof item.variant_detail === "string"
+                              ? item.variant_detail
+                              : null;
+                          }
+                        }
+                        return (
+                          <div
+                            key={item.id}
+                            className="flex flex-col gap-1 text-sm"
+                          >
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">
+                                {item.quantity}x {item.product_name}
+                              </span>
+                              <span className="font-medium">
+                                {formatMXN(item.price * item.quantity)}
+                              </span>
+                            </div>
+                            {variantDetailText && (
+                              <div className="text-xs text-gray-500 italic pl-2">
+                                {variantDetailText}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
 
