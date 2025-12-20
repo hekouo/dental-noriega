@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { getColorOptions, SURTIDO_OPTION, formatColorVariantDetail } from "@/lib/products/colors";
+import { getColorOptions, SURTIDO_OPTION } from "@/lib/products/colors";
 
 type Props = {
   productSlug: string;
@@ -47,10 +47,10 @@ export default function ColorSelector({
   return (
     <div className="space-y-3">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="color-selector-group">
           Color {required && <span className="text-red-500">*</span>}
         </label>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2" id="color-selector-group" role="group" aria-describedby="color-selector-help">
           {colors.map((color) => (
             <button
               key={color}
@@ -110,6 +110,11 @@ export default function ColorSelector({
           Los colores están sujetos a disponibilidad. Si el color seleccionado no está disponible, te enviaremos uno igual o lo más parecido posible. Si necesitas un color específico sin sustitución, indícalo en notas o contáctanos por WhatsApp antes de comprar.
         </p>
       </div>
+
+      {/* Texto de ayuda discreto */}
+      <p className="text-xs text-gray-500 mt-2" id="color-selector-help">
+        Nota: Los colores están sujetos a disponibilidad. Si no hay del color seleccionado, te enviaremos uno lo más parecido posible.
+      </p>
     </div>
   );
 }
