@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { getColorOptions, SURTIDO_OPTION, formatColorVariantDetail } from "@/lib/products/colors";
+import { getColorOptions, SURTIDO_OPTION } from "@/lib/products/colors";
 
 type Props = {
   productSlug: string;
