@@ -175,9 +175,28 @@ export default function RootLayout({
         <CheckoutDevGuard />
         <header className="border-b bg-white sticky top-0 z-40">
           <nav className="max-w-6xl mx-auto flex items-center justify-between p-4 gap-4">
-            <Link href={ROUTES.home()}>
-              <BrandMark />
-            </Link>
+            <div className="flex items-center gap-3">
+              <Link href={ROUTES.home()}>
+                <BrandMark />
+              </Link>
+              {process.env.VERCEL_ENV && (
+                <span
+                  className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
+                    process.env.VERCEL_ENV === "production"
+                      ? "bg-green-100 text-green-700"
+                      : process.env.VERCEL_ENV === "preview"
+                        ? "bg-amber-100 text-amber-700"
+                        : "bg-gray-100 text-gray-600"
+                  }`}
+                >
+                  {process.env.VERCEL_ENV === "production"
+                    ? "PROD"
+                    : process.env.VERCEL_ENV === "preview"
+                      ? "PREVIEW"
+                      : "LOCAL"}
+                </span>
+              )}
+            </div>
 
             {/* Buscador desktop */}
             <div className="hidden md:block">

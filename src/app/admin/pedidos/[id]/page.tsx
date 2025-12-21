@@ -6,6 +6,7 @@ import { formatMXNFromCents } from "@/lib/utils/currency";
 import { createSkydropxLabelAction } from "@/lib/actions/shipping.admin";
 import { getShippingStatusLabel, getShippingStatusVariant } from "@/lib/orders/shippingStatus";
 import { getPaymentMethodLabel, getPaymentStatusLabel, getPaymentStatusVariant } from "@/lib/orders/paymentStatus";
+import { variantDetailFromJSON } from "@/lib/products/parseVariantDetail";
 import UpdateShippingStatusClient from "./UpdateShippingStatusClient";
 import UpdatePaymentStatusClient from "./UpdatePaymentStatusClient";
 import ShippingSummaryClient from "./ShippingSummaryClient";
@@ -288,7 +289,7 @@ export default async function AdminPedidoDetailPage({
 
         {/* Datos de envío */}
         <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold mb-3">Datos de envío</h2>
+          <h2 className="text-lg font-semibold mb-4">Envío</h2>
           {/* Resumen de estado de envío */}
           <ShippingSummaryClient
             shippingProvider={order.shipping_provider}
@@ -412,8 +413,8 @@ export default async function AdminPedidoDetailPage({
 
         {/* Estado de pago */}
         <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold mb-4">Estado de Pago</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <h2 className="text-lg font-semibold mb-4">Pago</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
               <p className="text-sm text-gray-600">Método de pago</p>
               <p className="font-medium">
@@ -442,6 +443,22 @@ export default async function AdminPedidoDetailPage({
                 {getPaymentStatusLabel(order.payment_status)}
               </span>
             </div>
+            {(order.metadata as { payment_provider?: string; stripe_payment_intent_id?: string } | null)?.payment_provider && (
+              <div>
+                <p className="text-sm text-gray-600">Proveedor de pago</p>
+                <p className="font-medium">
+                  {(order.metadata as { payment_provider?: string } | null)?.payment_provider || "N/A"}
+                </p>
+              </div>
+            )}
+            {(order.metadata as { stripe_payment_intent_id?: string } | null)?.stripe_payment_intent_id && (
+              <div>
+                <p className="text-sm text-gray-600">ID de pago</p>
+                <p className="font-medium font-mono text-xs">
+                  {(order.metadata as { stripe_payment_intent_id?: string } | null)?.stripe_payment_intent_id}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Controles para actualizar estado de pago */}
@@ -470,9 +487,28 @@ export default async function AdminPedidoDetailPage({
             whatsappE164={whatsappE164}
           />
 
-          {/* Notas internas */}
-          <AdminNotesClient orderId={order.id} initialNotes={order.admin_notes} />
         </div>
+
+        {/* Notas internas */}
+        {order.admin_notes && (
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h2 className="text-lg font-semibold mb-4">Notas internas</h2>
+            <div className="bg-gray-50 rounded-lg p-4">
+              <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                {order.admin_notes}
+              </p>
+            </div>
+            <div className="mt-4">
+              <AdminNotesClient orderId={order.id} initialNotes={order.admin_notes} />
+            </div>
+          </div>
+        )}
+        {!order.admin_notes && (
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h2 className="text-lg font-semibold mb-4">Notas internas</h2>
+            <AdminNotesClient orderId={order.id} initialNotes={order.admin_notes} />
+          </div>
+        )}
 
         {/* Productos */}
         <div className="px-6 py-4">
@@ -508,6 +544,27 @@ export default async function AdminPedidoDetailPage({
                             ID: {item.product_id}
                           </p>
                         )}
+                        {item.variant_detail && (() => {
+                          try {
+                            const variantText = variantDetailFromJSON(item.variant_detail as { color?: string; notes?: string; [key: string]: string | undefined } | null);
+                            if (variantText) {
+                              return (
+                                <p className="text-xs text-gray-600 italic mt-1">
+                                  {variantText}
+                                </p>
+                              );
+                            }
+                          } catch {
+                            // Si falla el parseo, mostrar formato simple
+                          }
+                          return (
+                            <p className="text-xs text-gray-500 mt-1">
+                              {Object.entries(item.variant_detail as Record<string, unknown>)
+                                .map(([key, value]) => `${key}: ${String(value)}`)
+                                .join(" · ")}
+                            </p>
+                          );
+                        })()}
                       </td>
                       <td className="px-4 py-3 text-center">{item.qty}</td>
                       <td className="px-4 py-3 text-right">
