@@ -60,6 +60,7 @@ export type OrderItem = {
   qty: number;
   unit_price_cents: number;
   image_url: string | null;
+  variant_detail: Record<string, unknown> | null;
 };
 
 export type OrderDetail = OrderSummary & {
@@ -279,7 +280,7 @@ export async function getOrderWithItems(
     // Cargar items
     const { data: itemsData, error: itemsError } = await supabase
       .from("order_items")
-      .select("id, product_id, title, qty, unit_price_cents, image_url")
+      .select("id, product_id, title, qty, unit_price_cents, image_url, variant_detail")
       .eq("order_id", orderData.id);
 
     if (itemsError) {
@@ -290,7 +291,10 @@ export async function getOrderWithItems(
       });
     }
 
-    const items = itemsData || [];
+    const items = (itemsData || []).map((item) => ({
+      ...item,
+      variant_detail: item.variant_detail || null,
+    }));
 
     return {
       id: orderData.id, // UUID completo - NUNCA truncar
@@ -490,7 +494,7 @@ export async function getOrderWithItemsAdmin(
     // Cargar items
     const { data: itemsData, error: itemsError } = await supabase
       .from("order_items")
-      .select("id, product_id, title, qty, unit_price_cents, image_url")
+      .select("id, product_id, title, qty, unit_price_cents, image_url, variant_detail")
       .eq("order_id", orderData.id);
 
     if (itemsError) {
@@ -501,7 +505,10 @@ export async function getOrderWithItemsAdmin(
       });
     }
 
-    const items = itemsData || [];
+    const items = (itemsData || []).map((item) => ({
+      ...item,
+      variant_detail: item.variant_detail || null,
+    }));
 
     // Extraer información de envío de metadata
     const metadata = (orderData.metadata as OrderSummary["metadata"]) || null;

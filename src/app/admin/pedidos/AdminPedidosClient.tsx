@@ -374,8 +374,8 @@ export default function AdminPedidosClient({
                       </span>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                      {order.shipping_provider === "pickup" ? (
-                        <span className="text-gray-700">Recoger en tienda · $0</span>
+                      {order.shipping_provider === null || order.shipping_provider === "pickup" ? (
+                        <span className="text-gray-700">Recoger en tienda</span>
                       ) : order.shipping_provider === "skydropx" ? (
                         <div>
                           <div className="font-medium text-gray-900">
@@ -384,6 +384,11 @@ export default function AdminPedidosClient({
                           {order.shipping_price_cents !== null && (
                             <div className="text-xs text-gray-500">
                               {formatMXNFromCents(order.shipping_price_cents)}
+                            </div>
+                          )}
+                          {order.shipping_tracking_number && (
+                            <div className="text-xs text-gray-400 font-mono mt-1">
+                              {order.shipping_tracking_number}
                             </div>
                           )}
                         </div>
