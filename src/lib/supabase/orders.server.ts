@@ -40,6 +40,8 @@ export type OrderSummary = {
   shipping_status: string | null;
   payment_method: string | null;
   payment_status: string | null;
+  payment_provider: string | null;
+  payment_id: string | null;
   admin_notes: string | null;
 };
 
@@ -132,7 +134,7 @@ export async function getOrdersByEmail(
 
     const { data, error } = await supabase
       .from("orders")
-      .select("id, created_at, status, email, total_cents, metadata, shipping_provider, shipping_service_name, shipping_price_cents, shipping_rate_ext_id, shipping_eta_min_days, shipping_eta_max_days, shipping_tracking_number, shipping_label_url, shipping_status, payment_method, payment_status, admin_notes")
+      .select("id, created_at, status, email, total_cents, metadata, shipping_provider, shipping_service_name, shipping_price_cents, shipping_rate_ext_id, shipping_eta_min_days, shipping_eta_max_days, shipping_tracking_number, shipping_label_url, shipping_status, payment_method, payment_status, payment_provider, payment_id, admin_notes")
       .eq("email", normalizedEmail)
       .order("created_at", { ascending: false })
       .limit(limit);
@@ -191,6 +193,8 @@ export async function getOrdersByEmail(
       shipping_status: order.shipping_status || null,
       payment_method: order.payment_method || null,
       payment_status: order.payment_status || null,
+      payment_provider: order.payment_provider || null,
+      payment_id: order.payment_id || null,
       admin_notes: order.admin_notes || null,
     }));
 }
@@ -230,7 +234,7 @@ export async function getOrderWithItems(
     // Buscar orden por id (UNA sola búsqueda)
     const { data: orderData, error } = await supabase
       .from("orders")
-      .select("id, created_at, status, email, total_cents, metadata, shipping_provider, shipping_service_name, shipping_price_cents, shipping_rate_ext_id, shipping_eta_min_days, shipping_eta_max_days, shipping_tracking_number, shipping_label_url, shipping_status, payment_method, payment_status, admin_notes")
+      .select("id, created_at, status, email, total_cents, metadata, shipping_provider, shipping_service_name, shipping_price_cents, shipping_rate_ext_id, shipping_eta_min_days, shipping_eta_max_days, shipping_tracking_number, shipping_label_url, shipping_status, payment_method, payment_status, payment_provider, payment_id, admin_notes")
       .eq("id", normalizedOrderId)
       .maybeSingle();
 
@@ -317,6 +321,8 @@ export async function getOrderWithItems(
       shipping_status: orderData.shipping_status || null,
       payment_method: orderData.payment_method || null,
       payment_status: orderData.payment_status || null,
+      payment_provider: orderData.payment_provider || null,
+      payment_id: orderData.payment_id || null,
       admin_notes: orderData.admin_notes || null,
     };
   } catch (err) {
@@ -352,7 +358,7 @@ export async function getAllOrdersAdmin(
   try {
     let query = supabase
       .from("orders")
-      .select("id, created_at, status, email, total_cents, metadata, shipping_provider, shipping_service_name, shipping_price_cents, shipping_rate_ext_id, shipping_eta_min_days, shipping_eta_max_days, shipping_tracking_number, shipping_label_url, shipping_status, payment_method, payment_status, admin_notes", {
+      .select("id, created_at, status, email, total_cents, metadata, shipping_provider, shipping_service_name, shipping_price_cents, shipping_rate_ext_id, shipping_eta_min_days, shipping_eta_max_days, shipping_tracking_number, shipping_label_url, shipping_status, payment_method, payment_status, payment_provider, payment_id, admin_notes", {
         count: "exact",
       });
 
@@ -420,6 +426,8 @@ export async function getAllOrdersAdmin(
       shipping_status: order.shipping_status || null,
       payment_method: order.payment_method || null,
       payment_status: order.payment_status || null,
+      payment_provider: order.payment_provider || null,
+      payment_id: order.payment_id || null,
       admin_notes: order.admin_notes || null,
     }));
 
@@ -463,7 +471,7 @@ export async function getOrderWithItemsAdmin(
     // Buscar orden por id
     const { data: orderData, error } = await supabase
       .from("orders")
-      .select("id, created_at, status, email, total_cents, metadata, shipping_provider, shipping_service_name, shipping_price_cents, shipping_rate_ext_id, shipping_eta_min_days, shipping_eta_max_days, shipping_tracking_number, shipping_label_url, shipping_status, payment_method, payment_status, admin_notes")
+      .select("id, created_at, status, email, total_cents, metadata, shipping_provider, shipping_service_name, shipping_price_cents, shipping_rate_ext_id, shipping_eta_min_days, shipping_eta_max_days, shipping_tracking_number, shipping_label_url, shipping_status, payment_method, payment_status, payment_provider, payment_id, admin_notes")
       .eq("id", normalizedOrderId)
       .maybeSingle();
 
@@ -590,6 +598,8 @@ export async function getOrderWithItemsAdmin(
       shipping_status: orderData.shipping_status || null,
       payment_method: orderData.payment_method || null,
       payment_status: orderData.payment_status || null,
+      payment_provider: orderData.payment_provider || null,
+      payment_id: orderData.payment_id || null,
       admin_notes: orderData.admin_notes || null,
     };
   } catch (err) {

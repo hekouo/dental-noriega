@@ -379,13 +379,15 @@ export async function POST(req: NextRequest) {
       const currentMetadata = (orderData?.metadata as Record<string, unknown>) || {};
 
       // Actualizar orden a paid (solo payment_status, NO tocar status)
+      // Persistir payment_provider y payment_id en columnas reales
       const updateResult = await updateOrderStatus(
         supabase,
         extractedOrderId,
         "paid",
         {
+          payment_method: "card",
+          payment_provider: "stripe",
           payment_id: paymentIntent.id,
-          payment_amount: paymentIntent.amount / 100,
           metadata: {
             ...currentMetadata,
             stripe_payment_intent_id: paymentIntent.id,
@@ -591,6 +593,9 @@ export async function POST(req: NextRequest) {
         extractedOrderId,
         paymentStatus,
         {
+          payment_method: "card",
+          payment_provider: "stripe",
+          payment_id: paymentIntent.id, // Guardar payment_id incluso si falló
           metadata: {
             ...currentMetadata,
             payment_failure_reason: failureReason,

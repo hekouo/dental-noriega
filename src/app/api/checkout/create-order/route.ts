@@ -290,16 +290,25 @@ export async function POST(req: NextRequest) {
       // shippingRateExtId, shippingEtaMinDays, shippingEtaMaxDays quedan null
     }
 
-    // Determinar payment_method y payment_status
+    // Determinar payment_method, payment_status, payment_provider y payment_id
     // Si viene en el payload, usarlo; si no, inferir según stripe_session_id
     const paymentMethod: string | null = orderData.paymentMethod || null;
     let paymentStatus: string | null = orderData.paymentStatus || null;
+    let paymentProvider: string | null = null;
+    const paymentId: string | null = null;
     
     // Si no viene paymentStatus, determinar según método:
     // - card: "pending" (se actualizará cuando Stripe confirme)
-    // - bank_transfer o cash: "pending"
+    // - bank_transfer: "pending"
     if (!paymentStatus && paymentMethod) {
       paymentStatus = "pending";
+    }
+
+    // Establecer payment_provider según payment_method
+    if (paymentMethod === "card") {
+      paymentProvider = "stripe"; // Se actualizará cuando se cree el PaymentIntent
+    } else if (paymentMethod === "bank_transfer") {
+      paymentProvider = "bank_transfer";
     }
 
     // Crear orden usando SOLO las columnas válidas del schema real
@@ -310,8 +319,6 @@ export async function POST(req: NextRequest) {
         email: orderData.email || null,
         total_cents: total_cents, // INT en centavos
         status: "pending",
-        payment_provider: null, // Se actualizará cuando se cree el PaymentIntent
-        payment_id: null,
         metadata: metadata,
         // Campos de shipping de Skydropx (opcionales)
         shipping_provider: shippingProvider,
@@ -325,6 +332,8 @@ export async function POST(req: NextRequest) {
         // Método y estado de pago
         payment_method: paymentMethod,
         payment_status: paymentStatus,
+        payment_provider: paymentProvider,
+        payment_id: paymentId,
       })
       .select("id, total_cents")
       .single();

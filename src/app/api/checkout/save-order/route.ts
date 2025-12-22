@@ -311,30 +311,47 @@ export async function POST(req: NextRequest) {
 
       const loyaltyMetadata = updatedOrder?.metadata || metadata;
 
+      // Obtener valores actuales de payment_provider y payment_id para no sobreescribir
+      const { data: currentOrderData } = await supabase
+        .from("orders")
+        .select("payment_provider, payment_id")
+        .eq("id", orderData.order_id)
+        .single();
+
       // Actualizar orden existente usando el schema real
       // IMPORTANTE: NO eliminamos ni recreamos order_items aquí
       // Los items ya fueron creados en create-order y solo se actualizan si es necesario
+      // Solo actualizar payment_provider/payment_id si vienen en orderData Y no están ya establecidos
+      const updateData: Record<string, unknown> = {
+        user_id: user_id,
+        email: orderData.email,
+        total_cents: orderData.total_cents,
+        status: orderData.status,
+        metadata: loyaltyMetadata,
+        // Campos de shipping de Skydropx (opcionales)
+        shipping_provider: shippingProvider,
+        shipping_service_name: shippingServiceName,
+        shipping_price_cents: shippingPriceCents,
+        shipping_rate_ext_id: shippingRateExtId,
+        shipping_eta_min_days: shippingEtaMinDays,
+        shipping_eta_max_days: shippingEtaMaxDays,
+        // Estado de envío por defecto: "pending"
+        shipping_status: "pending",
+        updated_at: new Date().toISOString(),
+      };
+
+      // Solo actualizar payment_provider si viene en orderData Y la columna está NULL
+      if (orderData.payment_provider && !currentOrderData?.payment_provider) {
+        updateData.payment_provider = orderData.payment_provider;
+      }
+      // Solo actualizar payment_id si viene en orderData Y la columna está NULL
+      if (orderData.payment_id && !currentOrderData?.payment_id) {
+        updateData.payment_id = orderData.payment_id;
+      }
+
       const { error: updateError } = await supabase
         .from("orders")
-        .update({
-          user_id: user_id,
-          email: orderData.email,
-          total_cents: orderData.total_cents,
-          status: orderData.status,
-          payment_provider: orderData.payment_provider || "stripe",
-          payment_id: orderData.payment_id || null,
-          metadata: loyaltyMetadata,
-          // Campos de shipping de Skydropx (opcionales)
-          shipping_provider: shippingProvider,
-          shipping_service_name: shippingServiceName,
-          shipping_price_cents: shippingPriceCents,
-          shipping_rate_ext_id: shippingRateExtId,
-          shipping_eta_min_days: shippingEtaMinDays,
-          shipping_eta_max_days: shippingEtaMaxDays,
-          // Estado de envío por defecto: "pending"
-          shipping_status: "pending",
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq("id", orderData.order_id);
 
       if (updateError) {

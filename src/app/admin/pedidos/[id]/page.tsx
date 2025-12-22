@@ -443,19 +443,19 @@ export default async function AdminPedidoDetailPage({
                 {getPaymentStatusLabel(order.payment_status)}
               </span>
             </div>
-            {(order.metadata as { payment_provider?: string; stripe_payment_intent_id?: string } | null)?.payment_provider && (
+            {(order.payment_provider || (order.metadata as { payment_provider?: string } | null)?.payment_provider) && (
               <div>
                 <p className="text-sm text-gray-600">Proveedor de pago</p>
                 <p className="font-medium">
-                  {(order.metadata as { payment_provider?: string } | null)?.payment_provider || "N/A"}
+                  {order.payment_provider || (order.metadata as { payment_provider?: string } | null)?.payment_provider || "N/A"}
                 </p>
               </div>
             )}
-            {(order.metadata as { stripe_payment_intent_id?: string } | null)?.stripe_payment_intent_id && (
+            {(order.payment_id || (order.metadata as { stripe_payment_intent_id?: string } | null)?.stripe_payment_intent_id) && (
               <div>
                 <p className="text-sm text-gray-600">ID de pago</p>
                 <p className="font-medium font-mono text-xs">
-                  {(order.metadata as { stripe_payment_intent_id?: string } | null)?.stripe_payment_intent_id}
+                  {order.payment_id || (order.metadata as { stripe_payment_intent_id?: string } | null)?.stripe_payment_intent_id}
                 </p>
               </div>
             )}
