@@ -439,24 +439,40 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Guardar stripe_payment_intent_id en orders.metadata
+    // Guardar stripe_payment_intent_id en orders.metadata Y en columnas payment_provider/payment_id
     try {
       const { data: currentOrder } = await supabase
         .from("orders")
-        .select("metadata")
+        .select("metadata, payment_provider, payment_id, payment_method")
         .eq("id", order_id)
         .single();
 
       const currentMetadata = (currentOrder?.metadata as Record<string, unknown>) || {};
 
+      // Actualizar columnas payment_provider y payment_id (solo si están NULL para no sobreescribir)
+      const updateData: Record<string, unknown> = {
+        metadata: {
+          ...currentMetadata,
+          stripe_payment_intent_id: paymentIntent.id,
+        },
+      };
+
+      // Solo actualizar payment_provider si está NULL
+      if (!currentOrder?.payment_provider) {
+        updateData.payment_provider = "stripe";
+      }
+      // Solo actualizar payment_id si está NULL
+      if (!currentOrder?.payment_id) {
+        updateData.payment_id = paymentIntent.id;
+      }
+      // Asegurar payment_method si no está establecido
+      if (!currentOrder?.payment_method) {
+        updateData.payment_method = "card";
+      }
+
       await supabase
         .from("orders")
-        .update({
-          metadata: {
-            ...currentMetadata,
-            stripe_payment_intent_id: paymentIntent.id,
-          },
-        })
+        .update(updateData)
         .eq("id", order_id);
 
       if (debug) {

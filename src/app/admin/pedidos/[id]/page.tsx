@@ -443,22 +443,34 @@ export default async function AdminPedidoDetailPage({
                 {getPaymentStatusLabel(order.payment_status)}
               </span>
             </div>
-            {(order.metadata as { payment_provider?: string; stripe_payment_intent_id?: string } | null)?.payment_provider && (
-              <div>
-                <p className="text-sm text-gray-600">Proveedor de pago</p>
-                <p className="font-medium">
-                  {(order.metadata as { payment_provider?: string } | null)?.payment_provider || "N/A"}
-                </p>
-              </div>
-            )}
-            {(order.metadata as { stripe_payment_intent_id?: string } | null)?.stripe_payment_intent_id && (
-              <div>
-                <p className="text-sm text-gray-600">ID de pago</p>
-                <p className="font-medium font-mono text-xs">
-                  {(order.metadata as { stripe_payment_intent_id?: string } | null)?.stripe_payment_intent_id}
-                </p>
-              </div>
-            )}
+            {(() => {
+              // Prioridad: columna > metadata.payment_provider > inferir desde stripe_payment_intent_id
+              const paymentProvider = order.payment_provider 
+                ?? (order.metadata as { payment_provider?: string } | null)?.payment_provider
+                ?? ((order.metadata as { stripe_payment_intent_id?: string } | null)?.stripe_payment_intent_id ? "stripe" : null);
+              
+              return paymentProvider ? (
+                <div>
+                  <p className="text-sm text-gray-600">Proveedor de pago</p>
+                  <p className="font-medium">{paymentProvider}</p>
+                </div>
+              ) : null;
+            })()}
+            {(() => {
+              // Prioridad: columna > metadata.payment_id > metadata.stripe_payment_intent_id > metadata.checkout_session_id
+              const paymentId = order.payment_id
+                ?? (order.metadata as { payment_id?: string } | null)?.payment_id
+                ?? (order.metadata as { stripe_payment_intent_id?: string } | null)?.stripe_payment_intent_id
+                ?? (order.metadata as { checkout_session_id?: string } | null)?.checkout_session_id
+                ?? null;
+              
+              return paymentId ? (
+                <div>
+                  <p className="text-sm text-gray-600">ID de pago</p>
+                  <p className="font-medium font-mono text-xs">{paymentId}</p>
+                </div>
+              ) : null;
+            })()}
           </div>
 
           {/* Controles para actualizar estado de pago */}
