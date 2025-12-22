@@ -1,5 +1,8 @@
 <<<<<<< HEAD
 ## 🎯 Objetivo
+=======
+<<<<<<< HEAD
+## 🎯 Objetivo
 
 Mejorar el Admin de Pedidos para usar y mostrar las columnas reales de `public.orders` (shipping_* y payment_*) en lugar de solo metadata, y agregar visualización de `variant_detail` en los items del pedido.
 
@@ -59,67 +62,84 @@ Mejorar el Admin de Pedidos para usar y mostrar las columnas reales de `public.o
 - Reutiliza helpers existentes (`formatMXNFromCents`, `variantDetailFromJSON`, etc.)
 =======
 ## Objetivo
+>>>>>>> origin/main
 
-Implementar selector de color para productos con variedad (ej: MODULO DE LLAVE) sin crear variantes en DB. El color seleccionado se guarda en `order_items.variant_detail` como JSONB.
+Estandarizar el uso de `payment_provider` y `payment_id` en las columnas reales de `public.orders`, en lugar de depender solo de `metadata`. Esto mejora la consistencia y facilita consultas directas.
 
-## Cambios
+## 📋 Cambios realizados
 
-### Nuevos archivos
-- `src/lib/products/colors.ts`: Helpers para identificar productos con colores y formatear variant_detail
-- `src/components/pdp/ColorSelector.tsx`: Componente de selector de color con chips y opción "Surtido (mix)"
-- `src/lib/products/parseVariantDetail.ts`: Utilidades para convertir variant_detail entre string y JSON
-- `ops/sql/add_variant_detail_to_order_items.sql`: Script SQL para agregar columna `variant_detail` (JSONB) a `order_items`
+### 1. Persistencia en flujos de pago
 
-### Archivos modificados
-- `src/components/product/ProductActions.client.tsx`: Integración de ColorSelector, validación de color requerido, combinación de variant_detail
-- `src/app/api/checkout/create-order/route.ts`: Guardado de variant_detail como JSON en order_items
-- `src/app/api/checkout/save-order/route.ts`: Guardado de variant_detail como JSON en order_items (Zod schema actualizado)
-- `src/app/checkout/pago/PagoClient.tsx`: Envío de variant_detail en payload de orden
-- `src/app/carrito/page.tsx`: Visualización de variant_detail en carrito
-- `src/app/cuenta/pedidos/ClientPage.tsx`: Visualización de variant_detail desde JSON en pedidos
+#### Flujo CARD (Stripe)
+- ✅ **Webhook Stripe** (`/api/stripe/webhook`):
+  - Al confirmar pago (`payment_intent.succeeded`): establece `payment_provider='stripe'`, `payment_id=<payment_intent_id>`, `payment_method='card'`, `payment_status='paid'`
+  - Al fallar pago (`payment_intent.payment_failed`): establece `payment_provider='stripe'`, `payment_id=<payment_intent_id>`, `payment_status='failed'`
+  - Al reembolsar (`charge.refunded`): establece `payment_provider='stripe'`, `payment_id=<payment_intent_id>`, `payment_status='refunded'`
+- ✅ **create-payment-intent** (`/api/stripe/create-payment-intent`):
+  - Establece `payment_provider='stripe'` y `payment_id=<payment_intent_id>` en columnas (solo si están NULL)
+  - Asegura `payment_method='card'` si no está establecido
 
-## Características
+#### Flujo TRANSFERENCIA
+- ✅ **create-order** (`/api/checkout/create-order`):
+  - Para `payment_method='bank_transfer'`: establece `payment_provider='bank_transfer'`, `payment_status='pending'`, `payment_id=NULL`
 
-- ✅ Selector de color con chips para colores disponibles
-- ✅ Opción "Surtido (mix)" con input opcional para preferencias
-- ✅ Aviso de disponibilidad de colores
-- ✅ Validación: color obligatorio si el producto tiene colores (default: "Surtido (mix)" preseleccionado)
-- ✅ Persistencia: variant_detail guardado como JSON en `order_items.variant_detail`
-- ✅ Visualización: color mostrado en PDP, carrito, checkout y pedidos
-- ✅ Compatibilidad: funciona junto con otras variantes (arcos, brackets, etc.)
+#### save-order
+- ✅ **save-order** (`/api/checkout/save-order`):
+  - No sobreescribe `payment_provider` y `payment_id` si ya están establecidos
+  - Solo actualiza si las columnas están NULL
 
-## Estructura de datos
+### 2. Actualización de tipos TypeScript
 
-- **En carrito**: `variant_detail` como string (ej: "Color: Azul" o "Color: Surtido · Preferencia: 2 azules y 1 rojo")
-- **En order_items**: `variant_detail` como JSONB (ej: `{"color": "Azul"}` o `{"color": "Surtido", "notes": "2 azules y 1 rojo"}`)
+- ✅ Actualizado `OrderSummary` y `OrderDetail` en `src/lib/supabase/orders.server.ts`:
+  - Agregados `payment_provider: string | null` y `payment_id: string | null`
+- ✅ Actualizados todos los `select` queries para incluir `payment_provider` y `payment_id`
+- ✅ Actualizado mapeo de datos en funciones de fetch
 
-## Productos configurados
+### 3. Admin UI (solo lectura)
 
-- `modulo-de-llave` (MODULO DE LLAVE) - 10 colores disponibles
+- ✅ **Detalle de pedido** (`/admin/pedidos/[id]`):
+  - Sección "Pago" mejorada con prioridad de columnas:
+    - `payment_provider`: `order.payment_provider` → `metadata.payment_provider` → inferir desde `stripe_payment_intent_id`
+    - `payment_id`: `order.payment_id` → `metadata.payment_id` → `metadata.stripe_payment_intent_id` → `metadata.checkout_session_id`
+  - Mantiene compatibilidad con metadata para órdenes antiguas
+
+### 4. Backfill SQL
+
+- ✅ Script idempotente: `ops/sql/backfill_payment_columns_from_metadata.sql`
+  - Migra datos desde `metadata` a columnas reales (solo cuando están NULL)
+  - Seguro: no rompe órdenes sin metadata compatible
+
+## ✅ Validaciones
+
+- ✅ `pnpm typecheck` - Sin errores
+- ✅ `pnpm build` - Compilación exitosa
+- ✅ `pnpm lint` - Solo warnings preexistentes (no relacionados con estos cambios)
 
 ## ⚠️ Paso obligatorio post-merge
 
 **Ejecutar en Supabase SQL Editor:**
 
 ```sql
-ALTER TABLE public.order_items 
-ADD COLUMN IF NOT EXISTS variant_detail JSONB;
-
-COMMENT ON COLUMN public.order_items.variant_detail IS 
-  'Detalles de variantes del producto (ej: {"color": "Azul"} o {"color": "Surtido", "notes": "2 azules y 1 rojo"})';
+-- Ver ops/sql/backfill_payment_columns_from_metadata.sql
 ```
 
-El script completo está en: `ops/sql/add_variant_detail_to_order_items.sql`
+El script rellenará `payment_provider` y `payment_id` en órdenes existentes usando datos de `metadata` cuando sea posible.
 
-## Validaciones
+## 🧪 Testing
 
-- ✅ `pnpm typecheck`: OK
-- ✅ `pnpm build`: OK
-- ✅ `pnpm lint`: Solo warnings preexistentes (no relacionados)
-- ⚠️ `pnpm test`: Algunos tests fallidos (preexistentes, no relacionados con este PR)
+- [ ] Verificar que nueva compra con tarjeta: `orders.payment_provider='stripe'` y `orders.payment_id` poblado automáticamente
+- [ ] Verificar que nueva compra por transferencia: `orders.payment_provider='bank_transfer'` y `payment_status='pending'`
+- [ ] Verificar que Admin muestra provider/id sin depender de metadata en nuevas órdenes
+- [ ] Verificar que Admin mantiene compatibilidad con órdenes antiguas (fallback a metadata)
 
-## Checklist
+## 📝 Notas
 
+<<<<<<< HEAD
+- No se cambió lógica de negocio, solo persistencia y visualización
+- Los tipos TypeScript están actualizados
+- Compatible con SSR (no rompe server components)
+- Mantiene compatibilidad hacia atrás: si columnas están NULL, Admin hace fallback a metadata
+=======
 - [x] Código compila sin errores
 - [x] Build exitoso
 - [x] Lint sin errores nuevos
@@ -128,4 +148,5 @@ El script completo está en: `ops/sql/add_variant_detail_to_order_items.sql`
 - [x] Visualización en carrito/checkout/pedidos
 - [x] Script SQL incluido
 - [ ] Script SQL ejecutado en Supabase (post-merge)
+>>>>>>> origin/main
 >>>>>>> origin/main
