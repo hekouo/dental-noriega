@@ -13,6 +13,7 @@ import ShippingSummaryClient from "./ShippingSummaryClient";
 import ResendPaymentInstructionsClient from "./ResendPaymentInstructionsClient";
 import WhatsappContactClient from "./WhatsappContactClient";
 import AdminNotesClient from "./AdminNotesClient";
+import EditShippingAndNotesClient from "./EditShippingAndNotesClient";
 import { normalizePhoneToE164Mx } from "@/lib/utils/phone";
 
 export const dynamic = "force-dynamic";
@@ -403,11 +404,36 @@ export default async function AdminPedidoDetailPage({
                 currentStatus={order.shipping_status}
                 shippingProvider={order.shipping_provider}
               />
+
+              {/* Editor de campos de envío y notas */}
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <h3 className="text-md font-semibold mb-4">Editar envío y notas</h3>
+                <EditShippingAndNotesClient
+                  orderId={order.id}
+                  initialAdminNotes={order.admin_notes}
+                  initialShippingStatus={order.shipping_status}
+                  initialShippingTrackingNumber={order.shipping_tracking_number}
+                  initialShippingLabelUrl={order.shipping_label_url}
+                />
+              </div>
             </div>
           ) : (
-            <p className="text-sm text-gray-500">
-              Esta orden no tiene información de envío. Revisa el checkout.
-            </p>
+            <div>
+              <p className="text-sm text-gray-500 mb-4">
+                Esta orden no tiene información de envío. Revisa el checkout.
+              </p>
+              {/* Editor de notas (aunque no haya envío) */}
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <h3 className="text-md font-semibold mb-4">Editar notas</h3>
+                <EditShippingAndNotesClient
+                  orderId={order.id}
+                  initialAdminNotes={order.admin_notes}
+                  initialShippingStatus={order.shipping_status}
+                  initialShippingTrackingNumber={order.shipping_tracking_number}
+                  initialShippingLabelUrl={order.shipping_label_url}
+                />
+              </div>
+            </div>
           )}
         </div>
 
@@ -501,23 +527,17 @@ export default async function AdminPedidoDetailPage({
 
         </div>
 
-        {/* Notas internas */}
-        {order.admin_notes && (
+        {/* Notas internas - Solo mostrar si no hay sección de envío (ya está integrado arriba) */}
+        {!order.shipping_provider && (
           <div className="px-6 py-4 border-b border-gray-200">
             <h2 className="text-lg font-semibold mb-4">Notas internas</h2>
-            <div className="bg-gray-50 rounded-lg p-4">
-              <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                {order.admin_notes}
-              </p>
-            </div>
-            <div className="mt-4">
-              <AdminNotesClient orderId={order.id} initialNotes={order.admin_notes} />
-            </div>
-          </div>
-        )}
-        {!order.admin_notes && (
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold mb-4">Notas internas</h2>
+            {order.admin_notes && (
+              <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                  {order.admin_notes}
+                </p>
+              </div>
+            )}
             <AdminNotesClient orderId={order.id} initialNotes={order.admin_notes} />
           </div>
         )}
