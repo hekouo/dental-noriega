@@ -443,7 +443,7 @@ export async function POST(req: NextRequest) {
     try {
       const { data: currentOrder } = await supabase
         .from("orders")
-        .select("metadata, payment_provider, payment_id")
+        .select("metadata, payment_provider, payment_id, payment_method")
         .eq("id", order_id)
         .single();
 
@@ -466,12 +466,7 @@ export async function POST(req: NextRequest) {
         updateData.payment_id = paymentIntent.id;
       }
       // Asegurar payment_method si no está establecido
-      const { data: orderForMethod } = await supabase
-        .from("orders")
-        .select("payment_method")
-        .eq("id", order_id)
-        .single();
-      if (!orderForMethod?.payment_method) {
+      if (!currentOrder?.payment_method) {
         updateData.payment_method = "card";
       }
 
