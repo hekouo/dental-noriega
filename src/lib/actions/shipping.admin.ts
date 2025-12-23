@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import type { ShippingStatus } from "@/lib/orders/shippingStatus";
 import type { PaymentStatus } from "@/lib/orders/paymentStatus";
-import { SHIPPING_STATUSES, isValidShippingStatus, PAYMENT_STATUSES, isValidPaymentStatus } from "@/lib/orders/statuses";
+import { isValidShippingStatus, isValidPaymentStatus } from "@/lib/orders/statuses";
 import { buildShippingEmail } from "@/lib/notifications/shipping";
 import { sendTransactionalEmail } from "@/lib/notifications/email";
 import { buildBankTransferEmail } from "@/lib/notifications/payment";
