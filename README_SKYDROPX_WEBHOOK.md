@@ -13,18 +13,21 @@
    SKYDROPX_WEBHOOK_SECRET=tu_secret_aqui
    ```
 
-### Eventos Soportados
+### Eventos y Estados Soportados
 
-El webhook mapea los siguientes eventos de Skydropx a estados canónicos:
+El webhook mapea los siguientes eventos/estados de Skydropx a estados canónicos:
 
-- `picked_up` / `in_transit` → `in_transit`
+- `created` / `label_created` → `label_created`
+- `picked_up` / `in_transit` / `last_mile` → `in_transit`
 - `delivered` → `delivered`
-- `exception` / `cancelled` / `canceled` → `cancelled`
-- `label_created` / `created` → `label_created`
+- `delivered_to_branch` → `ready_for_pickup`
+- `exception` / `cancelled` / `canceled` / `in_return` → `cancelled`
 
 ### Estructura del Payload
 
-El webhook espera un payload JSON con al menos:
+El webhook soporta múltiples formatos de payload:
+
+#### Formato Simple (Legacy)
 
 ```json
 {
@@ -35,6 +38,32 @@ El webhook espera un payload JSON con al menos:
 }
 ```
 
+#### Formato JSON:API
+
+```json
+{
+  "type": "shipment",
+  "data": {
+    "id": "shipment_ext_id_123",
+    "type": "shipment",
+    "attributes": {
+      "status": "delivered",
+      "tracking_number": "ABC123456789"
+    }
+  }
+}
+```
+
+### Resolución de Orden
+
+El webhook resuelve la orden con esta prioridad:
+
+1. **order_id** (UUID interno) → busca por `orders.id`
+2. **shipment_id** (data.id o shipment_id) → busca por `orders.shipping_rate_ext_id`
+3. **tracking_number** → busca por `orders.shipping_tracking_number`
+
+Si no se encuentra la orden, responde `200 { received: true, message: "No matching order" }` (no error 500).
+
 ### Seguridad
 
 El webhook valida:
@@ -42,6 +71,8 @@ El webhook valida:
 - En desarrollo, si no hay secret configurado, permite el request pero loguea un warning
 
 ### Testing Manual
+
+#### Ejemplo 1: Con order_id (UUID)
 
 ```bash
 curl -X POST https://tu-dominio.com/api/shipping/skydropx/webhook \
@@ -55,15 +86,45 @@ curl -X POST https://tu-dominio.com/api/shipping/skydropx/webhook \
   }'
 ```
 
-## Fallback: Polling Script
+#### Ejemplo 2: Con shipment_id (recomendado)
 
-Si Skydropx no soporta webhooks, puedes usar el script de polling:
+```bash
+curl -X POST https://tu-dominio.com/api/shipping/skydropx/webhook \
+  -H "Content-Type: application/json" \
+  -H "x-skydropx-secret: tu_secret" \
+  -d '{
+    "data": {
+      "id": "shipment_ext_id_123",
+      "attributes": {
+        "status": "delivered",
+        "tracking_number": "ABC123456789"
+      }
+    }
+  }'
+```
 
-**Archivo:** `scripts/sync-skydropx-tracking.ts`
+#### Ejemplo 3: Con tracking_number
 
-### Uso con Vercel Cron
+```bash
+curl -X POST https://tu-dominio.com/api/shipping/skydropx/webhook \
+  -H "Content-Type: application/json" \
+  -H "x-skydropx-secret: tu_secret" \
+  -d '{
+    "event_type": "in_transit",
+    "tracking_number": "ABC123456789",
+    "status": "picked_up"
+  }'
+```
 
-Agrega a `vercel.json`:
+## Fallback: Polling Script (Cron Endpoint)
+
+Si Skydropx no soporta webhooks, puedes usar el endpoint de cron que ejecuta el script de polling:
+
+**Endpoint:** `GET /api/cron/sync-skydropx`
+
+### Configuración en Vercel
+
+El archivo `vercel.json` ya incluye la configuración del cron (cada 6 horas):
 
 ```json
 {
@@ -76,16 +137,30 @@ Agrega a `vercel.json`:
 }
 ```
 
-Crea `src/app/api/cron/sync-skydropx/route.ts`:
+### Variables de Entorno Requeridas
 
-```typescript
-import { syncSkydropxTracking } from "@/scripts/sync-skydropx-tracking";
+Para que el cron funcione, necesitas configurar:
 
-export async function GET() {
-  await syncSkydropxTracking();
-  return Response.json({ ok: true });
-}
+```env
+# Secret para proteger el endpoint (requerido en producción)
+CRON_SECRET=tu_secret_aqui
+
+# Skydropx (ya deberías tenerlas)
+SKYDROPX_CLIENT_ID=tu_client_id
+SKYDROPX_CLIENT_SECRET=tu_client_secret
+
+# Supabase (ya deberías tenerlas)
+NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=eyJ...
 ```
+
+### Seguridad
+
+El endpoint está protegido con `CRON_SECRET`:
+- Vercel Cron automáticamente agrega el header `Authorization: Bearer <CRON_SECRET>`
+- También acepta `x-cron-secret` como fallback
+- En desarrollo, si no hay secret configurado, permite el request pero loguea un warning
+- Para llamadas manuales, incluir header: `Authorization: Bearer <CRON_SECRET>` o `x-cron-secret: tu_secret`
 
 ### Uso con GitHub Actions
 
@@ -117,12 +192,23 @@ jobs:
 
 ### Uso Manual
 
+#### Opción 1: Llamar al endpoint (recomendado)
+
+```bash
+curl -X GET https://tu-dominio.com/api/cron/sync-skydropx \
+  -H "Authorization: Bearer tu_secret"
+```
+
+#### Opción 2: Ejecutar script directamente
+
 ```bash
 pnpm tsx scripts/sync-skydropx-tracking.ts
 ```
 
-El script:
+### Funcionamiento
+
+El script/endpoint:
 - Busca órdenes con `shipping_provider='skydropx'` y estados `label_created` o `in_transit`
 - Consulta el tracking en Skydropx API
 - Actualiza `shipping_status` si cambió
-
+- Limita a 50 órdenes por ejecución para no sobrecargar la API
