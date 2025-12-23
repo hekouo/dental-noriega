@@ -116,15 +116,15 @@ curl -X POST https://tu-dominio.com/api/shipping/skydropx/webhook \
   }'
 ```
 
-## Fallback: Polling Script
+## Fallback: Polling Script (Cron Endpoint)
 
-Si Skydropx no soporta webhooks, puedes usar el script de polling:
+Si Skydropx no soporta webhooks, puedes usar el endpoint de cron que ejecuta el script de polling:
 
-**Archivo:** `scripts/sync-skydropx-tracking.ts`
+**Endpoint:** `GET /api/cron/sync-skydropx`
 
-### Uso con Vercel Cron
+### Configuración en Vercel
 
-Agrega a `vercel.json`:
+El archivo `vercel.json` ya incluye la configuración del cron (cada 6 horas):
 
 ```json
 {
@@ -137,16 +137,30 @@ Agrega a `vercel.json`:
 }
 ```
 
-Crea `src/app/api/cron/sync-skydropx/route.ts`:
+### Variables de Entorno Requeridas
 
-```typescript
-import { syncSkydropxTracking } from "@/scripts/sync-skydropx-tracking";
+Para que el cron funcione, necesitas configurar:
 
-export async function GET() {
-  await syncSkydropxTracking();
-  return Response.json({ ok: true });
-}
+```env
+# Secret para proteger el endpoint (requerido en producción)
+CRON_SECRET=tu_secret_aqui
+
+# Skydropx (ya deberías tenerlas)
+SKYDROPX_CLIENT_ID=tu_client_id
+SKYDROPX_CLIENT_SECRET=tu_client_secret
+
+# Supabase (ya deberías tenerlas)
+NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=eyJ...
 ```
+
+### Seguridad
+
+El endpoint está protegido con `CRON_SECRET`:
+- Vercel Cron automáticamente agrega el header `Authorization: Bearer <CRON_SECRET>`
+- También acepta `x-cron-secret` como fallback
+- En desarrollo, si no hay secret configurado, permite el request pero loguea un warning
+- Para llamadas manuales, incluir header: `Authorization: Bearer <CRON_SECRET>` o `x-cron-secret: tu_secret`
 
 ### Uso con GitHub Actions
 
@@ -178,12 +192,23 @@ jobs:
 
 ### Uso Manual
 
+#### Opción 1: Llamar al endpoint (recomendado)
+
+```bash
+curl -X GET https://tu-dominio.com/api/cron/sync-skydropx \
+  -H "Authorization: Bearer tu_secret"
+```
+
+#### Opción 2: Ejecutar script directamente
+
 ```bash
 pnpm tsx scripts/sync-skydropx-tracking.ts
 ```
 
-El script:
+### Funcionamiento
+
+El script/endpoint:
 - Busca órdenes con `shipping_provider='skydropx'` y estados `label_created` o `in_transit`
 - Consulta el tracking en Skydropx API
 - Actualiza `shipping_status` si cambió
-
+- Limita a 50 órdenes por ejecución para no sobrecargar la API
