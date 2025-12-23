@@ -19,20 +19,27 @@ import { createClient } from "@supabase/supabase-js";
 import { skydropxFetch } from "@/lib/skydropx/client";
 import { normalizeShippingStatus, isValidShippingStatus } from "@/lib/orders/statuses";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+let supabase: any = null;
 
-if (!supabaseUrl || !serviceRoleKey) {
-  console.error("❌ NEXT_PUBLIC_SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY no configurados");
-  process.exit(1);
+function getSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error("❌ NEXT_PUBLIC_SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY no configurados");
+  }
+
+  if (!supabase) {
+    supabase = createClient(supabaseUrl, serviceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
+  }
+
+  return supabase;
 }
-
-const supabase = createClient(supabaseUrl, serviceRoleKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
-});
 
 /**
  * Obtiene el estado de tracking desde Skydropx API
@@ -103,11 +110,14 @@ function mapSkydropxStatusToCanonical(skydropxStatus: string): string | null {
 /**
  * Procesa una orden: consulta tracking y actualiza estado si cambió
  */
-async function processOrder(order: {
-  id: string;
-  shipping_tracking_number: string | null;
-  shipping_status: string | null;
-}): Promise<{ updated: boolean; error: string | null }> {
+async function processOrder(
+  order: {
+    id: string;
+    shipping_tracking_number: string | null;
+    shipping_status: string | null;
+  },
+  client: any,
+): Promise<{ updated: boolean; error: string | null }> {
   if (!order.shipping_tracking_number) {
     return { updated: false, error: "No tracking number" };
   }
@@ -144,7 +154,7 @@ async function processOrder(order: {
   }
 
   // Actualizar en DB
-  const { error: updateError } = await supabase
+  const { error: updateError } = await client
     .from("orders")
     .update({ shipping_status: canonicalStatus })
     .eq("id", order.id);
@@ -164,10 +174,11 @@ async function processOrder(order: {
  * Función principal del script
  */
 async function main() {
+  const supabaseClient = getSupabaseClient();
   console.log("[sync] Iniciando sincronización de tracking Skydropx...");
 
   // Buscar órdenes de Skydropx con estados que pueden cambiar
-  const { data: orders, error: fetchError } = await supabase
+  const { data: orders, error: fetchError } = await supabaseClient
     .from("orders")
     .select("id, shipping_tracking_number, shipping_status")
     .eq("shipping_provider", "skydropx")
@@ -192,7 +203,7 @@ async function main() {
 
   // Procesar cada orden
   for (const order of orders) {
-    const result = await processOrder(order);
+    const result = await processOrder(order, supabaseClient);
     if (result.updated) {
       updatedCount++;
     }
