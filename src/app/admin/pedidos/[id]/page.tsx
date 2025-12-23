@@ -14,6 +14,7 @@ import ResendPaymentInstructionsClient from "./ResendPaymentInstructionsClient";
 import WhatsappContactClient from "./WhatsappContactClient";
 import AdminNotesClient from "./AdminNotesClient";
 import EditShippingAndNotesClient from "./EditShippingAndNotesClient";
+import NotifyShippingClient from "./NotifyShippingClient";
 import { normalizePhoneToE164Mx } from "@/lib/utils/phone";
 
 export const dynamic = "force-dynamic";
@@ -397,6 +398,17 @@ export default async function AdminPedidoDetailPage({
                     </button>
                   </form>
                 )}
+
+              {/* Botón para notificar tracking al cliente */}
+              <NotifyShippingClient
+                orderRef={order.id.slice(0, 8)}
+                trackingNumber={order.shipping_tracking_number}
+                labelUrl={order.shipping_label_url}
+                shippingStatus={order.shipping_status}
+                shippingProvider={order.shipping_provider}
+                customerName={(order.metadata as { contact_name?: string } | null)?.contact_name || null}
+                customerEmail={order.email}
+              />
 
               {/* Controles para actualizar estado de envío */}
               <UpdateShippingStatusClient
