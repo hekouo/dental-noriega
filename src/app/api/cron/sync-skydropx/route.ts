@@ -18,22 +18,33 @@ function validateCronSecret(request: NextRequest): boolean {
     return false;
   }
 
-  // Verificar header x-cron-secret (Vercel Cron lo agrega automáticamente)
-  const providedSecret = request.headers.get("x-cron-secret");
-  if (!providedSecret) {
-    return false;
+  // Prioridad 1: Authorization: Bearer <CRON_SECRET> (Vercel Cron estándar)
+  const authHeader = request.headers.get("authorization");
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    const providedSecret = authHeader.slice(7);
+    if (providedSecret === secret) {
+      return true;
+    }
   }
 
-  return providedSecret === secret;
+  // Prioridad 2: x-cron-secret (fallback para compatibilidad)
+  const providedSecret = request.headers.get("x-cron-secret");
+  if (providedSecret && providedSecret === secret) {
+    return true;
+  }
+
+  return false;
 }
 
 /**
  * Endpoint de cron para sincronizar tracking de Skydropx
  * 
  * Protegido con CRON_SECRET para evitar llamadas no autorizadas.
- * Vercel Cron automáticamente agrega el header x-cron-secret.
+ * Vercel Cron automáticamente agrega el header Authorization: Bearer <CRON_SECRET>.
+ * También acepta x-cron-secret como fallback.
  * 
- * Para llamadas manuales, incluir header: x-cron-secret: <CRON_SECRET>
+ * Para llamadas manuales, incluir header: Authorization: Bearer <CRON_SECRET>
+ * o x-cron-secret: <CRON_SECRET>
  */
 export async function GET(req: NextRequest) {
   try {

@@ -157,9 +157,10 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 ### Seguridad
 
 El endpoint está protegido con `CRON_SECRET`:
-- Vercel Cron automáticamente agrega el header `x-cron-secret` con el valor de `CRON_SECRET`
+- Vercel Cron automáticamente agrega el header `Authorization: Bearer <CRON_SECRET>`
+- También acepta `x-cron-secret` como fallback
 - En desarrollo, si no hay secret configurado, permite el request pero loguea un warning
-- Para llamadas manuales, incluir header: `x-cron-secret: tu_secret`
+- Para llamadas manuales, incluir header: `Authorization: Bearer <CRON_SECRET>` o `x-cron-secret: tu_secret`
 
 ### Uso con GitHub Actions
 
@@ -195,7 +196,7 @@ jobs:
 
 ```bash
 curl -X GET https://tu-dominio.com/api/cron/sync-skydropx \
-  -H "x-cron-secret: tu_secret"
+  -H "Authorization: Bearer tu_secret"
 ```
 
 #### Opción 2: Ejecutar script directamente
@@ -211,4 +212,3 @@ El script/endpoint:
 - Consulta el tracking en Skydropx API
 - Actualiza `shipping_status` si cambió
 - Limita a 50 órdenes por ejecución para no sobrecargar la API
-
