@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import type { ShippingStatus } from "@/lib/orders/shippingStatus";
 import type { PaymentStatus } from "@/lib/orders/paymentStatus";
+import { isValidShippingStatus, isValidPaymentStatus } from "@/lib/orders/statuses";
 import { buildShippingEmail } from "@/lib/notifications/shipping";
 import { sendTransactionalEmail } from "@/lib/notifications/email";
 import { buildBankTransferEmail } from "@/lib/notifications/payment";
@@ -81,17 +82,8 @@ export async function updateShippingStatusAdmin(
   newStatus: ShippingStatus,
 ): Promise<{ ok: true } | { ok: false; code: "order-not-found" | "fetch-error" | "update-error" | "invalid-status" | "config-error" }> {
   try {
-    // Validar que el estado es válido
-    const validStatuses: ShippingStatus[] = [
-      "pending",
-      "created",
-      "in_transit",
-      "ready_for_pickup",
-      "delivered",
-      "canceled",
-    ];
-    
-    if (!validStatuses.includes(newStatus)) {
+    // Validar que el estado es válido (usar estados canónicos)
+    if (!isValidShippingStatus(newStatus)) {
       console.error("[updateShippingStatusAdmin] Estado inválido", { orderId, newStatus });
       return {
         ok: false,
@@ -289,10 +281,8 @@ export async function updatePaymentStatusAdmin(
   newStatus: PaymentStatus,
 ): Promise<{ ok: true } | { ok: false; code: "order-not-found" | "fetch-error" | "update-error" | "invalid-status" | "config-error" }> {
   try {
-    // Validar que el estado es válido
-    const validStatuses: PaymentStatus[] = ["pending", "paid", "canceled"];
-    
-    if (!validStatuses.includes(newStatus)) {
+    // Validar que el estado es válido (usar estados canónicos)
+    if (!isValidPaymentStatus(newStatus)) {
       console.error("[updatePaymentStatusAdmin] Estado inválido", { orderId, newStatus });
       return {
         ok: false,

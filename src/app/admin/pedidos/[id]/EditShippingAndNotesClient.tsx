@@ -4,7 +4,7 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { updateOrderShippingAndNotes } from "@/lib/actions/orders.admin";
 import { useState, useEffect } from "react";
-import { SHIPPING_STATUS_LABELS, isValidShippingStatus } from "@/lib/orders/shippingStatus";
+import { SHIPPING_STATUSES, SHIPPING_STATUS_LABELS, isValidShippingStatus, normalizeShippingStatus } from "@/lib/orders/statuses";
 
 type Props = {
   orderId: string;
@@ -24,7 +24,11 @@ export default function EditShippingAndNotesClient({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [adminNotes, setAdminNotes] = useState(initialAdminNotes || "");
-  const [shippingStatus, setShippingStatus] = useState(initialShippingStatus || "");
+  // Normalizar estado inicial si es legacy
+  const normalizedInitialStatus = initialShippingStatus 
+    ? (normalizeShippingStatus(initialShippingStatus) || initialShippingStatus)
+    : "";
+  const [shippingStatus, setShippingStatus] = useState(normalizedInitialStatus);
   const [shippingTrackingNumber, setShippingTrackingNumber] = useState(
     initialShippingTrackingNumber || "",
   );
@@ -47,9 +51,14 @@ export default function EditShippingAndNotesClient({
     setMessage(null);
 
     startTransition(async () => {
+      // Normalizar shipping_status a valor canónico antes de guardar
+      const normalizedShippingStatus = shippingStatus 
+        ? (normalizeShippingStatus(shippingStatus) || shippingStatus)
+        : null;
+
       const result = await updateOrderShippingAndNotes(orderId, {
         admin_notes: adminNotes || null,
-        shipping_status: shippingStatus || null,
+        shipping_status: normalizedShippingStatus,
         shipping_tracking_number: shippingTrackingNumber || null,
         shipping_label_url: shippingLabelUrl || null,
       });
@@ -78,9 +87,9 @@ export default function EditShippingAndNotesClient({
   // Opciones de estado de envío (valores canónicos + opción para custom)
   const shippingStatusOptions: Array<{ value: string; label: string }> = [
     { value: "", label: "Sin estado" },
-    ...Object.entries(SHIPPING_STATUS_LABELS).map(([value, label]) => ({
-      value,
-      label,
+    ...SHIPPING_STATUSES.map((status) => ({
+      value: status,
+      label: SHIPPING_STATUS_LABELS[status],
     })),
   ];
 
