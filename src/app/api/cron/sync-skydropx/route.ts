@@ -1,39 +1,45 @@
+import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { syncSkydropxTracking } from "../../../../../scripts/sync-skydropx-tracking";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-/**
- * Valida el secret del cron
- */
-function validateCronSecret(request: NextRequest): boolean {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) {
-    // Si no hay secret configurado, permitir en desarrollo pero loguear warning
-    if (process.env.NODE_ENV === "development") {
+function extractProvidedSecret(headers: Headers): string | null {
+  const auth = headers.get("authorization");
+  if (auth?.toLowerCase().startsWith("bearer ")) {
+    return auth.slice(7).trim();
+  }
+
+  const direct = headers.get("x-cron-secret");
+  if (!direct) {
+    return null;
+  }
+  if (direct.toLowerCase().startsWith("bearer ")) {
+    return direct.slice(7).trim();
+  }
+  return direct.trim() || null;
+}
+
+function safeEqual(a: string, b: string): boolean {
+  const aBuf = Buffer.from(a);
+  const bBuf = Buffer.from(b);
+  return aBuf.length === bBuf.length && crypto.timingSafeEqual(aBuf, bBuf);
+}
+
+function isAuthorized(provided: string | null, expected: string | undefined): boolean {
+  // En dev, si no hay secret configurado, permitir pero loguear
+  if (!expected) {
+    if (process.env.NODE_ENV !== "production") {
       console.warn("[cron/sync-skydropx] CRON_SECRET no configurado, permitiendo en dev");
       return true;
     }
     return false;
   }
-
-  // Prioridad 1: Authorization: Bearer <CRON_SECRET> (Vercel Cron estándar)
-  const authHeader = request.headers.get("authorization");
-  if (authHeader && authHeader.startsWith("Bearer ")) {
-    const providedSecret = authHeader.slice(7);
-    if (providedSecret === secret) {
-      return true;
-    }
+  if (!provided) {
+    return false;
   }
-
-  // Prioridad 2: x-cron-secret (fallback para compatibilidad)
-  const providedSecret = request.headers.get("x-cron-secret");
-  if (providedSecret && providedSecret === secret) {
-    return true;
-  }
-
-  return false;
+  return safeEqual(provided, expected);
 }
 
 /**
@@ -48,8 +54,19 @@ function validateCronSecret(request: NextRequest): boolean {
  */
 export async function GET(req: NextRequest) {
   try {
-    // Validar secret del cron
-    if (!validateCronSecret(req)) {
+    const expected = process.env.CRON_SECRET;
+
+    // En producción, CRON_SECRET es obligatorio
+    if (process.env.NODE_ENV === "production" && !expected) {
+      console.error("[cron/sync-skydropx] CRON_SECRET no configurado en producción");
+      return NextResponse.json(
+        { error: "CRON_SECRET not configured" },
+        { status: 500 },
+      );
+    }
+
+    const provided = extractProvidedSecret(req.headers);
+    if (!isAuthorized(provided, expected)) {
       console.error("[cron/sync-skydropx] CRON_SECRET inválido o faltante");
       return NextResponse.json(
         { error: "Unauthorized" },
