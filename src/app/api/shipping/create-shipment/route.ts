@@ -326,12 +326,13 @@ export async function POST(req: NextRequest) {
     });
 
     // Actualizar la orden con tracking y label
+    // Usar estado canónico 'label_created' cuando se crea la guía
     const { error: updateError } = await supabase
       .from("orders")
       .update({
         shipping_tracking_number: shipmentResult.trackingNumber,
         shipping_label_url: shipmentResult.labelUrl,
-        shipping_status: "created",
+        shipping_status: "label_created",
       })
       .eq("id", orderId);
 

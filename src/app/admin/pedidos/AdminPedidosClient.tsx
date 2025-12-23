@@ -7,6 +7,7 @@ import { formatMXNFromCents } from "@/lib/utils/currency";
 import type { OrderSummary } from "@/lib/supabase/orders.server";
 import { getShippingStatusLabel, getShippingStatusVariant } from "@/lib/orders/shippingStatus";
 import { getPaymentMethodLabel, getPaymentStatusLabel, getPaymentStatusVariant } from "@/lib/orders/paymentStatus";
+import { PAYMENT_STATUSES, PAYMENT_STATUS_LABELS } from "@/lib/orders/statuses";
 
 type Props = {
   orders: OrderSummary[];
@@ -190,11 +191,11 @@ export default function AdminPedidosClient({
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             >
               <option value="all">Todos</option>
-              <option value="paid">Pagado</option>
-              <option value="pending">Pendiente</option>
-              <option value="failed">Fallido</option>
-              <option value="canceled">Cancelado</option>
-              <option value="requires_payment">Requiere pago</option>
+              {PAYMENT_STATUSES.map((status) => (
+                <option key={status} value={status}>
+                  {PAYMENT_STATUS_LABELS[status]}
+                </option>
+              ))}
             </select>
           </div>
 

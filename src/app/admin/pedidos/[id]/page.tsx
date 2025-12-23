@@ -419,12 +419,17 @@ export default async function AdminPedidoDetailPage({
             </div>
           ) : (
             <div>
-              <p className="text-sm text-gray-500 mb-4">
-                Esta orden no tiene información de envío. Revisa el checkout.
-              </p>
-              {/* Editor de notas (aunque no haya envío) */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <p className="text-sm text-blue-800 font-medium mb-1">
+                  Recoger en tienda
+                </p>
+                <p className="text-xs text-blue-700">
+                  Esta orden es para recoger en tienda. Puedes establecer el estado "Listo para recoger en tienda" cuando el pedido esté listo.
+                </p>
+              </div>
+              {/* Editor de envío y notas (para pickup) */}
               <div className="mt-4 pt-4 border-t border-gray-200">
-                <h3 className="text-md font-semibold mb-4">Editar notas</h3>
+                <h3 className="text-md font-semibold mb-4">Editar envío y notas</h3>
                 <EditShippingAndNotesClient
                   orderId={order.id}
                   initialAdminNotes={order.admin_notes}

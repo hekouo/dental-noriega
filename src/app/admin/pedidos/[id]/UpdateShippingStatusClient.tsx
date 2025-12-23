@@ -108,8 +108,8 @@ export default function UpdateShippingStatusClient({
           {(isPickup || isPaqueteria) && (
             <button
               type="button"
-              onClick={() => handleUpdateStatus("canceled")}
-              disabled={isUpdating || currentStatus === "canceled"}
+              onClick={() => handleUpdateStatus("cancelled")}
+              disabled={isUpdating || currentStatus === "cancelled"}
               className="px-3 py-1.5 text-sm bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {isUpdating ? "Actualizando..." : "Cancelar envío"}

@@ -32,11 +32,19 @@ export function buildShippingEmail(
   const { status, orderId, customerName, shippingProvider, shippingServiceName, trackingNumber } = ctx;
 
   // Solo generar correos para estados específicos
+  // Normalizar estado legacy a canónico para comparación
+  // Mapear "created" -> "label_created" para compatibilidad
+  // Usar type assertion porque status puede venir como string legacy
+  const statusStr = status as string;
+  const normalizedStatus = (statusStr === "created" || statusStr === "label_created") 
+    ? "label_created" 
+    : statusStr;
+  
   if (
-    status !== "ready_for_pickup" &&
-    status !== "in_transit" &&
-    status !== "delivered" &&
-    status !== "created"
+    normalizedStatus !== "ready_for_pickup" &&
+    normalizedStatus !== "in_transit" &&
+    normalizedStatus !== "delivered" &&
+    normalizedStatus !== "label_created"
   ) {
     return null;
   }
@@ -79,7 +87,10 @@ export function buildShippingEmail(
   let bodyContent = "";
   let textBody = "";
 
-  switch (status) {
+  // Usar estado normalizado para el switch
+  const statusForSwitch = normalizedStatus;
+  
+  switch (statusForSwitch) {
     case "ready_for_pickup": {
       subject = "Tu pedido está listo para recoger";
       bodyContent = `
@@ -112,7 +123,7 @@ export function buildShippingEmail(
       textBody = `¡Excelente noticia! Tu pedido #${safeOrderId} ha sido entregado.\n${shippingInfo ? `Paquetería: ${shippingInfo}\n` : ""}${trackingInfoText ? `${trackingInfoText}\n` : ""}Esperamos que disfrutes tu compra.`;
       break;
     }
-    case "created": {
+    case "label_created": {
       subject = "Tu envío ha sido generado";
       bodyContent = `
         <p>Tu pedido <strong>#${safeOrderId}</strong> está siendo preparado para envío.</p>
