@@ -79,3 +79,7 @@ public/data/*.csv
 
 .vercel
 .env*.local
+
+# PR body files (causan conflictos en merges, no son parte del runtime)
+PR_BODY*.md
+pr_body*.md
