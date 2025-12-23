@@ -3,5 +3,11 @@
     "env": {
       "NODE_VERSION": "20"
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/sync-skydropx",
+      "schedule": "0 */6 * * *"
+    }
+  ]
 }
