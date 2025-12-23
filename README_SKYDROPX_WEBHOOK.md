@@ -13,18 +13,21 @@
    SKYDROPX_WEBHOOK_SECRET=tu_secret_aqui
    ```
 
-### Eventos Soportados
+### Eventos y Estados Soportados
 
-El webhook mapea los siguientes eventos de Skydropx a estados canónicos:
+El webhook mapea los siguientes eventos/estados de Skydropx a estados canónicos:
 
-- `picked_up` / `in_transit` → `in_transit`
+- `created` / `label_created` → `label_created`
+- `picked_up` / `in_transit` / `last_mile` → `in_transit`
 - `delivered` → `delivered`
-- `exception` / `cancelled` / `canceled` → `cancelled`
-- `label_created` / `created` → `label_created`
+- `delivered_to_branch` → `ready_for_pickup`
+- `exception` / `cancelled` / `canceled` / `in_return` → `cancelled`
 
 ### Estructura del Payload
 
-El webhook espera un payload JSON con al menos:
+El webhook soporta múltiples formatos de payload:
+
+#### Formato Simple (Legacy)
 
 ```json
 {
@@ -35,6 +38,32 @@ El webhook espera un payload JSON con al menos:
 }
 ```
 
+#### Formato JSON:API
+
+```json
+{
+  "type": "shipment",
+  "data": {
+    "id": "shipment_ext_id_123",
+    "type": "shipment",
+    "attributes": {
+      "status": "delivered",
+      "tracking_number": "ABC123456789"
+    }
+  }
+}
+```
+
+### Resolución de Orden
+
+El webhook resuelve la orden con esta prioridad:
+
+1. **order_id** (UUID interno) → busca por `orders.id`
+2. **shipment_id** (data.id o shipment_id) → busca por `orders.shipping_rate_ext_id`
+3. **tracking_number** → busca por `orders.shipping_tracking_number`
+
+Si no se encuentra la orden, responde `200 { received: true, message: "No matching order" }` (no error 500).
+
 ### Seguridad
 
 El webhook valida:
@@ -42,6 +71,8 @@ El webhook valida:
 - En desarrollo, si no hay secret configurado, permite el request pero loguea un warning
 
 ### Testing Manual
+
+#### Ejemplo 1: Con order_id (UUID)
 
 ```bash
 curl -X POST https://tu-dominio.com/api/shipping/skydropx/webhook \
@@ -52,6 +83,36 @@ curl -X POST https://tu-dominio.com/api/shipping/skydropx/webhook \
     "order_id": "uuid-de-orden-existente",
     "tracking_number": "ABC123",
     "status": "delivered"
+  }'
+```
+
+#### Ejemplo 2: Con shipment_id (recomendado)
+
+```bash
+curl -X POST https://tu-dominio.com/api/shipping/skydropx/webhook \
+  -H "Content-Type: application/json" \
+  -H "x-skydropx-secret: tu_secret" \
+  -d '{
+    "data": {
+      "id": "shipment_ext_id_123",
+      "attributes": {
+        "status": "delivered",
+        "tracking_number": "ABC123456789"
+      }
+    }
+  }'
+```
+
+#### Ejemplo 3: Con tracking_number
+
+```bash
+curl -X POST https://tu-dominio.com/api/shipping/skydropx/webhook \
+  -H "Content-Type: application/json" \
+  -H "x-skydropx-secret: tu_secret" \
+  -d '{
+    "event_type": "in_transit",
+    "tracking_number": "ABC123456789",
+    "status": "picked_up"
   }'
 ```
 
