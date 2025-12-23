@@ -40,7 +40,7 @@ export function buildShippingNotificationUrl(
 
   // Determinar mensaje según el estado y tipo de envío
   let firstLine: string;
-  let detailsLines: string[] = [];
+  const detailsLines: string[] = [];
 
   // Pickup (sin shipping_provider o shipping_provider === "pickup")
   if (!shippingProvider || shippingProvider === "pickup") {
