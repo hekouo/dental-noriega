@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-// Importar desde la raíz del proyecto (scripts está fuera de src)
 import { syncSkydropxTracking } from "../../../../../scripts/sync-skydropx-tracking";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 /**
- * Valida el secret del cron job
+ * Valida el secret del cron
  */
 function validateCronSecret(request: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
@@ -19,7 +18,7 @@ function validateCronSecret(request: NextRequest): boolean {
     return false;
   }
 
-  // Verificar header x-cron-secret
+  // Verificar header x-cron-secret (Vercel Cron lo agrega automáticamente)
   const providedSecret = request.headers.get("x-cron-secret");
   if (!providedSecret) {
     return false;
@@ -29,19 +28,18 @@ function validateCronSecret(request: NextRequest): boolean {
 }
 
 /**
- * Endpoint para sincronizar tracking de Skydropx
+ * Endpoint de cron para sincronizar tracking de Skydropx
  * 
- * Protegido con CRON_SECRET (header x-cron-secret)
+ * Protegido con CRON_SECRET para evitar llamadas no autorizadas.
+ * Vercel Cron automáticamente agrega el header x-cron-secret.
  * 
- * Uso:
- * - Vercel Cron: configurar en vercel.json
- * - Manual: curl -H "x-cron-secret: tu_secret" https://tu-dominio.com/api/cron/sync-skydropx
+ * Para llamadas manuales, incluir header: x-cron-secret: <CRON_SECRET>
  */
 export async function GET(req: NextRequest) {
   try {
     // Validar secret del cron
     if (!validateCronSecret(req)) {
-      console.error("[cron/sync-skydropx] Cron secret inválido o faltante");
+      console.error("[cron/sync-skydropx] CRON_SECRET inválido o faltante");
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 },
@@ -50,12 +48,14 @@ export async function GET(req: NextRequest) {
 
     console.log("[cron/sync-skydropx] Iniciando sincronización de tracking Skydropx...");
 
-    // Ejecutar sincronización
+    // Ejecutar el script de sincronización
     await syncSkydropxTracking();
+
+    console.log("[cron/sync-skydropx] Sincronización completada");
 
     return NextResponse.json({
       ok: true,
-      message: "Sincronización completada",
+      message: "Sync completed",
     });
   } catch (error) {
     console.error("[cron/sync-skydropx] Error inesperado:", error);

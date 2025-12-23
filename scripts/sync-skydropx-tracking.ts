@@ -218,5 +218,8 @@ if (require.main === module) {
     });
 }
 
-export { main as syncSkydropxTracking };
+// Exportar función para uso en endpoints
+export async function syncSkydropxTracking() {
+  return main();
+}
 
