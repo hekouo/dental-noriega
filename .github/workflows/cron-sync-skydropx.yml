@@ -1,0 +1,24 @@
+name: Sync Skydropx Tracking
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # Cada 6 horas
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync Skydropx Tracking
+        run: |
+          response=$(curl -f -s -w "\n%{http_code}" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" https://dental-noriega.vercel.app/api/cron/sync-skydropx)
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | head -n-1)
+          if [ "$http_code" -ne 200 ]; then
+            echo "Error: HTTP $http_code"
+            echo "Response: $body"
+            exit 1
+          fi
+          echo "Success: $body"
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
