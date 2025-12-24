@@ -1,0 +1,19 @@
+name: Sync Skydropx Tracking
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync Skydropx Tracking
+        run: |
+          curl -f -X GET https://dental-noriega.vercel.app/api/cron/sync-skydropx \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json" || exit 1
