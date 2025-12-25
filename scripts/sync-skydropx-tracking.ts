@@ -192,7 +192,7 @@ async function main() {
   }
 
   if (!orders || orders.length === 0) {
-    console.log("[sync] No hay órdenes para sincronizar");
+    console.log("[sync] 0 orders to sync");
     return;
   }
 
