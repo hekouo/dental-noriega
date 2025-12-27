@@ -72,6 +72,23 @@ export default async function BuscarPage({ searchParams }: Props) {
   // Obtener productos destacados para recomendaciones
   const featuredItems = await getFeaturedItems();
 
+  // Búsquedas populares y categorías para chips
+  const popularSearches = [
+    "guantes de nitrilo",
+    "brackets metálicos",
+    "arcos NITI",
+    "resina dental",
+    "puntas profilaxis",
+    "brackets cerámicos",
+  ];
+
+  const popularCategories = [
+    { name: "Consumibles", slug: "consumibles-y-profilaxis" },
+    { name: "Equipos", slug: "equipos" },
+    { name: "Instrumental", slug: "instrumental-clinico" },
+    { name: "Ortodoncia", slug: "ortodoncia-brackets-y-tubos" },
+  ];
+
   if (!q) {
     return (
       <section className="space-y-6">
@@ -82,13 +99,43 @@ export default async function BuscarPage({ searchParams }: Props) {
           <p className="text-sm text-slate-600 mb-6">
             Escribe el nombre del producto, marca o categoría que necesitas.
           </p>
-          <SearchInput />
+          <SearchInput sticky />
         </div>
+
+        {/* Búsquedas populares */}
+        <div className="mt-10">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            Búsquedas populares
+          </h2>
+          <div className="flex flex-wrap gap-2">
+            {popularSearches.map((search) => (
+              <Link
+                key={search}
+                href={`/buscar?q=${encodeURIComponent(search)}`}
+                className="px-4 py-2 bg-white border border-gray-300 rounded-full text-sm text-gray-700 hover:bg-primary-50 hover:border-primary-500 hover:text-primary-700 transition-all duration-200 active:scale-95"
+              >
+                {search}
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        {/* Categorías */}
         <div className="mt-8">
-          <p className="text-sm font-medium text-gray-700 mb-3">Ejemplos:</p>
-          <p className="text-sm text-gray-600">
-            guantes de nitrilo · brackets metálicos · arcos NITI · puntas profilaxis
-          </p>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            Explorar por categoría
+          </h2>
+          <div className="flex flex-wrap gap-2">
+            {popularCategories.map((category) => (
+              <Link
+                key={category.slug}
+                href={ROUTES.section(category.slug)}
+                className="px-4 py-2 bg-primary-50 border border-primary-200 rounded-full text-sm text-primary-700 hover:bg-primary-100 hover:border-primary-400 transition-all duration-200 active:scale-95 font-medium"
+              >
+                {category.name}
+              </Link>
+            ))}
+          </div>
         </div>
       </section>
     );
@@ -161,7 +208,7 @@ export default async function BuscarPage({ searchParams }: Props) {
             ? `Se encontraron ${total} producto${total !== 1 ? "s" : ""}`
             : ""}
         </p>
-        <SearchInput />
+        <SearchInput sticky />
       </div>
 
       {items.length > 0 && (
@@ -198,28 +245,28 @@ export default async function BuscarPage({ searchParams }: Props) {
 
       {items.length === 0 && (
         <>
-          <div className="bg-white rounded-lg border border-gray-200 p-8 text-center max-w-2xl mx-auto">
-            <div className="w-16 h-16 mx-auto rounded-full bg-gray-100 flex items-center justify-center mb-4">
-              <Search className="w-8 h-8 text-gray-400" aria-hidden="true" />
+          <div className="bg-white rounded-xl border border-gray-200 p-8 sm:p-12 text-center max-w-2xl mx-auto shadow-sm">
+            <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center mb-6 animate-pulse">
+              <Search className="w-10 h-10 text-gray-400" aria-hidden="true" />
             </div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            <h2 className="text-2xl font-bold text-gray-900 mb-3">
               No encontramos resultados para "{q}"
             </h2>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-gray-600 mb-6">
               Prueba con estas opciones:
             </p>
-            <div className="bg-sky-50 border border-sky-200 rounded-lg p-4 mb-6 text-left">
-              <ul className="text-sm text-slate-700 space-y-2 list-none">
+            <div className="bg-gradient-to-br from-blue-50 to-sky-50 border border-blue-200 rounded-xl p-6 mb-8 text-left">
+              <ul className="text-sm text-slate-700 space-y-3 list-none">
                 <li className="flex items-start">
-                  <span className="text-sky-600 mr-2">•</span>
+                  <span className="text-blue-600 mr-3 font-bold">•</span>
                   <span>Revisa la ortografía del nombre del producto.</span>
                 </li>
                 <li className="flex items-start">
-                  <span className="text-sky-600 mr-2">•</span>
+                  <span className="text-blue-600 mr-3 font-bold">•</span>
                   <span>Prueba con un término más general (por ejemplo, "guantes" en lugar de la marca exacta).</span>
                 </li>
                 <li className="flex items-start">
-                  <span className="text-sky-600 mr-2">•</span>
+                  <span className="text-blue-600 mr-3 font-bold">•</span>
                   <span>Busca por tipo de producto (por ejemplo, "resina", "brackets", "arcos").</span>
                 </li>
               </ul>
@@ -227,7 +274,7 @@ export default async function BuscarPage({ searchParams }: Props) {
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Link
                 href={ROUTES.catalogIndex()}
-                className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+                className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-all duration-200 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 hover:scale-105 active:scale-95"
               >
                 Ver todo el catálogo
               </Link>
@@ -236,7 +283,7 @@ export default async function BuscarPage({ searchParams }: Props) {
                   href={getWhatsAppUrl(`Hola, busco productos relacionados con "${q}" en Depósito Dental Noriega.`)!}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-6 py-3 border border-green-500 text-green-700 rounded-lg hover:bg-green-50 transition-colors font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2"
+                  className="px-6 py-3 border-2 border-green-500 text-green-700 rounded-lg hover:bg-green-50 transition-all duration-200 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 hover:scale-105 active:scale-95"
                 >
                   Hablar por WhatsApp
                 </Link>
@@ -264,21 +311,25 @@ export default async function BuscarPage({ searchParams }: Props) {
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {items.map((it, index) => (
-              <SearchResultCard
+              <div
                 key={it.id}
-                item={{
-                  id: it.id,
-                  section: it.section,
-                  product_slug: it.product_slug,
-                  title: it.title,
-                  price_cents: Math.round(it.price * 100),
-                  image_url: it.image_url,
-                  in_stock: true, // Los resultados ya están filtrados por is_active e in_stock
-                  is_active: true,
-                }}
-                highlightQuery={q}
-                position={index + 1}
-              />
+                style={{ "--delay": `${index * 50}ms` } as React.CSSProperties}
+              >
+                <SearchResultCard
+                  item={{
+                    id: it.id,
+                    section: it.section,
+                    product_slug: it.product_slug,
+                    title: it.title,
+                    price_cents: Math.round(it.price * 100),
+                    image_url: it.image_url,
+                    in_stock: true, // Los resultados ya están filtrados por is_active e in_stock
+                    is_active: true,
+                  }}
+                  highlightQuery={q}
+                  position={index + 1}
+                />
+              </div>
             ))}
           </div>
 

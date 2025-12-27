@@ -77,6 +77,7 @@ export default function FeaturedGrid({
         <div
           key={item.product_id}
           onClick={() => handleProductClick(item, index + 1)}
+          style={{ "--delay": `${index * 50}ms` } as React.CSSProperties}
         >
           <ProductCard
             {...toProductCardProps(
