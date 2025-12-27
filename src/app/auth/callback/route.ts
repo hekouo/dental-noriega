@@ -26,7 +26,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Para otros tipos (recovery, etc.), redirigir a cuenta
+    // Si es recovery (reset password), redirigir a update-password
+    if (type === "recovery") {
+      return NextResponse.redirect(
+        new URL("/update-password", requestUrl.origin),
+      );
+    }
+
+    // Para otros tipos, redirigir a cuenta
     return NextResponse.redirect(new URL("/cuenta", requestUrl.origin));
   }
 

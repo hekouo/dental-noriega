@@ -99,3 +99,52 @@ export async function signInWithGoogleAction() {
 
   return { success: true, url: data.url };
 }
+
+// FORGOT PASSWORD
+const forgotPasswordSchema = z.object({
+  email: z.string().email(),
+});
+
+export async function forgotPasswordAction(input: unknown) {
+  const parsed = forgotPasswordSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Email inválido" };
+  }
+
+  const { email } = parsed.data;
+  const supabase = createActionSupabase();
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || "http://localhost:3002";
+  const redirectTo = `${siteUrl}/auth/callback?type=recovery`;
+
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo,
+  });
+
+  if (error) return { error: error.message };
+
+  return { success: true };
+}
+
+// UPDATE PASSWORD
+const updatePasswordSchema = z.object({
+  password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres"),
+});
+
+export async function updatePasswordAction(input: unknown) {
+  const parsed = updatePasswordSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Contraseña inválida" };
+  }
+
+  const { password } = parsed.data;
+  const supabase = createActionSupabase();
+
+  const { error } = await supabase.auth.updateUser({
+    password,
+  });
+
+  if (error) return { error: error.message };
+
+  return { success: true };
+}
