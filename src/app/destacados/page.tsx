@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { getFeaturedItems } from "@/lib/catalog/getFeatured.server";
 import FeaturedGrid from "@/components/FeaturedGrid";
 import ProductsGridSkeleton from "@/components/products/ProductsGridSkeleton";
+import SectionHeader from "@/components/ui/SectionHeader";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -72,12 +73,11 @@ export default async function DestacadosPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 py-8 sm:py-12">
-        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight mb-2 text-gray-900">
-          Productos destacados
-        </h1>
-        <p className="text-sm text-gray-600 mb-8">
-          Productos recomendados que suelen interesar a nuestros clientes
-        </p>
+        <SectionHeader
+          title="Productos destacados"
+          subtitle="Productos recomendados que suelen interesar a nuestros clientes"
+          showWatermark
+        />
         <Suspense fallback={<ProductsGridSkeleton count={8} />}>
           <DestacadosContent />
         </Suspense>

@@ -7,6 +7,7 @@ import { sortProductImages } from "@/lib/catalog/sortProductImages";
 import ProductGallery from "@/components/pdp/ProductGallery";
 import ProductActions from "@/components/product/ProductActions.client";
 import ProductViewTracker from "@/components/ProductViewTracker.client";
+import PdpStickyCTA from "@/components/pdp/PdpStickyCTA.client";
 import RecentlyViewedTracker from "@/components/catalog/RecentlyViewedTracker.client";
 import RecentlyViewed from "@/components/catalog/RecentlyViewed.client";
 import { ROUTES } from "@/lib/routes";
@@ -300,6 +301,22 @@ export default async function ProductDetailPage({ params }: Props) {
           {/* Productos vistos recientemente */}
           <RecentlyViewed />
         </div>
+
+        {/* Sticky CTA móvil */}
+        <PdpStickyCTA
+          product={{
+            id: product.id,
+            title: product.title,
+            section: product.section,
+            product_slug: product.slug,
+            price_cents: Math.round(product.price * 100),
+            image_url: product.image_url ?? undefined,
+            in_stock: product.in_stock,
+          }}
+        />
+        
+        {/* Padding bottom para no tapar contenido con sticky CTA */}
+        <div className="md:hidden h-20" />
       </div>
     );
 }

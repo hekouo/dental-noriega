@@ -6,6 +6,8 @@ import FeaturedCarousel from "@/components/FeaturedCarousel";
 import FeaturedGrid from "@/components/FeaturedGrid";
 import { buttonBase, buttonPrimary } from "@/lib/styles/button";
 import { MessageCircle } from "lucide-react";
+import TrustBadges from "@/components/ui/TrustBadges";
+import SectionHeader from "@/components/ui/SectionHeader";
 
 const ShoppingBagIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg
@@ -105,24 +107,32 @@ export default async function HomePage() {
   return (
     <main className="min-h-screen">
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-primary-600 to-primary-800 text-white py-12 sm:py-20 px-4">
-        <div className="max-w-6xl mx-auto text-center">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight mb-4 sm:mb-6 text-white text-center">
+      <section className="relative bg-gradient-to-br from-primary-600 to-primary-800 text-white py-12 sm:py-20 px-4 overflow-hidden">
+        {/* Background decoration */}
+        <div className="absolute inset-0 bg-hero opacity-50" />
+        
+        <div className="relative max-w-6xl mx-auto text-center">
+          {/* Trust badges */}
+          <div className="mb-6 sm:mb-8">
+            <TrustBadges />
+          </div>
+
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight mb-4 sm:mb-6 text-white">
             Insumos dentales para consultorios y clínicas en México
           </h1>
-          <p className="text-lg sm:text-xl md:text-2xl mb-6 sm:mb-8 text-primary-100">
+          <p className="text-lg sm:text-xl md:text-2xl mb-6 sm:mb-8 text-primary-100 max-w-3xl mx-auto">
             Tienda familiar de insumos dentales con envío a todo México y atención por WhatsApp.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-4 sm:mb-6">
             <Link
               href={ROUTES.tienda()}
-              className={`${buttonBase} rounded-lg bg-white text-primary-600 hover:bg-gray-100 text-lg px-8 py-3`}
+              className={`${buttonBase} rounded-lg bg-white text-primary-600 hover:bg-gray-100 text-lg px-8 py-3 transition-transform duration-200 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-primary-600`}
             >
               <span>Ver tienda</span>
             </Link>
             <Link
               href={ROUTES.destacados()}
-              className={`${buttonBase} rounded-lg bg-primary-700 text-white hover:bg-primary-800 text-lg px-8 py-3`}
+              className={`${buttonBase} rounded-lg bg-primary-700 text-white hover:bg-primary-800 text-lg px-8 py-3 transition-transform duration-200 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-primary-600`}
             >
               <span>Ver productos destacados</span>
             </Link>
@@ -131,29 +141,35 @@ export default async function HomePage() {
             Envío gratis desde $2,000 MXN en productos.
           </p>
         </div>
+
+        {/* Divider */}
+        <div className="absolute bottom-0 left-0 right-0 h-px bg-white/10" />
       </section>
 
       {/* Productos Destacados */}
-      <section className="max-w-6xl mx-auto px-4 py-8">
-        <h2 className="text-2xl font-semibold tracking-tight mb-4">Destacados</h2>
+      <section className="max-w-6xl mx-auto px-4 py-8 sm:py-12">
+        <SectionHeader title="Destacados" />
         <FeaturedCarousel items={items} />
       </section>
 
-      <section className="max-w-6xl mx-auto px-4 py-8 space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xl font-semibold tracking-tight">También te puede interesar</h3>
-        </div>
+      <section className="max-w-6xl mx-auto px-4 py-8 sm:py-12">
+        <SectionHeader
+          title="También te puede interesar"
+          subtitle="Productos recomendados que suelen interesar a nuestros clientes"
+        />
         <FeaturedGrid items={items} />
       </section>
 
       {/* ¿Por qué comprar con Depósito Dental Noriega? */}
-      <section className="py-16 px-4 bg-gray-50">
+      <section className="py-16 sm:py-20 px-4 bg-gray-50">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-center mb-8 text-gray-900">
-            ¿Por qué comprar con Depósito Dental Noriega?
-          </h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="bg-white rounded-lg p-6 shadow-sm">
+          <SectionHeader
+            title="¿Por qué comprar con Depósito Dental Noriega?"
+            subtitle="Comprometidos con la calidad y el servicio para tu consultorio o clínica"
+            showWatermark
+          />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200 hover:-translate-y-1">
               <div className="inline-flex items-center justify-center w-12 h-12 bg-primary-100 text-primary-600 rounded-full mb-4">
                 <ShoppingBagIcon width={24} height={24} />
               </div>
@@ -162,7 +178,7 @@ export default async function HomePage() {
                 Productos pensados para odontólogos, ortodoncistas y clínicas que compran de forma recurrente.
               </p>
             </div>
-            <div className="bg-white rounded-lg p-6 shadow-sm">
+            <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200 hover:-translate-y-1">
               <div className="inline-flex items-center justify-center w-12 h-12 bg-primary-100 text-primary-600 rounded-full mb-4">
                 <MessageCircle className="w-6 h-6" />
               </div>
@@ -171,7 +187,7 @@ export default async function HomePage() {
                 Te ayudamos a resolver dudas de códigos, medidas, compatibilidad y existencias antes de comprar.
               </p>
             </div>
-            <div className="bg-white rounded-lg p-6 shadow-sm">
+            <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200 hover:-translate-y-1">
               <div className="inline-flex items-center justify-center w-12 h-12 bg-primary-100 text-primary-600 rounded-full mb-4">
                 <TruckIcon width={24} height={24} />
               </div>
@@ -180,7 +196,7 @@ export default async function HomePage() {
                 Trabajamos con paqueterías confiables y te compartimos tu guía para seguir el pedido en todo momento.
               </p>
             </div>
-            <div className="bg-white rounded-lg p-6 shadow-sm">
+            <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200 hover:-translate-y-1">
               <div className="inline-flex items-center justify-center w-12 h-12 bg-primary-100 text-primary-600 rounded-full mb-4">
                 <AwardIcon width={24} height={24} />
               </div>
@@ -189,7 +205,7 @@ export default async function HomePage() {
                 Cada compra acumula puntos que puedes usar como descuento en pedidos futuros.
               </p>
             </div>
-            <div className="bg-white rounded-lg p-6 shadow-sm">
+            <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200 hover:-translate-y-1">
               <div className="inline-flex items-center justify-center w-12 h-12 bg-primary-100 text-primary-600 rounded-full mb-4">
                 <PackageIcon width={24} height={24} />
               </div>
