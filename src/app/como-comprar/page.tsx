@@ -226,9 +226,9 @@ export default function ComoComprarPage() {
             Stripe, una plataforma de pagos reconocida internacionalmente.
           </p>
           <p className="text-gray-700 leading-relaxed">
-            Actualmente, las compras con tarjeta están en modo prueba para
-            validar el flujo de compra. Esto nos permite asegurar que todo
-            funcione correctamente antes de procesar pedidos reales.
+            Aceptamos pagos con tarjeta de crédito y débito a través de Stripe,
+            una plataforma de pagos segura y reconocida. También puedes realizar
+            transferencias bancarias para mayor comodidad.
           </p>
         </section>
 

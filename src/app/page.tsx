@@ -155,7 +155,13 @@ export default async function HomePage() {
         <FeaturedCarousel items={items} />
       </section>
 
-      <section className="max-w-6xl mx-auto px-4 py-8 sm:py-12">
+      {/* Separador visual */}
+      <div className="max-w-6xl mx-auto px-4">
+        <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
+      </div>
+
+      {/* También te puede interesar - con fondo sutil */}
+      <section className="max-w-6xl mx-auto px-4 py-8 sm:py-12 bg-gray-50/50 rounded-2xl my-8">
         <SectionHeader
           title="También te puede interesar"
           subtitle="Productos recomendados que suelen interesar a nuestros clientes"

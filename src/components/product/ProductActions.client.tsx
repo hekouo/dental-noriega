@@ -385,7 +385,7 @@ export default function ProductActions({ product }: Props) {
                 <ShieldCheck className="h-4 w-4" />
               </div>
               <p className="text-xs sm:text-sm text-gray-700">
-                Pagos seguros con tarjeta en modo prueba para tus pruebas de compra.
+                Pagos seguros con tarjeta. Transferencia bancaria disponible.
               </p>
             </div>
           </div>

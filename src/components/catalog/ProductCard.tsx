@@ -9,11 +9,7 @@ import { useCartStore } from "@/lib/store/cartStore";
 import { formatMXN, mxnFromCents } from "@/lib/utils/currency";
 import { normalizePrice, hasPurchasablePrice } from "@/lib/catalog/model";
 import { getWhatsAppHref } from "@/lib/whatsapp";
-import { FREE_SHIPPING_THRESHOLD_MXN } from "@/lib/shipping/freeShipping";
-import {
-  estimatePointsForPriceCents,
-  estimateFutureValueFromPoints,
-} from "@/lib/loyalty/utils";
+import { estimatePointsForPriceCents } from "@/lib/loyalty/utils";
 import { trackAddToCart, trackWhatsappClick } from "@/lib/analytics/events";
 import { launchCartConfetti } from "@/lib/ui/confetti";
 
@@ -196,41 +192,40 @@ export default function ProductCard({
         {price !== null ? formatMXN(price) : "Consultar precio"}
       </div>
 
-      {/* Estado de stock - Badge mejorado */}
-      {in_stock !== null && in_stock !== undefined && (
-        <span
-          className={`mt-1 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-            in_stock
-              ? "bg-emerald-50 text-emerald-700"
-              : "bg-red-50 text-red-700"
-          }`}
-        >
-          {in_stock ? "En stock" : "Agotado"}
-        </span>
-      )}
+      {/* Badges compactos: stock, envío gratis, puntos */}
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        {/* Estado de stock - Badge con acento de marca */}
+        {in_stock !== null && in_stock !== undefined && (
+          <span
+            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
+              in_stock
+                ? "bg-primary-50 text-primary-700 border border-primary-200"
+                : "bg-red-50 text-red-700 border border-red-200"
+            }`}
+          >
+            {in_stock ? "En stock" : "Agotado"}
+          </span>
+        )}
 
-      {/* Texto de envío gratis */}
-      {price !== null && (
-        <p className="mt-1 text-[11px] text-gray-500">
-          Envío gratis desde ${FREE_SHIPPING_THRESHOLD_MXN.toLocaleString("es-MX")} MXN en productos.
-        </p>
-      )}
+        {/* Badge de envío gratis compacto */}
+        {price !== null && (
+          <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium bg-blue-50 text-blue-700 border border-blue-200">
+            Envío gratis $2,000+
+          </span>
+        )}
 
-      {/* Puntos estimados */}
-      {(() => {
-        if (priceCents <= 0) return null;
-        const points = estimatePointsForPriceCents(priceCents);
-        if (points <= 0) return null;
-        const futureValue = estimateFutureValueFromPoints(points);
-        return (
-          <p className="mt-0.5 text-[11px] text-amber-700 leading-tight">
-            Ganarás aprox. {points.toLocaleString("es-MX")} pts
-            {futureValue > 0 && (
-              <> (~{formatMXN(futureValue)} MXN de ahorro en futuras compras)</>
-            )}
-          </p>
-        );
-      })()}
+        {/* Badge de puntos compacto */}
+        {(() => {
+          if (priceCents <= 0) return null;
+          const points = estimatePointsForPriceCents(priceCents);
+          if (points <= 0) return null;
+          return (
+            <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
+              +{points.toLocaleString("es-MX")} pts
+            </span>
+          );
+        })()}
+      </div>
 
       {/* Controles: cantidad y agregar al carrito */}
       <div className="mt-auto pt-2 space-y-2">
@@ -253,7 +248,7 @@ export default function ProductCard({
                 disabled={isAdding || !canPurchase}
                 aria-busy={isAdding}
                 aria-label={`Agregar ${title} al carrito`}
-                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 transition-all duration-200 font-medium ${
+                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 transition-all duration-200 font-medium shadow-sm ${
                   isAdding 
                     ? "scale-95 bg-primary-700" 
                     : "hover:scale-105 active:scale-95 hover:shadow-lg"

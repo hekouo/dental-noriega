@@ -1,0 +1,115 @@
+## SEO + Sharing Pack (PR #327)
+
+### Cambios implementados
+
+#### 1. Metadata global mejorada (`src/app/layout.tsx`)
+- ✅ `alternates.canonical` base agregado
+- ✅ `themeColor` en viewport para mobile browsers
+- ✅ JSON-LD Organization y WebSite ya existentes (verificados)
+- ✅ `metadataBase` ya configurado correctamente
+
+#### 2. Metadata por ruta
+- ✅ **Páginas principales:** canonical agregado en `/`, `/tienda`, `/destacados`, `/buscar`, `/como-comprar`
+- ✅ **PDP (`/catalogo/[section]/[slug]`):** Ya tiene `generateMetadata` con:
+  - Title: "Producto | Sección | Depósito Dental Noriega"
+  - Description con fallback
+  - Open Graph image (imagen del producto o fallback)
+  - Canonical URL absoluta
+- ✅ **Secciones (`/catalogo/[section]`):** Ya tiene `generateMetadata` con canonical
+
+#### 3. robots.txt (`src/app/robots.ts`)
+- ✅ Mejorado: ahora incluye `/auth`, `/forgot-password`, `/update-password`, `/admin` en disallow
+- ✅ Sitemap URL configurada correctamente
+
+#### 4. sitemap.xml (`src/app/sitemap.ts`)
+- ✅ Revalidación agregada: `revalidate = 86400` (24 horas)
+- ✅ Ya incluye URLs estáticas y dinámicas (productos activos y secciones)
+- ✅ Usa vista pública `api_catalog_with_images` (sin service role)
+
+#### 5. Manifest (`src/app/manifest.ts`)
+- ✅ Mejorado: usa `SITE.name` y `SITE.description`
+- ✅ Icons agregados: `/icon.png` y `/apple-icon.png` (referencias; archivos deben existir en public)
+- ✅ Theme color: `#0ea5e9`
+
+#### 6. Noindex en páginas sensibles
+- ✅ `/checkout` (layout con metadata)
+- ✅ `/checkout/datos` (ya tenía)
+- ✅ `/checkout/gracias` (ya tenía)
+- ✅ `/checkout/pago` (ya tenía)
+- ✅ `/checkout/pago-pendiente` (ya tenía)
+- ✅ `/cuenta` y subrutas (ya tenían)
+- ✅ `/forgot-password` (ya tenía)
+- ✅ `/update-password` (ya tenía)
+- ✅ `/aviso-privacidad` (ya tenía)
+- ✅ `/terminos-condiciones` (ya tenía)
+
+### Archivos modificados
+- `src/app/layout.tsx` - Metadata global mejorada (canonical, themeColor)
+- `src/app/page.tsx` - Canonical agregado
+- `src/app/tienda/page.tsx` - Canonical agregado
+- `src/app/buscar/page.tsx` - Canonical agregado
+- `src/app/destacados/page.tsx` - Canonical agregado
+- `src/app/como-comprar/page.tsx` - Canonical agregado
+- `src/app/robots.ts` - Disallow mejorado (auth, admin, etc.)
+- `src/app/sitemap.ts` - Revalidación agregada
+- `src/app/manifest.ts` - Mejorado con SITE constants e icons
+- `src/app/checkout/layout.tsx` - Nuevo: metadata para checkout (noindex)
+
+### Archivos legacy (no eliminados, pero no se usan)
+- `public/robots.txt` - Legacy, Next.js usa `src/app/robots.ts`
+- `public/sitemap.xml` - Legacy, Next.js usa `src/app/sitemap.ts`
+
+### Cómo probar
+
+#### 1. Metadata y Open Graph
+- Abrir `/` en navegador
+- View Source (Ctrl+U) y buscar:
+  - `<meta property="og:title"` debe estar presente
+  - `<link rel="canonical"` debe apuntar a la URL correcta
+  - `<meta name="theme-color"` debe estar presente
+- Probar en PDP: `/catalogo/[section]/[slug]`
+  - Verificar que OG image sea la imagen del producto
+  - Verificar canonical URL absoluta
+
+#### 2. robots.txt
+- Visitar `http://localhost:3000/robots.txt`
+- Debe mostrar:
+  - Allow: /
+  - Disallow: /api/, /cuenta, /checkout, /auth, /admin, etc.
+  - Sitemap: URL correcta
+
+#### 3. sitemap.xml
+- Visitar `http://localhost:3000/sitemap.xml`
+- Debe mostrar XML válido con:
+  - URLs estáticas (/, /tienda, /destacados, etc.)
+  - URLs dinámicas de productos (solo is_active=true)
+  - URLs de secciones
+
+#### 4. Manifest
+- Visitar `http://localhost:3000/manifest.webmanifest`
+- Debe mostrar JSON con name, description, icons, theme_color
+
+#### 5. Sharing (WhatsApp/Facebook)
+- Usar herramienta de debug:
+  - Facebook: https://developers.facebook.com/tools/debug/
+  - Twitter: https://cards-dev.twitter.com/validator
+- Compartir URL de home o PDP
+- Verificar que muestra:
+  - Título correcto
+  - Descripción
+  - Imagen (OG image)
+
+### Validaciones
+- ✅ `pnpm typecheck` pasa
+- ✅ `pnpm lint` pasa (solo warnings preexistentes)
+- ✅ `pnpm build` pasa
+- ✅ No dependencias nuevas agregadas
+- ✅ No se expone service role key
+- ✅ Performance mantenida
+
+### Notas
+- Los archivos `icon.png` y `apple-icon.png` deben existir en `public/` (referencias agregadas en manifest)
+- El sitemap se regenera cada 24 horas (revalidate)
+- Las páginas sensibles ya tenían noindex; se verificó y mejoró cobertura
+- robots.ts y sitemap.ts usan App Router conventions (MetadataRoute)
+
