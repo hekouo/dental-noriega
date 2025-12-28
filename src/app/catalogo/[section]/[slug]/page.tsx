@@ -17,6 +17,7 @@ import { FREE_SHIPPING_THRESHOLD_MXN } from "@/lib/shipping/freeShipping";
 import Breadcrumbs from "@/components/navigation/Breadcrumbs";
 import FreeShippingProgressPDP from "@/components/cart/FreeShippingProgressPDP";
 import ProductLoyaltyInfo from "@/components/pdp/ProductLoyaltyInfo";
+import TrustBadgesPDP from "@/components/pdp/TrustBadgesPDP";
 import {
   getBreadcrumbsJsonLd,
   getProductJsonLd,
@@ -260,6 +261,9 @@ export default async function ProductDetailPage({ params }: Props) {
                 </div>
               </div>
 
+              {/* Trust badges */}
+              <TrustBadgesPDP />
+
               {/* Controles de compra */}
               <ProductActions
                 product={{
@@ -291,6 +295,45 @@ export default async function ProductDetailPage({ params }: Props) {
               </div>
             </section>
           )}
+
+          {/* Envíos y devoluciones */}
+          <section className="mt-6 bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+            <details className="group">
+              <summary className="flex items-center justify-between p-4 cursor-pointer list-none hover:bg-gray-50 transition-colors">
+                <span className="text-base font-semibold text-gray-900">
+                  Envíos y devoluciones
+                </span>
+                <svg
+                  className="w-5 h-5 text-gray-500 transition-transform group-open:rotate-180"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
+              </summary>
+              <div className="px-4 pb-4 text-sm text-gray-700 space-y-2">
+                <p>
+                  • <strong>Envío gratis</strong> en compras superiores a $2,000 MXN
+                </p>
+                <p>
+                  • <strong>Envíos a todo México</strong> con tiempos de entrega de 3-7 días hábiles
+                </p>
+                <p>
+                  • <strong>Devoluciones</strong> disponibles dentro de los primeros 15 días posteriores a la recepción, siempre que el producto esté en su empaque original y sin uso
+                </p>
+                <p>
+                  • <strong>Soporte</strong> por WhatsApp para resolver cualquier duda sobre envíos o devoluciones
+                </p>
+              </div>
+            </details>
+          </section>
 
           {/* Productos relacionados */}
           <PdpRelatedSection

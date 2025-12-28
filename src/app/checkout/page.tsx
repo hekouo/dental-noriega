@@ -46,7 +46,7 @@ function EmptyCheckout() {
         </p>
         <Link
           href="/catalogo"
-          className="inline-block rounded-lg bg-primary-600 px-6 py-3 text-white hover:bg-primary-700 transition-colors font-semibold"
+          className="inline-block rounded-lg bg-primary-600 px-6 py-3 text-white hover:bg-primary-700 transition-colors font-semibold min-h-[44px] inline-flex items-center justify-center"
           aria-label="Ir al catálogo para agregar productos"
         >
           Ir al catálogo
@@ -107,7 +107,7 @@ export default function CheckoutIndex() {
   }
 
   return (
-    <main className="mx-auto max-w-4xl p-6 space-y-6">
+    <main className="mx-auto max-w-4xl p-4 sm:p-6 space-y-6 pb-24 md:pb-6">
       <CheckoutStepper current="cart" />
       <header className="flex items-center justify-between">
         <div>
@@ -128,46 +128,45 @@ export default function CheckoutIndex() {
       </header>
 
       {/* Botones globales */}
-      <div className="flex gap-3">
+      <div className="flex flex-wrap gap-3">
         <button
           onClick={selectAllCheckout}
-          className="px-4 py-2 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+          className="px-4 py-3 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors min-h-[44px] font-medium"
         >
           Seleccionar todo
         </button>
         <button
           onClick={deselectAllCheckout}
-          className="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+          className="px-4 py-3 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors min-h-[44px] font-medium"
         >
           Deseleccionar todo
         </button>
         <button
           onClick={clearCheckout}
-          className="px-4 py-2 text-sm bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+          className="px-4 py-3 text-sm bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors min-h-[44px] font-medium"
         >
           Vaciar checkout
         </button>
       </div>
 
       {/* Lista de productos */}
-      <section className="space-y-3">
+      <section className="space-y-4 divide-y divide-gray-200">
         {checkoutItems.map((item) => (
-          <CheckoutItemRow
-            key={`${item.id}:${item.variantId || "default"}`}
-            id={item.id}
-          />
+          <div key={`${item.id}:${item.variantId || "default"}`} className="pt-4 first:pt-0">
+            <CheckoutItemRow id={item.id} />
+          </div>
         ))}
       </section>
 
       {/* Botón continuar */}
-      <div className="flex justify-center pt-6">
+      <div className="flex justify-center pt-6 pb-6">
         <button
           onClick={handleContinue}
           disabled={!hasSelected}
           className={[
-            "px-8 py-4 rounded-xl font-semibold text-lg transition-all",
+            "px-8 py-4 rounded-xl font-semibold text-lg transition-all min-h-[44px] w-full sm:w-auto",
             hasSelected
-              ? "bg-blue-600 text-white hover:bg-blue-700 shadow-lg hover:shadow-xl"
+              ? "bg-blue-600 text-white hover:bg-blue-700 shadow-lg hover:shadow-xl active:scale-95"
               : "bg-gray-300 text-gray-500 cursor-not-allowed",
           ].join(" ")}
         >
