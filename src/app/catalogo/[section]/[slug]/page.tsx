@@ -18,6 +18,8 @@ import Breadcrumbs from "@/components/navigation/Breadcrumbs";
 import FreeShippingProgressPDP from "@/components/cart/FreeShippingProgressPDP";
 import ProductLoyaltyInfo from "@/components/pdp/ProductLoyaltyInfo";
 import TrustBadgesPDP from "@/components/pdp/TrustBadgesPDP";
+import TrustStrip from "@/components/ui/TrustStrip";
+import { getWhatsAppUrl } from "@/lib/whatsapp/config";
 import {
   getBreadcrumbsJsonLd,
   getProductJsonLd,
@@ -264,6 +266,31 @@ export default async function ProductDetailPage({ params }: Props) {
               {/* Trust badges */}
               <TrustBadgesPDP />
 
+              {/* Trust strip */}
+              <TrustStrip
+                variant="pdp"
+                items={[
+                  {
+                    icon: "card",
+                    title: "Pago seguro",
+                    subtitle: "Con tarjeta",
+                  },
+                  {
+                    icon: "truck",
+                    title: "Envío a todo México",
+                  },
+                  {
+                    icon: "whatsapp",
+                    title: "¿Dudas? Escríbenos",
+                    href: getWhatsAppUrl("Hola, tengo una pregunta sobre este producto.") ?? undefined,
+                  },
+                  {
+                    icon: "shield",
+                    title: "Atención postcompra",
+                  },
+                ]}
+              />
+
               {/* Controles de compra */}
               <ProductActions
                 product={{
@@ -323,13 +350,13 @@ export default async function ProductDetailPage({ params }: Props) {
                   • <strong>Envío gratis</strong> en compras superiores a $2,000 MXN
                 </p>
                 <p>
-                  • <strong>Envíos a todo México</strong> con tiempos de entrega de 3-7 días hábiles
+                  • <strong>Envíos a todo México</strong> con tiempos de entrega de 3-7 días hábiles, dependiendo de tu ubicación
                 </p>
                 <p>
                   • <strong>Devoluciones</strong> disponibles dentro de los primeros 15 días posteriores a la recepción, siempre que el producto esté en su empaque original y sin uso
                 </p>
                 <p>
-                  • <strong>Soporte</strong> por WhatsApp para resolver cualquier duda sobre envíos o devoluciones
+                  • <strong>Asesoría por WhatsApp</strong> para resolver cualquier duda sobre envíos o devoluciones
                 </p>
               </div>
             </details>
