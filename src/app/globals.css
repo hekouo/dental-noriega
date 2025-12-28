@@ -7,6 +7,11 @@
   --vh: 100dvh; /* iOS moderno */
   --safe-b: env(safe-area-inset-bottom, 0px);
   --safe-t: env(safe-area-inset-top, 0px);
+  
+  /* Brand tokens */
+  --brand: rgb(59, 130, 246); /* primary-500 */
+  --brand2: rgb(147, 197, 253); /* primary-300 */
+  --surface: rgb(255, 255, 255);
 }
 
 html,
@@ -53,6 +58,34 @@ textarea {
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+
+  /* Brand utilities */
+  .bg-hero {
+    background: radial-gradient(
+      circle at 50% 0%,
+      rgba(59, 130, 246, 0.08) 0%,
+      transparent 50%
+    );
+  }
+
+  .bg-grid {
+    background-image: 
+      linear-gradient(rgba(0, 0, 0, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 0, 0, 0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  /* Reduced motion support */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 

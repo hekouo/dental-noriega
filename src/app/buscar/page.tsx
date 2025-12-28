@@ -3,7 +3,7 @@ import React from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
 import dynamicImport from "next/dynamic";
-import { Search } from "lucide-react";
+import { Search, Package, AlertCircle } from "lucide-react";
 import SearchResultCard from "@/components/SearchResultCard";
 import { ROUTES } from "@/lib/routes";
 import { getWhatsAppUrl } from "@/lib/whatsapp/config";
@@ -17,6 +17,7 @@ import {
 } from "@/lib/catalog/config";
 import { getFeaturedItems } from "@/lib/catalog/getFeatured.server";
 import FeaturedGrid from "@/components/FeaturedGrid";
+import SectionHeader from "@/components/ui/SectionHeader";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -107,12 +108,12 @@ export default async function BuscarPage({ searchParams }: Props) {
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
             Búsquedas populares
           </h2>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar scroll-smooth">
             {popularSearches.map((search) => (
               <Link
                 key={search}
                 href={`/buscar?q=${encodeURIComponent(search)}`}
-                className="px-4 py-2 bg-white border border-gray-300 rounded-full text-sm text-gray-700 hover:bg-primary-50 hover:border-primary-500 hover:text-primary-700 transition-all duration-200 active:scale-95"
+                className="flex-shrink-0 px-4 py-2 bg-white border border-gray-300 rounded-full text-sm text-gray-700 hover:bg-primary-50 hover:border-primary-500 hover:text-primary-700 transition-all duration-200 active:scale-95 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1"
               >
                 {search}
               </Link>
@@ -125,12 +126,12 @@ export default async function BuscarPage({ searchParams }: Props) {
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
             Explorar por categoría
           </h2>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar scroll-smooth">
             {popularCategories.map((category) => (
               <Link
                 key={category.slug}
                 href={ROUTES.section(category.slug)}
-                className="px-4 py-2 bg-primary-50 border border-primary-200 rounded-full text-sm text-primary-700 hover:bg-primary-100 hover:border-primary-400 transition-all duration-200 active:scale-95 font-medium"
+                className="flex-shrink-0 px-4 py-2 bg-primary-50 border border-primary-200 rounded-full text-sm text-primary-700 hover:bg-primary-100 hover:border-primary-400 transition-all duration-200 active:scale-95 font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1"
               >
                 {category.name}
               </Link>
@@ -246,8 +247,8 @@ export default async function BuscarPage({ searchParams }: Props) {
       {items.length === 0 && (
         <>
           <div className="bg-white rounded-xl border border-gray-200 p-8 sm:p-12 text-center max-w-2xl mx-auto shadow-sm">
-            <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center mb-6 animate-pulse">
-              <Search className="w-10 h-10 text-gray-400" aria-hidden="true" />
+            <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center mb-6">
+              <AlertCircle className="w-10 h-10 text-primary-500" aria-hidden="true" />
             </div>
             <h2 className="text-2xl font-bold text-gray-900 mb-3">
               No encontramos resultados para "{q}"
@@ -293,10 +294,11 @@ export default async function BuscarPage({ searchParams }: Props) {
 
           {/* Productos destacados cuando no hay resultados */}
           {filteredFeatured.length > 0 && (
-            <div className="mt-8">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                Te recomendamos estos productos destacados
-              </h2>
+            <div className="mt-12">
+              <SectionHeader
+                title="Te recomendamos estos productos destacados"
+                subtitle="Productos que podrían interesarte"
+              />
               <FeaturedGrid
                 items={filteredFeatured.slice(0, 8)}
                 source="search_no_results"
@@ -349,12 +351,10 @@ export default async function BuscarPage({ searchParams }: Props) {
           {/* Sección "También te puede interesar" cuando hay pocos resultados */}
           {hasFewResults && filteredFeatured.length > 0 && (
             <div className="mt-12 pt-8 border-t border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                También te puede interesar
-              </h2>
-              <p className="text-sm text-slate-600 mb-4">
-                Otros productos similares que suelen revisar nuestros clientes.
-              </p>
+              <SectionHeader
+                title="También te puede interesar"
+                subtitle="Otros productos similares que suelen revisar nuestros clientes"
+              />
               <FeaturedGrid
                 items={filteredFeatured.slice(0, 8)}
                 source="search_low_results"
