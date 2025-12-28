@@ -1,0 +1,70 @@
+## Mejoras de conversión móvil (PR #326)
+
+### Cambios implementados
+
+#### 1. Filtros de búsqueda móvil (`/buscar`)
+- ✅ Bottom sheet para filtros en móvil (botón sticky)
+- ✅ Toggles: Solo en stock, Rango de precio, Orden
+- ✅ Botones: Aplicar, Limpiar, Cancelar
+- ✅ Chips de filtros activos visibles
+- ✅ Filtros desktop ocultos en móvil (md:hidden)
+- ✅ Contador: "Mostrando X productos"
+- ✅ Botón "Quitar filtros" en estado no-results cuando hay filtros activos
+
+#### 2. PDP (Product Detail Page)
+- ✅ TrustBadges agregados (versión adaptada para fondo claro)
+- ✅ Acordeón "Envíos y devoluciones" con detalles importantes
+- ✅ Sticky CTA móvil ya existente (verificado que funciona correctamente)
+
+#### 3. Checkout (`/checkout`)
+- ✅ Touch targets mejorados: botones min-h-[44px]
+- ✅ Mejor spacing: dividers entre items, padding mejorado
+- ✅ Botón "Continuar" full-width en móvil
+- ✅ Padding-bottom para evitar tapar contenido con bottom nav
+
+### Archivos nuevos
+- `src/components/search/SearchFiltersSheet.client.tsx` - Bottom sheet de filtros
+- `src/components/search/SearchFiltersMobile.client.tsx` - Wrapper con botón sticky
+- `src/components/search/SearchFiltersButton.client.tsx` - Botón sticky (no usado, puede removerse)
+- `src/components/pdp/TrustBadgesPDP.tsx` - Versión de TrustBadges para PDP
+
+### Archivos modificados
+- `src/app/buscar/page.tsx` - Integración de filtros móviles, contador, botón quitar filtros
+- `src/app/catalogo/[section]/[slug]/page.tsx` - TrustBadges + acordeón
+- `src/app/checkout/page.tsx` - Micro mejoras de spacing y touch targets
+- `src/app/globals.css` - Keyframe slideInUp para animación del bottom sheet
+
+### Cómo probar
+
+#### Móvil (viewport móvil o dispositivo real)
+1. **Buscar:**
+   - Ir a `/buscar?q=guantes`
+   - Ver botón sticky "Filtrar" debajo del input
+   - Abrir bottom sheet, aplicar filtros, verificar que funciona
+   - Aplicar filtros y ver el estado "No results" con botón "Quitar filtros"
+
+2. **PDP:**
+   - Ir a cualquier producto
+   - Ver TrustBadges arriba de ProductActions
+   - Abrir acordeón "Envíos y devoluciones"
+   - Verificar sticky CTA en la parte inferior (solo móvil)
+
+3. **Checkout:**
+   - Agregar productos al carrito
+   - Ir a `/checkout`
+   - Verificar que los botones tienen buen tamaño táctil (44px mínimo)
+   - Verificar spacing entre items
+
+### Validaciones
+- ✅ `pnpm typecheck` pasa
+- ✅ `pnpm lint` pasa (solo warnings preexistentes)
+- ✅ `pnpm build` pasa
+- ✅ No dependencias nuevas agregadas
+- ✅ Respeto a `prefers-reduced-motion`
+- ✅ Accesibilidad: focus rings, aria-labels
+
+### Notas
+- El bottom sheet usa animación CSS pura (keyframe `slideInUp`)
+- Los filtros navegan por URL (preservan query params)
+- TrustBadgesPDP tiene estilos adaptados para fondo claro (diferente a la versión del hero)
+

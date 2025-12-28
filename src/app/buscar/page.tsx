@@ -33,6 +33,9 @@ export const metadata: Metadata = {
       "Busca insumos y equipos dentales en nuestro catálogo. Encuentra el producto que necesitas por nombre, categoría o descripción.",
     type: "website",
   },
+  alternates: {
+    canonical: "/buscar",
+  },
 };
 
 const SearchInput = dynamicImport(

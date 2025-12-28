@@ -20,6 +20,9 @@ export const metadata: Metadata = {
       "Guía rápida para comprar insumos dentales. Envíos a todo México, envío gratis desde $2,000 MXN, puntos de lealtad y atención personalizada.",
     type: "website",
   },
+  alternates: {
+    canonical: "/como-comprar",
+  },
 };
 
 export default function ComoComprarPage() {

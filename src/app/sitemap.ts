@@ -7,6 +7,8 @@ import { createClient } from "@/lib/supabase/public";
  * Genera el sitemap dinámico para SEO
  * Incluye URLs estáticas y dinámicas de productos y secciones del catálogo
  */
+export const revalidate = 86400; // Revalidar cada 24 horas
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = SITE.url;
 
