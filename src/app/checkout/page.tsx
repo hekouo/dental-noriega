@@ -16,6 +16,8 @@ import { useCartStore } from "@/lib/store/cartStore";
 import CheckoutItemRow from "@/components/CheckoutItemRow";
 import CheckoutSummary from "@/components/CheckoutSummary";
 import CheckoutStepper from "@/components/checkout/CheckoutStepper";
+import TrustStrip from "@/components/ui/TrustStrip";
+import { getWhatsAppUrl } from "@/lib/whatsapp/config";
 
 function EmptyCheckout() {
   return (
@@ -157,6 +159,30 @@ export default function CheckoutIndex() {
           </div>
         ))}
       </section>
+
+      {/* Trust strip */}
+      {hasSelected && (
+        <TrustStrip
+          variant="checkout"
+          items={[
+            {
+              icon: "card",
+              title: "Pago seguro",
+              subtitle: "Con tarjeta",
+            },
+            {
+              icon: "whatsapp",
+              title: "Soporte rápido",
+              subtitle: "Por WhatsApp",
+              href: getWhatsAppUrl("Hola, tengo una pregunta sobre mi pedido.") ?? undefined,
+            },
+            {
+              icon: "truck",
+              title: "Envío a todo México",
+            },
+          ]}
+        />
+      )}
 
       {/* Botón continuar */}
       <div className="flex justify-center pt-6 pb-6">

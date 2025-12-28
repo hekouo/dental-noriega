@@ -348,7 +348,7 @@ export default function ProductActions({ product }: Props) {
               className="w-full bg-emerald-500 text-white px-6 py-3 rounded-md hover:bg-emerald-600 transition-colors font-medium flex items-center justify-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
             >
               <MessageCircle className="w-5 h-5" />
-              Consultar por WhatsApp
+              ¿Dudas? Escríbenos
             </a>
           ) : (
             <button
@@ -357,7 +357,7 @@ export default function ProductActions({ product }: Props) {
               title="WhatsApp no configurado"
             >
               <MessageCircle className="w-5 h-5" />
-              Consultar por WhatsApp
+              ¿Dudas? Escríbenos
             </button>
           )}
         </div>
@@ -377,7 +377,7 @@ export default function ProductActions({ product }: Props) {
                 <MessageCircle className="h-4 w-4" />
               </div>
               <p className="text-xs sm:text-sm text-gray-700">
-                Tienda familiar con atención por WhatsApp antes y después de tu compra.
+                Asesoría por WhatsApp antes y después de tu compra.
               </p>
             </div>
             <div className="flex items-start gap-3">

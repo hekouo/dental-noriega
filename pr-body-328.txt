@@ -1,0 +1,69 @@
+## Card cleanup + brand accents (PR #328)
+
+### Cambios implementados
+
+#### 1. ProductCard: badges compactos en lugar de texto largo
+- ✅ **Envío gratis:** Reemplazado texto largo "Envío gratis desde $2,000 MXN en productos." por badge pill compacto: "Envío gratis $2,000+"
+- ✅ **Puntos:** Reemplazado texto largo "Ganarás aprox. 260 pts (~$X MXN de ahorro...)" por badge compacto: "+260 pts"
+- ✅ **Stock:** Badge "En stock" ahora usa acento de marca (primary-600) en lugar de emerald
+- ✅ **Layout:** Badges en flex-wrap para móvil, no rompen el layout
+- ✅ **PDP:** Mantiene texto detallado completo (ProductLoyaltyInfo) - solo cards en grids usan badges compactos
+
+#### 2. Acentos de marca consistentes
+- ✅ **Badge "En stock":** Usa `bg-primary-50 text-primary-700 border border-primary-200` (acento de marca)
+- ✅ **Botón "Agregar":** Mantiene `bg-primary-600` con `shadow-sm` para mejor jerarquía
+- ✅ **SectionHeader:** Línea decorativa con `bg-primary-600` debajo del título (w-12 h-0.5)
+
+#### 3. Separación visual mejorada en home
+- ✅ **Divider:** Agregado separador sutil entre "Destacados" y "También te puede interesar"
+- ✅ **Fondo sutil:** Sección "También te puede interesar" ahora tiene `bg-gray-50/50 rounded-2xl` para diferenciación visual
+- ✅ **Espaciado:** Mejorado con `my-8` para separación clara
+
+#### 4. Copy cleanup: eliminado "modo prueba"
+- ✅ **ProductActions.client.tsx:** Reemplazado "Pagos seguros con tarjeta en modo prueba para tus pruebas de compra" por "Pagos seguros con tarjeta. Transferencia bancaria disponible."
+- ✅ **como-comprar/page.tsx:** Reemplazado párrafo sobre "modo prueba" por copy neutro: "Aceptamos pagos con tarjeta de crédito y débito a través de Stripe, una plataforma de pagos segura y reconocida. También puedes realizar transferencias bancarias para mayor comodidad."
+
+### Archivos modificados
+- `src/components/catalog/ProductCard.tsx` - Badges compactos, acento de marca en stock
+- `src/components/ui/SectionHeader.tsx` - Línea decorativa con acento de marca
+- `src/app/page.tsx` - Separación visual mejorada entre secciones
+- `src/components/product/ProductActions.client.tsx` - Copy limpio de pagos
+- `src/app/como-comprar/page.tsx` - Copy limpio de pagos
+
+### Validaciones
+- ✅ `pnpm typecheck` pasa
+- ✅ `pnpm lint` pasa (solo warnings preexistentes)
+- ✅ `pnpm build` pasa
+- ✅ No dependencias nuevas
+- ✅ No cambios en lógica de negocio
+
+### Cómo probar
+
+#### 1. ProductCard en grids (Home/Destacados/Buscar/Tienda)
+- Verificar que las cards muestran badges compactos:
+  - "En stock" (con acento primary)
+  - "Envío gratis $2,000+"
+  - "+260 pts" (si aplica)
+- Verificar que en móvil los badges hacen wrap correctamente
+- Verificar que las cards se ven más limpias y menos saturadas
+
+#### 2. PDP (Product Detail Page)
+- Verificar que mantiene el texto detallado completo:
+  - "Envío gratis desde $2,000 MXN en productos."
+  - "Ganarás aprox. X puntos con este producto. Equivalen aprox. a $X MXN de ahorro..."
+- Verificar que ProductLoyaltyInfo sigue funcionando
+
+#### 3. Home page
+- Verificar separación visual entre "Destacados" y "También te puede interesar"
+- Verificar que "También te puede interesar" tiene fondo sutil
+- Verificar que SectionHeader tiene línea decorativa debajo del título
+
+#### 4. Copy de pagos
+- Verificar que no aparece "modo prueba" en ProductActions ni en /como-comprar
+- Verificar que el copy es neutro y profesional
+
+### Notas
+- Los badges compactos solo se muestran en ProductCard (grids), no en PDP
+- El acento de marca (primary-600) se aplica consistentemente en elementos clave
+- La separación visual en home ayuda a diferenciar secciones sin saturar
+

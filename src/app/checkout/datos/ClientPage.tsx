@@ -12,6 +12,8 @@ import { datosSchema, type DatosForm, MX_STATES } from "@/lib/checkout/schemas";
 import CheckoutStepper from "@/components/checkout/CheckoutStepper";
 import CheckoutDebugPanel from "@/components/CheckoutDebugPanel";
 import Link from "next/link";
+import TrustStrip from "@/components/ui/TrustStrip";
+import { getWhatsAppUrl } from "@/lib/whatsapp/config";
 import { trackBeginCheckout } from "@/lib/analytics/events";
 import { formatMXN as formatMXNMoney } from "@/lib/utils/money";
 import { getSelectedItems } from "@/lib/checkout/selection";
@@ -1087,6 +1089,28 @@ function DatosPageContent() {
             </div>
           </div>
         )}
+
+        {/* Trust strip */}
+        <TrustStrip
+          variant="checkout"
+          items={[
+            {
+              icon: "card",
+              title: "Pago seguro",
+              subtitle: "Con tarjeta",
+            },
+            {
+              icon: "whatsapp",
+              title: "Soporte rápido",
+              subtitle: "Por WhatsApp",
+              href: getWhatsAppUrl("Hola, tengo una pregunta sobre mi pedido.") ?? undefined,
+            },
+            {
+              icon: "truck",
+              title: "Envío a todo México",
+            },
+          ]}
+        />
 
         {/* Botones */}
         <div className="flex gap-4 pt-4">
