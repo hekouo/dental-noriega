@@ -4,7 +4,6 @@ import React from "react";
 import Link from "next/link";
 import { Shield, Truck, MessageCircle, CreditCard } from "lucide-react";
 import { getWhatsAppUrl } from "@/lib/whatsapp/config";
-import { ROUTES } from "@/lib/routes";
 
 type TrustItem = {
   icon: "shield" | "truck" | "whatsapp" | "card";
