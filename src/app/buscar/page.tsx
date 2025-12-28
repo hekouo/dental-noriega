@@ -52,6 +52,11 @@ const FiltersSelect = dynamicImport(
   { ssr: false },
 );
 
+const SearchFiltersMobile = dynamicImport(
+  () => import("@/components/search/SearchFiltersMobile.client"),
+  { ssr: false },
+);
+
 type Props = {
   searchParams: {
     q?: string;
@@ -204,17 +209,31 @@ export default async function BuscarPage({ searchParams }: Props) {
         <h1 className="text-xl sm:text-2xl font-semibold mb-2 text-gray-900">
           {q ? `Resultados para "${q}"` : "Buscar productos"}
         </h1>
-        <p className="text-sm text-slate-600 mb-4">
-          {total > 0
-            ? `Se encontraron ${total} producto${total !== 1 ? "s" : ""}`
-            : ""}
-        </p>
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-sm text-slate-600">
+            {total > 0
+              ? `Mostrando ${total} producto${total !== 1 ? "s" : ""}`
+              : ""}
+          </p>
+        </div>
         <SearchInput sticky />
       </div>
 
       {items.length > 0 && (
         <>
-          <div className="mb-6 space-y-4">
+          {/* Filtros móviles: botón sticky + bottom sheet */}
+          <SearchFiltersMobile
+            inStockOnly={inStockOnly}
+            priceRange={priceRange}
+            sort={sort}
+            basePath={ROUTES.buscar()}
+            preserveParams={{
+              q,
+            }}
+          />
+
+          {/* Filtros desktop: ocultos en móvil */}
+          <div className="mb-6 space-y-4 hidden md:block">
             {page > 1 && (
               <p className="text-gray-500 text-sm">Página {page}</p>
             )}
@@ -273,9 +292,17 @@ export default async function BuscarPage({ searchParams }: Props) {
               </ul>
             </div>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              {(inStockOnly || priceRange !== "all" || sort !== "relevance") && (
+                <Link
+                  href={`/buscar?q=${encodeURIComponent(q)}`}
+                  className="px-6 py-3 bg-gray-100 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-200 transition-all duration-200 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2 hover:scale-105 active:scale-95 min-h-[44px] inline-flex items-center justify-center"
+                >
+                  Quitar filtros
+                </Link>
+              )}
               <Link
                 href={ROUTES.catalogIndex()}
-                className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-all duration-200 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 hover:scale-105 active:scale-95"
+                className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-all duration-200 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 hover:scale-105 active:scale-95 min-h-[44px] inline-flex items-center justify-center"
               >
                 Ver todo el catálogo
               </Link>
@@ -284,7 +311,7 @@ export default async function BuscarPage({ searchParams }: Props) {
                   href={getWhatsAppUrl(`Hola, busco productos relacionados con "${q}" en Depósito Dental Noriega.`)!}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-6 py-3 border-2 border-green-500 text-green-700 rounded-lg hover:bg-green-50 transition-all duration-200 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 hover:scale-105 active:scale-95"
+                  className="px-6 py-3 border-2 border-green-500 text-green-700 rounded-lg hover:bg-green-50 transition-all duration-200 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 hover:scale-105 active:scale-95 min-h-[44px] inline-flex items-center justify-center"
                 >
                   Hablar por WhatsApp
                 </Link>
