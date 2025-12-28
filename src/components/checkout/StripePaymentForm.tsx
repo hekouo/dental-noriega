@@ -38,7 +38,7 @@ function InnerForm({
     if (typeof window !== "undefined") {
       setRuntimeOrigin(window.location.origin);
     } else {
-      setRuntimeOrigin(process.env.NEXT_PUBLIC_SITE_URL ?? "https://dental-noriega.vercel.app");
+      setRuntimeOrigin(SITE_URL);
     }
   }, []);
 

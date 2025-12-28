@@ -1,12 +1,12 @@
 // src/app/sitemap.xml/route.ts
 import { NextResponse } from "next/server";
 import type { MetadataRoute } from "next";
+import { SITE_URL } from "@/lib/site";
 
 export const dynamic = "force-static";
 
 export async function GET(): Promise<Response> {
-  const base =
-    process.env.NEXT_PUBLIC_SITE_URL ?? "https://dental-noriega.vercel.app";
+  const base = SITE_URL;
 
   // Sitemap mínimo estático sin cookies ni Supabase
   const urls: MetadataRoute.Sitemap = [

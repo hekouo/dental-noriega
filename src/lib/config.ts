@@ -4,9 +4,11 @@
 export const isAuthOn = process.env.NEXT_PUBLIC_ENABLE_AUTH === "true";
 export const isCheckoutOn = process.env.NEXT_PUBLIC_ENABLE_CHECKOUT === "true";
 
+import { SITE_URL } from "./site";
+
 export const siteConfig = {
   name: process.env.NEXT_PUBLIC_SITE_NAME || "DENTAL NORIEGA",
-  url: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3002",
+  url: SITE_URL,
   whatsappPhone: process.env.NEXT_PUBLIC_WA_PHONE || "525531033715",
   contact: {
     email: "dental.noriega721@gmail.com",

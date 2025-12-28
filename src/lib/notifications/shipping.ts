@@ -50,8 +50,7 @@ export function buildShippingEmail(
   }
 
   // Obtener URL base del sitio
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3002";
-  const ordersUrl = `${siteUrl}/cuenta/pedidos`;
+  const ordersUrl = `${SITE_URL}/cuenta/pedidos`;
 
   // Escapar todos los datos externos para prevenir XSS
   const safeCustomerName = customerName ? escapeHtml(customerName) : null;

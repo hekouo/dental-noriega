@@ -150,7 +150,7 @@ export default async function BuscarPage({ searchParams }: Props) {
     );
   }
 
-  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "";
+  const base = SITE_URL;
   const queryParams = new URLSearchParams();
   queryParams.set("q", q);
   queryParams.set("page", page.toString());

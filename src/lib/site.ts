@@ -1,5 +1,25 @@
 // src/lib/site.ts
 // Configuración centralizada del sitio
+// IMPORTANTE: Para cambiar de dominio, solo actualiza NEXT_PUBLIC_SITE_URL en Vercel
+
+/**
+ * URL base del sitio (con protocolo, sin trailing slash)
+ * Fallback: localhost para desarrollo
+ */
+export const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+
+/**
+ * Host del sitio (ej: "dental-noriega.vercel.app" o "ddnshop.mx")
+ */
+export const SITE_HOST = (() => {
+  try {
+    return new URL(SITE_URL).host;
+  } catch {
+    // Fallback si SITE_URL no es válido
+    return "localhost:3000";
+  }
+})();
 
 export const SITE = {
   name: process.env.NEXT_PUBLIC_SITE_NAME || "DENTAL NORIEGA",
@@ -19,7 +39,7 @@ export const SITE = {
   instagram:
     process.env.NEXT_PUBLIC_INSTAGRAM_URL ||
     "https://www.instagram.com/deposito.dental.noriega",
-  url: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
+  url: SITE_URL, // Usar constante centralizada
   socialImage: "/og-default.jpg",
 };
 

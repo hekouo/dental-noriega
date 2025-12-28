@@ -1,0 +1,88 @@
+## Trust + Conversion Microcopy (PR #329)
+
+### Cambios implementados
+
+#### 1. Componente TrustStrip reutilizable (`src/components/ui/TrustStrip.tsx`)
+- ✅ Componente nuevo con props: `items?`, `variant?` ("compact" | "checkout" | "pdp")
+- ✅ Grid responsive: 2 columnas en móvil, 3-4 en desktop según cantidad de items
+- ✅ Iconos con lucide-react (Shield, Truck, MessageCircle, CreditCard)
+- ✅ Dark-mode friendly: fondos y textos adaptados para dark mode
+- ✅ Links opcionales: items con `href` se convierten en links clicables
+- ✅ Variantes de estilo según contexto (checkout más grande, pdp más sutil)
+
+#### 2. PDP: TrustStrip + microcopy mejorado
+- ✅ **TrustStrip agregado:** Debajo de TrustBadgesPDP, antes de ProductActions
+  - Items: "Pago seguro", "Envío a todo México", "¿Dudas? Escríbenos", "Atención postcompra"
+- ✅ **Acordeón "Envíos y devoluciones":**
+  - Microcopy mejorado: "Asesoría por WhatsApp" en lugar de "Soporte por WhatsApp"
+  - Texto más claro y conciso
+
+#### 3. Checkout: TrustStrip en múltiples puntos
+- ✅ **`/checkout` (página principal):**
+  - TrustStrip antes del botón "Continuar" (solo si hay items seleccionados)
+  - Items: "Pago seguro", "Soporte rápido por WhatsApp", "Envío a todo México"
+- ✅ **`/checkout/datos`:**
+  - TrustStrip antes del botón "Continuar al pago"
+  - Mismos items que en `/checkout`
+
+#### 4. Microcopy de WhatsApp mejorado
+- ✅ **ProductCard:** "Consultar por WhatsApp" → "¿Dudas? WhatsApp"
+- ✅ **ProductActions (PDP):** "Consultar por WhatsApp" → "¿Dudas? Escríbenos"
+- ✅ **ProductActions (trust info):** "Tienda familiar con atención por WhatsApp..." → "Asesoría por WhatsApp antes y después de tu compra."
+- ✅ Todos los botones mantienen hitbox mínimo de 44px
+
+#### 5. Dark mode y accesibilidad
+- ✅ TrustStrip con soporte dark mode (fondos y textos adaptados)
+- ✅ Focus rings visibles para accesibilidad
+- ✅ No se agregaron animaciones nuevas (respeta prefers-reduced-motion)
+
+### Archivos modificados
+- `src/components/ui/TrustStrip.tsx` - Nuevo componente
+- `src/app/catalogo/[section]/[slug]/page.tsx` - TrustStrip en PDP + microcopy acordeón
+- `src/app/checkout/page.tsx` - TrustStrip antes del botón continuar
+- `src/app/checkout/datos/ClientPage.tsx` - TrustStrip antes del botón continuar
+- `src/components/product/ProductActions.client.tsx` - Microcopy WhatsApp mejorado
+- `src/components/catalog/ProductCard.tsx` - Microcopy WhatsApp mejorado
+
+### Validaciones
+- ✅ `pnpm typecheck` pasa
+- ✅ `pnpm lint` pasa (solo warnings preexistentes)
+- ✅ `pnpm build` pasa
+- ✅ No dependencias nuevas
+- ✅ No cambios en lógica de negocio (checkout/Stripe/Supabase intactos)
+
+### Cómo probar
+
+#### 1. PDP (`/catalogo/[section]/[slug]`)
+- Verificar que TrustStrip aparece debajo de TrustBadgesPDP
+- Verificar que los items son clicables (WhatsApp abre link)
+- Verificar que el acordeón "Envíos y devoluciones" tiene microcopy mejorado
+- Verificar que el botón WhatsApp dice "¿Dudas? Escríbenos"
+
+#### 2. Checkout (`/checkout`)
+- Agregar productos al checkout
+- Verificar que TrustStrip aparece antes del botón "Continuar"
+- Verificar que solo aparece si hay items seleccionados
+- Verificar que el item de WhatsApp es clicable
+
+#### 3. Checkout Datos (`/checkout/datos`)
+- Completar el flujo hasta datos de envío
+- Verificar que TrustStrip aparece antes del botón "Continuar al pago"
+- Verificar que no tapa el botón ni rompe el layout
+
+#### 4. Dark mode
+- Activar dark mode en el navegador
+- Verificar que TrustStrip se ve bien (fondos oscuros, textos claros)
+- Verificar que no hay fondos blancos agresivos
+
+#### 5. Móvil (iPhone SE/12)
+- Verificar que TrustStrip hace grid 2x2 en móvil
+- Verificar que no rompe el layout ni tapa CTAs
+- Verificar que los botones WhatsApp tienen hitbox mínimo 44px
+
+### Notas
+- TrustStrip es completamente reutilizable y puede usarse en otras páginas
+- Los items son configurables por página según necesidad
+- No se menciona "Stripe" en exceso; solo "Pago seguro con tarjeta"
+- El microcopy es más claro y orientado a acción ("¿Dudas? Escríbenos" vs "Consultar por WhatsApp")
+

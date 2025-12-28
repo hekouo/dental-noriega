@@ -61,11 +61,7 @@ export async function registerAction(input: unknown) {
         full_name: fullName,
         phone: phone ?? null,
       },
-      emailRedirectTo: process.env.SITE_URL
-        ? `${process.env.SITE_URL}/auth/callback?type=signup`
-        : process.env.NEXT_PUBLIC_SITE_URL
-          ? `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback?type=signup`
-          : undefined,
+      emailRedirectTo: `${SITE_URL}/auth/callback?type=signup`,
     },
   });
 
@@ -90,7 +86,7 @@ export async function signInWithGoogleAction() {
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3002"}/cuenta/perfil`,
+      redirectTo: `${SITE_URL}/cuenta/perfil`,
     },
   });
 
@@ -114,8 +110,7 @@ export async function forgotPasswordAction(input: unknown) {
   const { email } = parsed.data;
   const supabase = createActionSupabase();
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || "http://localhost:3002";
-  const redirectTo = `${siteUrl}/auth/callback?type=recovery`;
+  const redirectTo = `${SITE_URL}/auth/callback?type=recovery`;
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo,
