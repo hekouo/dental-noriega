@@ -60,6 +60,12 @@ const AnalyticsGa4Bridge = dynamic(
     ssr: false,
   },
 );
+const MobileBottomNav = dynamic(
+  () => import("@/components/mobile/MobileBottomNav"),
+  {
+    ssr: false,
+  },
+);
 
 const inter = Inter({ subsets: ["latin"], display: "swap" });
 
@@ -250,7 +256,7 @@ export default function RootLayout({
           </div>
         </header>
 
-        <main className="max-w-6xl mx-auto p-4 flex-1 w-full pb-safe">
+        <main className="max-w-6xl mx-auto p-4 flex-1 w-full pb-24 md:pb-safe">
           {children}
           <FinalThanks />
         </main>
@@ -270,6 +276,9 @@ export default function RootLayout({
 
         {/* Analytics GA4 Bridge */}
         <AnalyticsGa4Bridge />
+
+        {/* Mobile Bottom Navigation */}
+        <MobileBottomNav />
 
         {/* Drawer global */}
         {/* ConsultarDrawer removido */}
