@@ -20,6 +20,9 @@ export const metadata: Metadata = {
       "Explora todos los productos disponibles. Insumos, equipos e instrumental odontológico organizados por categorías.",
     type: "website",
   },
+  alternates: {
+    canonical: "/tienda",
+  },
 };
 
 const categories = [

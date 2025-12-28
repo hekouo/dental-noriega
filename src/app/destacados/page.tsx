@@ -21,6 +21,9 @@ export const metadata: Metadata = {
       "Productos recomendados que suelen interesar a nuestros clientes. Insumos dentales destacados seleccionados especialmente para ti.",
     type: "website",
   },
+  alternates: {
+    canonical: "/destacados",
+  },
 };
 
 /**

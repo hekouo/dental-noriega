@@ -99,6 +99,9 @@ export const metadata: Metadata = {
       "Equipamiento e instrumental odontológico de calidad. Explora nuestro catálogo de insumos dentales con envío a todo México.",
     type: "website",
   },
+  alternates: {
+    canonical: "/",
+  },
 };
 
 export default async function HomePage() {
