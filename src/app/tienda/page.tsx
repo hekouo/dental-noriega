@@ -1,8 +1,10 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import FeaturedGrid from "@/components/FeaturedGrid";
 import { getFeaturedItems } from "@/lib/catalog/getFeatured.server";
 import { ROUTES } from "@/lib/routes";
+import ProductsGridSkeleton from "@/components/products/ProductsGridSkeleton";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -36,8 +38,25 @@ const categories = [
   },
 ];
 
-export default async function TiendaPage() {
+async function FeaturedItemsSection() {
   const featured = await getFeaturedItems();
+
+  if (featured.length === 0) return null;
+
+  return (
+    <div className="mb-12">
+      <h2 className="text-2xl font-semibold tracking-tight mb-2 text-gray-900">
+        Productos destacados
+      </h2>
+      <p className="text-sm text-gray-600 mb-6">
+        Productos recomendados que suelen interesar a nuestros clientes
+      </p>
+      <FeaturedGrid items={featured} />
+    </div>
+  );
+}
+
+export default async function TiendaPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -81,17 +100,21 @@ export default async function TiendaPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-8">
-        {featured.length > 0 && (
-          <div className="mb-12">
-            <h2 className="text-2xl font-semibold tracking-tight mb-2 text-gray-900">
-              Productos destacados
-            </h2>
-            <p className="text-sm text-gray-600 mb-6">
-              Productos recomendados que suelen interesar a nuestros clientes
-            </p>
-            <FeaturedGrid items={featured} />
-          </div>
-        )}
+        <Suspense
+          fallback={
+            <div className="mb-12">
+              <h2 className="text-2xl font-semibold tracking-tight mb-2 text-gray-900">
+                Productos destacados
+              </h2>
+              <p className="text-sm text-gray-600 mb-6">
+                Productos recomendados que suelen interesar a nuestros clientes
+              </p>
+              <ProductsGridSkeleton count={8} />
+            </div>
+          }
+        >
+          <FeaturedItemsSection />
+        </Suspense>
 
         <div>
           <h2 className="text-2xl font-semibold tracking-tight mb-2 text-gray-900">
