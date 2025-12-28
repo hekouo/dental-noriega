@@ -9,11 +9,7 @@ import { useCartStore } from "@/lib/store/cartStore";
 import { formatMXN, mxnFromCents } from "@/lib/utils/currency";
 import { normalizePrice, hasPurchasablePrice } from "@/lib/catalog/model";
 import { getWhatsAppHref } from "@/lib/whatsapp";
-import { FREE_SHIPPING_THRESHOLD_MXN } from "@/lib/shipping/freeShipping";
-import {
-  estimatePointsForPriceCents,
-  estimateFutureValueFromPoints,
-} from "@/lib/loyalty/utils";
+import { estimatePointsForPriceCents } from "@/lib/loyalty/utils";
 import { trackAddToCart, trackWhatsappClick } from "@/lib/analytics/events";
 import { launchCartConfetti } from "@/lib/ui/confetti";
 
