@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ShoppingCart, MessageCircle } from "lucide-react";
 import { useCartStore } from "@/lib/store/cartStore";
 import { getWhatsAppProductUrl } from "@/lib/whatsapp/config";
-import { mxnFromCents, formatMXNFromCents } from "@/lib/utils/currency";
+import { mxnFromCents } from "@/lib/utils/currency";
 
 type PdpStickyCTAProps = {
   product: {
