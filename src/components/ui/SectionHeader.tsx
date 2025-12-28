@@ -41,7 +41,7 @@ export default function SectionHeader({
             <span className="absolute bottom-0 left-0 w-12 h-0.5 bg-primary-600 rounded-full" aria-hidden="true" />
           </h2>
           {subtitle && (
-            <p className="text-sm sm:text-base text-gray-600 max-w-2xl mt-2">
+            <p className="text-sm sm:text-base text-gray-600 max-w-2xl">
               {subtitle}
             </p>
           )}
