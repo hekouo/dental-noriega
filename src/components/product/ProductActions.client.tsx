@@ -15,6 +15,8 @@ import { requiresVariants, getVariantConfig } from "@/lib/products/variants";
 import ColorSelector from "@/components/pdp/ColorSelector";
 import { hasColorOptions, formatColorVariantDetail } from "@/lib/products/colors";
 import Toast from "@/components/ui/Toast";
+import { useToast } from "@/components/ui/ToastProvider.client";
+import { ROUTES } from "@/lib/routes";
 
 type Product = {
   id: string;
@@ -37,6 +39,7 @@ export default function ProductActions({ product }: Props) {
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [colorNotes, setColorNotes] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: "error" | "success" } | null>(null);
+  const { showToast } = useToast();
   const addToCart = useCartStore((s) => s.addToCart);
   const upsertSingleToCheckout = useCheckoutStore(
     (s) => s.upsertSingleToCheckout,
@@ -124,6 +127,15 @@ export default function ProductActions({ product }: Props) {
 
     // Confeti al agregar al carrito
     void launchCartConfetti();
+
+    // Mostrar toast de confirmación
+    showToast({
+      message: "Agregado al carrito",
+      variant: "success",
+      actionLabel: "Ver carrito",
+      actionHref: ROUTES.carrito(),
+      durationMs: 1400,
+    });
   }
 
   function handleBuyNow() {

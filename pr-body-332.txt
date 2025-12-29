@@ -1,0 +1,104 @@
+## Cart Badge in Mobile Bottom Nav (PR #332)
+
+### Objetivo
+
+Agregar un badge numérico sobre el icono de "Carrito" en la barra inferior móvil (`MobileBottomNav`) que muestre la cantidad total de items en el carrito y se actualice en tiempo real.
+
+### Cambios implementados
+
+#### 1. Selector de total de items (`src/lib/store/cartSelectors.ts`)
+
+- ✅ Agregado `useCartTotalQty()`: selector que calcula la suma de `qty` de todos los items en el carrito
+- ✅ Fórmula: `items.reduce((sum, item) => sum + (item.qty ?? 1), 0)`
+- ✅ Zustand optimiza automáticamente los rerenders si el valor calculado no cambia
+
+#### 2. Badge en MobileBottomNav (`src/components/mobile/MobileBottomNav.tsx`)
+
+- ✅ Integrado `useCartTotalQty()` para obtener el conteo
+- ✅ Badge visible solo cuando `cartTotalQty > 0`
+- ✅ Formato del badge:
+  - Muestra `1..99` para cantidades normales
+  - Muestra `"99+"` para cantidades mayores a 99
+- ✅ Estilos:
+  - Posición: `absolute -top-1 -right-2`
+  - Tamaño: `min-w-[18px] h-[18px]`
+  - Estilo: `rounded-full`, `bg-primary-600`, `text-white`
+  - Texto: `text-[11px]`, `font-semibold`
+- ✅ Accesibilidad:
+  - `aria-label` dinámico: `"Carrito, X artículos"` (singular/plural según corresponda)
+  - Badge con `aria-hidden="true"` ya que el label ya incluye la información
+
+### Archivos modificados
+
+- `src/lib/store/cartSelectors.ts` - Agregado selector `useCartTotalQty()`
+- `src/components/mobile/MobileBottomNav.tsx` - Integrado badge con conteo
+
+### Validaciones
+
+- ✅ `pnpm typecheck` pasa
+- ✅ `pnpm lint` pasa (solo warnings preexistentes)
+- ✅ `pnpm build` pasa
+- ✅ No dependencias nuevas
+- ✅ No cambios en lógica de negocio (solo UI)
+
+### Cómo probar
+
+#### 1. Verificar badge en móvil
+
+1. Abre DevTools y emula un dispositivo móvil (iPhone SE/12)
+2. Navega a cualquier página (ej: `/tienda` o `/destacados`)
+3. Verifica que la bottom nav esté visible
+4. Verifica que el icono de "Carrito" NO tenga badge (carrito vacío)
+
+#### 2. Agregar items y verificar actualización
+
+1. Agrega 1 producto desde una `ProductCard` o desde un PDP
+2. Verifica que el badge aparezca con "1" sobre el icono de Carrito
+3. Agrega 2 productos más
+4. Verifica que el badge muestre "3"
+5. Verifica que el badge se actualice inmediatamente (sin recargar)
+
+#### 3. Verificar límite de 99+
+
+1. Si es posible, agrega más de 99 items (o modifica temporalmente el código para probar)
+2. Verifica que el badge muestre "99+" en lugar de un número mayor
+
+#### 4. Verificar remoción de items
+
+1. Ve a `/checkout` o `/carrito`
+2. Quita algunos items del carrito
+3. Verifica que el badge se actualice correctamente
+4. Si el carrito queda vacío, verifica que el badge desaparezca
+
+#### 5. Verificar accesibilidad
+
+1. Usa un lector de pantalla o inspecciona el elemento
+2. Verifica que el `aria-label` del link de Carrito incluya la cantidad:
+   - "Carrito, 1 artículo" (singular)
+   - "Carrito, 3 artículos" (plural)
+
+#### 6. Verificar SSR/hydration
+
+1. Recarga la página con items en el carrito
+2. Verifica que el badge aparezca correctamente después de la hidratación
+3. No debe haber warnings de mismatch SSR en la consola
+
+### Notas
+
+- **SSR-safe**: `MobileBottomNav` ya está montado con `dynamic import` sin SSR desde `layout.tsx`, por lo que no hay problemas de hidratación
+- **Performance**: Zustand optimiza automáticamente los rerenders si el valor calculado no cambia
+- **Accesibilidad**: El badge es decorativo (`aria-hidden`) ya que el `aria-label` del link ya incluye la información
+
+### Screenshots (si aplica)
+
+- Badge con "1" sobre el icono de Carrito
+- Badge con "99+" para cantidades grandes
+- Badge desaparece cuando el carrito está vacío
+
+---
+
+**Beneficios**:
+- ✅ Feedback visual inmediato al agregar/quitar items del carrito
+- ✅ Mejora la UX móvil al mostrar claramente cuántos items hay
+- ✅ Accesible y compatible con lectores de pantalla
+- ✅ Sin dependencias nuevas, usa el store existente
