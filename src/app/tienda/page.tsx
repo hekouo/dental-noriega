@@ -5,6 +5,7 @@ import FeaturedGrid from "@/components/FeaturedGrid";
 import { getFeaturedItems } from "@/lib/catalog/getFeatured.server";
 import { ROUTES } from "@/lib/routes";
 import ProductsGridSkeleton from "@/components/products/ProductsGridSkeleton";
+import CategoryIcon from "@/components/categories/CategoryIcon";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -135,11 +136,12 @@ export default async function TiendaPage() {
                 aria-label={`Ver productos de ${category.title}`}
                 style={{ "--delay": `${index * 50}ms` } as React.CSSProperties}
               >
-                <span className="block">
+                <div className="flex flex-col items-center gap-3">
+                  <CategoryIcon sectionSlug={category.sectionSlug} size={24} />
                   <h3 className="text-lg sm:text-xl font-semibold text-gray-900 group-hover:text-primary-600 transition-colors">
                     {category.title}
                   </h3>
-                </span>
+                </div>
               </Link>
             ))}
           </div>
