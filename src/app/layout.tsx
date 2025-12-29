@@ -66,9 +66,7 @@ const MobileBottomNav = dynamic(
     ssr: false,
   },
 );
-const Providers = dynamic(() => import("@/app/providers"), {
-  ssr: false,
-});
+import Providers from "./providers";
 
 const inter = Inter({ subsets: ["latin"], display: "swap" });
 
@@ -282,14 +280,14 @@ export default function RootLayout({
         {/* Footer */}
         <SiteFooter />
 
-          {/* Analytics GA4 Bridge */}
-          <AnalyticsGa4Bridge />
+        {/* Analytics GA4 Bridge */}
+        <AnalyticsGa4Bridge />
 
-          {/* Mobile Bottom Navigation */}
-          <MobileBottomNav />
+        {/* Mobile Bottom Navigation */}
+        <MobileBottomNav />
 
-          {/* Drawer global */}
-          {/* ConsultarDrawer removido */}
+        {/* Drawer global */}
+        {/* ConsultarDrawer removido */}
         </Providers>
       </body>
     </html>
