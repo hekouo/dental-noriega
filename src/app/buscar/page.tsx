@@ -18,6 +18,7 @@ import {
 import { getFeaturedItems } from "@/lib/catalog/getFeatured.server";
 import FeaturedGrid from "@/components/FeaturedGrid";
 import SectionHeader from "@/components/ui/SectionHeader";
+import { SITE_URL } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -150,7 +151,7 @@ export default async function BuscarPage({ searchParams }: Props) {
     );
   }
 
-  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "";
+  const base = SITE_URL;
   const queryParams = new URLSearchParams();
   queryParams.set("q", q);
   queryParams.set("page", page.toString());

@@ -10,6 +10,7 @@ import { buildShippingEmail } from "@/lib/notifications/shipping";
 import { sendTransactionalEmail } from "@/lib/notifications/email";
 import { buildBankTransferEmail } from "@/lib/notifications/payment";
 import { checkAdminAccess } from "@/lib/admin/access";
+import { SITE_URL } from "@/lib/site";
 
 /**
  * Crea una guía de envío en Skydropx para una orden
@@ -21,9 +22,8 @@ export async function createSkydropxLabelAction(
 ): Promise<void> {
   try {
     // Llamar al endpoint interno
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}` 
-      : "http://localhost:3000";
+    // Usar SITE_URL en producción, VERCEL_URL como fallback en edge runtime
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : SITE_URL);
     
     const response = await fetch(`${baseUrl}/api/shipping/create-shipment`, {
       method: "POST",
