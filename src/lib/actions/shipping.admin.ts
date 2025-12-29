@@ -10,6 +10,7 @@ import { buildShippingEmail } from "@/lib/notifications/shipping";
 import { sendTransactionalEmail } from "@/lib/notifications/email";
 import { buildBankTransferEmail } from "@/lib/notifications/payment";
 import { checkAdminAccess } from "@/lib/admin/access";
+import { SITE_URL } from "@/lib/site";
 
 /**
  * Crea una guía de envío en Skydropx para una orden

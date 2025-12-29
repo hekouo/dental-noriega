@@ -18,6 +18,7 @@ import {
 import { getFeaturedItems } from "@/lib/catalog/getFeatured.server";
 import FeaturedGrid from "@/components/FeaturedGrid";
 import SectionHeader from "@/components/ui/SectionHeader";
+import { SITE_URL } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;

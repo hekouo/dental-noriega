@@ -4,6 +4,7 @@
 
 import type { ShippingStatus } from "@/lib/orders/shippingStatus";
 import { escapeHtml } from "@/lib/utils/escapeHtml";
+import { SITE_URL } from "@/lib/site";
 
 export type ShippingEmailContext = {
   status: ShippingStatus;
