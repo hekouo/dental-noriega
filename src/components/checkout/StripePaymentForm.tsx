@@ -9,6 +9,7 @@ import {
   useElements,
 } from "@stripe/react-stripe-js";
 import { stripePromise } from "@/lib/stripe/stripeClient";
+import { SITE_URL } from "@/lib/site";
 
 type StripePaymentFormProps = {
   orderId?: string;
