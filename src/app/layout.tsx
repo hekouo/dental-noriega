@@ -66,6 +66,12 @@ const MobileBottomNav = dynamic(
     ssr: false,
   },
 );
+const ToastProvider = dynamic(
+  () => import("@/components/ui/ToastProvider.client").then((m) => ({ default: m.ToastProvider })),
+  {
+    ssr: false,
+  },
+);
 
 const inter = Inter({ subsets: ["latin"], display: "swap" });
 
@@ -281,8 +287,11 @@ export default function RootLayout({
         {/* Analytics GA4 Bridge */}
         <AnalyticsGa4Bridge />
 
-        {/* Mobile Bottom Navigation */}
-        <MobileBottomNav />
+        {/* Toast Provider */}
+        <ToastProvider>
+          {/* Mobile Bottom Navigation */}
+          <MobileBottomNav />
+        </ToastProvider>
 
         {/* Drawer global */}
         {/* ConsultarDrawer removido */}

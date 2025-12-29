@@ -1,10 +1,12 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Star, Search, ShoppingCart, User } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
 import { useCartTotalQty } from "@/lib/store/cartSelectors";
+import { usePrefersReducedMotion } from "@/lib/hooks/usePrefersReducedMotion";
 
 const navItems = [
   {
@@ -37,6 +39,26 @@ const navItems = [
 export default function MobileBottomNav() {
   const pathname = usePathname();
   const cartTotalQty = useCartTotalQty();
+  const prefersReducedMotion = usePrefersReducedMotion();
+  const prevQtyRef = useRef(cartTotalQty);
+  const [badgePulse, setBadgePulse] = useState(false);
+
+  // Detectar incremento en cartTotalQty y activar animación pop
+  useEffect(() => {
+    const prevQty = prevQtyRef.current;
+    const newQty = cartTotalQty;
+
+    // Si incrementó y no hay reduced motion, activar pulse
+    if (newQty > prevQty && newQty > 0 && !prefersReducedMotion) {
+      setBadgePulse(true);
+      const timer = setTimeout(() => {
+        setBadgePulse(false);
+      }, 220); // Duración de la animación
+      return () => clearTimeout(timer);
+    }
+
+    prevQtyRef.current = newQty;
+  }, [cartTotalQty, prefersReducedMotion]);
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-white/80 backdrop-blur-md border-t border-gray-200">
@@ -75,7 +97,9 @@ export default function MobileBottomNav() {
                 <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
                 {showBadge && (
                   <span
-                    className="absolute -top-1 -right-2 min-w-[18px] h-[18px] px-1 rounded-full text-[11px] leading-[18px] font-semibold text-white bg-primary-600 text-center flex items-center justify-center"
+                    className={`absolute -top-1 -right-2 min-w-[18px] h-[18px] px-1 rounded-full text-[11px] leading-[18px] font-semibold text-white bg-primary-600 text-center flex items-center justify-center transition-transform duration-200 ${
+                      badgePulse && !prefersReducedMotion ? "scale-110" : "scale-100"
+                    }`}
                     aria-hidden="true"
                   >
                     {badgeText}

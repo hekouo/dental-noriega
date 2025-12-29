@@ -12,6 +12,8 @@ import { getWhatsAppHref } from "@/lib/whatsapp";
 import { estimatePointsForPriceCents } from "@/lib/loyalty/utils";
 import { trackAddToCart, trackWhatsappClick } from "@/lib/analytics/events";
 import { launchCartConfetti } from "@/lib/ui/confetti";
+import { useToast } from "@/components/ui/ToastProvider.client";
+import { ROUTES } from "@/lib/routes";
 
 /**
  * Props unificadas para ProductCard
@@ -64,6 +66,7 @@ export default function ProductCard({
   highlightQuery,
 }: ProductCardProps) {
   const addToCart = useCartStore((s) => s.addToCart);
+  const { showToast } = useToast();
   const [qty, setQty] = useState(1);
   const [isAdding, setIsAdding] = useState(false);
   const busyRef = useRef(false);
