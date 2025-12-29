@@ -39,6 +39,7 @@ export default function ProductActions({ product }: Props) {
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [colorNotes, setColorNotes] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: "error" | "success" } | null>(null);
+  const { showToast } = useToast();
   const addToCart = useCartStore((s) => s.addToCart);
   const upsertSingleToCheckout = useCheckoutStore(
     (s) => s.upsertSingleToCheckout,
