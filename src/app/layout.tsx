@@ -31,6 +31,7 @@ import {
   getOrganizationJsonLd,
   getWebsiteJsonLd,
 } from "@/lib/seo/schema";
+import Providers from "./providers";
 const NavbarSearch = dynamic(() => import("@/components/NavbarSearch"), {
   ssr: false,
 });
@@ -66,7 +67,6 @@ const MobileBottomNav = dynamic(
     ssr: false,
   },
 );
-import Providers from "./providers";
 
 const inter = Inter({ subsets: ["latin"], display: "swap" });
 
