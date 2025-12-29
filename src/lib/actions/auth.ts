@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { createActionSupabase } from "@/lib/supabase/server-actions";
+import { SITE_URL } from "@/lib/site";
 
 // Esquemas internos (no exportados)
 const loginSchema = z.object({
