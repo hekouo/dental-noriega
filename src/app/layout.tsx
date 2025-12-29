@@ -66,12 +66,9 @@ const MobileBottomNav = dynamic(
     ssr: false,
   },
 );
-const ToastProvider = dynamic(
-  () => import("@/components/ui/ToastProvider.client").then((m) => ({ default: m.ToastProvider })),
-  {
-    ssr: false,
-  },
-);
+const Providers = dynamic(() => import("@/app/providers"), {
+  ssr: false,
+});
 
 const inter = Inter({ subsets: ["latin"], display: "swap" });
 
@@ -177,19 +174,20 @@ export default function RootLayout({
       <body
         className={`${inter.className} min-h-screen bg-white text-gray-900 flex flex-col`}
       >
-        {/* Structured Data: Organization + Website */}
-        <script
-          type="application/ld+json"
-          suppressHydrationWarning
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify([
-              getOrganizationJsonLd(),
-              getWebsiteJsonLd(),
-            ]),
-          }}
-        />
-        <CheckoutDevGuard />
-        <header className="border-b bg-white sticky top-0 z-40">
+        <Providers>
+          {/* Structured Data: Organization + Website */}
+          <script
+            type="application/ld+json"
+            suppressHydrationWarning
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify([
+                getOrganizationJsonLd(),
+                getWebsiteJsonLd(),
+              ]),
+            }}
+          />
+          <CheckoutDevGuard />
+          <header className="border-b bg-white sticky top-0 z-40">
           <nav className="max-w-6xl mx-auto flex items-center justify-between p-4 gap-4">
             <div className="flex items-center gap-3">
               <Link href={ROUTES.home()}>
@@ -284,17 +282,15 @@ export default function RootLayout({
         {/* Footer */}
         <SiteFooter />
 
-        {/* Analytics GA4 Bridge */}
-        <AnalyticsGa4Bridge />
+          {/* Analytics GA4 Bridge */}
+          <AnalyticsGa4Bridge />
 
-        {/* Toast Provider */}
-        <ToastProvider>
           {/* Mobile Bottom Navigation */}
           <MobileBottomNav />
-        </ToastProvider>
 
-        {/* Drawer global */}
-        {/* ConsultarDrawer removido */}
+          {/* Drawer global */}
+          {/* ConsultarDrawer removido */}
+        </Providers>
       </body>
     </html>
   );
