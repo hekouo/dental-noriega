@@ -123,6 +123,15 @@ export default function ProductCard({
     // Confeti al agregar al carrito
     void launchCartConfetti();
 
+    // Mostrar toast de confirmación
+    showToast({
+      message: "Agregado al carrito",
+      variant: "success",
+      actionLabel: "Ver carrito",
+      actionHref: ROUTES.carrito(),
+      durationMs: 1400,
+    });
+
     setTimeout(() => {
       busyRef.current = false;
       setIsAdding(false);
