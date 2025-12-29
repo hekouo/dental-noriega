@@ -27,11 +27,10 @@ export function useSelectedItems() {
 
 /**
  * Selector para obtener el total de items en el carrito (suma de qty)
- * Usa shallow comparison para evitar rerenders innecesarios
+ * Zustand optimiza automáticamente los rerenders si el valor calculado no cambia
  */
 export function useCartTotalQty() {
-  return useCartStore(
-    (s) => s.cartItems.reduce((sum, item) => sum + (item.qty ?? 1), 0),
-    (a, b) => a === b // shallow comparison
+  return useCartStore((s) =>
+    s.cartItems.reduce((sum, item) => sum + (item.qty ?? 1), 0)
   );
 }
