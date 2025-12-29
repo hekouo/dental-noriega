@@ -61,7 +61,7 @@ function InnerForm({
       await elements.submit();
 
       // return_url debe incluir el orderId (solo si runtimeOrigin está disponible)
-      const origin = runtimeOrigin || (typeof window !== "undefined" ? window.location.origin : process.env.NEXT_PUBLIC_SITE_URL ?? "https://dental-noriega.vercel.app");
+      const origin = runtimeOrigin || (typeof window !== "undefined" ? window.location.origin : SITE_URL);
       const returnUrl = `${origin}/checkout/gracias?order=${encodeURIComponent(effectiveOrderId)}`;
       
       // Confirmar pago con return_url que incluye orderId
