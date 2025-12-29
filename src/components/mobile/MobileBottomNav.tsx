@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Star, Search, ShoppingCart, User } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
+import { useCartTotalQty } from "@/lib/store/cartSelectors";
 
 const navItems = [
   {
@@ -35,6 +36,7 @@ const navItems = [
 
 export default function MobileBottomNav() {
   const pathname = usePathname();
+  const cartTotalQty = useCartTotalQty();
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-white/80 backdrop-blur-md border-t border-gray-200">
@@ -50,18 +52,36 @@ export default function MobileBottomNav() {
               pathname?.startsWith(item.href)) ||
             (item.href === "/cuenta" && pathname?.startsWith("/cuenta"));
 
+          // Badge solo para Carrito
+          const isCart = item.href === ROUTES.carrito();
+          const showBadge = isCart && cartTotalQty > 0;
+          const badgeText = cartTotalQty > 99 ? "99+" : cartTotalQty.toString();
+          const ariaLabel = isCart
+            ? `Carrito, ${cartTotalQty} ${cartTotalQty === 1 ? "artículo" : "artículos"}`
+            : item.label;
+
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-lg min-w-[60px] transition-colors ${
+              className={`flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-lg min-w-[60px] transition-colors relative ${
                 isActive
                   ? "text-primary-600"
                   : "text-gray-600 hover:text-gray-900"
               }`}
-              aria-label={item.label}
+              aria-label={ariaLabel}
             >
-              <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+              <span className="relative inline-flex items-center justify-center">
+                <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+                {showBadge && (
+                  <span
+                    className="absolute -top-1 -right-2 min-w-[18px] h-[18px] px-1 rounded-full text-[11px] leading-[18px] font-semibold text-white bg-primary-600 text-center flex items-center justify-center"
+                    aria-hidden="true"
+                  >
+                    {badgeText}
+                  </span>
+                )}
+              </span>
               <span className="text-[10px] font-medium">{item.label}</span>
             </Link>
           );

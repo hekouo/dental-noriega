@@ -1,0 +1,107 @@
+## Trust Fixes + Visual Polish (PR #331)
+
+### Objetivo
+
+Corregir problemas de confianza (eliminar copy de "modo prueba"), arreglar cálculo de envío gratis restante en PDP, y añadir "wow" visual ligero con iconos SVG para categorías.
+
+### Cambios implementados
+
+#### 1. Corrección del cálculo de envío gratis en PDP
+
+**Problema detectado**: El componente `FreeShippingProgressPDP` solo consideraba el subtotal del carrito, mostrando incorrectamente "$2,000" cuando debería mostrar el restante real (umbral - subtotal del carrito - precio del producto actual).
+
+**Solución**:
+- ✅ Actualizado `FreeShippingProgressPDP` para aceptar `productPriceCents` y `quantity` como props
+- ✅ El cálculo ahora incluye: `subtotal = carrito + (precio_producto * cantidad)`
+- ✅ El mensaje "Te faltan $X para envío gratis" ahora muestra el valor correcto
+- ✅ Si el subtotal ya alcanza el umbral, muestra "¡Ya tienes envío gratis en este pedido!"
+
+**Archivos modificados**:
+- `src/components/cart/FreeShippingProgressPDP.tsx` - Agregadas props y cálculo correcto
+- `src/app/catalogo/[section]/[slug]/page.tsx` - Pasa `productPriceCents` al componente
+
+#### 2. Iconos SVG para categorías
+
+**Implementación**:
+- ✅ Creado `src/components/categories/CategoryIcon.tsx`
+- ✅ Iconos SVG inline ligeros (sin dependencias)
+- ✅ Mapeo de slugs de sección a iconos temáticos:
+  - Consumibles y Profilaxis: paquete/caja
+  - Equipos: grid/cuadrícula
+  - Instrumental Clínico: cruz médica
+  - Instrumental Ortodoncia: paquete con detalle
+  - Ortodoncia: Brackets y Tubos: brackets visual
+  - Ortodoncia: Arcos y Resortes: arco curvo
+  - Ortodoncia: Accesorios: paquete con línea
+  - Fallback genérico: caja/paquete
+- ✅ Estilos: tamaño 20-24px, color gris con hover primary-600
+- ✅ Aplicado en `/tienda` en las cards de categorías
+
+**Archivos creados**:
+- `src/components/categories/CategoryIcon.tsx` - Componente de iconos
+
+**Archivos modificados**:
+- `src/app/tienda/page.tsx` - Integrado `CategoryIcon` en las cards de categorías
+
+#### 3. Audit de copy de "modo prueba"
+
+**Búsqueda realizada**:
+- ✅ Buscado en todo el repo: "modo prueba", "modo de prueba", "test", "pruebas de compra", "stripe test"
+- ✅ No se encontraron referencias visibles al usuario final
+- ✅ El copy actual en `ProductActions.client.tsx` ya es neutral: "Pagos seguros con tarjeta. Transferencia bancaria disponible."
+- ✅ El copy en `/como-comprar` ya es neutral y profesional
+
+**Estado**: No se requirieron cambios adicionales, el copy ya está limpio.
+
+### Validaciones
+
+- ✅ `pnpm typecheck` pasa
+- ✅ `pnpm lint` pasa (solo warnings preexistentes)
+- ✅ `pnpm build` pasa
+- ✅ No dependencias nuevas
+- ✅ No cambios en lógica de negocio (solo UI/cálculo visual)
+
+### Cómo probar
+
+#### 1. Cálculo de envío gratis en PDP
+
+1. Ve a cualquier PDP (ej: `/catalogo/ortodoncia-brackets-y-tubos/bracket-azdent-malla-100-colado`)
+2. Verifica que el mensaje "Te faltan $X para envío gratis" muestre el valor correcto:
+   - Si el producto cuesta $500 y no hay nada en el carrito: debería mostrar "Te faltan $1,500..."
+   - Si el producto cuesta $2,500: debería mostrar "¡Ya tienes envío gratis..."
+   - Si hay productos en el carrito, debe sumar: carrito + producto actual
+
+#### 2. Iconos de categorías
+
+1. Ve a `/tienda`
+2. Verifica que cada card de categoría tenga un icono SVG arriba del título
+3. Verifica que los iconos cambien de color en hover (gris → primary-600)
+4. Verifica que los iconos sean responsive (tamaño adecuado en móvil y desktop)
+
+#### 3. Copy limpio
+
+1. Revisa `/como-comprar` - no debe haber mención de "modo prueba" o "test"
+2. Revisa cualquier PDP - el copy de pagos debe ser neutral y profesional
+
+### Notas
+
+- **Cálculo de envío gratis**: El componente ahora considera correctamente el producto actual + carrito existente
+- **Iconos**: SVG inline sin dependencias, ligeros y temáticos
+- **Copy**: Ya estaba limpio, no se requirieron cambios adicionales
+- **Dark mode**: Los iconos usan `currentColor` y se adaptan automáticamente
+
+### Archivos modificados
+
+- `src/components/cart/FreeShippingProgressPDP.tsx` - Cálculo correcto con producto actual
+- `src/app/catalogo/[section]/[slug]/page.tsx` - Pasa props al componente
+- `src/app/tienda/page.tsx` - Integra iconos de categorías
+- `src/components/categories/CategoryIcon.tsx` - Nuevo componente (creado)
+
+---
+
+**Beneficios**:
+- ✅ Cálculo correcto de envío gratis restante en PDP
+- ✅ Iconos visuales que mejoran la jerarquía y UX
+- ✅ Copy limpio y profesional (sin referencias a "modo prueba")
+- ✅ Sin dependencias nuevas, todo con SVG inline
+

@@ -24,3 +24,14 @@ export function useSelectedItems() {
   const items = useCartStore(s => s.cartItems);
   return useMemo(() => items.filter(i => i.selected), [items]);
 }
+
+/**
+ * Selector para obtener el total de items en el carrito (suma de qty)
+ * Usa shallow comparison para evitar rerenders innecesarios
+ */
+export function useCartTotalQty() {
+  return useCartStore(
+    (s) => s.cartItems.reduce((sum, item) => sum + (item.qty ?? 1), 0),
+    (a, b) => a === b // shallow comparison
+  );
+}
