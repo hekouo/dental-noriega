@@ -254,7 +254,10 @@ export default async function ProductDetailPage({ params }: Props) {
                   <p className="text-sm text-gray-500">
                     Envío gratis desde ${FREE_SHIPPING_THRESHOLD_MXN.toLocaleString("es-MX")} MXN en productos.
                   </p>
-                  <FreeShippingProgressPDP />
+                  <FreeShippingProgressPDP
+                    productPriceCents={Math.round(product.price * 100)}
+                    quantity={1}
+                  />
                   {product.price > 0 && (
                     <ProductLoyaltyInfo
                       priceCents={Math.round(product.price * 100)}

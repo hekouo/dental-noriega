@@ -1,0 +1,109 @@
+## Domain Switch Readiness (PR #330)
+
+### Objetivo
+
+Preparar el código para cambiar de dominio (de `dental-noriega.vercel.app` a `ddnshop.mx` o cualquier otro) sin necesidad de modificar código. Solo se requiere actualizar la variable de entorno `NEXT_PUBLIC_SITE_URL` en Vercel.
+
+### Cambios implementados
+
+#### 1. Constantes centralizadas (`src/lib/site.ts`)
+- ✅ Agregado `SITE_URL`: constante centralizada que usa `process.env.NEXT_PUBLIC_SITE_URL`
+- ✅ Agregado `SITE_HOST`: extrae el host de `SITE_URL` para uso futuro
+- ✅ Actualizado `SITE.url` para usar `SITE_URL` (consistencia)
+- ✅ Fallback seguro: `http://localhost:3000` para desarrollo local
+
+#### 2. Reemplazo de URLs hardcodeadas
+
+Todos los archivos que tenían fallbacks hardcodeados ahora usan `SITE_URL`:
+
+- ✅ `src/app/_legacy-sitemap.xml/route.ts` - Removido fallback `"https://dental-noriega.vercel.app"`
+- ✅ `src/components/checkout/StripePaymentForm.tsx` - Removido fallback hardcodeado, ahora usa `SITE_URL`
+- ✅ `src/lib/actions/auth.ts` - Removidos fallbacks `"http://localhost:3002"`, ahora usa `SITE_URL`
+- ✅ `src/lib/notifications/shipping.ts` - Removido fallback hardcodeado, ahora usa `SITE_URL`
+- ✅ `src/lib/actions/shipping.admin.ts` - Mejorado para usar `SITE_URL` como fallback final
+- ✅ `src/app/buscar/page.tsx` - Ahora usa `SITE_URL` en lugar de `process.env.NEXT_PUBLIC_SITE_URL ?? ""`
+- ✅ `src/lib/config.ts` - Actualizado `siteConfig.url` para usar `SITE_URL`
+
+#### 3. Metadata y canonical
+
+- ✅ `src/app/layout.tsx` - Ya usa `SITE.url` (que ahora usa `SITE_URL` internamente)
+- ✅ `src/app/robots.ts` - Ya usa `SITE.url`
+- ✅ `src/app/sitemap.ts` - Ya usa `SITE.url`
+
+Todos los archivos de metadata ahora usan la constante centralizada automáticamente.
+
+#### 4. Checklist operativo (`docs/domain-switch.md`)
+
+Documentación completa con:
+- ✅ Pasos detallados para Vercel (agregar dominio, set primary, redirects)
+- ✅ Actualización de variable de entorno `NEXT_PUBLIC_SITE_URL`
+- ✅ Configuración de Supabase (Site URL, Redirect URLs, SMTP)
+- ✅ Configuración de Resend (dominio, DNS, verificación)
+- ✅ Actualización de Stripe webhook URL
+- ✅ Google Search Console / Analytics (opcional)
+- ✅ Checklist de QA completo (auth, checkout, SEO, admin)
+- ✅ Troubleshooting común
+
+### Archivos modificados
+
+- `src/lib/site.ts` - Agregadas constantes `SITE_URL` y `SITE_HOST`
+- `src/app/_legacy-sitemap.xml/route.ts` - Usa `SITE_URL`
+- `src/components/checkout/StripePaymentForm.tsx` - Usa `SITE_URL`
+- `src/lib/actions/auth.ts` - Usa `SITE_URL`
+- `src/lib/notifications/shipping.ts` - Usa `SITE_URL`
+- `src/lib/actions/shipping.admin.ts` - Usa `SITE_URL`
+- `src/app/buscar/page.tsx` - Usa `SITE_URL`
+- `src/lib/config.ts` - Usa `SITE_URL`
+- `docs/domain-switch.md` - Nuevo archivo con checklist completo
+
+### Validaciones
+
+- ✅ `pnpm typecheck` pasa
+- ✅ `pnpm lint` pasa (solo warnings preexistentes)
+- ✅ `pnpm build` pasa
+- ✅ No dependencias nuevas
+- ✅ No cambios en lógica de negocio (solo centralización de URLs)
+
+### Cómo probar
+
+1. **Verificar que el código usa SITE_URL**:
+   - Buscar en el código: no debería haber referencias hardcodeadas a `dental-noriega.vercel.app` o `localhost:3002` (excepto en tests)
+   - Verificar que `src/lib/site.ts` exporta `SITE_URL` correctamente
+
+2. **Simular cambio de dominio (desarrollo)**:
+   ```bash
+   # En .env.local, cambia temporalmente:
+   NEXT_PUBLIC_SITE_URL=https://ddnshop.mx
+   
+   # Rebuild
+   pnpm build
+   
+   # Verificar que robots.txt y sitemap.xml usen el nuevo dominio
+   pnpm start
+   # Visita: http://localhost:3000/robots.txt
+   # Visita: http://localhost:3000/sitemap.xml
+   ```
+
+3. **Verificar metadataBase**:
+   - Revisar que `src/app/layout.tsx` use `SITE.url` (que internamente usa `SITE_URL`)
+   - Verificar que las páginas dinámicas que generan metadata usen `SITE.url` o `SITE_URL`
+
+### Notas
+
+- **No se removieron URLs hardcodeadas de tests**: Los tests pueden seguir usando `localhost:3000` directamente ya que no afectan producción
+- **Compatibilidad**: El código mantiene compatibilidad con código existente que usa `SITE.url`
+- **Rollback**: Si algo sale mal, se puede revertir `NEXT_PUBLIC_SITE_URL` fácilmente
+
+### Próximos pasos (después del merge)
+
+1. Actualizar `NEXT_PUBLIC_SITE_URL` en Vercel cuando esté listo el nuevo dominio
+2. Seguir el checklist en `docs/domain-switch.md`
+3. Realizar QA completo según la documentación
+
+---
+
+**Beneficios**:
+- ✅ Cambio de dominio en 1 variable de entorno
+- ✅ No se requiere modificar código
+- ✅ Documentación completa para el proceso
+- ✅ Menos errores humanos (sin URLs hardcodeadas)
