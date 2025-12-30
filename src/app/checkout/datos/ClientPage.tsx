@@ -8,6 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useSelectedIds } from "@/lib/store/checkoutSelectors";
 import { useCheckoutStore } from "@/lib/store/checkoutStore";
 import type { UiShippingOption } from "@/lib/store/checkoutStore";
+import type { NormalizedShippingOption } from "@/lib/shipping/normalizeRates";
 import { datosSchema, type DatosForm, MX_STATES } from "@/lib/checkout/schemas";
 import CheckoutStepper from "@/components/checkout/CheckoutStepper";
 import CheckoutDebugPanel from "@/components/CheckoutDebugPanel";
@@ -81,6 +82,10 @@ function DatosPageContent() {
   const setSelectedShippingOption = useCheckoutStore((s) => s.setSelectedShippingOption);
   const setShipping = useCheckoutStore((s) => s.setShipping);
   const currentShippingMethod = useCheckoutStore((s) => s.shippingMethod);
+  
+  // Estado para opciones normalizadas (primaryOptions y allOptions)
+  const [primaryOptions, setPrimaryOptions] = useState<NormalizedShippingOption[]>([]);
+  const [allOptions, setAllOptions] = useState<NormalizedShippingOption[]>([]);
 
   // En /checkout/datos NO se puede aplicar cupón, solo se muestra resumen si ya está aplicado
 
@@ -312,12 +317,29 @@ function DatosPageContent() {
 
       const data = await response.json();
       
-      // Manejar respuesta con formato { ok: true, options: [...] } o { options: [...] }
-      const options: UiShippingOption[] = data.options || [];
+      // Manejar respuesta con formato { ok: true, options: [...], primaryOptions: [...], allOptions: [...] }
       const isOk = data.ok !== false; // Si no viene ok, asumir true para compatibilidad
+      
+      // Compatibilidad: usar primaryOptions si existe, sino options
+      const primary = (data.primaryOptions || data.options || []) as NormalizedShippingOption[];
+      const all = (data.allOptions || data.options || []) as NormalizedShippingOption[];
+      
+      // Mantener compatibilidad con store (usa UiShippingOption)
+      const optionsForStore: UiShippingOption[] = primary.map((opt) => ({
+        code: opt.code,
+        label: opt.label,
+        priceCents: opt.priceCents,
+        provider: opt.provider,
+        etaMinDays: opt.etaMinDays,
+        etaMaxDays: opt.etaMaxDays,
+        externalRateId: opt.externalRateId,
+        originalPriceCents: opt.originalPriceCents,
+      }));
 
-      if (!isOk || options.length === 0) {
+      if (!isOk || primary.length === 0) {
         setShippingOptions([]);
+        setPrimaryOptions([]);
+        setAllOptions([]);
         setSelectedShippingOption(null);
         
         // Distinguir entre error técnico y sin cobertura
@@ -344,14 +366,28 @@ function DatosPageContent() {
             ok: data.ok,
             reason: data.reason,
             error: data.error,
-            optionsCount: options.length,
+            primaryCount: primary.length,
+            allCount: all.length,
           });
         }
       } else {
-        setShippingOptions(options);
-        // Seleccionar automáticamente la opción más barata
-        const cheapest = options[0]; // Ya viene ordenado por precio ASC
-        setSelectedShippingOption(cheapest);
+        setShippingOptions(optionsForStore);
+        setPrimaryOptions(primary);
+        setAllOptions(all);
+        // Seleccionar automáticamente la opción recomendada (primera de primaryOptions)
+        const recommended = primary[0];
+        if (recommended) {
+          setSelectedShippingOption({
+            code: recommended.code,
+            label: recommended.label,
+            priceCents: recommended.priceCents,
+            provider: recommended.provider,
+            etaMinDays: recommended.etaMinDays,
+            etaMaxDays: recommended.etaMaxDays,
+            externalRateId: recommended.externalRateId,
+            originalPriceCents: recommended.originalPriceCents,
+          });
+        }
         setRatesError(null);
         setRatesErrorCode(null);
       }
@@ -1024,18 +1060,23 @@ function DatosPageContent() {
                   )}
                 </div>
               )}
-              {!loadingRates && shippingOptions && shippingOptions.length > 0 && (
+              {!loadingRates && primaryOptions.length > 0 && (
                 <div className="space-y-4">
-                  {/* Opción recomendada (primera) */}
-                  {shippingOptions.length > 0 && (
+                  {/* Opción recomendada (primera de primaryOptions) */}
+                  {primaryOptions.length > 0 && (
                     <div>
-                      <h4 className="text-xs font-semibold text-primary-600 mb-2 uppercase tracking-wide">
-                        Recomendado
-                      </h4>
+                      <div className="flex items-center gap-2 mb-2">
+                        <h4 className="text-xs font-semibold text-primary-600 uppercase tracking-wide">
+                          Recomendado
+                        </h4>
+                        <span className="px-2 py-0.5 bg-primary-100 text-primary-700 text-[10px] font-semibold rounded-full">
+                          Mejor opción
+                        </span>
+                      </div>
                       <label
-                        key={shippingOptions[0].code}
+                        key={primaryOptions[0].code}
                         className={`flex items-center p-3 border-2 rounded-lg cursor-pointer transition-colors ${
-                          selectedShippingOption?.code === shippingOptions[0].code
+                          selectedShippingOption?.code === primaryOptions[0].code
                             ? "border-primary-500 bg-primary-50"
                             : "border-primary-200 hover:border-primary-300"
                         }`}
@@ -1043,12 +1084,20 @@ function DatosPageContent() {
                         <input
                           type="radio"
                           name="shippingOption"
-                          value={shippingOptions[0].code}
-                          checked={selectedShippingOption?.code === shippingOptions[0].code}
+                          value={primaryOptions[0].code}
+                          checked={selectedShippingOption?.code === primaryOptions[0].code}
                           onChange={() => {
-                            setSelectedShippingOption(shippingOptions[0]);
-                            // Usar "standard" como método cuando es Skydropx
-                            setShipping("standard", shippingOptions[0].priceCents / 100);
+                            setSelectedShippingOption({
+                              code: primaryOptions[0].code,
+                              label: primaryOptions[0].label,
+                              priceCents: primaryOptions[0].priceCents,
+                              provider: primaryOptions[0].provider,
+                              etaMinDays: primaryOptions[0].etaMinDays,
+                              etaMaxDays: primaryOptions[0].etaMaxDays,
+                              externalRateId: primaryOptions[0].externalRateId,
+                              originalPriceCents: primaryOptions[0].originalPriceCents,
+                            });
+                            setShipping("standard", primaryOptions[0].priceCents / 100);
                           }}
                           className="mr-3 h-4 w-4 text-primary-600 focus:ring-primary-500"
                         />
@@ -1056,26 +1105,26 @@ function DatosPageContent() {
                           <div className="flex items-center justify-between">
                             <div>
                               <span className="text-sm font-medium text-gray-900">
-                                Envío a domicilio (Skydropx)
+                                {primaryOptions[0].serviceTranslated || primaryOptions[0].label || "Envío a domicilio"}
                               </span>
-                              {shippingOptions[0].priceCents === 0 && shippingOptions[0].originalPriceCents && (
+                              {primaryOptions[0].priceCents === 0 && primaryOptions[0].originalPriceCents && (
                                 <p className="text-xs text-green-600 font-medium mt-0.5">
-                                  Envío GRATIS en pedidos desde $2,000 {shippingOptions[0].originalPriceCents > 0 && `(antes ${formatMXNMoney(shippingOptions[0].originalPriceCents / 100)})`}
+                                  Envío GRATIS en pedidos desde $2,000 {primaryOptions[0].originalPriceCents > 0 && `(antes ${formatMXNMoney(primaryOptions[0].originalPriceCents / 100)})`}
                                 </p>
                               )}
-                              {shippingOptions[0].priceCents === 0 && !shippingOptions[0].originalPriceCents && (
+                              {primaryOptions[0].priceCents === 0 && !primaryOptions[0].originalPriceCents && (
                                 <p className="text-xs text-green-600 font-medium mt-0.5">
                                   Envío GRATIS en tu pedido
                                 </p>
                               )}
                             </div>
                             <span className="text-sm font-semibold text-gray-900">
-                              {formatMXNMoney(shippingOptions[0].priceCents / 100)}
+                              {formatMXNMoney(primaryOptions[0].priceCents / 100)}
                             </span>
                           </div>
-                          {shippingOptions[0].etaMinDays && shippingOptions[0].etaMaxDays && (
+                          {primaryOptions[0].etaFormatted && (
                             <p className="text-xs text-gray-500 mt-1">
-                              Tiempo estimado: {shippingOptions[0].etaMinDays}-{shippingOptions[0].etaMaxDays} días
+                              {primaryOptions[0].etaFormatted}
                             </p>
                           )}
                         </div>
@@ -1083,53 +1132,127 @@ function DatosPageContent() {
                     </div>
                   )}
 
-                  {/* Otras opciones (resto) */}
-                  {shippingOptions.length > 1 && (
-                    <div>
-                      <h4 className="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">
-                        Otras opciones de paquetería
-                      </h4>
-                      <div className="space-y-2">
-                        {shippingOptions.slice(1).map((option) => (
-                          <label
-                            key={option.code}
-                            className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${
-                              selectedShippingOption?.code === option.code
-                                ? "border-primary-500 bg-primary-50"
-                                : "border-gray-200 hover:border-gray-300"
-                            }`}
-                          >
-                            <input
-                              type="radio"
-                              name="shippingOption"
-                              value={option.code}
-                              checked={selectedShippingOption?.code === option.code}
-                              onChange={() => {
-                                setSelectedShippingOption(option);
-                                // Usar "standard" como método cuando es Skydropx
-                                setShipping("standard", option.priceCents / 100);
-                              }}
-                              className="mr-3 h-4 w-4 text-primary-600 focus:ring-primary-500"
-                            />
-                            <div className="flex-1">
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium text-gray-900">
-                                  {option.label}
-                                </span>
-                                <span className="text-sm font-semibold text-gray-900">
-                                  {formatMXNMoney(option.priceCents / 100)}
-                                </span>
-                              </div>
-                              {option.etaMinDays && option.etaMaxDays && (
-                                <p className="text-xs text-gray-500 mt-1">
-                                  Tiempo estimado: {option.etaMinDays}-{option.etaMaxDays} días
-                                </p>
-                              )}
+                  {/* Otras opciones principales (resto de primaryOptions) */}
+                  {primaryOptions.length > 1 && (
+                    <div className="space-y-2">
+                      {primaryOptions.slice(1).map((option) => (
+                        <label
+                          key={option.code}
+                          className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${
+                            selectedShippingOption?.code === option.code
+                              ? "border-primary-500 bg-primary-50"
+                              : "border-gray-200 hover:border-gray-300"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="shippingOption"
+                            value={option.code}
+                            checked={selectedShippingOption?.code === option.code}
+                            onChange={() => {
+                              setSelectedShippingOption({
+                                code: option.code,
+                                label: option.label,
+                                priceCents: option.priceCents,
+                                provider: option.provider,
+                                etaMinDays: option.etaMinDays,
+                                etaMaxDays: option.etaMaxDays,
+                                externalRateId: option.externalRateId,
+                                originalPriceCents: option.originalPriceCents,
+                              });
+                              setShipping("standard", option.priceCents / 100);
+                            }}
+                            className="mr-3 h-4 w-4 text-primary-600 focus:ring-primary-500"
+                          />
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium text-gray-900">
+                                {option.serviceTranslated || option.label || "Envío a domicilio"}
+                              </span>
+                              <span className="text-sm font-semibold text-gray-900">
+                                {formatMXNMoney(option.priceCents / 100)}
+                              </span>
                             </div>
-                          </label>
-                        ))}
-                      </div>
+                            {option.etaFormatted && (
+                              <p className="text-xs text-gray-500 mt-1">
+                                {option.etaFormatted}
+                              </p>
+                            )}
+                          </div>
+                        </label>
+                      ))}
                     </div>
+                  )}
+
+                  {/* Acordeón "Ver todas las paqueterías" */}
+                  {allOptions.length > primaryOptions.length && (
+                    <details className="group">
+                      <summary className="flex items-center justify-between p-2 cursor-pointer text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors list-none">
+                        <span>Ver todas las paqueterías ({allOptions.length} opciones)</span>
+                        <svg
+                          className="w-4 h-4 text-gray-500 transition-transform group-open:rotate-180"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                          aria-hidden="true"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      </summary>
+                      <div className="mt-2 space-y-2">
+                        {allOptions
+                          .filter((opt) => !primaryOptions.some((p) => p.code === opt.code))
+                          .map((option) => (
+                            <label
+                              key={option.code}
+                              className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${
+                                selectedShippingOption?.code === option.code
+                                  ? "border-primary-500 bg-primary-50"
+                                  : "border-gray-200 hover:border-gray-300"
+                              }`}
+                            >
+                              <input
+                                type="radio"
+                                name="shippingOption"
+                                value={option.code}
+                                checked={selectedShippingOption?.code === option.code}
+                                onChange={() => {
+                                  setSelectedShippingOption({
+                                    code: option.code,
+                                    label: option.label,
+                                    priceCents: option.priceCents,
+                                    provider: option.provider,
+                                    etaMinDays: option.etaMinDays,
+                                    etaMaxDays: option.etaMaxDays,
+                                    externalRateId: option.externalRateId,
+                                    originalPriceCents: option.originalPriceCents,
+                                  });
+                                  setShipping("standard", option.priceCents / 100);
+                                }}
+                                className="mr-3 h-4 w-4 text-primary-600 focus:ring-primary-500"
+                              />
+                              <div className="flex-1">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm font-medium text-gray-900">
+                                    {option.serviceTranslated || option.label}
+                                  </span>
+                                  <span className="text-sm font-semibold text-gray-900">
+                                    {formatMXNMoney(option.priceCents / 100)}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  {option.etaFormatted || "Tiempo estimado"}
+                                </p>
+                              </div>
+                            </label>
+                          ))}
+                      </div>
+                    </details>
                   )}
                 </div>
               )}

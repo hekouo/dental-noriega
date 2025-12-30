@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSkydropxRates } from "@/lib/shipping/skydropx.server";
 import { FREE_SHIPPING_THRESHOLD_CENTS } from "@/lib/shipping/freeShipping";
 import { normalizeMxAddress } from "@/lib/shipping/normalizeAddress";
+import {
+  normalizeShippingRates,
+  buildShippingOptionsResponse,
+  type NormalizedShippingOption,
+} from "@/lib/shipping/normalizeRates";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -17,6 +22,21 @@ export type UiShippingOption = {
   originalPriceCents?: number; // Precio original antes de aplicar promo (para mostrar "antes $XXX")
 };
 
+// Tipo extendido para respuesta con normalización
+export type ShippingRatesResponse = {
+  ok: true;
+  options: NormalizedShippingOption[]; // primaryOptions (compatibilidad)
+  primaryOptions: NormalizedShippingOption[]; // Top 3 opciones
+  allOptions: NormalizedShippingOption[]; // Todas las opciones normalizadas
+} | {
+  ok: false;
+  reason: string;
+  error?: string;
+  options: [];
+  primaryOptions?: [];
+  allOptions?: [];
+};
+
 type RatesRequest = {
   address: {
     postalCode: string;
@@ -27,6 +47,33 @@ type RatesRequest = {
   totalWeightGrams?: number;
   subtotalCents?: number; // Subtotal del carrito en centavos para aplicar promo de envío gratis
 };
+
+/**
+ * Aplica margen configurable (handling fee + markup) a precio en centavos
+ * Redondea a múltiplo de 100 (1 peso) para que se vea profesional
+ */
+function applyShippingMargin(priceCents: number): number {
+  // Handling fee (fijo en centavos)
+  const handlingFeeCents = parseInt(process.env.SHIPPING_HANDLING_FEE_CENTS || "0", 10) || 0;
+  
+  // Markup (porcentaje, ej: 10 = 10%)
+  const markupPercent = parseFloat(process.env.SHIPPING_MARKUP_PERCENT || "0") || 0;
+  
+  // Aplicar markup primero
+  let finalPrice = priceCents;
+  if (markupPercent > 0) {
+    finalPrice = Math.round(priceCents * (1 + markupPercent / 100));
+  }
+  
+  // Aplicar handling fee
+  finalPrice += handlingFeeCents;
+  
+  // Redondear a múltiplo de 100 (1 peso)
+  finalPrice = Math.round(finalPrice / 100) * 100;
+  
+  // Asegurar mínimo 0
+  return Math.max(0, finalPrice);
+}
 
 /**
  * Valida que las variables de entorno de Skydropx estén presentes
@@ -158,7 +205,7 @@ export async function POST(req: NextRequest) {
           // Generar código único basado en provider y service
           const code = `skydropx_${rate.provider}_${index}`;
           
-          // Generar label descriptivo
+          // Generar label descriptivo (será reemplazado por normalizeRates)
           const etaText =
             rate.etaMinDays && rate.etaMaxDays
               ? ` (${rate.etaMinDays}-${rate.etaMaxDays} días)`
@@ -167,8 +214,11 @@ export async function POST(req: NextRequest) {
                 : "";
           const label = `${rate.service}${etaText}`;
 
-          // Aplicar promo de envío gratis si aplica
-          const finalPriceCents = appliesFreeShipping ? 0 : rate.totalPriceCents;
+          // Aplicar margen configurable (handling fee + markup)
+          const priceWithMargin = applyShippingMargin(rate.totalPriceCents);
+          
+          // Aplicar promo de envío gratis si aplica (después del margen)
+          const finalPriceCents = appliesFreeShipping ? 0 : priceWithMargin;
 
           return {
             code,
@@ -178,17 +228,31 @@ export async function POST(req: NextRequest) {
             etaMinDays: rate.etaMinDays,
             etaMaxDays: rate.etaMaxDays,
             externalRateId: rate.externalRateId,
-            originalPriceCents: appliesFreeShipping ? rate.totalPriceCents : undefined,
+            originalPriceCents: appliesFreeShipping ? priceWithMargin : undefined,
           };
         });
-      // Ya viene ordenado de getSkydropxRates, pero por seguridad ordenamos de nuevo
-      options.sort((a, b) => a.priceCents - b.priceCents);
+
+      // Normalizar, dedupe y seleccionar mejores opciones
+      const normalized = normalizeShippingRates(options);
+      const { primaryOptions, allOptions } = buildShippingOptionsResponse(normalized);
 
       if (process.env.NODE_ENV !== "production") {
-        console.log("[shipping/rates] Opciones de envío generadas:", options.length);
+        console.log("[shipping/rates] Opciones normalizadas:", {
+          total: normalized.length,
+          primary: primaryOptions.length,
+          all: allOptions.length,
+        });
       }
 
-      return NextResponse.json({ ok: true, options });
+      // Mantener compatibilidad: options = primaryOptions
+      const response: ShippingRatesResponse = {
+        ok: true,
+        options: primaryOptions, // Compatibilidad con frontend existente
+        primaryOptions,
+        allOptions,
+      };
+
+      return NextResponse.json(response);
     }
 
       // Si no hay tarifas, devolver respuesta con ok: false pero status 200
