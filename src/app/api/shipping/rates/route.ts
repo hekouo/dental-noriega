@@ -222,7 +222,7 @@ export async function POST(req: NextRequest) {
 
     const weightGrams = totalWeightGrams;
     const country = address.country || "MX";
-    const finalSubtotalCents = subtotalCents;
+    const finalSubtotalCents = subtotalCents; // Ya validado arriba, no necesita || 0
 
     // Generar key de cache (usando dirección normalizada y valores validados)
     const cacheKey = generateCacheKey(
