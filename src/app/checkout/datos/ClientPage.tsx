@@ -96,6 +96,31 @@ function DatosPageContent() {
     optionsForStore: UiShippingOption[];
   } | null>(null);
   const [showStaleRatesBanner, setShowStaleRatesBanner] = useState(false);
+  
+  // Snapshot del payload para evitar race conditions
+  const payloadSnapshotRef = React.useRef<{
+    postalCode: string;
+    state: string;
+    city: string;
+    country: string;
+    totalWeightGrams: number;
+    subtotalCents: number;
+    payloadHash: string;
+  } | null>(null);
+  
+  /**
+   * Genera un hash simple del payload para validar respuestas
+   */
+  const generatePayloadHash = React.useCallback((
+    postalCode: string,
+    state: string,
+    city: string,
+    country: string,
+    totalWeightGrams: number,
+    subtotalCents: number,
+  ): string => {
+    return `${postalCode}|${state}|${city}|${country}|${totalWeightGrams}|${subtotalCents}`;
+  }, []);
 
   // En /checkout/datos NO se puede aplicar cupón, solo se muestra resumen si ya está aplicado
 
@@ -281,19 +306,33 @@ function DatosPageContent() {
     setShowStaleRatesBanner(false);
 
     try {
-      // Calcular peso total aproximado del carrito (1kg por producto como default)
+      // SNAPSHOT: Calcular valores del carrito UNA VEZ y guardarlos
+      // Esto evita que cambien durante el debounce/fetch
       const totalWeightGrams = selectedItems.reduce((sum, item) => {
         return sum + (item.qty || 1) * 1000; // 1kg por producto
       }, 0);
 
-      // Calcular subtotal en centavos para aplicar promo de envío gratis
       const subtotalCents = selectedItems.reduce((sum, item) => {
         const priceCents = typeof item.price_cents === "number" ? item.price_cents : typeof item.price === "number" ? Math.round(item.price * 100) : 0;
         return sum + priceCents * (item.qty || 1);
       }, 0);
 
-      // Normalizar city: evitar abreviaciones como "cdmx" que Skydropx rechaza
-      // El backend también normaliza, pero es mejor enviar datos limpios desde el cliente
+      // Validar que el carrito tenga productos válidos antes de hacer fetch
+      if (totalWeightGrams <= 0 || subtotalCents <= 0) {
+        // No hacer fetch si el carrito está vacío o cargando
+        // Pero NO limpiar lastGoodRates si existen (el usuario puede estar editando)
+        if (process.env.NODE_ENV === "development") {
+          console.log("[checkout/datos] Carrito vacío o cargando, no hacer fetch:", {
+            totalWeightGrams,
+            subtotalCents,
+            hasLastGoodRates: !!lastGoodRatesRef.current,
+          });
+        }
+        setLoadingRates(false);
+        return;
+      }
+
+      // SNAPSHOT: Normalizar dirección UNA VEZ y guardarla
       let normalizedCity = cityValue.trim();
       const normalizedState = stateValue.trim();
       
@@ -310,18 +349,39 @@ function DatosPageContent() {
         }
       }
 
+      // Crear snapshot estable del payload
+      const payloadSnapshot = {
+        postalCode: cpValue,
+        state: normalizedState,
+        city: normalizedCity,
+        country: "MX",
+        totalWeightGrams,
+        subtotalCents,
+        payloadHash: generatePayloadHash(cpValue, normalizedState, normalizedCity, "MX", totalWeightGrams, subtotalCents),
+      };
+
+      // Guardar snapshot para validar respuestas
+      payloadSnapshotRef.current = payloadSnapshot;
+
+      if (process.env.NODE_ENV === "development") {
+        console.log("[checkout/datos] Payload snapshot:", {
+          ...payloadSnapshot,
+          payloadHash: payloadSnapshot.payloadHash.slice(0, 20) + "...", // Solo primeros 20 chars para log
+        });
+      }
+
       const response = await fetch("/api/shipping/rates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           address: {
-            postalCode: cpValue,
-            state: normalizedState,
-            city: normalizedCity,
-            country: "MX",
+            postalCode: payloadSnapshot.postalCode,
+            state: payloadSnapshot.state,
+            city: payloadSnapshot.city,
+            country: payloadSnapshot.country,
           },
-          totalWeightGrams: totalWeightGrams || 1000,
-          subtotalCents,
+          totalWeightGrams: payloadSnapshot.totalWeightGrams,
+          subtotalCents: payloadSnapshot.subtotalCents,
         }),
         signal,
       });
@@ -338,6 +398,34 @@ function DatosPageContent() {
       // Verificar si esta request fue cancelada por una más reciente
       if (currentRequestId !== requestIdRef.current) {
         return; // Ignorar respuesta de request obsoleta
+      }
+
+      // Validar que el payload de la respuesta coincida con el snapshot solicitado
+      // Esto evita aplicar respuestas de payloads diferentes (ej: carrito cambió)
+      if (payloadSnapshotRef.current) {
+        const currentPayloadHash = generatePayloadHash(
+          cpValue,
+          payloadSnapshotRef.current.state,
+          payloadSnapshotRef.current.city,
+          payloadSnapshotRef.current.country,
+          selectedItems.reduce((sum, item) => sum + (item.qty || 1) * 1000, 0),
+          selectedItems.reduce((sum, item) => {
+            const priceCents = typeof item.price_cents === "number" ? item.price_cents : typeof item.price === "number" ? Math.round(item.price * 100) : 0;
+            return sum + priceCents * (item.qty || 1);
+          }, 0),
+        );
+
+        if (currentPayloadHash !== payloadSnapshotRef.current.payloadHash) {
+          // El payload cambió durante el fetch, ignorar esta respuesta
+          if (process.env.NODE_ENV === "development") {
+            console.warn("[checkout/datos] Payload cambió durante fetch, ignorando respuesta:", {
+              snapshotHash: payloadSnapshotRef.current.payloadHash.slice(0, 20),
+              currentHash: currentPayloadHash.slice(0, 20),
+            });
+          }
+          setLoadingRates(false);
+          return;
+        }
       }
       
       // Manejar respuesta con formato { ok: true, options: [...], primaryOptions: [...], allOptions: [...] }
@@ -489,22 +577,43 @@ function DatosPageContent() {
         setLoadingRates(false);
       }
     }
-  }, [cpValue, stateValue, cityValue, selectedItems, setShippingOptions, setSelectedShippingOption, setShipping]);
+  }, [cpValue, stateValue, cityValue, selectedItems, setShippingOptions, setSelectedShippingOption, setShipping, generatePayloadHash]);
 
   useEffect(() => {
     // Solo obtener tarifas si tenemos CP, estado y ciudad válidos
     if (!cpValue || !stateValue || !cityValue) {
-      setShippingOptions([]);
-      setPrimaryOptions([]);
-      setAllOptions([]);
-      setSelectedShippingOption(null);
-      lastGoodRatesRef.current = null;
-      setShowStaleRatesBanner(false);
+      // NO limpiar lastGoodRates cuando el usuario borra CP momentáneamente
+      // Solo limpiar si realmente no hay dirección completa
+      // Esto evita parpadeo cuando el usuario está editando
+      if (!cpValue && !stateValue && !cityValue) {
+        // Solo limpiar si TODOS los campos están vacíos (no solo uno)
+        setShippingOptions([]);
+        setPrimaryOptions([]);
+        setAllOptions([]);
+        setSelectedShippingOption(null);
+        lastGoodRatesRef.current = null;
+        setShowStaleRatesBanner(false);
+      }
       return;
     }
 
     // Validar que CP tenga 5 dígitos
     if (cpValue.length !== 5 || !/^\d{5}$/.test(cpValue)) {
+      return;
+    }
+
+    // GUARD: Verificar que el carrito esté listo (no loading/inconsistente)
+    const totalWeightGrams = selectedItems.reduce((sum, item) => {
+      return sum + (item.qty || 1) * 1000;
+    }, 0);
+
+    const subtotalCents = selectedItems.reduce((sum, item) => {
+      const priceCents = typeof item.price_cents === "number" ? item.price_cents : typeof item.price === "number" ? Math.round(item.price * 100) : 0;
+      return sum + priceCents * (item.qty || 1);
+    }, 0);
+
+    // Si el carrito está vacío o cargando, no hacer fetch
+    if (totalWeightGrams <= 0 || subtotalCents <= 0 || selectedItems.length === 0) {
       return;
     }
 
@@ -518,9 +627,20 @@ function DatosPageContent() {
     abortControllerRef.current = controller;
 
     // Debounce: esperar 700ms después de que el usuario deje de escribir
+    // Si el carrito cambió recientemente, esperar un poco más para estabilizar
+    const debounceMs = 700;
     const timeoutId = setTimeout(() => {
-      void fetchShippingRates(controller.signal);
-    }, 700);
+      // Verificar nuevamente que el carrito siga válido antes de hacer fetch
+      const currentWeight = selectedItems.reduce((sum, item) => sum + (item.qty || 1) * 1000, 0);
+      const currentSubtotal = selectedItems.reduce((sum, item) => {
+        const priceCents = typeof item.price_cents === "number" ? item.price_cents : typeof item.price === "number" ? Math.round(item.price * 100) : 0;
+        return sum + priceCents * (item.qty || 1);
+      }, 0);
+
+      if (currentWeight > 0 && currentSubtotal > 0 && selectedItems.length > 0) {
+        void fetchShippingRates(controller.signal);
+      }
+    }, debounceMs);
 
     return () => {
       controller.abort();

@@ -205,12 +205,26 @@ export async function POST(req: NextRequest) {
       postalCode: address.postalCode,
     });
 
-    // Usar peso total del carrito o fallback razonable (1000g = 1kg)
-    const weightGrams = totalWeightGrams || 1000;
-    const country = address.country || "MX";
-    const finalSubtotalCents = subtotalCents || 0;
+    // Validar payload: subtotalCents y totalWeightGrams deben ser > 0
+    if (!totalWeightGrams || totalWeightGrams <= 0 || !subtotalCents || subtotalCents <= 0) {
+      console.warn("[shipping/rates] Payload inválido:", {
+        totalWeightGrams: totalWeightGrams || 0,
+        subtotalCents: subtotalCents || 0,
+        postalCode: normalizedAddress.postalCode,
+      });
+      return NextResponse.json({
+        ok: false,
+        reason: "invalid_payload",
+        error: "El carrito debe tener productos para calcular tarifas de envío.",
+        options: [],
+      });
+    }
 
-    // Generar key de cache (usando dirección normalizada)
+    const weightGrams = totalWeightGrams;
+    const country = address.country || "MX";
+    const finalSubtotalCents = subtotalCents; // Ya validado arriba, no necesita || 0
+
+    // Generar key de cache (usando dirección normalizada y valores validados)
     const cacheKey = generateCacheKey(
       normalizedAddress.postalCode,
       normalizedAddress.state,
@@ -224,13 +238,22 @@ export async function POST(req: NextRequest) {
     // Limpiar cache expirado periódicamente
     cleanExpiredCache();
 
-    // Verificar cache ANTES de llamar a Skydropx
+    // Verificar cache ANTES de llamar a Skydropx (solo si payload es válido)
     const cachedEntry = ratesCache.get(cacheKey);
     if (cachedEntry && cachedEntry.expiresAt > Date.now()) {
       console.log("[shipping/rates] Cache hit:", {
         cache_hit: true,
-        key_hash: keyHash,
         postalCode: normalizedAddress.postalCode,
+        state: normalizedAddress.state,
+        city: normalizedAddress.city,
+        country,
+        totalWeightGrams: weightGrams,
+        subtotalCents: finalSubtotalCents,
+        parcels_count: 1,
+        weight_kg: (weightGrams / 1000).toFixed(2),
+        dims: "20x20x10 cm",
+        cache_key_hash: keyHash,
+        attempt: "cache",
       });
       return NextResponse.json(cachedEntry.response);
     }
@@ -280,19 +303,24 @@ export async function POST(req: NextRequest) {
     };
 
     /**
-     * Helper para loggear payload shape sin PII
+     * Helper para loggear payload shape completo (sanitizado, sin PII)
      */
     const logPayloadShape = (attempt: string, dest: { state: string; city: string; postalCode: string }) => {
       const originPostalCode = process.env.SKYDROPX_ORIGIN_POSTAL_CODE || "[hidden]";
       console.log("[shipping/rates] Payload shape:", {
         attempt,
-        origin_postal_code: originPostalCode,
-        to_postal_code: dest.postalCode,
-        to_state: dest.state,
-        to_city: dest.city,
+        postalCode: dest.postalCode,
+        state: dest.state,
+        city: dest.city,
+        country,
+        totalWeightGrams: weightGrams,
+        subtotalCents: finalSubtotalCents,
         parcels_count: 1,
-        parcel_weight_kg: (weightGrams / 1000).toFixed(2),
-        parcel_dims: "20x20x10 cm",
+        weight_kg: (weightGrams / 1000).toFixed(2),
+        dims: "20x20x10 cm", // Fixed dimensions for now
+        origin_postal_code: originPostalCode,
+        cache_hit: false, // Will be set to true if cache hit
+        cache_key_hash: keyHash,
       });
     };
 
@@ -333,18 +361,22 @@ export async function POST(req: NextRequest) {
       return [];
     };
 
-    // Log inicial de request
+    // Log inicial de request (completo y sanitizado)
     console.log("[shipping/rates] Request recibida:", {
-      attempt: "initial",
       postalCode: normalizedAddress.postalCode,
       state: normalizedAddress.state,
       city: normalizedAddress.city,
       country,
       totalWeightGrams: weightGrams,
-      subtotalCents: subtotalCents || 0,
+      subtotalCents: finalSubtotalCents,
+      parcels_count: 1,
+      weight_kg: (weightGrams / 1000).toFixed(2),
+      dims: "20x20x10 cm",
       originalState: address.state !== normalizedAddress.state ? address.state : undefined,
       originalCity: address.city !== normalizedAddress.city ? address.city : undefined,
       isCDMX,
+      cache_hit: false, // Will be updated if cache hit
+      cache_key_hash: keyHash,
     });
 
     // Obtener intentos de fallback
@@ -353,47 +385,177 @@ export async function POST(req: NextRequest) {
     let rates: SkydropxRate[] = [];
     let lastError: Error | null = null;
 
-    // Intentar cada variación del fallback chain
-    for (const fallback of fallbackAttempts) {
+    // CONSISTENCY MODE para CDMX: merge attempts A/B/C si A devuelve <3 opciones
+    if (isCDMX && fallbackAttempts.length >= 2) {
+      // Intentar A primero
+      const attemptA = fallbackAttempts[0];
       try {
-        logPayloadShape(fallback.attempt, {
-          state: fallback.state,
-          city: fallback.city,
+        logPayloadShape(attemptA.attempt, {
+          state: attemptA.state,
+          city: attemptA.city,
           postalCode: normalizedAddress.postalCode,
         });
 
-        rates = await fetchRatesWithRetry(
+        const ratesA = await fetchRatesWithRetry(
           {
             postalCode: normalizedAddress.postalCode,
-            state: fallback.state,
-            city: fallback.city,
+            state: attemptA.state,
+            city: attemptA.city,
             country,
           },
-          fallback.attempt,
+          attemptA.attempt,
         );
 
-        if (rates.length > 0) {
-          console.log(`[shipping/rates] Success on attempt ${fallback.attempt}:`, {
-            count: rates.length,
+        if (ratesA.length >= 3) {
+          // Si A devuelve 3+ opciones, usar solo esas (suficiente)
+          rates = ratesA;
+          console.log(`[shipping/rates] CDMX attempt A: ${ratesA.length} rates (suficiente, no merge)`, {
+            state: attemptA.state,
+            city: attemptA.city,
+            postalCode: normalizedAddress.postalCode,
+          });
+        } else {
+          // Si A devuelve <3 opciones o 0, ejecutar B (y opcional C) en paralelo
+          console.log(`[shipping/rates] CDMX attempt A: ${ratesA.length} rates, merging with B/C`, {
+            state: attemptA.state,
+            city: attemptA.city,
+            postalCode: normalizedAddress.postalCode,
+          });
+
+          const attemptsToMerge = [attemptA, ...fallbackAttempts.slice(1)];
+          const mergePromises = attemptsToMerge.map(async (fallback) => {
+            try {
+              logPayloadShape(fallback.attempt, {
+                state: fallback.state,
+                city: fallback.city,
+                postalCode: normalizedAddress.postalCode,
+              });
+
+              const attemptRates = await fetchRatesWithRetry(
+                {
+                  postalCode: normalizedAddress.postalCode,
+                  state: fallback.state,
+                  city: fallback.city,
+                  country,
+                },
+                fallback.attempt,
+              );
+
+              return { attempt: fallback.attempt, rates: attemptRates, state: fallback.state, city: fallback.city };
+            } catch (error) {
+              const err = error instanceof Error ? error : new Error(String(error));
+              console.error(`[shipping/rates] CDMX merge attempt ${fallback.attempt} error:`, {
+                error: err.message,
+                state: fallback.state,
+                city: fallback.city,
+              });
+              return { attempt: fallback.attempt, rates: [], state: fallback.state, city: fallback.city };
+            }
+          });
+
+          const mergeResults = await Promise.all(mergePromises);
+          
+          // Unir todos los resultados
+          const allMergedRates: SkydropxRate[] = [];
+          for (const result of mergeResults) {
+            allMergedRates.push(...result.rates);
+            console.log(`[shipping/rates] CDMX merge attempt ${result.attempt}: ${result.rates.length} rates`, {
+              state: result.state,
+              city: result.city,
+            });
+          }
+
+          rates = allMergedRates;
+        }
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        console.error(`[shipping/rates] CDMX attempt A error:`, {
+          error: lastError.message,
+          state: attemptA.state,
+          city: attemptA.city,
+        });
+        // Continuar con merge de B/C incluso si A falla
+        const attemptsToMerge = fallbackAttempts.slice(1);
+        const mergePromises = attemptsToMerge.map(async (fallback) => {
+          try {
+            logPayloadShape(fallback.attempt, {
+              state: fallback.state,
+              city: fallback.city,
+              postalCode: normalizedAddress.postalCode,
+            });
+
+            const attemptRates = await fetchRatesWithRetry(
+              {
+                postalCode: normalizedAddress.postalCode,
+                state: fallback.state,
+                city: fallback.city,
+                country,
+              },
+              fallback.attempt,
+            );
+
+            return { attempt: fallback.attempt, rates: attemptRates, state: fallback.state, city: fallback.city };
+          } catch (error) {
+            const err = error instanceof Error ? error : new Error(String(error));
+            console.error(`[shipping/rates] CDMX merge attempt ${fallback.attempt} error:`, {
+              error: err.message,
+              state: fallback.state,
+              city: fallback.city,
+            });
+            return { attempt: fallback.attempt, rates: [], state: fallback.state, city: fallback.city };
+          }
+        });
+
+        const mergeResults = await Promise.all(mergePromises);
+        const allMergedRates: SkydropxRate[] = [];
+        for (const result of mergeResults) {
+          allMergedRates.push(...result.rates);
+        }
+        rates = allMergedRates;
+      }
+    } else {
+      // Para no-CDMX o CDMX con solo 1 attempt: comportamiento original (secuencial)
+      for (const fallback of fallbackAttempts) {
+        try {
+          logPayloadShape(fallback.attempt, {
             state: fallback.state,
             city: fallback.city,
             postalCode: normalizedAddress.postalCode,
           });
-          break; // Salir del loop si encontramos rates
-        }
 
-        console.log(`[shipping/rates] Attempt ${fallback.attempt}: 0 rates`, {
-          state: fallback.state,
-          city: fallback.city,
-        });
-      } catch (error) {
-        lastError = error instanceof Error ? error : new Error(String(error));
-        console.error(`[shipping/rates] Attempt ${fallback.attempt} error:`, {
-          error: lastError.message,
-          state: fallback.state,
-          city: fallback.city,
-        });
-        // Continuar con el siguiente intento si hay error técnico
+          rates = await fetchRatesWithRetry(
+            {
+              postalCode: normalizedAddress.postalCode,
+              state: fallback.state,
+              city: fallback.city,
+              country,
+            },
+            fallback.attempt,
+          );
+
+          if (rates.length > 0) {
+            console.log(`[shipping/rates] Success on attempt ${fallback.attempt}:`, {
+              count: rates.length,
+              state: fallback.state,
+              city: fallback.city,
+              postalCode: normalizedAddress.postalCode,
+            });
+            break; // Salir del loop si encontramos rates
+          }
+
+          console.log(`[shipping/rates] Attempt ${fallback.attempt}: 0 rates`, {
+            state: fallback.state,
+            city: fallback.city,
+          });
+        } catch (error) {
+          lastError = error instanceof Error ? error : new Error(String(error));
+          console.error(`[shipping/rates] Attempt ${fallback.attempt} error:`, {
+            error: lastError.message,
+            state: fallback.state,
+            city: fallback.city,
+          });
+          // Continuar con el siguiente intento si hay error técnico
+        }
       }
     }
 
@@ -477,8 +639,19 @@ export async function POST(req: NextRequest) {
 
       console.log("[shipping/rates] Cache miss, saved:", {
         cache_hit: false,
-        key_hash: keyHash,
         postalCode: normalizedAddress.postalCode,
+        state: normalizedAddress.state,
+        city: normalizedAddress.city,
+        country,
+        totalWeightGrams: weightGrams,
+        subtotalCents: finalSubtotalCents,
+        parcels_count: 1,
+        weight_kg: (weightGrams / 1000).toFixed(2),
+        dims: "20x20x10 cm",
+        cache_key_hash: keyHash,
+        normalized_count: normalized.length,
+        primary_count: primaryOptions.length,
+        all_count: allOptions.length,
       });
 
       return NextResponse.json(response);
@@ -492,6 +665,7 @@ export async function POST(req: NextRequest) {
     };
 
     // Cachear también respuestas de error (para evitar repetir fallback chain)
+    // Solo cachear si el payload era válido (no cachear invalid_payload)
     ratesCache.set(cacheKey, {
       response: errorResponse,
       expiresAt: Date.now() + CACHE_TTL_MS,
