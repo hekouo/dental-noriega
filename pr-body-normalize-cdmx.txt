@@ -1,0 +1,72 @@
+## Fix: Normalize CDMX city/state for Skydropx (avoid cdmx shorthand)
+
+### Problema
+En `/checkout/datos`, las tarifas de envío no aparecen. En logs se ve:
+- `state: Ciudad de México`
+- `city: cdmx`
+- Skydropx regresa `count: 0` y `{"ok":false,"reason":"no_rates_from_skydropx","options":[]}`
+
+**Causa raíz:** Se está enviando `city: "cdmx"` (abreviación) a Skydropx, y Skydropx es estricto con los formatos de strings. Antes funcionaba (antes del cambio de dominio), pero ahora falla.
+
+### Cambios implementados
+
+#### 1. Helper de normalización (`src/lib/shipping/normalizeAddress.ts`)
+- Nueva función `normalizeMxAddress({ state, city, postalCode })`
+- **Reglas para CDMX:**
+  - Detecta variaciones: "Ciudad de México", "Ciudad de Mexico", "cdmx", "df", "distrito federal"
+  - `state`: siempre `"Ciudad de Mexico"` (sin acento) para Skydropx
+  - `city`: 
+    - Si CP es `143xx` (ej. 14390): `"Tlalpan"` (mejor compatibilidad)
+    - Si no: `"Ciudad de Mexico"`
+- **Para otras direcciones:** devuelve strings originales (trimmed)
+
+#### 2. Backend (`src/app/api/shipping/rates/route.ts`)
+- Normaliza dirección **antes** de llamar a `getSkydropxRates`
+- Logs mejorados muestran valores normalizados y originales (si difieren)
+- Permite verificar rápidamente en Vercel Logs qué se está enviando a Skydropx
+
+#### 3. Frontend (`src/app/checkout/datos/ClientPage.tsx`)
+- Normaliza `city` antes de enviar request
+- Evita enviar "cdmx" desde el cliente
+- Aplica misma lógica: "Tlalpan" para 143xx, "Ciudad de Mexico" para otros CPs CDMX
+- El backend también normaliza como blindaje adicional
+
+### Archivos modificados
+- `src/lib/shipping/normalizeAddress.ts` (nuevo): Helper de normalización
+- `src/app/api/shipping/rates/route.ts`: Integración de normalización + logs mejorados
+- `src/app/checkout/datos/ClientPage.tsx`: Normalización en frontend
+
+### Cómo probar
+
+1. **CP 14390 con estado CDMX:**
+   - Agregar productos al carrito
+   - Ir a `/checkout/datos`
+   - Capturar dirección:
+     - CP: `14390`
+     - Estado: `Ciudad de México` (o `cdmx`, `df`, etc.)
+     - Ciudad: `cdmx` (o cualquier variación)
+   - **Resultado esperado:** Debe aparecer al menos 1 opción de envío (no solo "Recoger en tienda")
+   - **En logs:** Ver `city: "Tlalpan"`, `state: "Ciudad de Mexico"`
+
+2. **Otro CP CDMX (ej. 03100):**
+   - CP: `03100`
+   - Estado: `Ciudad de México`
+   - Ciudad: `cdmx` o cualquier variación
+   - **Resultado esperado:** Debe aparecer al menos 1 opción de envío
+   - **En logs:** Ver `city: "Ciudad de Mexico"`, `state: "Ciudad de Mexico"`
+
+3. **Verificar logs en Vercel:**
+   - Buscar `[shipping/rates] Request recibida:` en logs
+   - Verificar que `city` y `state` estén normalizados
+   - Si hay diferencia, ver `originalCity` y `originalState` en logs
+
+### Validaciones
+- ✅ `pnpm typecheck` pasa
+- ✅ `pnpm lint` pasa (solo warnings preexistentes)
+- ✅ `pnpm build` pasa
+
+### Notas
+- La normalización se aplica tanto en frontend como backend (defensa en profundidad)
+- Los logs muestran valores normalizados para facilitar debugging
+- El helper es extensible para agregar más normalizaciones si es necesario
+
