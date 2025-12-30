@@ -44,9 +44,7 @@ function isCDMX(state: string, city: string): boolean {
  * 
  * Reglas especiales para CDMX:
  * - state: "Ciudad de Mexico" (sin acento)
- * - city: 
- *   - Si CP es 143xx (Tlalpan): "Tlalpan"
- *   - Si no: "Ciudad de Mexico"
+ * - city: "Ciudad de Mexico" (siempre, no usar "Tlalpan" u otras delegaciones)
  * 
  * Para otras direcciones: devuelve strings originales (trimmed)
  */
@@ -60,20 +58,11 @@ export function normalizeMxAddress(input: AddressInput): NormalizedAddress {
   
   // Si es CDMX, aplicar normalización especial
   if (isCDMX(trimmedState, trimmedCity)) {
-    // State siempre "Ciudad de Mexico" (sin acento) para Skydropx
-    const normalizedState = "Ciudad de Mexico";
-    
-    // City: si CP es 143xx (Tlalpan), usar "Tlalpan", sino "Ciudad de Mexico"
-    let normalizedCity: string;
-    if (/^143\d{2}$/.test(trimmedPostalCode)) {
-      normalizedCity = "Tlalpan";
-    } else {
-      normalizedCity = "Ciudad de Mexico";
-    }
-    
+    // State y city siempre "Ciudad de Mexico" (sin acento) para Skydropx
+    // No usar "Tlalpan" u otras delegaciones, Skydropx prefiere el nombre genérico
     return {
-      state: normalizedState,
-      city: normalizedCity,
+      state: "Ciudad de Mexico",
+      city: "Ciudad de Mexico",
       postalCode: trimmedPostalCode,
     };
   }
