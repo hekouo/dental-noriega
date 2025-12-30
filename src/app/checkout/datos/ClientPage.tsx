@@ -86,6 +86,16 @@ function DatosPageContent() {
   // Estado para opciones normalizadas (primaryOptions y allOptions)
   const [primaryOptions, setPrimaryOptions] = useState<NormalizedShippingOption[]>([]);
   const [allOptions, setAllOptions] = useState<NormalizedShippingOption[]>([]);
+  
+  // Estado para manejar race conditions y mantener última respuesta exitosa
+  const requestIdRef = React.useRef(0);
+  const abortControllerRef = React.useRef<AbortController | null>(null);
+  const lastGoodRatesRef = React.useRef<{
+    primaryOptions: NormalizedShippingOption[];
+    allOptions: NormalizedShippingOption[];
+    optionsForStore: UiShippingOption[];
+  } | null>(null);
+  const [showStaleRatesBanner, setShowStaleRatesBanner] = useState(false);
 
   // En /checkout/datos NO se puede aplicar cupón, solo se muestra resumen si ya está aplicado
 
@@ -249,7 +259,11 @@ function DatosPageContent() {
   const fetchShippingRates = React.useCallback(async (signal?: AbortSignal) => {
     if (!cpValue || !stateValue || !cityValue) {
       setShippingOptions([]);
+      setPrimaryOptions([]);
+      setAllOptions([]);
       setSelectedShippingOption(null);
+      lastGoodRatesRef.current = null;
+      setShowStaleRatesBanner(false);
       return;
     }
 
@@ -258,9 +272,13 @@ function DatosPageContent() {
       return;
     }
 
+    // Incrementar requestId para esta nueva request
+    const currentRequestId = ++requestIdRef.current;
+    
     setLoadingRates(true);
     setRatesError(null);
     setRatesErrorCode(null);
+    setShowStaleRatesBanner(false);
 
     try {
       // Calcular peso total aproximado del carrito (1kg por producto como default)
@@ -317,6 +335,11 @@ function DatosPageContent() {
 
       const data = await response.json();
       
+      // Verificar si esta request fue cancelada por una más reciente
+      if (currentRequestId !== requestIdRef.current) {
+        return; // Ignorar respuesta de request obsoleta
+      }
+      
       // Manejar respuesta con formato { ok: true, options: [...], primaryOptions: [...], allOptions: [...] }
       const isOk = data.ok !== false; // Si no viene ok, asumir true para compatibilidad
       
@@ -337,28 +360,55 @@ function DatosPageContent() {
       }));
 
       if (!isOk || primary.length === 0) {
-        setShippingOptions([]);
-        setPrimaryOptions([]);
-        setAllOptions([]);
-        setSelectedShippingOption(null);
-        
-        // Distinguir entre error técnico y sin cobertura
-        const isTechnicalError = data.reason === "skydropx_error" || 
-                                 data.reason === "skydropx_auth_error" || 
-                                 data.reason === "skydropx_fetch_error" ||
-                                 data.reason === "skydropx_config_error";
-        
-        if (isTechnicalError) {
-          setRatesErrorCode(data.reason);
-          setRatesError(
-            data.error || "Error al calcular tarifas. Por favor, intenta de nuevo."
-          );
+        // Si hay una respuesta exitosa previa, mantenerla y mostrar banner
+        if (lastGoodRatesRef.current) {
+          setShippingOptions(lastGoodRatesRef.current.optionsForStore);
+          setPrimaryOptions(lastGoodRatesRef.current.primaryOptions);
+          setAllOptions(lastGoodRatesRef.current.allOptions);
+          setShowStaleRatesBanner(true);
+          
+          // Distinguir entre error técnico y sin cobertura
+          const isTechnicalError = data.reason === "skydropx_error" || 
+                                   data.reason === "skydropx_auth_error" || 
+                                   data.reason === "skydropx_fetch_error" ||
+                                   data.reason === "skydropx_config_error";
+          
+          if (isTechnicalError) {
+            setRatesErrorCode(data.reason);
+            setRatesError(
+              data.error || "Error al calcular tarifas. Por favor, intenta de nuevo."
+            );
+          } else {
+            setRatesErrorCode(null);
+            setRatesError(
+              "No se pudo actualizar la cotización. Mostrando última cotización disponible."
+            );
+          }
         } else {
-          // Sin cobertura (no_rates_from_skydropx o invalid_destination)
-          setRatesErrorCode(null);
-          setRatesError(
-            "Lo sentimos, no hay envíos disponibles para esta dirección. Intenta con otro código postal."
-          );
+          // No hay respuesta previa exitosa, limpiar todo
+          setShippingOptions([]);
+          setPrimaryOptions([]);
+          setAllOptions([]);
+          setSelectedShippingOption(null);
+          
+          // Distinguir entre error técnico y sin cobertura
+          const isTechnicalError = data.reason === "skydropx_error" || 
+                                   data.reason === "skydropx_auth_error" || 
+                                   data.reason === "skydropx_fetch_error" ||
+                                   data.reason === "skydropx_config_error";
+          
+          if (isTechnicalError) {
+            setRatesErrorCode(data.reason);
+            setRatesError(
+              data.error || "Error al calcular tarifas. Por favor, intenta de nuevo."
+            );
+          } else {
+            // Sin cobertura (no_rates_from_skydropx o invalid_destination)
+            setRatesErrorCode(null);
+            setRatesError(
+              "Lo sentimos, no hay envíos disponibles para esta dirección. Intenta con otro código postal."
+            );
+          }
         }
         
         if (process.env.NODE_ENV === "development") {
@@ -368,12 +418,23 @@ function DatosPageContent() {
             error: data.error,
             primaryCount: primary.length,
             allCount: all.length,
+            hasLastGoodRates: !!lastGoodRatesRef.current,
           });
         }
       } else {
+        // Respuesta exitosa: actualizar estado y guardar como última buena respuesta
         setShippingOptions(optionsForStore);
         setPrimaryOptions(primary);
         setAllOptions(all);
+        setShowStaleRatesBanner(false);
+        
+        // Guardar como última respuesta exitosa
+        lastGoodRatesRef.current = {
+          primaryOptions: primary,
+          allOptions: all,
+          optionsForStore,
+        };
+        
         // Seleccionar automáticamente la opción recomendada (primera de primaryOptions)
         const recommended = primary[0];
         if (recommended) {
@@ -387,31 +448,58 @@ function DatosPageContent() {
             externalRateId: recommended.externalRateId,
             originalPriceCents: recommended.originalPriceCents,
           });
+          setShipping("standard", recommended.priceCents / 100);
         }
         setRatesError(null);
         setRatesErrorCode(null);
       }
     } catch (err) {
+      // Verificar si esta request fue cancelada por una más reciente
+      if (currentRequestId !== requestIdRef.current) {
+        return; // Ignorar error de request obsoleta
+      }
+      
       if (err instanceof Error && err.name === "AbortError") return;
+      
       console.error("[checkout/datos] Error al obtener tarifas:", err);
-      setRatesErrorCode("network_error");
-      setRatesError(
-        "Error de conexión al calcular tarifas. Por favor, intenta de nuevo.",
-      );
-      setShippingOptions([]);
-      setSelectedShippingOption(null);
+      
+      // Si hay una respuesta exitosa previa, mantenerla y mostrar banner
+      if (lastGoodRatesRef.current) {
+        setShippingOptions(lastGoodRatesRef.current.optionsForStore);
+        setPrimaryOptions(lastGoodRatesRef.current.primaryOptions);
+        setAllOptions(lastGoodRatesRef.current.allOptions);
+        setShowStaleRatesBanner(true);
+        setRatesErrorCode("network_error");
+        setRatesError(
+          "No se pudo actualizar la cotización. Mostrando última cotización disponible.",
+        );
+      } else {
+        setRatesErrorCode("network_error");
+        setRatesError(
+          "Error de conexión al calcular tarifas. Por favor, intenta de nuevo.",
+        );
+        setShippingOptions([]);
+        setPrimaryOptions([]);
+        setAllOptions([]);
+        setSelectedShippingOption(null);
+      }
     } finally {
-      if (!signal?.aborted) {
+      // Solo actualizar loading si esta request sigue siendo la más reciente
+      if (currentRequestId === requestIdRef.current && !signal?.aborted) {
         setLoadingRates(false);
       }
     }
-  }, [cpValue, stateValue, cityValue, selectedItems, setShippingOptions, setSelectedShippingOption]);
+  }, [cpValue, stateValue, cityValue, selectedItems, setShippingOptions, setSelectedShippingOption, setShipping]);
 
   useEffect(() => {
     // Solo obtener tarifas si tenemos CP, estado y ciudad válidos
     if (!cpValue || !stateValue || !cityValue) {
       setShippingOptions([]);
+      setPrimaryOptions([]);
+      setAllOptions([]);
       setSelectedShippingOption(null);
+      lastGoodRatesRef.current = null;
+      setShowStaleRatesBanner(false);
       return;
     }
 
@@ -420,11 +508,19 @@ function DatosPageContent() {
       return;
     }
 
-    // Debounce: esperar 500ms después de que el usuario deje de escribir
+    // Cancelar request anterior si existe
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Crear nuevo AbortController para esta request
     const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    // Debounce: esperar 700ms después de que el usuario deje de escribir
     const timeoutId = setTimeout(() => {
       void fetchShippingRates(controller.signal);
-    }, 500);
+    }, 700);
 
     return () => {
       controller.abort();
@@ -1058,6 +1154,14 @@ function DatosPageContent() {
                       {loadingRates ? "Reintentando..." : "Reintentar"}
                     </button>
                   )}
+                </div>
+              )}
+              {showStaleRatesBanner && primaryOptions.length > 0 && (
+                <div className="rounded-md border border-amber-200 bg-amber-50 text-sm text-amber-800 p-3">
+                  <p className="font-medium">Mostrando última cotización disponible</p>
+                  <p className="text-xs mt-1">
+                    No se pudo actualizar la cotización. Puedes continuar con esta o intentar de nuevo.
+                  </p>
                 </div>
               )}
               {!loadingRates && primaryOptions.length > 0 && (

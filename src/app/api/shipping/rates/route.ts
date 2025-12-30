@@ -11,6 +11,55 @@ import {
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+/**
+ * Cache in-memory para tarifas de envío
+ * TTL: 60 segundos
+ */
+type CacheEntry = {
+  response: ShippingRatesResponse;
+  expiresAt: number;
+};
+
+const ratesCache = new Map<string, CacheEntry>();
+const CACHE_TTL_MS = 60 * 1000; // 60 segundos
+
+/**
+ * Genera una key única para el cache basada en los parámetros de la request
+ */
+function generateCacheKey(
+  postalCode: string,
+  state: string,
+  city: string,
+  country: string,
+  totalWeightGrams: number,
+  subtotalCents: number,
+): string {
+  return `${postalCode}|${state}|${city}|${country}|${totalWeightGrams}|${subtotalCents}`;
+}
+
+/**
+ * Genera un hash simple de la key para logging (sin exponer datos sensibles)
+ */
+function hashCacheKey(key: string): string {
+  // Hash simple usando el código postal y los últimos caracteres
+  const parts = key.split("|");
+  const postalCode = parts[0] || "";
+  const lastChars = key.slice(-8);
+  return `${postalCode}_${lastChars.slice(-4)}`;
+}
+
+/**
+ * Limpia entradas expiradas del cache
+ */
+function cleanExpiredCache(): void {
+  const now = Date.now();
+  for (const [key, entry] of ratesCache.entries()) {
+    if (entry.expiresAt < now) {
+      ratesCache.delete(key);
+    }
+  }
+}
+
 export type UiShippingOption = {
   code: string; // p.ej. "skydropx_standard"
   label: string; // p.ej. "Envío a domicilio (2-4 días)"
@@ -159,6 +208,32 @@ export async function POST(req: NextRequest) {
     // Usar peso total del carrito o fallback razonable (1000g = 1kg)
     const weightGrams = totalWeightGrams || 1000;
     const country = address.country || "MX";
+    const finalSubtotalCents = subtotalCents || 0;
+
+    // Generar key de cache
+    const cacheKey = generateCacheKey(
+      normalizedAddress.postalCode,
+      normalizedAddress.state,
+      normalizedAddress.city,
+      country,
+      weightGrams,
+      finalSubtotalCents,
+    );
+    const keyHash = hashCacheKey(cacheKey);
+
+    // Limpiar cache expirado periódicamente
+    cleanExpiredCache();
+
+    // Verificar cache
+    const cachedEntry = ratesCache.get(cacheKey);
+    if (cachedEntry && cachedEntry.expiresAt > Date.now()) {
+      console.log("[shipping/rates] Cache hit:", {
+        cache_hit: true,
+        key_hash: keyHash,
+        postalCode: normalizedAddress.postalCode,
+      });
+      return NextResponse.json(cachedEntry.response);
+    }
 
     // Detectar si es CDMX para aplicar fallback chain
     const isCDMX = normalizedAddress.state === "Ciudad de Mexico" || 
@@ -371,8 +446,11 @@ export async function POST(req: NextRequest) {
           };
         });
 
-      // Normalizar, dedupe y seleccionar mejores opciones
+      // Normalizar, dedupe y ordenar de forma determinística
+      // (normalizeShippingRates ya ordena por priceCents, etaMaxDays, carrier/service)
       const normalized = normalizeShippingRates(options);
+      
+      // Seleccionar mejores opciones sobre la lista ya ordenada
       const { primaryOptions, allOptions } = buildShippingOptionsResponse(normalized);
 
       if (process.env.NODE_ENV !== "production") {
@@ -390,6 +468,18 @@ export async function POST(req: NextRequest) {
         primaryOptions,
         allOptions,
       };
+
+      // Guardar en cache
+      ratesCache.set(cacheKey, {
+        response,
+        expiresAt: Date.now() + CACHE_TTL_MS,
+      });
+
+      console.log("[shipping/rates] Cache miss, saved:", {
+        cache_hit: false,
+        key_hash: keyHash,
+        postalCode: normalizedAddress.postalCode,
+      });
 
       return NextResponse.json(response);
     }

@@ -128,8 +128,28 @@ export function normalizeShippingRates(
 
   const deduped = Array.from(seen.values());
 
-  // 3. Ordenar por precio ascendente
-  deduped.sort((a, b) => a.priceCents - b.priceCents);
+  // 3. Ordenar de forma determinística:
+  //    - priceCents ascendente
+  //    - etaMaxDays ascendente (si empate en precio)
+  //    - provider/service ascendente (si empate en precio y ETA)
+  deduped.sort((a, b) => {
+    // Primero por precio
+    if (a.priceCents !== b.priceCents) {
+      return a.priceCents - b.priceCents;
+    }
+    
+    // Si empate en precio, por ETA máximo
+    const etaA = a.etaMaxDays ?? 999;
+    const etaB = b.etaMaxDays ?? 999;
+    if (etaA !== etaB) {
+      return etaA - etaB;
+    }
+    
+    // Si empate en precio y ETA, por provider/service
+    const carrierA = `${a.provider}|${a.serviceTranslated}`;
+    const carrierB = `${b.provider}|${b.serviceTranslated}`;
+    return carrierA.localeCompare(carrierB);
+  });
 
   return deduped;
 }
