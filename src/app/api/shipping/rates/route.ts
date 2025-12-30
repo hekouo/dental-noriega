@@ -205,12 +205,26 @@ export async function POST(req: NextRequest) {
       postalCode: address.postalCode,
     });
 
-    // Usar peso total del carrito o fallback razonable (1000g = 1kg)
-    const weightGrams = totalWeightGrams || 1000;
-    const country = address.country || "MX";
-    const finalSubtotalCents = subtotalCents || 0;
+    // Validar payload: subtotalCents y totalWeightGrams deben ser > 0
+    if (!totalWeightGrams || totalWeightGrams <= 0 || !subtotalCents || subtotalCents <= 0) {
+      console.warn("[shipping/rates] Payload inválido:", {
+        totalWeightGrams: totalWeightGrams || 0,
+        subtotalCents: subtotalCents || 0,
+        postalCode: normalizedAddress.postalCode,
+      });
+      return NextResponse.json({
+        ok: false,
+        reason: "invalid_payload",
+        error: "El carrito debe tener productos para calcular tarifas de envío.",
+        options: [],
+      });
+    }
 
-    // Generar key de cache (usando dirección normalizada)
+    const weightGrams = totalWeightGrams;
+    const country = address.country || "MX";
+    const finalSubtotalCents = subtotalCents;
+
+    // Generar key de cache (usando dirección normalizada y valores validados)
     const cacheKey = generateCacheKey(
       normalizedAddress.postalCode,
       normalizedAddress.state,
@@ -224,7 +238,7 @@ export async function POST(req: NextRequest) {
     // Limpiar cache expirado periódicamente
     cleanExpiredCache();
 
-    // Verificar cache ANTES de llamar a Skydropx
+    // Verificar cache ANTES de llamar a Skydropx (solo si payload es válido)
     const cachedEntry = ratesCache.get(cacheKey);
     if (cachedEntry && cachedEntry.expiresAt > Date.now()) {
       console.log("[shipping/rates] Cache hit:", {
@@ -492,6 +506,7 @@ export async function POST(req: NextRequest) {
     };
 
     // Cachear también respuestas de error (para evitar repetir fallback chain)
+    // Solo cachear si el payload era válido (no cachear invalid_payload)
     ratesCache.set(cacheKey, {
       response: errorResponse,
       expiresAt: Date.now() + CACHE_TTL_MS,

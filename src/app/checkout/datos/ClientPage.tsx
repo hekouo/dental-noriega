@@ -292,6 +292,21 @@ function DatosPageContent() {
         return sum + priceCents * (item.qty || 1);
       }, 0);
 
+      // Validar que el carrito tenga productos válidos antes de hacer fetch
+      if (totalWeightGrams <= 0 || subtotalCents <= 0) {
+        // No hacer fetch si el carrito está vacío o cargando
+        // Pero NO limpiar lastGoodRates si existen (el usuario puede estar editando)
+        if (process.env.NODE_ENV === "development") {
+          console.log("[checkout/datos] Carrito vacío o cargando, no hacer fetch:", {
+            totalWeightGrams,
+            subtotalCents,
+            hasLastGoodRates: !!lastGoodRatesRef.current,
+          });
+        }
+        setLoadingRates(false);
+        return;
+      }
+
       // Normalizar city: evitar abreviaciones como "cdmx" que Skydropx rechaza
       // El backend también normaliza, pero es mejor enviar datos limpios desde el cliente
       let normalizedCity = cityValue.trim();
@@ -320,7 +335,7 @@ function DatosPageContent() {
             city: normalizedCity,
             country: "MX",
           },
-          totalWeightGrams: totalWeightGrams || 1000,
+          totalWeightGrams,
           subtotalCents,
         }),
         signal,
@@ -494,12 +509,18 @@ function DatosPageContent() {
   useEffect(() => {
     // Solo obtener tarifas si tenemos CP, estado y ciudad válidos
     if (!cpValue || !stateValue || !cityValue) {
-      setShippingOptions([]);
-      setPrimaryOptions([]);
-      setAllOptions([]);
-      setSelectedShippingOption(null);
-      lastGoodRatesRef.current = null;
-      setShowStaleRatesBanner(false);
+      // NO limpiar lastGoodRates cuando el usuario borra CP momentáneamente
+      // Solo limpiar si realmente no hay dirección completa
+      // Esto evita parpadeo cuando el usuario está editando
+      if (!cpValue && !stateValue && !cityValue) {
+        // Solo limpiar si TODOS los campos están vacíos (no solo uno)
+        setShippingOptions([]);
+        setPrimaryOptions([]);
+        setAllOptions([]);
+        setSelectedShippingOption(null);
+        lastGoodRatesRef.current = null;
+        setShowStaleRatesBanner(false);
+      }
       return;
     }
 
