@@ -376,6 +376,7 @@ function DatosPageContent() {
       controller.abort();
       clearTimeout(timeoutId);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cpValue, stateValue, cityValue, selectedItems, fetchShippingRates]);
 
   const onSubmit: SubmitHandler<DatosForm> = async (values) => {
