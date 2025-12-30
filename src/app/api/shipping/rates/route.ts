@@ -27,11 +27,52 @@ type RatesRequest = {
   subtotalCents?: number; // Subtotal del carrito en centavos para aplicar promo de envío gratis
 };
 
+/**
+ * Valida que las variables de entorno de Skydropx estén presentes
+ * (sin exponer valores sensibles)
+ */
+function validateSkydropxEnv(): { valid: boolean; missing: string[] } {
+  const required = [
+    "SKYDROPX_CLIENT_ID",
+    "SKYDROPX_CLIENT_SECRET",
+    "SKYDROPX_ORIGIN_NAME",
+    "SKYDROPX_ORIGIN_STATE",
+    "SKYDROPX_ORIGIN_CITY",
+    "SKYDROPX_ORIGIN_POSTAL_CODE",
+  ];
+  
+  const missing = required.filter((key) => {
+    const value = process.env[key];
+    return !value || value.trim() === "";
+  });
+  
+  return {
+    valid: missing.length === 0,
+    missing,
+  };
+}
+
 export async function POST(req: NextRequest) {
   try {
+    // Validar env vars de Skydropx (sin exponer secretos)
+    const envCheck = validateSkydropxEnv();
+    if (!envCheck.valid) {
+      console.error("[shipping/rates] Env vars faltantes:", envCheck.missing.join(", "));
+      return NextResponse.json(
+        {
+          ok: false,
+          reason: "skydropx_config_error",
+          error: "Configuración de envío incompleta. Contacta al soporte.",
+          options: [],
+        },
+        { status: 200 },
+      );
+    }
+
     const body = (await req.json().catch(() => null)) as RatesRequest | null;
 
     if (!body || !body.address) {
+      console.error("[shipping/rates] Request inválida: falta address");
       return NextResponse.json(
         { ok: false, reason: "invalid_destination", error: "Se requiere address con postalCode, state y city" },
         { status: 200 }, // 200 para que el frontend maneje el error
@@ -41,42 +82,57 @@ export async function POST(req: NextRequest) {
     const { address, totalWeightGrams, subtotalCents } = body;
 
     if (!address.postalCode || !address.state) {
+      console.error("[shipping/rates] Request inválida: falta postalCode o state", {
+        hasPostalCode: !!address.postalCode,
+        hasState: !!address.state,
+      });
       return NextResponse.json(
         { ok: false, reason: "invalid_destination", error: "address.postalCode y address.state son requeridos" },
         { status: 200 },
       );
     }
 
-    if (process.env.NODE_ENV !== "production") {
-      console.log("[shipping/rates] Request recibida:", {
-        postalCode: address.postalCode,
-        state: address.state,
-        city: address.city,
-        country: address.country || "MX",
-        totalWeightGrams: totalWeightGrams || 1000,
-      });
+    // Validar formato de CP (5 dígitos)
+    if (!/^\d{5}$/.test(address.postalCode)) {
+      console.error("[shipping/rates] CP inválido:", address.postalCode);
+      return NextResponse.json(
+        { ok: false, reason: "invalid_destination", error: "El código postal debe tener 5 dígitos" },
+        { status: 200 },
+      );
     }
+
+    // Log estructurado para producción (sin datos sensibles)
+    console.log("[shipping/rates] Request recibida:", {
+      postalCode: address.postalCode,
+      state: address.state,
+      city: address.city || "(no especificada)",
+      country: address.country || "MX",
+      totalWeightGrams: totalWeightGrams || 1000,
+      subtotalCents: subtotalCents || 0,
+    });
 
     // Usar peso total del carrito o fallback razonable (1000g = 1kg)
     // Documentado: si no viene totalWeightGrams, usamos 1kg como default
     const weightGrams = totalWeightGrams || 1000;
 
-    const rates = await getSkydropxRates(
-      {
-        postalCode: address.postalCode,
-        state: address.state,
-        city: address.city || "",
-        country: address.country || "MX",
-      },
-      {
-        weightGrams,
-        // Dimensiones por defecto: 20x20x10 cm (ya manejadas en getSkydropxRates)
-      },
-    );
+    try {
+      const rates = await getSkydropxRates(
+        {
+          postalCode: address.postalCode,
+          state: address.state,
+          city: address.city || "",
+          country: address.country || "MX",
+        },
+        {
+          weightGrams,
+          // Dimensiones por defecto: 20x20x10 cm (ya manejadas en getSkydropxRates)
+        },
+      );
 
-    if (process.env.NODE_ENV !== "production") {
-      console.log("[shipping/rates] Tarifas obtenidas de getSkydropxRates:", rates.length);
-    }
+      console.log("[shipping/rates] Tarifas obtenidas:", {
+        count: rates.length,
+        postalCode: address.postalCode,
+      });
 
     // Si hay tarifas, devolver ok: true
     if (rates.length > 0) {
@@ -122,27 +178,57 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, options });
     }
 
-    // Si no hay tarifas, devolver respuesta con ok: false pero status 200
-    if (process.env.NODE_ENV !== "production") {
-      console.warn("[shipping/rates] No se obtuvieron tarifas de Skydropx");
+      // Si no hay tarifas, devolver respuesta con ok: false pero status 200
+      console.warn("[shipping/rates] No se obtuvieron tarifas de Skydropx", {
+        postalCode: address.postalCode,
+        state: address.state,
+        city: address.city || "(no especificada)",
+      });
+      return NextResponse.json({
+        ok: false,
+        reason: "no_rates_from_skydropx",
+        options: [],
+      });
+    } catch (skydropxError) {
+      // Error específico de getSkydropxRates
+      console.error("[shipping/rates] Error al obtener tarifas de Skydropx:", {
+        error: skydropxError instanceof Error ? skydropxError.message : String(skydropxError),
+        code: skydropxError instanceof Error && "code" in skydropxError ? skydropxError.code : undefined,
+        postalCode: address.postalCode,
+        state: address.state,
+      });
+      
+      // Determinar el motivo del error
+      let reason = "skydropx_error";
+      if (skydropxError instanceof Error) {
+        if (skydropxError.message.includes("auth") || skydropxError.message.includes("credenciales")) {
+          reason = "skydropx_auth_error";
+        } else if (skydropxError.message.includes("fetch") || skydropxError.message.includes("network")) {
+          reason = "skydropx_fetch_error";
+        }
+      }
+      
+      return NextResponse.json({
+        ok: false,
+        reason,
+        error: "Error al calcular tarifas de envío. Intenta de nuevo.",
+        options: [],
+      });
     }
-    return NextResponse.json({
-      ok: false,
-      reason: "no_rates_from_skydropx",
-      options: [],
-    });
 
   } catch (error) {
-    if (process.env.NODE_ENV !== "production") {
-      console.error("[shipping/rates] Error inesperado:", error);
-    }
+    // Error general (parsing, etc.)
+    console.error("[shipping/rates] Error inesperado:", {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     
     // Determinar el motivo del error
     let reason = "skydropx_error";
     if (error instanceof Error) {
-      if (error.message === "skydropx_auth_error") {
+      if (error.message === "skydropx_auth_error" || error.message.includes("auth")) {
         reason = "skydropx_auth_error";
-      } else if (error.message === "skydropx_fetch_error") {
+      } else if (error.message === "skydropx_fetch_error" || error.message.includes("fetch")) {
         reason = "skydropx_fetch_error";
       }
     }
@@ -151,6 +237,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       ok: false,
       reason,
+      error: "Error inesperado al calcular tarifas. Intenta de nuevo.",
       options: [],
     });
   }

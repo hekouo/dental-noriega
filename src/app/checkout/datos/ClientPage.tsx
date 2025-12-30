@@ -74,6 +74,7 @@ function DatosPageContent() {
   // Estado para tarifas de envío Skydropx
   const [loadingRates, setLoadingRates] = useState(false);
   const [ratesError, setRatesError] = useState<string | null>(null);
+  const [ratesErrorCode, setRatesErrorCode] = useState<string | null>(null); // Para distinguir errores técnicos
   const shippingOptions = useCheckoutStore((s) => s.shippingOptions);
   const selectedShippingOption = useCheckoutStore((s) => s.selectedShippingOption);
   const setShippingOptions = useCheckoutStore((s) => s.setShippingOptions);
@@ -239,6 +240,119 @@ function DatosPageContent() {
   const stateValue = watch("state");
   const cityValue = watch("city");
 
+  // Función para obtener tarifas (reutilizable para "Reintentar")
+  const fetchShippingRates = React.useCallback(async (signal?: AbortSignal) => {
+    if (!cpValue || !stateValue || !cityValue) {
+      setShippingOptions([]);
+      setSelectedShippingOption(null);
+      return;
+    }
+
+    // Validar que CP tenga 5 dígitos
+    if (cpValue.length !== 5 || !/^\d{5}$/.test(cpValue)) {
+      return;
+    }
+
+    setLoadingRates(true);
+    setRatesError(null);
+    setRatesErrorCode(null);
+
+    try {
+      // Calcular peso total aproximado del carrito (1kg por producto como default)
+      const totalWeightGrams = selectedItems.reduce((sum, item) => {
+        return sum + (item.qty || 1) * 1000; // 1kg por producto
+      }, 0);
+
+      // Calcular subtotal en centavos para aplicar promo de envío gratis
+      const subtotalCents = selectedItems.reduce((sum, item) => {
+        const priceCents = typeof item.price_cents === "number" ? item.price_cents : typeof item.price === "number" ? Math.round(item.price * 100) : 0;
+        return sum + priceCents * (item.qty || 1);
+      }, 0);
+
+      const response = await fetch("/api/shipping/rates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          address: {
+            postalCode: cpValue,
+            state: stateValue,
+            city: cityValue,
+            country: "MX",
+          },
+          totalWeightGrams: totalWeightGrams || 1000,
+          subtotalCents,
+        }),
+        signal,
+      });
+
+      if (signal?.aborted) return;
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Error al obtener tarifas");
+      }
+
+      const data = await response.json();
+      
+      // Manejar respuesta con formato { ok: true, options: [...] } o { options: [...] }
+      const options: UiShippingOption[] = data.options || [];
+      const isOk = data.ok !== false; // Si no viene ok, asumir true para compatibilidad
+
+      if (!isOk || options.length === 0) {
+        setShippingOptions([]);
+        setSelectedShippingOption(null);
+        
+        // Distinguir entre error técnico y sin cobertura
+        const isTechnicalError = data.reason === "skydropx_error" || 
+                                 data.reason === "skydropx_auth_error" || 
+                                 data.reason === "skydropx_fetch_error" ||
+                                 data.reason === "skydropx_config_error";
+        
+        if (isTechnicalError) {
+          setRatesErrorCode(data.reason);
+          setRatesError(
+            data.error || "Error al calcular tarifas. Por favor, intenta de nuevo."
+          );
+        } else {
+          // Sin cobertura (no_rates_from_skydropx o invalid_destination)
+          setRatesErrorCode(null);
+          setRatesError(
+            "Lo sentimos, no hay envíos disponibles para esta dirección. Intenta con otro código postal."
+          );
+        }
+        
+        if (process.env.NODE_ENV === "development") {
+          console.warn("[checkout/datos] No hay opciones de envío:", {
+            ok: data.ok,
+            reason: data.reason,
+            error: data.error,
+            optionsCount: options.length,
+          });
+        }
+      } else {
+        setShippingOptions(options);
+        // Seleccionar automáticamente la opción más barata
+        const cheapest = options[0]; // Ya viene ordenado por precio ASC
+        setSelectedShippingOption(cheapest);
+        setRatesError(null);
+        setRatesErrorCode(null);
+      }
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") return;
+      console.error("[checkout/datos] Error al obtener tarifas:", err);
+      setRatesErrorCode("network_error");
+      setRatesError(
+        "Error de conexión al calcular tarifas. Por favor, intenta de nuevo.",
+      );
+      setShippingOptions([]);
+      setSelectedShippingOption(null);
+    } finally {
+      if (!signal?.aborted) {
+        setLoadingRates(false);
+      }
+    }
+  }, [cpValue, stateValue, cityValue, selectedItems, setShippingOptions, setSelectedShippingOption]);
+
   useEffect(() => {
     // Solo obtener tarifas si tenemos CP, estado y ciudad válidos
     if (!cpValue || !stateValue || !cityValue) {
@@ -254,94 +368,16 @@ function DatosPageContent() {
 
     // Debounce: esperar 500ms después de que el usuario deje de escribir
     const controller = new AbortController();
-    const timeoutId = setTimeout(async () => {
-      setLoadingRates(true);
-      setRatesError(null);
-
-      try {
-        // Calcular peso total aproximado del carrito (1kg por producto como default)
-        const totalWeightGrams = selectedItems.reduce((sum, item) => {
-          return sum + (item.qty || 1) * 1000; // 1kg por producto
-        }, 0);
-
-        // Calcular subtotal en centavos para aplicar promo de envío gratis
-        const subtotalCents = selectedItems.reduce((sum, item) => {
-          const priceCents = typeof item.price_cents === "number" ? item.price_cents : typeof item.price === "number" ? Math.round(item.price * 100) : 0;
-          return sum + priceCents * (item.qty || 1);
-        }, 0);
-
-        const response = await fetch("/api/shipping/rates", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            address: {
-              postalCode: cpValue,
-              state: stateValue,
-              city: cityValue,
-              country: "MX",
-            },
-            totalWeightGrams: totalWeightGrams || 1000,
-            subtotalCents,
-          }),
-          signal: controller.signal,
-        });
-
-        if (controller.signal.aborted) return;
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error || "Error al obtener tarifas");
-        }
-
-        const data = await response.json();
-        
-        // Manejar respuesta con formato { ok: true, options: [...] } o { options: [...] }
-        const options: UiShippingOption[] = data.options || [];
-        const isOk = data.ok !== false; // Si no viene ok, asumir true para compatibilidad
-
-        if (!isOk || options.length === 0) {
-          setShippingOptions([]);
-          setSelectedShippingOption(null);
-          // Mensaje más amigable cuando no hay cobertura
-          const friendlyMessage = data.reason === "no_rates_from_skydropx" || data.reason === "skydropx_error"
-            ? "Lo sentimos, no hay envíos disponibles para esta dirección. Intenta con otro código postal."
-            : "No pudimos calcular el envío automático. Se usará un costo manual.";
-          setRatesError(friendlyMessage);
-          if (process.env.NODE_ENV === "development") {
-            console.warn("[checkout/datos] No hay opciones de envío:", {
-              ok: data.ok,
-              reason: data.reason,
-              error: data.error,
-              optionsCount: options.length,
-            });
-          }
-        } else {
-          setShippingOptions(options);
-          // Seleccionar automáticamente la opción más barata
-          const cheapest = options[0]; // Ya viene ordenado por precio ASC
-          setSelectedShippingOption(cheapest);
-          setRatesError(null);
-        }
-      } catch (err) {
-        if (err instanceof Error && err.name === "AbortError") return;
-        console.error("[checkout/datos] Error al obtener tarifas:", err);
-        setRatesError(
-          "No pudimos calcular el envío automático. Se usará un costo manual.",
-        );
-        setShippingOptions([]);
-        setSelectedShippingOption(null);
-      } finally {
-        if (!controller.signal.aborted) {
-          setLoadingRates(false);
-        }
-      }
+    const timeoutId = setTimeout(() => {
+      void fetchShippingRates(controller.signal);
     }, 500);
 
     return () => {
       controller.abort();
       clearTimeout(timeoutId);
     };
-  }, [cpValue, stateValue, cityValue, selectedItems, setShippingOptions, setSelectedShippingOption]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cpValue, stateValue, cityValue, selectedItems, fetchShippingRates]);
 
   const onSubmit: SubmitHandler<DatosForm> = async (values) => {
     setSubmitError(null);
@@ -948,11 +984,27 @@ function DatosPageContent() {
                 <p className="text-sm text-gray-500">Calculando tarifas...</p>
               )}
               {ratesError && !loadingRates && (
-                <p className="text-sm text-amber-600">
-                  {ratesError.includes("no hay envíos disponibles") 
-                    ? ratesError 
-                    : "Lo sentimos, no hay envíos disponibles para esta dirección. Intenta con otro código postal."}
-                </p>
+                <div className="space-y-2">
+                  <p className={`text-sm ${
+                    ratesErrorCode 
+                      ? "text-red-600" // Error técnico: rojo
+                      : "text-amber-600" // Sin cobertura: ámbar
+                  }`}>
+                    {ratesError}
+                  </p>
+                  {ratesErrorCode && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void fetchShippingRates();
+                      }}
+                      disabled={loadingRates}
+                      className="text-sm text-primary-600 hover:text-primary-700 underline font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {loadingRates ? "Reintentando..." : "Reintentar"}
+                    </button>
+                  )}
+                </div>
               )}
               {!loadingRates && shippingOptions && shippingOptions.length > 0 && (
                 <div className="space-y-4">

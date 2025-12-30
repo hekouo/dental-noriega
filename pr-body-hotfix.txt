@@ -1,0 +1,27 @@
+## Hotfix: ToastProvider wrapper
+
+### Problema
+Error en producción: "useToast must be used within ToastProvider"
+
+### Causa
+El `ToastProvider` estaba siendo cargado dinámicamente y solo envolvía `MobileBottomNav`, no toda la aplicación. Los componentes que usan `useToast()` (ProductCard, ProductActions) estaban fuera del contexto.
+
+### Solución
+1. Creado `src/app/providers.tsx` que envuelve `ToastProvider`
+2. Modificado `src/app/layout.tsx` para envolver TODO el contenido del `<body>` con `<Providers>`
+3. Eliminado el `dynamic import` de `ToastProvider` y el wrapper parcial
+
+### Cambios
+- `src/app/providers.tsx` (nuevo): Wrapper client-side con ToastProvider
+- `src/app/layout.tsx`: Envuelve todo el body con Providers
+
+### Validaciones
+- ✅ `pnpm typecheck` pasa
+- ✅ `pnpm lint` pasa
+- ✅ `pnpm build` pasa
+
+### Cómo probar
+1. Home: Click "Agregar" en ProductCard => debe aparecer toast sin error
+2. PDP: Click "Agregar" => toast OK
+3. Mobile: Toast no tapa bottom nav y respeta safe-area
+
