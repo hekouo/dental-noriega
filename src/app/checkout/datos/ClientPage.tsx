@@ -269,21 +269,39 @@ function DatosPageContent() {
         return sum + priceCents * (item.qty || 1);
       }, 0);
 
-      const response = await fetch("/api/shipping/rates", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          address: {
-            postalCode: cpValue,
-            state: stateValue,
-            city: cityValue,
-            country: "MX",
-          },
-          totalWeightGrams: totalWeightGrams || 1000,
-          subtotalCents,
-        }),
-        signal,
-      });
+        // Normalizar city: evitar abreviaciones como "cdmx" que Skydropx rechaza
+        // El backend también normaliza, pero es mejor enviar datos limpios desde el cliente
+        let normalizedCity = cityValue.trim();
+        const normalizedState = stateValue.trim();
+        
+        // Si es CDMX, normalizar city a formato completo
+        const isCDMX = /^(ciudad de m[eé]xico|cdmx|df|distrito federal)$/i.test(normalizedState) ||
+                       /^(ciudad de m[eé]xico|cdmx|df|distrito federal)$/i.test(normalizedCity);
+        
+        if (isCDMX) {
+          // Si CP es 143xx (Tlalpan), usar "Tlalpan", sino "Ciudad de Mexico"
+          if (/^143\d{2}$/.test(cpValue)) {
+            normalizedCity = "Tlalpan";
+          } else {
+            normalizedCity = "Ciudad de Mexico";
+          }
+        }
+
+        const response = await fetch("/api/shipping/rates", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            address: {
+              postalCode: cpValue,
+              state: normalizedState,
+              city: normalizedCity,
+              country: "MX",
+            },
+            totalWeightGrams: totalWeightGrams || 1000,
+            subtotalCents,
+          }),
+          signal,
+        });
 
       if (signal?.aborted) return;
 
