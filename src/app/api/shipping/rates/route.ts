@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSkydropxRates } from "@/lib/shipping/skydropx.server";
 import { FREE_SHIPPING_THRESHOLD_CENTS } from "@/lib/shipping/freeShipping";
+import { normalizeMxAddress } from "@/lib/shipping/normalizeAddress";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -101,14 +102,24 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Log estructurado para producción (sin datos sensibles)
-    console.log("[shipping/rates] Request recibida:", {
-      postalCode: address.postalCode,
+    // Normalizar dirección para Skydropx (especialmente CDMX)
+    const normalizedAddress = normalizeMxAddress({
       state: address.state,
-      city: address.city || "(no especificada)",
+      city: address.city || "",
+      postalCode: address.postalCode,
+    });
+
+    // Log estructurado para producción (sin datos sensibles)
+    // Mostrar valores normalizados para verificar en Vercel Logs
+    console.log("[shipping/rates] Request recibida:", {
+      postalCode: normalizedAddress.postalCode,
+      state: normalizedAddress.state,
+      city: normalizedAddress.city,
       country: address.country || "MX",
       totalWeightGrams: totalWeightGrams || 1000,
       subtotalCents: subtotalCents || 0,
+      originalState: address.state !== normalizedAddress.state ? address.state : undefined,
+      originalCity: address.city !== normalizedAddress.city ? address.city : undefined,
     });
 
     // Usar peso total del carrito o fallback razonable (1000g = 1kg)
@@ -118,9 +129,9 @@ export async function POST(req: NextRequest) {
     try {
       const rates = await getSkydropxRates(
         {
-          postalCode: address.postalCode,
-          state: address.state,
-          city: address.city || "",
+          postalCode: normalizedAddress.postalCode,
+          state: normalizedAddress.state,
+          city: normalizedAddress.city,
           country: address.country || "MX",
         },
         {
@@ -131,7 +142,9 @@ export async function POST(req: NextRequest) {
 
       console.log("[shipping/rates] Tarifas obtenidas:", {
         count: rates.length,
-        postalCode: address.postalCode,
+        postalCode: normalizedAddress.postalCode,
+        state: normalizedAddress.state,
+        city: normalizedAddress.city,
       });
 
     // Si hay tarifas, devolver ok: true
@@ -180,9 +193,11 @@ export async function POST(req: NextRequest) {
 
       // Si no hay tarifas, devolver respuesta con ok: false pero status 200
       console.warn("[shipping/rates] No se obtuvieron tarifas de Skydropx", {
-        postalCode: address.postalCode,
-        state: address.state,
-        city: address.city || "(no especificada)",
+        postalCode: normalizedAddress.postalCode,
+        state: normalizedAddress.state,
+        city: normalizedAddress.city,
+        originalState: address.state !== normalizedAddress.state ? address.state : undefined,
+        originalCity: address.city !== normalizedAddress.city ? address.city : undefined,
       });
       return NextResponse.json({
         ok: false,
@@ -194,8 +209,11 @@ export async function POST(req: NextRequest) {
       console.error("[shipping/rates] Error al obtener tarifas de Skydropx:", {
         error: skydropxError instanceof Error ? skydropxError.message : String(skydropxError),
         code: skydropxError instanceof Error && "code" in skydropxError ? skydropxError.code : undefined,
-        postalCode: address.postalCode,
-        state: address.state,
+        postalCode: normalizedAddress.postalCode,
+        state: normalizedAddress.state,
+        city: normalizedAddress.city,
+        originalState: address.state !== normalizedAddress.state ? address.state : undefined,
+        originalCity: address.city !== normalizedAddress.city ? address.city : undefined,
       });
       
       // Determinar el motivo del error

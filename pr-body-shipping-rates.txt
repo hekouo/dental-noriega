@@ -1,0 +1,60 @@
+## Fix: Shipping rates not showing in checkout
+
+### Problema
+En `/checkout/datos`, al capturar dirección con CP (ej. 14390), solo aparece "Recoger en tienda" y no se muestran tarifas de envío de Skydropx.
+
+### Cambios implementados
+
+#### 1. Validación de variables de entorno
+- Función `validateSkydropxEnv()` que verifica que existan las env vars requeridas sin exponer secretos
+- Retorna error claro si faltan: `SKYDROPX_CLIENT_ID`, `SKYDROPX_CLIENT_SECRET`, `SKYDROPX_ORIGIN_*`
+- Logs estructurados para identificar qué variables faltan
+
+#### 2. Logging mejorado en servidor
+- Logs estructurados en `/api/shipping/rates` para Vercel Logs
+- Diferencia entre errores técnicos (auth, config, network) y sin cobertura
+- Validación de formato de CP (5 dígitos) antes de solicitar tarifas
+- Logs incluyen código postal y estado (sin datos sensibles)
+
+#### 3. UX mejorada en frontend
+- Distingue entre errores técnicos y sin cobertura
+- Mensajes claros:
+  - Error técnico: "Error al calcular tarifas. Por favor, intenta de nuevo." (rojo)
+  - Sin cobertura: "Lo sentimos, no hay envíos disponibles para esta dirección..." (ámbar)
+- Botón "Reintentar" visible solo para errores técnicos
+- Función `fetchShippingRates` reutilizable para el botón
+
+#### 4. Validación de payload
+- Validación de CP (5 dígitos) en servidor antes de llamar a Skydropx
+- Validación de campos requeridos (postalCode, state) con logs
+
+### Archivos modificados
+- `src/app/api/shipping/rates/route.ts`: Validación env vars, logging mejorado, validación CP
+- `src/app/checkout/datos/ClientPage.tsx`: UX mejorada, botón "Reintentar", distinción de errores
+
+### Cómo probar
+
+1. **Verificar env vars en Vercel Production:**
+   - `SKYDROPX_CLIENT_ID`
+   - `SKYDROPX_CLIENT_SECRET`
+   - `SKYDROPX_ORIGIN_NAME`
+   - `SKYDROPX_ORIGIN_STATE`
+   - `SKYDROPX_ORIGIN_CITY`
+   - `SKYDROPX_ORIGIN_POSTAL_CODE`
+
+2. **Flujo de prueba:**
+   - Agregar productos al carrito
+   - Ir a `/checkout/datos`
+   - Capturar dirección con CP válido (ej. 14390, Ciudad de México)
+   - Verificar que aparezcan tarifas de envío
+   - Si hay error técnico, verificar que aparezca botón "Reintentar"
+
+3. **Verificar logs en Vercel:**
+   - Revisar logs de `/api/shipping/rates` para identificar errores
+   - Buscar mensajes con código postal y estado para debugging
+
+### Notas
+- Los logs no exponen secretos (solo nombres de variables faltantes)
+- El botón "Reintentar" solo aparece para errores técnicos, no para sin cobertura
+- Si faltan env vars, se muestra mensaje claro sin exponer valores
+
