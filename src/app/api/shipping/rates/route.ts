@@ -210,7 +210,7 @@ export async function POST(req: NextRequest) {
     const country = address.country || "MX";
     const finalSubtotalCents = subtotalCents || 0;
 
-    // Generar key de cache
+    // Generar key de cache (usando dirección normalizada)
     const cacheKey = generateCacheKey(
       normalizedAddress.postalCode,
       normalizedAddress.state,
@@ -224,7 +224,7 @@ export async function POST(req: NextRequest) {
     // Limpiar cache expirado periódicamente
     cleanExpiredCache();
 
-    // Verificar cache
+    // Verificar cache ANTES de llamar a Skydropx
     const cachedEntry = ratesCache.get(cacheKey);
     if (cachedEntry && cachedEntry.expiresAt > Date.now()) {
       console.log("[shipping/rates] Cache hit:", {
@@ -469,7 +469,7 @@ export async function POST(req: NextRequest) {
         allOptions,
       };
 
-      // Guardar en cache
+      // Guardar en cache DESPUÉS de normalizar/dedupe/ordenar
       ratesCache.set(cacheKey, {
         response,
         expiresAt: Date.now() + CACHE_TTL_MS,
@@ -485,11 +485,19 @@ export async function POST(req: NextRequest) {
     }
 
     // Si no hay tarifas después de todos los intentos, devolver respuesta con ok: false
-    return NextResponse.json({
+    const errorResponse: ShippingRatesResponse = {
       ok: false,
       reason: "no_rates_from_skydropx",
       options: [],
+    };
+
+    // Cachear también respuestas de error (para evitar repetir fallback chain)
+    ratesCache.set(cacheKey, {
+      response: errorResponse,
+      expiresAt: Date.now() + CACHE_TTL_MS,
     });
+
+    return NextResponse.json(errorResponse);
   } catch (error) {
     // Error general (parsing, etc.)
     console.error("[shipping/rates] Error inesperado:", {
