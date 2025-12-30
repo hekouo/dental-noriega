@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSkydropxRates } from "@/lib/shipping/skydropx.server";
+import { getSkydropxRates, type SkydropxRate } from "@/lib/shipping/skydropx.server";
 import { FREE_SHIPPING_THRESHOLD_CENTS } from "@/lib/shipping/freeShipping";
-import { normalizeMxAddress } from "@/lib/shipping/normalizeAddress";
+import { normalizeMxAddress, type NormalizedAddress } from "@/lib/shipping/normalizeAddress";
 import {
   normalizeShippingRates,
   buildShippingOptionsResponse,
@@ -156,45 +156,184 @@ export async function POST(req: NextRequest) {
       postalCode: address.postalCode,
     });
 
-    // Log estructurado para producción (sin datos sensibles)
-    // Mostrar valores normalizados para verificar en Vercel Logs
-    console.log("[shipping/rates] Request recibida:", {
-      postalCode: normalizedAddress.postalCode,
-      state: normalizedAddress.state,
-      city: normalizedAddress.city,
-      country: address.country || "MX",
-      totalWeightGrams: totalWeightGrams || 1000,
-      subtotalCents: subtotalCents || 0,
-      originalState: address.state !== normalizedAddress.state ? address.state : undefined,
-      originalCity: address.city !== normalizedAddress.city ? address.city : undefined,
-    });
-
     // Usar peso total del carrito o fallback razonable (1000g = 1kg)
-    // Documentado: si no viene totalWeightGrams, usamos 1kg como default
     const weightGrams = totalWeightGrams || 1000;
+    const country = address.country || "MX";
 
-    try {
+    // Detectar si es CDMX para aplicar fallback chain
+    const isCDMX = normalizedAddress.state === "Ciudad de Mexico" || 
+                    normalizedAddress.state.toLowerCase().includes("ciudad de mexico") ||
+                    normalizedAddress.state.toLowerCase().includes("distrito federal");
+
+    /**
+     * Fallback chain para CDMX: prueba diferentes variaciones de state/city
+     */
+    type FallbackAttempt = {
+      attempt: "A" | "B" | "C";
+      state: string;
+      city: string;
+    };
+
+    const getFallbackAttempts = (baseAddress: NormalizedAddress): FallbackAttempt[] => {
+      if (!isCDMX) {
+        // Para no-CDMX, solo un intento con la dirección normalizada
+        return [{
+          attempt: "A",
+          state: baseAddress.state,
+          city: baseAddress.city,
+        }];
+      }
+
+      // Para CDMX, 3 intentos:
+      return [
+        {
+          attempt: "A",
+          state: "Ciudad de Mexico",
+          city: "Ciudad de Mexico",
+        },
+        {
+          attempt: "B",
+          state: "Ciudad de México",
+          city: "Ciudad de México",
+        },
+        {
+          attempt: "C",
+          state: "Distrito Federal",
+          city: "Ciudad de Mexico",
+        },
+      ];
+    };
+
+    /**
+     * Helper para loggear payload shape sin PII
+     */
+    const logPayloadShape = (attempt: string, dest: { state: string; city: string; postalCode: string }) => {
+      const originPostalCode = process.env.SKYDROPX_ORIGIN_POSTAL_CODE || "[hidden]";
+      console.log("[shipping/rates] Payload shape:", {
+        attempt,
+        origin_postal_code: originPostalCode,
+        to_postal_code: dest.postalCode,
+        to_state: dest.state,
+        to_city: dest.city,
+        parcels_count: 1,
+        parcel_weight_kg: (weightGrams / 1000).toFixed(2),
+        parcel_dims: "20x20x10 cm",
+      });
+    };
+
+    /**
+     * Helper para retry con backoff cuando Skydropx devuelve 0 rates
+     */
+    const fetchRatesWithRetry = async (
+      dest: { postalCode: string; state: string; city: string; country: string },
+      attempt: string,
+      retryCount = 0,
+    ): Promise<SkydropxRate[]> => {
       const rates = await getSkydropxRates(
         {
-          postalCode: normalizedAddress.postalCode,
-          state: normalizedAddress.state,
-          city: normalizedAddress.city,
-          country: address.country || "MX",
+          postalCode: dest.postalCode,
+          state: dest.state,
+          city: dest.city,
+          country: dest.country,
         },
         {
           weightGrams,
-          // Dimensiones por defecto: 20x20x10 cm (ya manejadas en getSkydropxRates)
         },
       );
 
-      console.log("[shipping/rates] Tarifas obtenidas:", {
-        count: rates.length,
-        postalCode: normalizedAddress.postalCode,
-        state: normalizedAddress.state,
-        city: normalizedAddress.city,
-      });
+      // Si hay rates, devolverlas
+      if (rates.length > 0) {
+        return rates;
+      }
 
-    // Si hay tarifas, devolver ok: true
+      // Si no hay rates y es el primer intento, hacer retry con backoff
+      if (retryCount === 0) {
+        const backoffMs = 250 + Math.random() * 250; // 250-500ms
+        console.log(`[shipping/rates] Attempt ${attempt}: 0 rates, retrying after ${backoffMs.toFixed(0)}ms`);
+        await new Promise((resolve) => setTimeout(resolve, backoffMs));
+        return fetchRatesWithRetry(dest, attempt, 1);
+      }
+
+      // Si ya se hizo retry y sigue sin rates, devolver vacío
+      return [];
+    };
+
+    // Log inicial de request
+    console.log("[shipping/rates] Request recibida:", {
+      attempt: "initial",
+      postalCode: normalizedAddress.postalCode,
+      state: normalizedAddress.state,
+      city: normalizedAddress.city,
+      country,
+      totalWeightGrams: weightGrams,
+      subtotalCents: subtotalCents || 0,
+      originalState: address.state !== normalizedAddress.state ? address.state : undefined,
+      originalCity: address.city !== normalizedAddress.city ? address.city : undefined,
+      isCDMX,
+    });
+
+    // Obtener intentos de fallback
+    const fallbackAttempts = getFallbackAttempts(normalizedAddress);
+
+    let rates: SkydropxRate[] = [];
+    let lastError: Error | null = null;
+
+    // Intentar cada variación del fallback chain
+    for (const fallback of fallbackAttempts) {
+      try {
+        logPayloadShape(fallback.attempt, {
+          state: fallback.state,
+          city: fallback.city,
+          postalCode: normalizedAddress.postalCode,
+        });
+
+        rates = await fetchRatesWithRetry(
+          {
+            postalCode: normalizedAddress.postalCode,
+            state: fallback.state,
+            city: fallback.city,
+            country,
+          },
+          fallback.attempt,
+        );
+
+        if (rates.length > 0) {
+          console.log(`[shipping/rates] Success on attempt ${fallback.attempt}:`, {
+            count: rates.length,
+            state: fallback.state,
+            city: fallback.city,
+            postalCode: normalizedAddress.postalCode,
+          });
+          break; // Salir del loop si encontramos rates
+        }
+
+        console.log(`[shipping/rates] Attempt ${fallback.attempt}: 0 rates`, {
+          state: fallback.state,
+          city: fallback.city,
+        });
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        console.error(`[shipping/rates] Attempt ${fallback.attempt} error:`, {
+          error: lastError.message,
+          state: fallback.state,
+          city: fallback.city,
+        });
+        // Continuar con el siguiente intento si hay error técnico
+      }
+    }
+
+    // Si no se encontraron rates después de todos los intentos
+    if (rates.length === 0) {
+      console.warn("[shipping/rates] No se obtuvieron tarifas después de todos los intentos:", {
+        attempts: fallbackAttempts.map((a) => a.attempt).join(", "),
+        postalCode: normalizedAddress.postalCode,
+        lastAttempt: fallbackAttempts[fallbackAttempts.length - 1],
+        hasError: !!lastError,
+        errorMessage: lastError?.message,
+      });
+    }
+
+    // Si hay tarifas después de fallback/retry, procesarlas
     if (rates.length > 0) {
       // Verificar si aplica envío gratis (subtotal >= $2,000 MXN)
       const appliesFreeShipping = subtotalCents !== undefined && subtotalCents >= FREE_SHIPPING_THRESHOLD_CENTS;
@@ -255,49 +394,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(response);
     }
 
-      // Si no hay tarifas, devolver respuesta con ok: false pero status 200
-      console.warn("[shipping/rates] No se obtuvieron tarifas de Skydropx", {
-        postalCode: normalizedAddress.postalCode,
-        state: normalizedAddress.state,
-        city: normalizedAddress.city,
-        originalState: address.state !== normalizedAddress.state ? address.state : undefined,
-        originalCity: address.city !== normalizedAddress.city ? address.city : undefined,
-      });
-      return NextResponse.json({
-        ok: false,
-        reason: "no_rates_from_skydropx",
-        options: [],
-      });
-    } catch (skydropxError) {
-      // Error específico de getSkydropxRates
-      console.error("[shipping/rates] Error al obtener tarifas de Skydropx:", {
-        error: skydropxError instanceof Error ? skydropxError.message : String(skydropxError),
-        code: skydropxError instanceof Error && "code" in skydropxError ? skydropxError.code : undefined,
-        postalCode: normalizedAddress.postalCode,
-        state: normalizedAddress.state,
-        city: normalizedAddress.city,
-        originalState: address.state !== normalizedAddress.state ? address.state : undefined,
-        originalCity: address.city !== normalizedAddress.city ? address.city : undefined,
-      });
-      
-      // Determinar el motivo del error
-      let reason = "skydropx_error";
-      if (skydropxError instanceof Error) {
-        if (skydropxError.message.includes("auth") || skydropxError.message.includes("credenciales")) {
-          reason = "skydropx_auth_error";
-        } else if (skydropxError.message.includes("fetch") || skydropxError.message.includes("network")) {
-          reason = "skydropx_fetch_error";
-        }
-      }
-      
-      return NextResponse.json({
-        ok: false,
-        reason,
-        error: "Error al calcular tarifas de envío. Intenta de nuevo.",
-        options: [],
-      });
-    }
-
+    // Si no hay tarifas después de todos los intentos, devolver respuesta con ok: false
+    return NextResponse.json({
+      ok: false,
+      reason: "no_rates_from_skydropx",
+      options: [],
+    });
   } catch (error) {
     // Error general (parsing, etc.)
     console.error("[shipping/rates] Error inesperado:", {
