@@ -13,6 +13,23 @@ function AuthCallbackContent() {
   useEffect(() => {
     const handleCallback = async () => {
       try {
+        // Leer URL completa INMEDIATAMENTE al montar (antes de cualquier redirect)
+        // Esto asegura que capturamos query params y hash incluso si hay redirects
+        const currentSearch = window.location.search;
+        const currentHash = window.location.hash;
+        const currentPathname = window.location.pathname;
+
+        // Logging para debug (sin exponer tokens)
+        console.log("[auth/callback] URL recibida al montar:", {
+          pathname: currentPathname,
+          hasQuery: currentSearch.length > 0,
+          hasHash: currentHash.length > 0,
+          queryLength: currentSearch.length,
+          hashLength: currentHash.length,
+          queryStart: currentSearch.substring(0, 20) + (currentSearch.length > 20 ? "..." : ""), // Solo primeros 20 chars
+          hashStart: currentHash.substring(0, 20) + (currentHash.length > 20 ? "..." : ""), // Solo primeros 20 chars
+        });
+
         const supabase = getBrowserSupabase();
         if (!supabase) {
           setStatus("error");
@@ -21,24 +38,30 @@ function AuthCallbackContent() {
           return;
         }
 
-        // Leer query params (puede ser null en SSR, pero en cliente siempre existe)
-        if (!searchParams) {
-          setStatus("error");
-          setErrorMessage("Error al leer parámetros");
-          setTimeout(() => router.push("/cuenta?error=init"), 2000);
-          return;
-        }
+        // Leer query params desde la URL actual (no solo desde searchParams que puede estar desactualizado)
+        // Usar window.location.search directamente para evitar problemas de timing
+        const urlSearchParams = new URLSearchParams(currentSearch);
+        const code = urlSearchParams.get("code") || searchParams?.get("code") || null;
+        const type = urlSearchParams.get("type") || searchParams?.get("type") || null;
+        const nextParam = urlSearchParams.get("next") || searchParams?.get("next") || null;
 
-        const code = searchParams.get("code");
-        const type = searchParams.get("type");
-        const nextParam = searchParams.get("next");
-
-        // Leer hash (si existe)
-        const hash = window.location.hash;
-        const hashParams = new URLSearchParams(hash.substring(1)); // Remover #
+        // Leer hash (si existe) - siempre desde window.location.hash directamente
+        const hashParams = new URLSearchParams(currentHash.substring(1)); // Remover #
         const accessToken = hashParams.get("access_token");
         const refreshToken = hashParams.get("refresh_token");
         const hashType = hashParams.get("type");
+
+        // Logging para debug (sin exponer tokens)
+        console.log("[auth/callback] Parámetros detectados:", {
+          hasCode: !!code,
+          codeLength: code?.length || 0,
+          type,
+          nextParam,
+          hasAccessToken: !!accessToken,
+          hasRefreshToken: !!refreshToken,
+          hashType,
+          searchParamsAvailable: !!searchParams,
+        });
 
         // Determinar next path
         let nextPath = "/cuenta";
