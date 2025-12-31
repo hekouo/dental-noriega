@@ -99,7 +99,7 @@ export async function signInWithGoogleAction() {
 
 // FORGOT PASSWORD
 const forgotPasswordSchema = z.object({
-  email: z.string().email(),
+  email: z.string().email("Email inválido"),
 });
 
 export async function forgotPasswordAction(input: unknown) {
@@ -109,16 +109,30 @@ export async function forgotPasswordAction(input: unknown) {
   }
 
   const { email } = parsed.data;
+  
+  // Validar email no vacío (ya validado por zod, pero por seguridad)
+  if (!email || email.trim() === "") {
+    return { error: "El email es requerido" };
+  }
+
   const supabase = createActionSupabase();
 
-  const redirectTo = `${SITE_URL}/auth/callback?type=recovery`;
+  // Usar redirectTo con next parameter para reset-password
+  const redirectTo = `${SITE_URL}/auth/callback?type=recovery&next=/reset-password`;
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo,
   });
 
-  if (error) return { error: error.message };
+  if (error) {
+    console.error("[forgotPasswordAction] Error:", {
+      error: error.message,
+      email: email.slice(0, 3) + "***", // Solo primeros 3 chars para logs
+    });
+    return { error: error.message };
+  }
 
+  // Siempre devolver success (por seguridad, no revelar si el email existe)
   return { success: true };
 }
 

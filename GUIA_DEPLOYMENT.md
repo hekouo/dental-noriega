@@ -47,9 +47,15 @@ Esta guía te ayudará a desplegar el proyecto en producción paso a paso.
 1. Ve a "Authentication" → "Providers"
 2. Asegúrate de que "Email" esté habilitado
 3. Configura "Email Templates" si deseas personalizar los correos
+   - **Reset Password**: Personaliza el template para que el subject y body estén en español
+   - **Subject sugerido**: "Restablece tu contraseña - Depósito Dental Noriega"
+   - **Body**: Incluye branding DDN y el link de recuperación
 4. En "URL Configuration", agrega:
-   - Site URL: `https://tu-dominio.com`
-   - Redirect URLs: `https://tu-dominio.com/**`
+   - **Site URL**: `https://ddnshop.mx` (o tu dominio de producción)
+   - **Redirect URLs**: 
+     - `https://ddnshop.mx/**` (permite cualquier ruta)
+     - `https://ddnshop.mx/auth/callback**` (específico para callbacks)
+   - ⚠️ **IMPORTANTE**: Mantén también el dominio viejo si aplica durante la migración
 
 ## 💳 Paso 2: Configurar Stripe
 

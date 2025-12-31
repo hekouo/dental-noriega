@@ -1,0 +1,17 @@
+## Causa
+Skydropx devuelve 0 rates intermitente con CDMX (CP 14390), aunque ya normalizamos la dirección.
+
+## Fix
+- **CDMX city siempre "Ciudad de Mexico"**: Eliminado uso de "Tlalpan" u otras delegaciones
+- **Fallback chain con 3 intentos**:
+  - Intento A: state="Ciudad de Mexico", city="Ciudad de Mexico" (sin acento)
+  - Intento B: state="Ciudad de México", city="Ciudad de México" (con acento)
+  - Intento C: state="Distrito Federal", city="Ciudad de Mexico"
+- **Retry con backoff**: Si Skydropx devuelve 0 rates (sin error técnico), se hace 1 retry con backoff aleatorio (250-500ms)
+- **Logging mejorado**: Logs estructurados sin exponer secretos (payload shape, attempts, success/failure)
+
+## Cómo probar
+- CP 14390 (CDMX): debe mostrar tarifas consistentemente
+- CP 03100 (CDMX): debe funcionar con fallback
+- CP 64000 (no-CDMX): debe funcionar normalmente
+
