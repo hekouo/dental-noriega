@@ -1,32 +1,63 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
 import { forgotPasswordAction } from "@/lib/actions/auth";
 import { ROUTES } from "@/lib/routes";
 import AuthShell from "@/components/auth/AuthShell";
+import { isValidEmail } from "@/lib/validation/email";
 
 export default function ForgotPasswordClient() {
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  
+  // Rate limiting: cooldown de 60 segundos
+  const lastRequestTimeRef = useRef<number>(0);
+  const COOLDOWN_MS = 60 * 1000; // 60 segundos
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
     setSuccess(false);
+
+    // Validar email no vacío
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      setError("El correo electrónico es requerido");
+      return;
+    }
+
+    // Validar formato de email
+    if (!isValidEmail(trimmedEmail)) {
+      setError("Por favor, ingresa un correo electrónico válido");
+      return;
+    }
+
+    // Rate limiting: verificar cooldown
+    const now = Date.now();
+    const timeSinceLastRequest = now - lastRequestTimeRef.current;
+    if (timeSinceLastRequest < COOLDOWN_MS) {
+      const remainingSeconds = Math.ceil((COOLDOWN_MS - timeSinceLastRequest) / 1000);
+      setError(`Por favor, espera ${remainingSeconds} segundo${remainingSeconds > 1 ? "s" : ""} antes de solicitar otro enlace.`);
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      const result = await forgotPasswordAction({ email });
+      const result = await forgotPasswordAction({ email: trimmedEmail });
 
       if (result?.error) {
         setError(result.error);
       } else {
         setSuccess(true);
+        // Actualizar tiempo de última request
+        lastRequestTimeRef.current = Date.now();
       }
     } catch (err) {
+      console.error("[ForgotPasswordClient] Error:", err);
       setError("Ocurrió un error. Inténtalo de nuevo.");
     } finally {
       setIsLoading(false);

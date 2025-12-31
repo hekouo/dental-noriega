@@ -1,0 +1,51 @@
+## Objetivo
+Hacer las tarifas estables y profesionales aunque el usuario borre y vuelva a poner CP.
+
+## Cambios Backend
+
+### Cache in-memory con TTL 60s
+- Key: `postalCode|state|city|country|totalWeightGrams|subtotalCents`
+- TTL: 60 segundos
+- Limpieza automática de entradas expiradas
+- Logging: `cache_hit: true/false` y `key_hash` (sin exponer datos sensibles)
+
+### Orden determinístico
+- `allOptions` ordenado por: `priceCents` asc → `etaMaxDays` asc → `carrier/service` asc
+- `recommended/cheapest/fastest` calculados sobre lista ya ordenada
+- Garantiza que la misma request devuelva la misma lista en el mismo orden
+
+## Cambios Frontend
+
+### Debounce 700ms
+- Cambiado de 500ms a 700ms para reducir requests innecesarias
+
+### AbortController mejorado
+- Cancela request anterior cuando cambia CP/estado/ciudad
+- Evita que respuestas obsoletas sobrescriban las más recientes
+
+### requestId incremental
+- Cada request tiene un ID único
+- Solo se aplican respuestas de la request más reciente
+- Evita race conditions cuando el usuario escribe rápido
+
+### Mantener lastGoodRates
+- Si nueva respuesta falla (`ok: false` o `options: []`), mantener última respuesta exitosa
+- Mostrar banner: "Mostrando última cotización disponible"
+- Usuario puede continuar o reintentar
+
+## Cómo probar
+
+1. En `/checkout/datos`, poner CP 14390
+2. Borrar el CP y volver a ponerlo 3 veces rápidamente
+3. **Resultado esperado**: 
+   - Debe mostrar la misma lista (no parpadear/cambiar por respuestas viejas)
+   - Ver `cache_hit: true` en logs cuando repites el mismo CP
+   - Si hay error, mostrar banner con última cotización
+
+## Logs esperados
+
+```
+[shipping/rates] Cache hit: { cache_hit: true, key_hash: "14390_xxxx", postalCode: "14390" }
+[shipping/rates] Cache miss, saved: { cache_hit: false, key_hash: "14390_xxxx", postalCode: "14390" }
+```
+
