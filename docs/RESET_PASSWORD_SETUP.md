@@ -124,11 +124,44 @@ El código registra logs sin exponer información sensible:
 3. Revisa los logs de Supabase Dashboard → Authentication → Logs
 4. Verifica que Site URL y Redirect URLs estén correctos
 
-### El link no funciona
+### El link no funciona / "No se encontró código de autenticación ni tokens"
 
-1. Verifica que el link tenga el formato: `https://ddnshop.mx/auth/callback?code=xxx&type=recovery`
-2. Verifica que `/auth/callback` esté configurado correctamente
-3. Revisa los logs del servidor para ver errores de `exchangeCodeForSession`
+**Síntoma**: Al abrir el link de Supabase, llegas a `/auth/callback` pero ves el error "No se encontró código de autenticación ni tokens".
+
+**Causas posibles**:
+
+1. **Query string perdido en redirect**:
+   - Verifica que el link del email tenga `?code=...` o `#access_token=...`
+   - Si el link no tiene estos parámetros, el problema está en Supabase (verifica Redirect URLs)
+   - Si el link SÍ tiene parámetros pero no llegan a la página, hay un redirect que los elimina
+
+2. **Redirects en Vercel**:
+   - Ve a Vercel Dashboard → Project → Settings → Redirects
+   - Verifica que NO haya redirects que afecten `/auth/callback`
+   - Si hay redirects, deben preservar query params: `destination: '/auth/callback?$1'` (Next.js lo hace automáticamente, pero verifica)
+
+3. **Redirects en next.config.mjs**:
+   - Verifica que no haya `redirects()` configurados que afecten `/auth/callback`
+   - Si hay redirects, deben excluir explícitamente `/auth/callback` y `/reset-password`
+
+4. **Middleware activo**:
+   - Verifica que NO exista `middleware.ts` en la raíz del proyecto
+   - Si existe, debe excluir `/auth/callback` y `/reset-password` de cualquier procesamiento
+
+5. **Problema de timing en Client Component**:
+   - El código ya lee `window.location.search` y `window.location.hash` directamente
+   - Si aún así no funciona, revisa los logs del navegador para ver qué se detectó
+
+**Solución**:
+
+1. Abre DevTools → Console al hacer clic en el link
+2. Busca logs `[auth/callback] URL recibida al montar:`
+3. Verifica:
+   - `hasQuery: true` → El query string llegó
+   - `hasHash: true` → El hash llegó
+   - Si ambos son `false`, el problema está ANTES de llegar a la página (redirects)
+4. Si `hasQuery: true` pero `hasCode: false`, el query string llegó pero no tiene `code=`
+5. Revisa los logs de Supabase Dashboard → Authentication → Logs para ver qué URL se generó
 
 ### El usuario no puede cambiar la contraseña
 
@@ -136,10 +169,12 @@ El código registra logs sin exponer información sensible:
 2. Revisa que `/reset-password` verifique la sesión antes de permitir el cambio
 3. Verifica que `updatePasswordAction` esté funcionando correctamente
 
-## Pruebas Manuales
+## Pruebas Manuales en Producción
+
+### Pasos para validar el flujo completo:
 
 1. **Solicitar reset password**:
-   - Ve a `/forgot-password`
+   - Ve a `https://ddnshop.mx/forgot-password`
    - Ingresa un email válido
    - Verifica que aparezca mensaje de éxito
 
@@ -147,20 +182,60 @@ El código registra logs sin exponer información sensible:
    - Revisa el correo (y spam)
    - Verifica que el subject y body estén en español
    - Verifica que el link apunte a `https://ddnshop.mx/auth/callback?...`
+   - **IMPORTANTE**: Copia el link completo antes de hacer clic
 
-3. **Probar link**:
-   - Haz clic en el link del email
-   - Verifica que redirija a `/reset-password`
-   - Verifica que no aparezca error de sesión
+3. **Validar formato del link**:
+   - El link debe tener uno de estos formatos:
+     - `https://ddnshop.mx/auth/callback?code=xxx&type=recovery&next=/reset-password` (query params)
+     - `https://ddnshop.mx/auth/callback#access_token=xxx&refresh_token=xxx&type=recovery` (hash)
+   - Si el link no tiene `code` ni `access_token`, hay un problema en Supabase
 
-4. **Cambiar contraseña**:
-   - Ingresa nueva contraseña (mínimo 6 caracteres)
+4. **Probar link (paso crítico)**:
+   - Abre el link en una ventana de incógnito
+   - Abre DevTools (F12) → Console
+   - Busca logs que empiecen con `[auth/callback]`
+   - Verifica que aparezca:
+     - `URL recibida al montar:` con `hasQuery: true` o `hasHash: true`
+     - `Parámetros detectados:` con `hasCode: true` o `hasAccessToken: true`
+   - Si ves `hasQuery: false` y `hasHash: false`, el query string se perdió en algún redirect
+   - Si todo está bien, debería redirigir a `/reset-password` automáticamente
+
+5. **Cambiar contraseña**:
+   - En `/reset-password`, ingresa nueva contraseña (mínimo 6 caracteres)
    - Confirma la contraseña
    - Verifica que aparezca mensaje de éxito
-   - Verifica que redirija a `/cuenta`
+   - Verifica que redirija a `/cuenta` para iniciar sesión
 
-5. **Probar rate limiting**:
+6. **Probar rate limiting**:
    - Solicita otro enlace inmediatamente
    - Verifica que aparezca mensaje de cooldown
    - Espera 60 segundos y verifica que funcione
+
+### Debug en producción
+
+Si el link no funciona:
+
+1. **Revisar logs del navegador**:
+   - Abre DevTools → Console
+   - Busca logs `[auth/callback]`
+   - Verifica qué parámetros se detectaron
+
+2. **Verificar URL completa**:
+   - Antes de hacer clic, copia el link completo del email
+   - Pégala en un editor de texto
+   - Verifica que tenga `?code=` o `#access_token=`
+
+3. **Probar link directo**:
+   - Pega el link completo en la barra de direcciones
+   - Presiona Enter (no uses "Abrir enlace" del email)
+   - Verifica si funciona
+
+4. **Revisar redirects de Vercel**:
+   - Ve a Vercel Dashboard → Project → Settings → Redirects
+   - Verifica que NO haya redirects que afecten `/auth/callback` o `/reset-password`
+   - Si hay redirects, asegúrate de que preserven query params
+
+5. **Revisar configuración de dominio**:
+   - Verifica que el dominio `ddnshop.mx` esté correctamente configurado
+   - Verifica que no haya redirects a nivel de DNS o CDN que eliminen query params
 

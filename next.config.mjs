@@ -97,6 +97,19 @@ const nextConfig = {
     remotePatterns,
   },
   trailingSlash: false,
+  // NO agregar redirects aquí que puedan afectar query params
+  // Las rutas de auth (/auth/callback, /reset-password) deben preservar query params y hash
+  async redirects() {
+    return [
+      // Si necesitas redirects, asegúrate de preservar query params:
+      // {
+      //   source: '/old-path',
+      //   destination: '/new-path',
+      //   permanent: true,
+      //   // Next.js preserva query params automáticamente, pero verifica en producción
+      // },
+    ];
+  },
   async headers() {
     return [
       {
