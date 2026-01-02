@@ -117,9 +117,9 @@ export async function forgotPasswordAction(input: unknown) {
 
   const supabase = createActionSupabase();
 
-  // Plan B robusto: apuntar directamente a /reset-password
-  // Esto elimina la dependencia de /auth/callback y evita pérdida de query params
-  const redirectTo = `${SITE_URL}/reset-password`;
+  // Usar patrón recomendado de Supabase: /auth/confirm con token_hash
+  // El template del email debe usar: {{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password
+  const redirectTo = `${SITE_URL}/auth/confirm?type=recovery&next=/reset-password`;
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo,
