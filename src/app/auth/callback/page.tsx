@@ -62,7 +62,6 @@ function AuthCallbackContent() {
           hashType,
           searchParamsAvailable: !!searchParams,
         });
-
         // Determinar next path
         let nextPath = "/cuenta";
         if (nextParam && nextParam.startsWith("/")) {
