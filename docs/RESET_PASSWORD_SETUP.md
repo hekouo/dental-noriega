@@ -346,3 +346,76 @@ Si el link no funciona:
    - Verifica que el dominio `ddnshop.mx` esté correctamente configurado
    - Verifica que no haya redirects a nivel de DNS o CDN que eliminen query params
 
+## Post-deploy Checklist: Supabase Auth + Email Templates
+
+Después de hacer deploy o cambios en la configuración de autenticación, verificar:
+
+### 1. Site URL y Redirect URLs
+
+En **Supabase Dashboard > Authentication > URL Configuration**:
+
+- [ ] **Site URL** = `https://ddnshop.mx`
+- [ ] **Redirect URLs** incluyen:
+  - `https://ddnshop.mx/**` (permite cualquier ruta)
+  - `https://ddnshop.mx/auth/confirm**` (específico para confirmación con token_hash)
+  - `https://ddnshop.mx/reset-password` (específico para reset password)
+  - `https://ddnshop.mx/auth/callback**` (para otros flujos como signup, magic link)
+
+### 2. Templates de Email
+
+En **Supabase Dashboard > Authentication > Email Templates**:
+
+- [ ] **Reset Password**: 
+  - Verificar que el link use: `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password`
+  - ⚠️ **NO usar** `{{ .ConfirmationURL }}` (ese usa `/auth/v1/verify` que puede perder query params)
+- [ ] Revisar otros templates (Confirm Signup, Magic Link, etc.) según necesidad
+- [ ] Ver snapshots actuales en [`docs/auth-email-templates/`](./auth-email-templates/README.md)
+
+### 3. Prueba End-to-End (sin spamear)
+
+**⚠️ IMPORTANTE**: No enviar múltiples correos de prueba. Usar uno de estos métodos:
+
+#### Opción A: Prueba Real (1 intento)
+1. Solicitar reset password en `/forgot-password` con un email real
+2. Verificar que el correo llegue (revisar spam si es necesario)
+3. Verificar que el link apunte a `/auth/confirm?token_hash=...`
+4. Hacer clic en "Continuar" y verificar que redirija a `/reset-password`
+5. Cambiar contraseña y verificar que funcione
+
+#### Opción B: Testing sin Enviar Emails (Recomendado)
+Usar `admin.generateLink` server-side para generar el link sin consumir cuota de emails:
+
+```typescript
+// Server-side ONLY (API route o server action)
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY! // ⚠️ Solo en servidor
+)
+
+const { data, error } = await supabase.auth.admin.generateLink({
+  type: 'recovery',
+  email: 'usuario@ejemplo.com',
+  options: {
+    redirectTo: 'https://ddnshop.mx/auth/confirm?type=recovery&next=/reset-password'
+  }
+})
+
+console.log('Link de recovery:', data?.properties?.action_link)
+```
+
+Ver más detalles en [Pruebas sin enviar emails](./RESET_PASSWORD_SETUP.md#pruebas-sin-enviar-emails-no-consumir-cuota).
+
+### 4. Verificar Logs
+
+Después de la prueba:
+- [ ] Revisar logs del navegador (DevTools > Console) para errores
+- [ ] Revisar logs de Supabase Dashboard > Logs > Auth para errores de verificación
+- [ ] Si hay errores, revisar que las Redirect URLs estén correctamente configuradas
+
+### Referencias
+
+- [Templates de Email - Snapshots](./auth-email-templates/README.md)
+- [Supabase Auth URL Configuration](https://supabase.com/docs/guides/auth/auth-urls)
+
