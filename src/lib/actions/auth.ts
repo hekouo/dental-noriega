@@ -117,8 +117,9 @@ export async function forgotPasswordAction(input: unknown) {
 
   const supabase = createActionSupabase();
 
-  // Usar redirectTo con next parameter para reset-password
-  const redirectTo = `${SITE_URL}/auth/callback?type=recovery&next=/reset-password`;
+  // Plan B robusto: apuntar directamente a /reset-password
+  // Esto elimina la dependencia de /auth/callback y evita pérdida de query params
+  const redirectTo = `${SITE_URL}/reset-password`;
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo,
