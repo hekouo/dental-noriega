@@ -6,12 +6,13 @@ Este documento describe la configuración completa del flujo de recuperación de
 
 1. Usuario ingresa email en `/forgot-password`
 2. Se envía email con link de recuperación (Supabase Auth)
-3. Usuario hace clic en el link → redirige a `/auth/callback?type=recovery&next=/reset-password`
-4. Callback intercambia `code` por sesión válida
-5. Usuario es redirigido a `/reset-password` con sesión activa
-6. Usuario ingresa nueva contraseña
-7. Se actualiza la contraseña y se cierra sesión
-8. Usuario es redirigido a `/cuenta` para iniciar sesión
+3. Usuario hace clic en el link → redirige directamente a `/reset-password` con `code` en query o tokens en hash
+4. `/reset-password` procesa el `code`/tokens y crea sesión válida automáticamente
+5. Usuario ingresa nueva contraseña
+6. Se actualiza la contraseña y se cierra sesión
+7. Usuario es redirigido a `/cuenta` para iniciar sesión
+
+**Nota**: El flujo ahora procesa la autenticación directamente en `/reset-password` (Plan B robusto), eliminando la dependencia de `/auth/callback` y evitando pérdida de query params.
 
 ## Configuración de Supabase Auth
 
@@ -20,9 +21,10 @@ Este documento describe la configuración completa del flujo de recuperación de
 En Supabase Dashboard → Authentication → URL Configuration:
 
 - **Site URL**: `https://ddnshop.mx`
-- **Redirect URLs**:
+- **Redirect URLs** (deben incluir):
   - `https://ddnshop.mx/**` (permite cualquier ruta)
-  - `https://ddnshop.mx/auth/callback**` (específico para callbacks)
+  - `https://ddnshop.mx/reset-password` (específico para reset password - Plan B robusto)
+  - `https://ddnshop.mx/auth/callback**` (opcional, para otros flujos de auth como signup)
 
 ⚠️ **Nota**: Si tienes un dominio viejo, mantenlo temporalmente en Redirect URLs durante la migración.
 
@@ -126,7 +128,7 @@ El código registra logs sin exponer información sensible:
 
 ### El link no funciona / "No se encontró código de autenticación ni tokens"
 
-**Síntoma**: Al abrir el link de Supabase, llegas a `/auth/callback` pero ves el error "No se encontró código de autenticación ni tokens".
+**Síntoma**: Al abrir el link de Supabase, llegas a `/reset-password` pero ves el error "No se encontró código de autenticación ni tokens".
 
 **Causas posibles**:
 
@@ -154,20 +156,116 @@ El código registra logs sin exponer información sensible:
 
 **Solución**:
 
-1. Abre DevTools → Console al hacer clic en el link
-2. Busca logs `[auth/callback] URL recibida al montar:`
-3. Verifica:
+1. **Habilita debug temporal** (solo en producción para diagnóstico):
+   - En Vercel, agrega variable de entorno: `NEXT_PUBLIC_DEBUG_AUTH_CALLBACK=true`
+   - Esto mostrará información de debug en la UI sin exponer tokens
+2. Abre DevTools → Console al hacer clic en el link
+3. Busca logs `[reset-password] Debug info:` o `[reset-password] Error exchanging code:`
+4. Verifica:
    - `hasQuery: true` → El query string llegó
    - `hasHash: true` → El hash llegó
-   - Si ambos son `false`, el problema está ANTES de llegar a la página (redirects)
-4. Si `hasQuery: true` pero `hasCode: false`, el query string llegó pero no tiene `code=`
-5. Revisa los logs de Supabase Dashboard → Authentication → Logs para ver qué URL se generó
+   - Si ambos son `false`, el problema está ANTES de llegar a la página (redirects de Vercel/DNS)
+5. Si `hasQuery: true` pero `hasCode: false`, el query string llegó pero no tiene `code=`
+6. Revisa los logs de Supabase Dashboard → Authentication → Logs para ver qué URL se generó
+7. **Verifica que `redirectTo` en `forgotPasswordAction` apunte a `/reset-password`** (no `/auth/callback`)
 
 ### El usuario no puede cambiar la contraseña
 
 1. Verifica que la sesión se haya creado correctamente después del callback
 2. Revisa que `/reset-password` verifique la sesión antes de permitir el cambio
 3. Verifica que `updatePasswordAction` esté funcionando correctamente
+
+## Pruebas sin enviar emails (no consumir cuota)
+
+### ⚠️ IMPORTANTE: Ahorro de correos
+
+Para probar el flujo de reset password **sin gastar envíos de email**, puedes usar la Admin API de Supabase para generar el link directamente.
+
+### Usando Supabase Admin API
+
+**⚠️ CRÍTICO**: Este código **SOLO debe ejecutarse en servidor** (API routes, server actions), **NUNCA en el cliente**.
+
+```typescript
+// Server-side ONLY (API route o server action)
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY! // ⚠️ Solo en servidor, NUNCA en cliente
+)
+
+const { data, error } = await supabase.auth.admin.generateLink({
+  type: 'recovery',
+  email: 'usuario@ejemplo.com',
+  options: {
+    redirectTo: 'https://ddnshop.mx/reset-password'
+  }
+})
+
+if (error) {
+  console.error('Error generando link:', error)
+} else {
+  console.log('Link de recovery:', data?.properties?.action_link)
+  // Copia este link y ábrelo en el navegador
+  // Debe abrir /reset-password con query/hash y permitir cambio de contraseña
+}
+```
+
+### Ejemplo: API Route para testing
+
+Puedes crear temporalmente `src/app/api/test/recovery-link/route.ts`:
+
+```typescript
+import { createClient } from '@supabase/supabase-js'
+import { NextResponse } from 'next/server'
+
+export async function GET(request: Request) {
+  // ⚠️ Solo en desarrollo/testing, proteger en producción
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not available in production' }, { status: 403 })
+  }
+
+  const { searchParams } = new URL(request.url)
+  const email = searchParams.get('email')
+
+  if (!email) {
+    return NextResponse.json({ error: 'Email required' }, { status: 400 })
+  }
+
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
+  const { data, error } = await supabase.auth.admin.generateLink({
+    type: 'recovery',
+    email,
+    options: {
+      redirectTo: 'https://ddnshop.mx/reset-password'
+    }
+  })
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  return NextResponse.json({ 
+    link: data?.properties?.action_link,
+    message: 'Copia este link y ábrelo en el navegador para probar el flujo'
+  })
+}
+```
+
+Luego accede a: `http://localhost:3000/api/test/recovery-link?email=tu@email.com`
+
+### Validación del link generado
+
+1. El link debe apuntar a `https://ddnshop.mx/reset-password?...` (no `/auth/callback`)
+2. Debe tener `?code=...` (query params) o `#access_token=...` (hash)
+3. Al abrirlo, debe procesar el code/tokens y mostrar el formulario de cambio de contraseña
+4. Debe permitir cambiar la contraseña y redirigir a `/cuenta` después
+
+**Nota**: Elimina el API route de testing antes de hacer deploy a producción.
 
 ## Pruebas Manuales en Producción
 
@@ -181,24 +279,25 @@ El código registra logs sin exponer información sensible:
 2. **Verificar email**:
    - Revisa el correo (y spam)
    - Verifica que el subject y body estén en español
-   - Verifica que el link apunte a `https://ddnshop.mx/auth/callback?...`
+   - Verifica que el link apunte a `https://ddnshop.mx/reset-password?...` (Plan B robusto)
    - **IMPORTANTE**: Copia el link completo antes de hacer clic
 
 3. **Validar formato del link**:
    - El link debe tener uno de estos formatos:
-     - `https://ddnshop.mx/auth/callback?code=xxx&type=recovery&next=/reset-password` (query params)
-     - `https://ddnshop.mx/auth/callback#access_token=xxx&refresh_token=xxx&type=recovery` (hash)
+     - `https://ddnshop.mx/reset-password?code=xxx` (query params)
+     - `https://ddnshop.mx/reset-password#access_token=xxx&refresh_token=xxx` (hash)
    - Si el link no tiene `code` ni `access_token`, hay un problema en Supabase
+   - Si el link apunta a `/auth/callback`, actualiza `redirectTo` en `forgotPasswordAction`
 
 4. **Probar link (paso crítico)**:
    - Abre el link en una ventana de incógnito
    - Abre DevTools (F12) → Console
-   - Busca logs que empiecen con `[auth/callback]`
+   - Busca logs que empiecen con `[reset-password]`
+   - Si `NEXT_PUBLIC_DEBUG_AUTH_CALLBACK=true`, verás información de debug en la UI
    - Verifica que aparezca:
-     - `URL recibida al montar:` con `hasQuery: true` o `hasHash: true`
-     - `Parámetros detectados:` con `hasCode: true` o `hasAccessToken: true`
-   - Si ves `hasQuery: false` y `hasHash: false`, el query string se perdió en algún redirect
-   - Si todo está bien, debería redirigir a `/reset-password` automáticamente
+     - `Debug info:` con `hasQuery: true` o `hasHash: true`
+     - Si ves `hasQuery: false` y `hasHash: false`, el query string se perdió en algún redirect
+   - Si todo está bien, debería procesar el code/tokens y mostrar el formulario de cambio de contraseña
 
 5. **Cambiar contraseña**:
    - En `/reset-password`, ingresa nueva contraseña (mínimo 6 caracteres)
@@ -217,8 +316,9 @@ Si el link no funciona:
 
 1. **Revisar logs del navegador**:
    - Abre DevTools → Console
-   - Busca logs `[auth/callback]`
+   - Busca logs `[reset-password]`
    - Verifica qué parámetros se detectaron
+   - Si `NEXT_PUBLIC_DEBUG_AUTH_CALLBACK=true`, también verás info en la UI
 
 2. **Verificar URL completa**:
    - Antes de hacer clic, copia el link completo del email
@@ -232,8 +332,9 @@ Si el link no funciona:
 
 4. **Revisar redirects de Vercel**:
    - Ve a Vercel Dashboard → Project → Settings → Redirects
-   - Verifica que NO haya redirects que afecten `/auth/callback` o `/reset-password`
+   - Verifica que NO haya redirects que afecten `/reset-password`
    - Si hay redirects, asegúrate de que preserven query params
+   - **Culpable común**: Redirects de www→apex o trailing slash que reconstruyen URL sin query params
 
 5. **Revisar configuración de dominio**:
    - Verifica que el dominio `ddnshop.mx` esté correctamente configurado
