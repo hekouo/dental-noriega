@@ -6,13 +6,15 @@ Este documento describe la configuración completa del flujo de recuperación de
 
 1. Usuario ingresa email en `/forgot-password`
 2. Se envía email con link de recuperación (Supabase Auth)
-3. Usuario hace clic en el link → redirige directamente a `/reset-password` con `code` en query o tokens en hash
-4. `/reset-password` procesa el `code`/tokens y crea sesión válida automáticamente
-5. Usuario ingresa nueva contraseña
-6. Se actualiza la contraseña y se cierra sesión
-7. Usuario es redirigido a `/cuenta` para iniciar sesión
+3. Usuario hace clic en el link → redirige a `/auth/confirm?token_hash=...&type=recovery&next=/reset-password`
+4. `/auth/confirm` muestra botón "Continuar" (protección contra link scanners)
+5. Usuario hace clic en "Continuar" → POST a `/auth/confirm` → `verifyOtp(token_hash)` → crea sesión válida
+6. Redirige a `/reset-password` con sesión activa
+7. Usuario ingresa nueva contraseña
+8. Se actualiza la contraseña y se cierra sesión
+9. Usuario es redirigido a `/cuenta` para iniciar sesión
 
-**Nota**: El flujo ahora procesa la autenticación directamente en `/reset-password` (Plan B robusto), eliminando la dependencia de `/auth/callback` y evitando pérdida de query params.
+**Nota**: Este flujo usa el patrón recomendado de Supabase (`/auth/confirm` + `verifyOtp`) y NO depende de `/auth/v1/verify` ni de hashes/codes que se pierden en redirects.
 
 ## Configuración de Supabase Auth
 
@@ -23,8 +25,11 @@ En Supabase Dashboard → Authentication → URL Configuration:
 - **Site URL**: `https://ddnshop.mx`
 - **Redirect URLs** (deben incluir):
   - `https://ddnshop.mx/**` (permite cualquier ruta)
-  - `https://ddnshop.mx/reset-password` (específico para reset password - Plan B robusto)
+  - `https://ddnshop.mx/auth/confirm**` (específico para confirmación con token_hash)
+  - `https://ddnshop.mx/reset-password` (específico para reset password)
   - `https://ddnshop.mx/auth/callback**` (opcional, para otros flujos de auth como signup)
+
+**⚠️ IMPORTANTE**: Ya NO dependemos de `/auth/v1/verify` de Supabase. El flujo usa `/auth/confirm` con `verifyOtp(token_hash)`.
 
 ⚠️ **Nota**: Si tienes un dominio viejo, mantenlo temporalmente en Redirect URLs durante la migración.
 
@@ -37,23 +42,28 @@ En Supabase Dashboard → Authentication → Email Templates → Reset Password:
 Restablece tu contraseña - Depósito Dental Noriega
 ```
 
-**Body HTML** (sugerido):
+**Body HTML** (CRÍTICO - usar este formato exacto):
 ```html
 <h2>Restablece tu contraseña</h2>
 <p>Hola,</p>
 <p>Recibimos una solicitud para restablecer tu contraseña en Depósito Dental Noriega.</p>
 <p>Haz clic en el siguiente enlace para continuar:</p>
-<p><a href="{{ .ConfirmationURL }}">Restablecer contraseña</a></p>
+<p><a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password">Restablecer contraseña</a></p>
 <p>Si no solicitaste este cambio, puedes ignorar este correo.</p>
 <p>Este enlace expira en 1 hora.</p>
 <hr>
 <p><small>Depósito Dental Noriega - Insumos y equipos dentales</small></p>
 ```
 
+**⚠️ IMPORTANTE**: 
+- **NO usar** `{{ .ConfirmationURL }}` (ese usa `/auth/v1/verify` que puede perder query params)
+- **Usar** `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password`
+- Esto asegura que el link apunte a nuestra ruta `/auth/confirm` que usa `verifyOtp(token_hash)`
+
 **Variables disponibles**:
-- `{{ .ConfirmationURL }}` - URL completa con código de recuperación
+- `{{ .SiteURL }}` - URL base del sitio (https://ddnshop.mx)
+- `{{ .TokenHash }}` - Hash del token de recuperación
 - `{{ .Email }}` - Email del usuario
-- `{{ .SiteURL }}` - URL base del sitio
 
 ### 3. Configuración de SMTP (Opcional)
 
@@ -241,7 +251,7 @@ export async function GET(request: Request) {
     type: 'recovery',
     email,
     options: {
-      redirectTo: 'https://ddnshop.mx/reset-password'
+      redirectTo: 'https://ddnshop.mx/auth/confirm?type=recovery&next=/reset-password'
     }
   })
 
@@ -260,10 +270,11 @@ Luego accede a: `http://localhost:3000/api/test/recovery-link?email=tu@email.com
 
 ### Validación del link generado
 
-1. El link debe apuntar a `https://ddnshop.mx/reset-password?...` (no `/auth/callback`)
-2. Debe tener `?code=...` (query params) o `#access_token=...` (hash)
-3. Al abrirlo, debe procesar el code/tokens y mostrar el formulario de cambio de contraseña
-4. Debe permitir cambiar la contraseña y redirigir a `/cuenta` después
+1. El link debe apuntar a `https://ddnshop.mx/auth/confirm?token_hash=...&type=recovery&next=/reset-password`
+2. Debe tener `token_hash` en query params
+3. Al abrirlo, debe mostrar `/auth/confirm` con botón "Continuar"
+4. Al hacer clic en "Continuar", debe redirigir a `/reset-password` con sesión válida
+5. Debe permitir cambiar la contraseña y redirigir a `/cuenta` después
 
 **Nota**: Elimina el API route de testing antes de hacer deploy a producción.
 
@@ -279,25 +290,21 @@ Luego accede a: `http://localhost:3000/api/test/recovery-link?email=tu@email.com
 2. **Verificar email**:
    - Revisa el correo (y spam)
    - Verifica que el subject y body estén en español
-   - Verifica que el link apunte a `https://ddnshop.mx/reset-password?...` (Plan B robusto)
+   - Verifica que el link apunte a `https://ddnshop.mx/auth/confirm?token_hash=...&type=recovery&next=/reset-password`
    - **IMPORTANTE**: Copia el link completo antes de hacer clic
 
 3. **Validar formato del link**:
-   - El link debe tener uno de estos formatos:
-     - `https://ddnshop.mx/reset-password?code=xxx` (query params)
-     - `https://ddnshop.mx/reset-password#access_token=xxx&refresh_token=xxx` (hash)
-   - Si el link no tiene `code` ni `access_token`, hay un problema en Supabase
-   - Si el link apunta a `/auth/callback`, actualiza `redirectTo` en `forgotPasswordAction`
+   - El link debe tener este formato:
+     - `https://ddnshop.mx/auth/confirm?token_hash=xxx&type=recovery&next=/reset-password`
+   - Si el link no tiene `token_hash`, hay un problema en el template de Supabase
+   - Si el link apunta a `/auth/v1/verify` o `/reset-password`, actualiza el template en Supabase Dashboard
 
 4. **Probar link (paso crítico)**:
    - Abre el link en una ventana de incógnito
-   - Abre DevTools (F12) → Console
-   - Busca logs que empiecen con `[reset-password]`
-   - Si `NEXT_PUBLIC_DEBUG_AUTH_CALLBACK=true`, verás información de debug en la UI
-   - Verifica que aparezca:
-     - `Debug info:` con `hasQuery: true` o `hasHash: true`
-     - Si ves `hasQuery: false` y `hasHash: false`, el query string se perdió en algún redirect
-   - Si todo está bien, debería procesar el code/tokens y mostrar el formulario de cambio de contraseña
+   - Debe mostrar `/auth/confirm` con botón "Continuar" (protección contra link scanners)
+   - Haz clic en "Continuar"
+   - Debe redirigir a `/reset-password` con sesión válida
+   - Debe mostrar el formulario de cambio de contraseña
 
 5. **Cambiar contraseña**:
    - En `/reset-password`, ingresa nueva contraseña (mínimo 6 caracteres)
@@ -316,14 +323,13 @@ Si el link no funciona:
 
 1. **Revisar logs del navegador**:
    - Abre DevTools → Console
-   - Busca logs `[reset-password]`
-   - Verifica qué parámetros se detectaron
-   - Si `NEXT_PUBLIC_DEBUG_AUTH_CALLBACK=true`, también verás info en la UI
+   - Busca logs `[auth/confirm]` o `[reset-password]`
+   - Verifica si hay errores al hacer POST a `/auth/confirm/api`
 
 2. **Verificar URL completa**:
    - Antes de hacer clic, copia el link completo del email
    - Pégala en un editor de texto
-   - Verifica que tenga `?code=` o `#access_token=`
+   - Verifica que tenga `?token_hash=` y `&type=recovery`
 
 3. **Probar link directo**:
    - Pega el link completo en la barra de direcciones
@@ -332,7 +338,7 @@ Si el link no funciona:
 
 4. **Revisar redirects de Vercel**:
    - Ve a Vercel Dashboard → Project → Settings → Redirects
-   - Verifica que NO haya redirects que afecten `/reset-password`
+   - Verifica que NO haya redirects que afecten `/auth/confirm` o `/reset-password`
    - Si hay redirects, asegúrate de que preserven query params
    - **Culpable común**: Redirects de www→apex o trailing slash que reconstruyen URL sin query params
 
