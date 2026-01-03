@@ -419,3 +419,27 @@ Después de la prueba:
 - [Templates de Email - Snapshots](./auth-email-templates/README.md)
 - [Supabase Auth URL Configuration](https://supabase.com/docs/guides/auth/auth-urls)
 
+## Post-deploy: Auth Hardening
+
+Después de configurar el flujo de reset password, considera estas mejoras de seguridad:
+
+### Checklist de Configuración
+
+Ver el documento completo: **[Supabase Auth Dashboard Checklist](./SUPABASE_AUTH_DASHBOARD_CHECKLIST.md)**
+
+Incluye:
+- **Rate Limits**: Configuración recomendada para evitar bloqueos de usuarios legítimos
+- **Attack Protection**: Captcha y protección contra contraseñas filtradas
+- **Verificación E2E**: Pasos para probar que todo funciona correctamente
+
+### Mejora Opcional: Captcha
+
+Para prevenir abuso automatizado, considera activar Captcha en Supabase:
+
+- **Proveedores soportados**: hCaptcha, Cloudflare Turnstile, Google reCAPTCHA v3
+- **Recomendado**: hCaptcha o Turnstile (planes FREE disponibles)
+- **Configuración**: Supabase Dashboard > Authentication > Providers > Email > Captcha
+- **Beneficio**: Reduce intentos automatizados de sign-up/sign-in sin afectar usuarios legítimos
+
+Ver detalles completos en [SUPABASE_AUTH_DASHBOARD_CHECKLIST.md](./SUPABASE_AUTH_DASHBOARD_CHECKLIST.md#-attack-protection).
+
