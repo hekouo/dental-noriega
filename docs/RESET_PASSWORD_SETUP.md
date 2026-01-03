@@ -414,32 +414,23 @@ Después de la prueba:
 - [ ] Revisar logs de Supabase Dashboard > Logs > Auth para errores de verificación
 - [ ] Si hay errores, revisar que las Redirect URLs estén correctamente configuradas
 
-### Referencias
-
-- [Templates de Email - Snapshots](./auth-email-templates/README.md)
-- [Supabase Auth URL Configuration](https://supabase.com/docs/guides/auth/auth-urls)
-
 ## Post-deploy: Auth Hardening
 
 Después de configurar el flujo de reset password, considera estas mejoras de seguridad:
 
-### Checklist de Configuración
+### Rate Limits y Attack Protection
 
-Ver el documento completo: **[Supabase Auth Dashboard Checklist](./SUPABASE_AUTH_DASHBOARD_CHECKLIST.md)**
+Revisa y configura:
+- **Rate Limits** en Supabase Dashboard (protección contra fuerza bruta)
+- **Captcha Protection** (opcional pero recomendado para producción)
 
-Incluye:
-- **Rate Limits**: Configuración recomendada para evitar bloqueos de usuarios legítimos
-- **Attack Protection**: Captcha y protección contra contraseñas filtradas
-- **Verificación E2E**: Pasos para probar que todo funciona correctamente
+Ver el checklist completo en: [`docs/SUPABASE_AUTH_DASHBOARD_CHECKLIST.md`](./SUPABASE_AUTH_DASHBOARD_CHECKLIST.md)
 
-### Mejora Opcional: Captcha
+**Próxima mejora opcional**: Activar Captcha (hCaptcha o Cloudflare Turnstile) para proteger signup/signin/reset password contra bots.
 
-Para prevenir abuso automatizado, considera activar Captcha en Supabase:
+### Referencias
 
-- **Proveedores soportados**: hCaptcha, Cloudflare Turnstile, Google reCAPTCHA v3
-- **Recomendado**: hCaptcha o Turnstile (planes FREE disponibles)
-- **Configuración**: Supabase Dashboard > Authentication > Providers > Email > Captcha
-- **Beneficio**: Reduce intentos automatizados de sign-up/sign-in sin afectar usuarios legítimos
-
-Ver detalles completos en [SUPABASE_AUTH_DASHBOARD_CHECKLIST.md](./SUPABASE_AUTH_DASHBOARD_CHECKLIST.md#-attack-protection).
+- [Templates de Email - Snapshots](./auth-email-templates/README.md)
+- [Supabase Auth Dashboard Checklist](./SUPABASE_AUTH_DASHBOARD_CHECKLIST.md)
+- [Supabase Auth URL Configuration](https://supabase.com/docs/guides/auth/auth-urls)
 

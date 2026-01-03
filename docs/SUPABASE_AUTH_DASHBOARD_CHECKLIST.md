@@ -2,223 +2,169 @@
 
 Este documento describe la configuración actual de Supabase Auth para Depósito Dental Noriega, enfocada en **Rate Limits** y **Attack Protection**.
 
-**Snapshot**: Enero 2026  
-**Plan Supabase**: FREE  
-**Dominio producción**: `https://ddnshop.mx`
+**Última actualización**: 2026-01-02  
+**Configurado por**: Equipo de desarrollo  
+**Plan Supabase**: FREE (sin custom SMTP)
 
 ---
 
 ## 📊 Rate Limits (Auth)
 
-Los rate limits se configuran en **Supabase Dashboard > Authentication > Rate Limits**.
+Los rate limits protegen contra abuso y ataques de fuerza bruta. Se configuran en **Supabase Dashboard > Authentication > Rate Limits**.
 
-### ⚠️ IMPORTANTE: Contexto del Proyecto
+### ⚙️ Configuración Recomendada Actual
 
-- **NAT (Network Address Translation)**: Clínicas y coworkings pueden compartir IP pública
-- **Uso legítimo**: Múltiples usuarios desde la misma IP es normal
-- **Plan FREE**: Limitaciones más estrictas que Pro
-
-**Recomendación**: No bajar demasiado los límites para evitar bloquear usuarios legítimos.
-
-### Configuración Recomendada Actual
-
-| Campo | Valor Actual | Notas |
-|-------|--------------|-------|
-| **Sending emails** | `2 emails/hour` | ⚠️ Solo cambia con SMTP propio (Resend). Con SMTP de Supabase, este límite es fijo. |
-| **Token refreshes** | `150 requests / 5 minutes` | Para mantener sesiones activas. Suficiente para uso normal. |
-| **Token verifications** | `30 requests / 5 minutes` | Para verificar tokens (reset password, confirm signup, etc.). |
-| **Sign-ups & sign-ins** | `30 requests / 5 minutes` | Combinado: registros + inicios de sesión. |
+| Campo | Valor Recomendado | Explicación |
+|-------|-------------------|-------------|
+| **Sending emails** | `2 emails/hour` | Límite de emails enviados por usuario. **Nota**: Solo cambia si tienes custom SMTP (Resend/SendGrid). Con SMTP de Supabase, este límite es fijo. |
+| **Token refreshes** | `150 requests / 5 minutes` | Límite de renovaciones de token por IP. Alto porque las apps hacen refresh automático. |
+| **Token verifications** | `30 requests / 5 minutes` | Límite de verificaciones de token (ej: `verifyOtp`). |
+| **Sign-ups & sign-ins** | `30 requests / 5 minutes` | Límite combinado de registros e inicios de sesión por IP. |
 | **SMS** | `0` (deshabilitado) | No se usa SMS en este proyecto. |
 
-### Explicación Detallada
+### ⚠️ Por qué NO bajar demasiado los límites
 
-#### Sending emails (2 emails/hour)
+**Problemas comunes con límites muy bajos**:
 
-- **Qué controla**: Cantidad de emails que Supabase puede enviar por hora desde su SMTP
-- **Limitación**: Con SMTP de Supabase (plan FREE), este valor **NO se puede cambiar**. Solo se puede ajustar si usas SMTP propio (Resend, SendGrid, etc.)
-- **Impacto**: Si un usuario solicita múltiples resets de contraseña, puede llegar al límite
-- **Mitigación**: 
-  - Frontend ya implementa rate limiting (60s cooldown en `/forgot-password`)
-  - Considerar SMTP propio (Resend) si se necesita más volumen
+1. **NAT (Network Address Translation)**: 
+   - Varios usuarios detrás de la misma IP pública (oficina, clínica, coworking)
+   - Si 5 usuarios intentan reset password, pueden alcanzar el límite rápidamente
+   - **Recomendación**: Mantener límites razonables (30+ requests/5min)
 
-#### Token refreshes (150/5 min)
+2. **Clínicas/Coworkings**:
+   - Múltiples empleados desde la misma IP
+   - Intentos legítimos de login pueden ser bloqueados
+   - **Recomendación**: Usar Captcha en lugar de bajar límites drásticamente
 
-- **Qué controla**: Requests para refrescar tokens de sesión (mantener usuario logueado)
-- **Uso típico**: Automático por el cliente de Supabase cuando la sesión está por expirar
-- **Recomendación**: 150 es suficiente para uso normal. No reducir demasiado.
+3. **Apps móviles/SPA**:
+   - Refresh automático de tokens puede consumir límites rápidamente
+   - **Recomendación**: Mantener `token refreshes` alto (150+)
 
-#### Token verifications (30/5 min)
+### 🔧 Cómo Configurar
 
-- **Qué controla**: Verificación de tokens (reset password, confirm signup, magic links, etc.)
-- **Uso típico**: Cuando el usuario hace clic en links de email
-- **Recomendación**: 30 es razonable. Si hay muchos usuarios nuevos, considerar aumentar a 60.
-
-#### Sign-ups & sign-ins (30/5 min)
-
-- **Qué controla**: Combinado: registros nuevos + inicios de sesión
-- **Uso típico**: Usuarios creando cuenta o iniciando sesión
-- **Recomendación**: 30 es suficiente para uso normal. No reducir demasiado para evitar bloquear clínicas/coworkings.
-
-#### SMS (0 - deshabilitado)
-
-- **Qué controla**: Envío de SMS para autenticación
-- **Estado**: No se usa en este proyecto
-- **Recomendación**: Mantener en 0
-
-### ⚠️ Nota sobre NAT y Clínicas/Coworkings
-
-Si reduces demasiado los límites (ej: 5 sign-ups/5 min), puedes bloquear usuarios legítimos que comparten IP pública:
-
-- **Clínicas**: Múltiples dentistas desde la misma IP
-- **Coworkings**: Múltiples profesionales desde la misma red
-- **NAT**: Varios usuarios domésticos detrás del mismo router
-
-**Recomendación**: Mantener límites razonables (30+ para sign-ups/sign-ins) y usar Captcha para prevenir abuso.
+1. Ve a **Supabase Dashboard > Authentication > Rate Limits**
+2. Ajusta cada campo según la tabla arriba
+3. Guarda cambios
+4. **Importante**: Los cambios aplican inmediatamente, no requieren deploy
 
 ---
 
 ## 🛡️ Attack Protection
 
-### Captcha Protection
+### 1. Captcha Protection
 
-**Estado actual**: No configurado (opcional)
+**Estado actual**: No configurado (opcional pero recomendado)
 
-**Recomendación**: Activar Captcha para prevenir abuso automatizado.
+**Proveedores soportados**:
+- **hCaptcha** (recomendado, gratuito)
+- **Cloudflare Turnstile** (gratuito, sin tracking)
+- **reCAPTCHA v3** (Google, requiere cuenta)
 
-#### Proveedores Soportados
-
-Supabase soporta estos proveedores de Captcha:
-
-1. **hCaptcha** (recomendado)
-   - Plan FREE disponible
-   - Más privado que reCAPTCHA
-   - [Documentación Supabase](https://supabase.com/docs/guides/auth/auth-captcha#hcaptcha)
-
-2. **Cloudflare Turnstile**
-   - Plan FREE disponible
-   - Sin tracking de usuarios
-   - [Documentación Supabase](https://supabase.com/docs/guides/auth/auth-captcha#cloudflare-turnstile)
-
-3. **Google reCAPTCHA v3**
-   - Requiere cuenta de Google
-   - Tracking de usuarios
-   - [Documentación Supabase](https://supabase.com/docs/guides/auth/auth-captcha#google-recaptcha-v3)
-
-#### Cómo Configurar
-
+**Cómo configurar**:
 1. Ve a **Supabase Dashboard > Authentication > Providers > Email**
-2. Busca la sección **"Captcha"**
-3. Selecciona el proveedor (hCaptcha o Turnstile recomendados)
-4. Ingresa las credenciales (Site Key y Secret Key)
-5. Guarda los cambios
+2. Scroll hasta "Captcha Protection"
+3. Selecciona proveedor (hCaptcha o Turnstile recomendados)
+4. Ingresa Site Key y Secret Key
+5. Guarda cambios
 
-#### Implementación en Frontend
+**Documentación oficial**: [Supabase Captcha Protection](https://supabase.com/docs/guides/auth/auth-captcha)
 
-Después de configurar en Supabase, el Captcha se aplica automáticamente en:
+**Nota**: Captcha se aplica automáticamente a:
 - Sign up
 - Sign in
-- Password reset (forgot password)
+- Password reset requests
+- Magic link requests
 
-**Nota**: No requiere cambios en el código si usas los métodos estándar de Supabase Auth.
+### 2. Leaked Passwords Protection
 
-### Leaked Passwords Protection
+**Estado actual**: No disponible (requiere Pro plan)
 
-**Estado actual**: No disponible (requiere plan Pro)
+Esta feature verifica si la contraseña del usuario está en bases de datos de contraseñas filtradas (Have I Been Pwned).
 
-**Qué hace**: Verifica si la contraseña del usuario está en bases de datos de contraseñas filtradas (Have I Been Pwned, etc.)
+**Requisitos**:
+- Plan Supabase **Pro** o superior
+- Se configura en **Authentication > Policies**
 
-**Recomendación**: 
-- En plan FREE: No disponible
-- Si se migra a Pro: Activar esta protección
-
-**Dónde configurar**: Supabase Dashboard > Authentication > Attack Protection > Leaked Passwords
+**Alternativa en FREE**: Validar contraseñas fuertes en el frontend (mínimo 8 caracteres, mayúsculas, números).
 
 ---
 
 ## ✅ Cómo Verificar que Quedó Bien (5 minutos)
 
-### 1. Probar Sign Up (1 min)
+### Paso 1: Probar Sign Up
 
-1. Ve a `https://ddnshop.mx/cuenta` (o ruta de registro)
-2. Crea una cuenta nueva con un email de prueba
-3. Verifica que:
-   - El email de confirmación llegue (revisar spam)
-   - El link de confirmación funcione
-   - Puedas iniciar sesión después de confirmar
+1. Ve a `https://ddnshop.mx/cuenta` (o localhost en dev)
+2. Click en "Registrarse"
+3. Ingresa email y contraseña válidos
+4. Verifica que:
+   - Se envía email de confirmación
+   - No aparece error de rate limit
+   - Si Captcha está activo, aparece el challenge
 
-### 2. Probar Sign In (1 min)
+### Paso 2: Probar Sign In
 
-1. Inicia sesión con una cuenta existente
+1. Con una cuenta existente, intenta iniciar sesión
 2. Verifica que:
-   - La sesión se cree correctamente
-   - Puedas acceder a páginas protegidas (ej: `/cuenta`)
+   - Login funciona correctamente
+   - No aparece error de rate limit
+   - Si Captcha está activo, aparece el challenge
 
-### 3. Probar Forgot Password (1 min)
+### Paso 3: Probar Forgot Password
 
 1. Ve a `https://ddnshop.mx/forgot-password`
 2. Ingresa un email válido
 3. Verifica que:
-   - Aparezca mensaje de éxito
-   - El email llegue (revisar spam)
-   - El link apunte a `/auth/confirm?token_hash=...&type=recovery&next=/reset-password`
+   - Se envía email de reset
+   - El link apunta a `/auth/confirm?token_hash=...`
+   - No aparece error de rate limit
 
-### 4. Probar Reset Password (1 min)
+### Paso 4: Probar Reset Password (E2E)
 
-1. Abre el link del email de reset password
+1. Abre el email de reset password
+2. Haz clic en el link
+3. Verifica que:
+   - Llega a `/auth/confirm` con botón "Continuar"
+   - Al hacer clic, redirige a `/reset-password`
+   - Permite cambiar contraseña
+   - Redirige a `/cuenta` después de cambiar
+
+### Paso 5: Revisar Audit Logs (si aplica)
+
+1. Ve a **Supabase Dashboard > Logs > Auth Logs**
 2. Verifica que:
-   - Se muestre `/auth/confirm` con botón "Continuar"
-   - Al hacer clic, redirija a `/reset-password` con sesión válida
-   - Puedas cambiar la contraseña
-   - Redirija a `/cuenta` después de cambiar
+   - Los eventos aparecen correctamente
+   - No hay errores inesperados
+   - Los rate limits se aplican cuando corresponde
 
-### 5. Revisar Audit Logs (1 min)
-
-1. Ve a **Supabase Dashboard > Authentication > Logs**
-2. Verifica que aparezcan los eventos:
-   - Sign up
-   - Sign in
-   - Password reset request
-   - Password reset confirm
-3. Revisa si hay errores o bloqueos por rate limits
+**Nota**: En plan FREE, los logs pueden tener retención limitada.
 
 ---
 
 ## 📝 Checklist Post-Deploy
 
-Después de hacer cambios en la configuración de Auth:
+Después de hacer cambios en Rate Limits o Attack Protection:
 
-- [ ] **Rate Limits verificados**:
-  - [ ] Sending emails: 2/hour (o valor configurado si usas SMTP propio)
-  - [ ] Token refreshes: 150/5 min
-  - [ ] Token verifications: 30/5 min
-  - [ ] Sign-ups & sign-ins: 30/5 min
-  - [ ] SMS: 0 (deshabilitado)
-
-- [ ] **Attack Protection**:
-  - [ ] Captcha configurado (opcional pero recomendado)
-  - [ ] Leaked passwords: N/A (requiere Pro)
-
-- [ ] **Pruebas E2E completadas**:
-  - [ ] Sign up funciona
-  - [ ] Sign in funciona
-  - [ ] Forgot password funciona
-  - [ ] Reset password funciona
-
-- [ ] **Audit Logs revisados**:
-  - [ ] No hay errores inesperados
-  - [ ] Rate limits no están bloqueando usuarios legítimos
+- [ ] Verificar que los rate limits están configurados según la tabla arriba
+- [ ] Si se activó Captcha, probar signup/signin para verificar que aparece
+- [ ] Probar flujo completo: signup → confirm email → login → forgot password → reset password
+- [ ] Revisar logs de Supabase para errores relacionados con rate limits
+- [ ] Documentar cualquier cambio en este archivo
 
 ---
 
 ## 🔗 Referencias
 
 - [Supabase Auth Rate Limits](https://supabase.com/docs/guides/auth/auth-rate-limits)
-- [Supabase Auth Captcha](https://supabase.com/docs/guides/auth/auth-captcha)
-- [Supabase Auth Attack Protection](https://supabase.com/docs/guides/auth/auth-attack-protection)
+- [Supabase Captcha Protection](https://supabase.com/docs/guides/auth/auth-captcha)
 - [Reset Password Setup](./RESET_PASSWORD_SETUP.md)
+- [Email Templates](./auth-email-templates/README.md)
 
 ---
 
-**Última actualización**: Enero 2026  
-**Mantenido por**: Equipo de desarrollo DDN
+## 📌 Notas Importantes
+
+1. **Plan FREE**: Algunas features (como Leaked Passwords Protection) requieren Pro plan
+2. **Custom SMTP**: Si se configura Resend/SendGrid, el límite de "Sending emails" puede ajustarse
+3. **Captcha**: Es opcional pero altamente recomendado para producción
+4. **Rate Limits**: No bajar demasiado para evitar bloquear usuarios legítimos en NAT/coworkings
 
