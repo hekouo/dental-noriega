@@ -414,8 +414,23 @@ Después de la prueba:
 - [ ] Revisar logs de Supabase Dashboard > Logs > Auth para errores de verificación
 - [ ] Si hay errores, revisar que las Redirect URLs estén correctamente configuradas
 
+## Post-deploy: Auth Hardening
+
+Después de configurar el flujo de reset password, considera estas mejoras de seguridad:
+
+### Rate Limits y Attack Protection
+
+Revisa y configura:
+- **Rate Limits** en Supabase Dashboard (protección contra fuerza bruta)
+- **Captcha Protection** (opcional pero recomendado para producción)
+
+Ver el checklist completo en: [`docs/SUPABASE_AUTH_DASHBOARD_CHECKLIST.md`](./SUPABASE_AUTH_DASHBOARD_CHECKLIST.md)
+
+**Próxima mejora opcional**: Activar Captcha (hCaptcha o Cloudflare Turnstile) para proteger signup/signin/reset password contra bots.
+
 ### Referencias
 
 - [Templates de Email - Snapshots](./auth-email-templates/README.md)
+- [Supabase Auth Dashboard Checklist](./SUPABASE_AUTH_DASHBOARD_CHECKLIST.md)
 - [Supabase Auth URL Configuration](https://supabase.com/docs/guides/auth/auth-urls)
 
