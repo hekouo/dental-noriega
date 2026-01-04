@@ -32,6 +32,7 @@ import {
   getWebsiteJsonLd,
 } from "@/lib/seo/schema";
 import Providers from "./providers";
+import { HeaderWithScrollEffect } from "@/components/header/HeaderWithScrollEffect";
 const NavbarSearch = dynamic(() => import("@/components/NavbarSearch"), {
   ssr: false,
 });
@@ -185,82 +186,82 @@ export default function RootLayout({
             }}
           />
           <CheckoutDevGuard />
-          <header className="border-b bg-white sticky top-0 z-40">
-          <nav className="max-w-6xl mx-auto flex items-center justify-between p-4 gap-4">
-            <div className="flex items-center gap-3">
-              <Link href={ROUTES.home()}>
-                <BrandMark />
-              </Link>
-              {process.env.VERCEL_ENV && (
-                <span
-                  className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
-                    process.env.VERCEL_ENV === "production"
-                      ? "bg-green-100 text-green-700"
+          <HeaderWithScrollEffect>
+            <nav className="max-w-6xl mx-auto flex items-center justify-between p-4 gap-4">
+              <div className="flex items-center gap-3">
+                <Link href={ROUTES.home()}>
+                  <BrandMark />
+                </Link>
+                {process.env.VERCEL_ENV && (
+                  <span
+                    className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
+                      process.env.VERCEL_ENV === "production"
+                        ? "bg-green-100 text-green-700"
+                        : process.env.VERCEL_ENV === "preview"
+                          ? "bg-amber-100 text-amber-700"
+                          : "bg-gray-100 text-gray-600"
+                    }`}
+                  >
+                    {process.env.VERCEL_ENV === "production"
+                      ? "PROD"
                       : process.env.VERCEL_ENV === "preview"
-                        ? "bg-amber-100 text-amber-700"
-                        : "bg-gray-100 text-gray-600"
-                  }`}
-                >
-                  {process.env.VERCEL_ENV === "production"
-                    ? "PROD"
-                    : process.env.VERCEL_ENV === "preview"
-                      ? "PREVIEW"
-                      : "LOCAL"}
-                </span>
-              )}
-            </div>
+                        ? "PREVIEW"
+                        : "LOCAL"}
+                  </span>
+                )}
+              </div>
 
-            {/* Buscador desktop */}
-            <div className="hidden md:block">
-              <Suspense
-                fallback={<div className="flex-1 max-w-md min-h-[44px]" />}
-              >
+              {/* Buscador desktop */}
+              <div className="hidden md:block">
+                <Suspense
+                  fallback={<div className="flex-1 max-w-md min-h-[44px]" />}
+                >
+                  <NavbarSearch />
+                </Suspense>
+              </div>
+
+              <div className="flex items-center gap-4 text-sm">
+                <Link
+                  href={ROUTES.tienda()}
+                  className="min-h-[44px] flex items-center hover:text-primary-600 transition-colors font-medium"
+                  aria-label="Ir a la tienda"
+                >
+                  <span>Tienda</span>
+                </Link>
+                <Link
+                  href={ROUTES.destacados()}
+                  className="min-h-[44px] flex items-center hover:text-primary-600 transition-colors font-medium"
+                  aria-label="Ver productos destacados"
+                >
+                  <span>Destacados</span>
+                </Link>
+                <Link
+                  href={ROUTES.buscar()}
+                  className="min-h-[44px] flex items-center hover:text-primary-600 transition-colors font-medium"
+                  aria-label="Buscar productos"
+                >
+                  <span>Buscar</span>
+                </Link>
+                <Link
+                  href="/como-comprar"
+                  className="min-h-[44px] flex items-center hover:text-primary-600 transition-colors font-medium"
+                  aria-label="Cómo comprar"
+                >
+                  <span>Cómo comprar</span>
+                </Link>
+
+                {/* Menú de cuenta con muela 3D */}
+                <ToothAccountMenu />
+              </div>
+            </nav>
+
+            {/* Buscador móvil */}
+            <div className="md:hidden px-4 pb-3">
+              <Suspense fallback={<div className="min-h-[44px]" />}>
                 <NavbarSearch />
               </Suspense>
             </div>
-
-            <div className="flex items-center gap-4 text-sm">
-              <Link
-                href={ROUTES.tienda()}
-                className="min-h-[44px] flex items-center hover:text-primary-600 transition-colors"
-                aria-label="Ir a la tienda"
-              >
-                <span>Tienda</span>
-              </Link>
-              <Link
-                href={ROUTES.destacados()}
-                className="min-h-[44px] flex items-center hover:text-primary-600 transition-colors"
-                aria-label="Ver productos destacados"
-              >
-                <span>Destacados</span>
-              </Link>
-              <Link
-                href={ROUTES.buscar()}
-                className="min-h-[44px] flex items-center hover:text-primary-600 transition-colors"
-                aria-label="Buscar productos"
-              >
-                <span>Buscar</span>
-              </Link>
-              <Link
-                href="/como-comprar"
-                className="min-h-[44px] flex items-center hover:text-primary-600 transition-colors"
-                aria-label="Cómo comprar"
-              >
-                <span>Cómo comprar</span>
-              </Link>
-
-              {/* Menú de cuenta con muela 3D */}
-              <ToothAccountMenu />
-            </div>
-          </nav>
-
-          {/* Buscador móvil */}
-          <div className="md:hidden px-4 pb-3">
-            <Suspense fallback={<div className="min-h-[44px]" />}>
-              <NavbarSearch />
-            </Suspense>
-          </div>
-        </header>
+          </HeaderWithScrollEffect>
 
         <main className="max-w-6xl mx-auto p-4 flex-1 w-full pb-24 md:pb-safe">
           {children}
