@@ -33,6 +33,7 @@ import {
 } from "@/lib/seo/schema";
 import Providers from "./providers";
 import { HeaderWithScrollEffect } from "@/components/header/HeaderWithScrollEffect";
+import { DarkModeToggle } from "@/components/header/DarkModeToggle";
 const NavbarSearch = dynamic(() => import("@/components/NavbarSearch"), {
   ssr: false,
 });
@@ -171,7 +172,7 @@ export default function RootLayout({
         )}
       </head>
       <body
-        className={`${inter.className} min-h-screen bg-white text-gray-900 flex flex-col`}
+        className={`${inter.className} min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 flex flex-col`}
       >
         <Providers>
           {/* Structured Data: Organization + Website */}
@@ -223,32 +224,35 @@ export default function RootLayout({
               <div className="flex items-center gap-4 text-sm">
                 <Link
                   href={ROUTES.tienda()}
-                  className="min-h-[44px] flex items-center hover:text-primary-600 transition-colors font-medium"
+                  className="min-h-[44px] flex items-center hover:text-primary-600 dark:hover:text-primary-400 transition-colors font-medium"
                   aria-label="Ir a la tienda"
                 >
                   <span>Tienda</span>
                 </Link>
                 <Link
                   href={ROUTES.destacados()}
-                  className="min-h-[44px] flex items-center hover:text-primary-600 transition-colors font-medium"
+                  className="min-h-[44px] flex items-center hover:text-primary-600 dark:hover:text-primary-400 transition-colors font-medium"
                   aria-label="Ver productos destacados"
                 >
                   <span>Destacados</span>
                 </Link>
                 <Link
                   href={ROUTES.buscar()}
-                  className="min-h-[44px] flex items-center hover:text-primary-600 transition-colors font-medium"
+                  className="min-h-[44px] flex items-center hover:text-primary-600 dark:hover:text-primary-400 transition-colors font-medium"
                   aria-label="Buscar productos"
                 >
                   <span>Buscar</span>
                 </Link>
                 <Link
                   href="/como-comprar"
-                  className="min-h-[44px] flex items-center hover:text-primary-600 transition-colors font-medium"
+                  className="min-h-[44px] flex items-center hover:text-primary-600 dark:hover:text-primary-400 transition-colors font-medium"
                   aria-label="Cómo comprar"
                 >
                   <span>Cómo comprar</span>
                 </Link>
+
+                {/* Dark mode toggle */}
+                <DarkModeToggle />
 
                 {/* Menú de cuenta con muela 3D */}
                 <ToothAccountMenu />

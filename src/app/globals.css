@@ -54,6 +54,23 @@
   --radius-xl: 1rem; /* 16px */
 }
 
+/* Dark mode variables */
+.dark {
+  --bg: rgb(17, 24, 39); /* gray-900 */
+  --fg: rgb(243, 244, 246); /* gray-100 */
+  --muted: rgb(156, 163, 175); /* gray-400 */
+  --muted-fg: rgb(107, 114, 128); /* gray-500 */
+  --card: rgb(31, 41, 55); /* gray-800 */
+  --card-fg: rgb(243, 244, 246); /* gray-100 */
+  --border: rgb(55, 65, 81); /* gray-700 */
+  --border-subtle: rgb(31, 41, 55); /* gray-800 */
+  --brand: rgb(96, 165, 250); /* primary-400 - más claro para dark */
+  --brand-2: rgb(147, 197, 253); /* primary-300 */
+  --success: rgb(74, 222, 128); /* green-400 */
+  --warning: rgb(250, 204, 21); /* amber-400 */
+  --error: rgb(248, 113, 113); /* red-400 */
+}
+
 html,
 body {
   height: 100%;

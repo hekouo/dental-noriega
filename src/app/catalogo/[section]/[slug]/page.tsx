@@ -154,7 +154,7 @@ export default async function ProductDetailPage({ params }: Props) {
   });
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Structured Data: Breadcrumbs + Product */}
       <script
         type="application/ld+json"
@@ -185,7 +185,7 @@ export default async function ProductDetailPage({ params }: Props) {
         />
 
         {/* Breadcrumb */}
-        <div className="bg-white border-b">
+        <div className="bg-white dark:bg-gray-800 border-b dark:border-gray-700">
           <div className="max-w-6xl mx-auto px-4 py-3">
             <Breadcrumbs
               items={[
@@ -215,17 +215,17 @@ export default async function ProductDetailPage({ params }: Props) {
             {/* Información del producto */}
             <div className="space-y-4 sm:space-y-6">
               <div>
-                <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-gray-900 mb-2">
+                <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-gray-900 dark:text-gray-100 mb-2">
                   {product.title}
                 </h1>
-                <p className="text-base sm:text-lg text-gray-600 capitalize">
+                <p className="text-base sm:text-lg text-gray-600 dark:text-gray-400 capitalize">
                   {product.section.replace(/-/g, " ")}
                 </p>
               </div>
 
               {/* Precio y disponibilidad */}
               <div className="space-y-2">
-                <div className="text-4xl font-bold text-primary-600">
+                <div className="text-4xl font-bold text-primary-600 dark:text-primary-400">
                   {price}
                 </div>
                 <div className="flex items-center space-x-2 flex-wrap gap-2">
@@ -243,7 +243,7 @@ export default async function ProductDetailPage({ params }: Props) {
                       </span>
                     )}
                   {product.in_stock && (
-                    <span className="text-sm text-gray-600">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
                       Lista para envío inmediato
                     </span>
                   )}
@@ -251,7 +251,7 @@ export default async function ProductDetailPage({ params }: Props) {
 
                 {/* Información de envío gratis y puntos */}
                 <div className="space-y-1 pt-2">
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
                     Envío gratis desde ${FREE_SHIPPING_THRESHOLD_MXN.toLocaleString("es-MX")} MXN en productos.
                   </p>
                   <FreeShippingProgressPDP
@@ -312,11 +312,11 @@ export default async function ProductDetailPage({ params }: Props) {
 
           {/* Descripción del producto */}
           {product.description && (
-            <section className="mt-12 bg-white border border-gray-200 rounded-2xl shadow-sm p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-3">
+            <section className="mt-12 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-sm p-6">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-3">
                 Descripción del producto
               </h2>
-              <div className="prose prose-sm max-w-none text-gray-700">
+              <div className="prose prose-sm max-w-none text-gray-700 dark:text-gray-300">
                 {product.description.split("\n").map((paragraph, idx) => (
                   <p key={idx} className="mb-3 last:mb-0">
                     {paragraph.trim()}
@@ -327,14 +327,14 @@ export default async function ProductDetailPage({ params }: Props) {
           )}
 
           {/* Envíos y devoluciones */}
-          <section className="mt-6 bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+          <section className="mt-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-sm overflow-hidden">
             <details className="group">
-              <summary className="flex items-center justify-between p-4 cursor-pointer list-none hover:bg-gray-50 transition-colors">
-                <span className="text-base font-semibold text-gray-900">
+              <summary className="flex items-center justify-between p-4 cursor-pointer list-none hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                <span className="text-base font-semibold text-gray-900 dark:text-gray-100">
                   Envíos y devoluciones
                 </span>
                 <svg
-                  className="w-5 h-5 text-gray-500 transition-transform group-open:rotate-180"
+                  className="w-5 h-5 text-gray-500 dark:text-gray-400 transition-transform group-open:rotate-180"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -348,7 +348,7 @@ export default async function ProductDetailPage({ params }: Props) {
                   />
                 </svg>
               </summary>
-              <div className="px-4 pb-4 text-sm text-gray-700 space-y-2">
+              <div className="px-4 pb-4 text-sm text-gray-700 dark:text-gray-300 space-y-2">
                 <p>
                   • <strong>Envío gratis</strong> en compras superiores a $2,000 MXN
                 </p>
