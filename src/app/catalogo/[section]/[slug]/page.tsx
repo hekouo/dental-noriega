@@ -185,7 +185,7 @@ export default async function ProductDetailPage({ params }: Props) {
         />
 
         {/* Breadcrumb */}
-        <div className="bg-white dark:bg-gray-800 border-b dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
           <div className="max-w-6xl mx-auto px-4 py-3">
             <Breadcrumbs
               items={[
@@ -215,7 +215,7 @@ export default async function ProductDetailPage({ params }: Props) {
             {/* Información del producto */}
             <div className="space-y-4 sm:space-y-6">
               <div>
-                <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-gray-900 dark:text-gray-100 mb-2">
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 dark:text-white mb-2">
                   {product.title}
                 </h1>
                 <p className="text-base sm:text-lg text-gray-600 dark:text-gray-400 capitalize">
@@ -225,7 +225,7 @@ export default async function ProductDetailPage({ params }: Props) {
 
               {/* Precio y disponibilidad */}
               <div className="space-y-2">
-                <div className="text-4xl font-bold text-primary-600 dark:text-primary-400">
+                <div className="text-4xl sm:text-5xl font-bold text-primary-600 dark:text-primary-400">
                   {price}
                 </div>
                 <div className="flex items-center space-x-2 flex-wrap gap-2">
@@ -235,8 +235,8 @@ export default async function ProductDetailPage({ params }: Props) {
                       <span
                         className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
                           product.in_stock
-                            ? "bg-emerald-50 text-emerald-700"
-                            : "bg-red-50 text-red-700"
+                            ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800"
+                            : "bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800"
                         }`}
                       >
                         {product.in_stock ? "En stock" : "Agotado"}
@@ -313,7 +313,7 @@ export default async function ProductDetailPage({ params }: Props) {
           {/* Descripción del producto */}
           {product.description && (
             <section className="mt-12 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-sm p-6">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-3">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">
                 Descripción del producto
               </h2>
               <div className="prose prose-sm max-w-none text-gray-700 dark:text-gray-300">
@@ -326,44 +326,164 @@ export default async function ProductDetailPage({ params }: Props) {
             </section>
           )}
 
-          {/* Envíos y devoluciones */}
-          <section className="mt-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-sm overflow-hidden">
-            <details className="group">
-              <summary className="flex items-center justify-between p-4 cursor-pointer list-none hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                <span className="text-base font-semibold text-gray-900 dark:text-gray-100">
-                  Envíos y devoluciones
-                </span>
-                <svg
-                  className="w-5 h-5 text-gray-500 dark:text-gray-400 transition-transform group-open:rotate-180"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
-              </summary>
-              <div className="px-4 pb-4 text-sm text-gray-700 dark:text-gray-300 space-y-2">
-                <p>
-                  • <strong>Envío gratis</strong> en compras superiores a $2,000 MXN
-                </p>
-                <p>
-                  • <strong>Envíos a todo México</strong> con tiempos de entrega de 3-7 días hábiles, dependiendo de tu ubicación
-                </p>
-                <p>
-                  • <strong>Devoluciones</strong> disponibles dentro de los primeros 15 días posteriores a la recepción, siempre que el producto esté en su empaque original y sin uso
-                </p>
-                <p>
-                  • <strong>Asesoría por WhatsApp</strong> para resolver cualquier duda sobre envíos o devoluciones
-                </p>
-              </div>
-            </details>
-          </section>
+          {/* Acordeones de información */}
+          <div className="mt-6 space-y-4">
+            {/* Envíos y devoluciones */}
+            <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-sm overflow-hidden">
+              <details className="group">
+                <summary className="flex items-center justify-between p-4 cursor-pointer list-none hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                  <span className="text-base font-semibold text-gray-900 dark:text-white">
+                    Envíos y devoluciones
+                  </span>
+                  <svg
+                    className="w-5 h-5 text-gray-500 dark:text-gray-400 transition-transform group-open:rotate-180"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </summary>
+                <div className="px-4 pb-4 text-sm text-gray-700 dark:text-gray-300 space-y-2">
+                  <p>
+                    • <strong>Envío gratis</strong> en compras superiores a $2,000 MXN
+                  </p>
+                  <p>
+                    • <strong>Envíos a todo México</strong> con tiempos de entrega de 3-7 días hábiles, dependiendo de tu ubicación
+                  </p>
+                  <p>
+                    • <strong>Devoluciones</strong> disponibles dentro de los primeros 15 días posteriores a la recepción, siempre que el producto esté en su empaque original y sin uso
+                  </p>
+                  <p>
+                    • <strong>Asesoría por WhatsApp</strong> para resolver cualquier duda sobre envíos o devoluciones
+                  </p>
+                </div>
+              </details>
+            </section>
+
+            {/* Pagos y facturación */}
+            <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-sm overflow-hidden">
+              <details className="group">
+                <summary className="flex items-center justify-between p-4 cursor-pointer list-none hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                  <span className="text-base font-semibold text-gray-900 dark:text-white">
+                    Pagos y facturación
+                  </span>
+                  <svg
+                    className="w-5 h-5 text-gray-500 dark:text-gray-400 transition-transform group-open:rotate-180"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </summary>
+                <div className="px-4 pb-4 text-sm text-gray-700 dark:text-gray-300 space-y-2">
+                  <p>
+                    • <strong>Pago seguro</strong> con tarjeta de crédito o débito mediante Stripe
+                  </p>
+                  <p>
+                    • <strong>Facturación disponible</strong> para todas tus compras. Solicítala al finalizar tu pedido
+                  </p>
+                  <p>
+                    • <strong>Precios en MXN</strong> (pesos mexicanos), sin conversiones ni sorpresas
+                  </p>
+                  <p>
+                    • <strong>Procesamiento inmediato</strong> de pagos con confirmación por email
+                  </p>
+                </div>
+              </details>
+            </section>
+
+            {/* Garantía */}
+            <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-sm overflow-hidden">
+              <details className="group">
+                <summary className="flex items-center justify-between p-4 cursor-pointer list-none hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                  <span className="text-base font-semibold text-gray-900 dark:text-white">
+                    Garantía
+                  </span>
+                  <svg
+                    className="w-5 h-5 text-gray-500 dark:text-gray-400 transition-transform group-open:rotate-180"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </summary>
+                <div className="px-4 pb-4 text-sm text-gray-700 dark:text-gray-300 space-y-2">
+                  <p>
+                    • Todos nuestros productos cuentan con <strong>garantía de calidad</strong>
+                  </p>
+                  <p>
+                    • Si recibes un producto defectuoso, te lo <strong>reemplazamos sin costo</strong>
+                  </p>
+                  <p>
+                    • <strong>Devoluciones</strong> disponibles dentro de 15 días posteriores a la recepción
+                  </p>
+                  <p>
+                    • <strong>Contacto directo</strong> por WhatsApp para resolver cualquier incidencia
+                  </p>
+                </div>
+              </details>
+            </section>
+
+            {/* Soporte */}
+            <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-sm overflow-hidden">
+              <details className="group">
+                <summary className="flex items-center justify-between p-4 cursor-pointer list-none hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                  <span className="text-base font-semibold text-gray-900 dark:text-white">
+                    Soporte
+                  </span>
+                  <svg
+                    className="w-5 h-5 text-gray-500 dark:text-gray-400 transition-transform group-open:rotate-180"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </summary>
+                <div className="px-4 pb-4 text-sm text-gray-700 dark:text-gray-300 space-y-2">
+                  <p>
+                    • <strong>Atención personalizada</strong> por WhatsApp de lunes a viernes
+                  </p>
+                  <p>
+                    • <strong>Respuesta rápida</strong> en minutos, no horas
+                  </p>
+                  <p>
+                    • <strong>Horario de atención</strong>: Lunes a Viernes de 9:00 a 18:00 hrs
+                  </p>
+                  <p>
+                    • <strong>Asesoría técnica</strong> para ayudarte a elegir el producto adecuado
+                  </p>
+                </div>
+              </details>
+            </section>
+          </div>
 
           {/* Productos relacionados */}
           <PdpRelatedSection
