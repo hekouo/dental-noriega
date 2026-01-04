@@ -27,12 +27,12 @@ export default function RecentlyViewed() {
   }
 
   return (
-    <section className="mt-12 pt-10 border-t border-gray-200 space-y-5">
+    <section className="mt-12 pt-10 border-t border-gray-200 dark:border-gray-700 space-y-5">
       <div>
-        <h2 className="text-2xl font-semibold text-gray-900">
+        <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
           Vistos recientemente
         </h2>
-        <p className="text-sm text-gray-600 mt-1">
+        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
           Retoma productos que revisaste hace unos momentos.
         </p>
       </div>
@@ -46,10 +46,10 @@ export default function RecentlyViewed() {
             <Link
               key={item.id}
               href={productUrl}
-              className="group block bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-md transition-shadow"
+              className="group block bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-md dark:hover:shadow-lg transition-shadow"
             >
               {/* Imagen */}
-              <div className="relative w-full aspect-square bg-gray-50">
+              <div className="relative w-full aspect-square bg-gray-50 dark:bg-gray-900">
                 <ImageWithFallback
                   src={item.image_url}
                   alt={item.title}
@@ -62,18 +62,18 @@ export default function RecentlyViewed() {
 
               {/* Información */}
               <div className="p-4 space-y-2">
-                <h3 className="font-medium text-sm text-gray-900 line-clamp-2 group-hover:text-primary-600 transition-colors">
+                <h3 className="font-medium text-sm text-gray-900 dark:text-white line-clamp-2 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
                   {item.title}
                 </h3>
 
                 {/* Precio y stock */}
                 <div className="flex items-center justify-between">
                   {priceCents > 0 ? (
-                    <span className="text-lg font-semibold text-primary-600">
+                    <span className="text-lg font-semibold text-primary-600 dark:text-primary-400">
                       {formatMXN(price)}
                     </span>
                   ) : (
-                    <span className="text-sm text-gray-500">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
                       Consultar precio
                     </span>
                   )}
@@ -82,8 +82,8 @@ export default function RecentlyViewed() {
                     <span
                       className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
                         item.inStock
-                          ? "bg-emerald-50 text-emerald-700"
-                          : "bg-red-50 text-red-700"
+                          ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800"
+                          : "bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800"
                       }`}
                     >
                       {item.inStock ? "En stock" : "Agotado"}

@@ -33,6 +33,7 @@ import {
 } from "@/lib/seo/schema";
 import Providers from "./providers";
 import { HeaderWithScrollEffect } from "@/components/header/HeaderWithScrollEffect";
+import { DarkModeToggle } from "@/components/header/DarkModeToggle";
 const NavbarSearch = dynamic(() => import("@/components/NavbarSearch"), {
   ssr: false,
 });
@@ -171,7 +172,7 @@ export default function RootLayout({
         )}
       </head>
       <body
-        className={`${inter.className} min-h-screen bg-white text-gray-900 flex flex-col`}
+        className={`${inter.className} min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 flex flex-col transition-colors`}
       >
         <Providers>
           {/* Structured Data: Organization + Website */}
@@ -220,7 +221,7 @@ export default function RootLayout({
                 </Suspense>
               </div>
 
-              <div className="flex items-center gap-4 text-sm">
+              <div className="flex items-center gap-3 text-sm">
                 <Link
                   href={ROUTES.tienda()}
                   className="min-h-[44px] flex items-center hover:text-primary-600 transition-colors font-medium"
@@ -249,6 +250,11 @@ export default function RootLayout({
                 >
                   <span>Cómo comprar</span>
                 </Link>
+
+                {/* Toggle dark mode */}
+                <div className="hidden md:block">
+                  <DarkModeToggle />
+                </div>
 
                 {/* Menú de cuenta con muela 3D */}
                 <ToothAccountMenu />
