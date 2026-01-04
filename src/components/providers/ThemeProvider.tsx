@@ -1,12 +1,9 @@
 "use client";
 
 import { ThemeProvider as NextThemesProvider } from "next-themes";
+import { type ReactNode } from "react";
 
-/**
- * ThemeProvider wrapper para next-themes
- * Evita hydration warnings y maneja persistencia
- */
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
+export function ThemeProvider({ children }: { children: ReactNode }) {
   return (
     <NextThemesProvider
       attribute="class"

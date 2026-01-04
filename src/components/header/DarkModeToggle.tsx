@@ -1,48 +1,45 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
-import { Sun, Moon } from "lucide-react";
+import { useEffect, useState } from "react";
 
-/**
- * Toggle de dark mode para el header
- * Evita hydration mismatch usando mounted state
- */
 export function DarkModeToggle() {
-  const { theme, setTheme, systemTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
+  // Evitar hydration mismatch
   useEffect(() => {
     setMounted(true);
   }, []);
 
   if (!mounted) {
-    // Render placeholder durante SSR para evitar mismatch
+    // Render placeholder mientras se monta (evita flicker)
     return (
       <button
-        className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+        type="button"
+        className="min-h-[44px] flex items-center justify-center p-2 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
         aria-label="Cambiar tema"
         disabled
       >
-        <Sun className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+        <Sun className="w-5 h-5" aria-hidden="true" />
       </button>
     );
   }
 
-  const currentTheme = theme === "system" ? systemTheme : theme;
-  const isDark = currentTheme === "dark";
+  const isDark = theme === "dark";
 
   return (
     <button
+      type="button"
       onClick={() => setTheme(isDark ? "light" : "dark")}
-      className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+      className="min-h-[44px] flex items-center justify-center p-2 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
       aria-label={isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
-      title={isDark ? "Modo claro" : "Modo oscuro"}
     >
       {isDark ? (
-        <Sun className="w-5 h-5 text-amber-500" />
+        <Sun className="w-5 h-5" aria-hidden="true" />
       ) : (
-        <Moon className="w-5 h-5 text-gray-600" />
+        <Moon className="w-5 h-5" aria-hidden="true" />
       )}
     </button>
   );

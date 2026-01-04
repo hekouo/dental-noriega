@@ -43,8 +43,8 @@ export default function TrustBadgesPDP() {
     <div className="flex flex-wrap items-center justify-start gap-3 py-3">
       {badges.map((badge, index) => {
         const content = (
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 transition-all duration-200 hover:bg-gray-100 dark:hover:bg-gray-700 hover:border-gray-300 dark:hover:border-gray-600">
-            <span className="flex-shrink-0 text-gray-600 dark:text-gray-400">{badge.icon}</span>
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700 transition-all duration-200 hover:bg-gray-100 hover:border-gray-300">
+            <span className="flex-shrink-0 text-gray-600">{badge.icon}</span>
             <span className="font-medium text-xs sm:text-sm whitespace-nowrap">{badge.label}</span>
           </div>
         );
