@@ -8,6 +8,15 @@ import { buttonBase, buttonPrimary } from "@/lib/styles/button";
 import { MessageCircle } from "lucide-react";
 import TrustBadges from "@/components/ui/TrustBadges";
 import SectionHeader from "@/components/ui/SectionHeader";
+import { getWhatsAppUrl } from "@/lib/whatsapp/config";
+
+// Lazy load componentes no críticos
+const Testimonials = dynamicImport(() => import("@/components/ui/Testimonials"), {
+  ssr: false,
+});
+const TrustSection = dynamicImport(() => import("@/components/ui/TrustSection"), {
+  ssr: false,
+});
 
 const ShoppingBagIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg
@@ -109,44 +118,53 @@ export default async function HomePage() {
 
   return (
     <main className="min-h-screen">
-      {/* Hero Section */}
-      <section className="relative bg-gradient-to-br from-primary-600 to-primary-800 text-white py-12 sm:py-20 px-4 overflow-hidden">
-        {/* Background decoration */}
-        <div className="absolute inset-0 bg-hero opacity-50" />
+      {/* Hero Section - Premium 2025 */}
+      <section className="relative bg-gradient-to-br from-primary-600 via-primary-700 to-primary-800 text-white py-16 sm:py-24 md:py-32 px-4 overflow-hidden">
+        {/* Background decoration - más sutil y moderno */}
+        <div className="absolute inset-0 bg-hero opacity-40" />
+        <div className="absolute inset-0 bg-grid opacity-5" />
         
         <div className="relative max-w-6xl mx-auto text-center">
-          {/* Trust badges */}
-          <div className="mb-6 sm:mb-8">
+          {/* Trust badges - más prominentes */}
+          <div className="mb-8 sm:mb-10 animate-fadeInUp">
             <TrustBadges />
           </div>
 
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight mb-4 sm:mb-6 text-white">
-            Insumos dentales para consultorios y clínicas en México
+          {/* Headline - más bold y jerárquico */}
+          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 sm:mb-8 text-white leading-tight">
+            Insumos dentales de calidad para tu clínica
           </h1>
-          <p className="text-lg sm:text-xl md:text-2xl mb-6 sm:mb-8 text-primary-100 max-w-3xl mx-auto">
-            Tienda familiar de insumos dentales con envío a todo México y atención por WhatsApp.
+          <p className="text-xl sm:text-2xl md:text-3xl mb-8 sm:mb-10 text-primary-50 max-w-3xl mx-auto font-medium leading-relaxed">
+            Envíos a todo México. Precios competitivos. Atención por WhatsApp.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-4 sm:mb-6">
+          
+          {/* CTAs - más prominentes y con mejor spacing */}
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-6 sm:mb-8">
             <Link
               href={ROUTES.tienda()}
-              className={`${buttonBase} rounded-lg bg-white text-primary-600 hover:bg-gray-100 text-lg px-8 py-3 transition-transform duration-200 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-primary-600`}
+              className={`${buttonBase} rounded-xl bg-white text-primary-600 hover:bg-gray-50 text-lg font-semibold px-10 py-4 transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-primary-600 shadow-lg hover:shadow-xl`}
             >
               <span>Ver tienda</span>
             </Link>
             <Link
-              href={ROUTES.destacados()}
-              className={`${buttonBase} rounded-lg bg-primary-700 text-white hover:bg-primary-800 text-lg px-8 py-3 transition-transform duration-200 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-primary-600`}
+              href={getWhatsAppUrl("Hola, me interesa información sobre sus productos.") ?? "#"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`${buttonBase} rounded-xl bg-primary-700/90 backdrop-blur-sm text-white hover:bg-primary-800 text-lg font-semibold px-10 py-4 transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-primary-500/50 focus:ring-offset-2 focus:ring-offset-primary-600 border border-white/20 shadow-lg hover:shadow-xl`}
             >
-              <span>Ver productos destacados</span>
+              <MessageCircle className="inline-block mr-2 w-5 h-5" aria-hidden="true" />
+              <span>Contactar por WhatsApp</span>
             </Link>
           </div>
-          <p className="text-sm sm:text-base text-primary-100 max-w-2xl mx-auto">
-            Envío gratis desde $2,000 MXN en productos.
+          
+          {/* Trust line - más sutil */}
+          <p className="text-sm sm:text-base text-primary-200 max-w-2xl mx-auto">
+            Envío gratis desde $2,000 MXN • Facturación disponible • Pago seguro
           </p>
         </div>
 
-        {/* Divider */}
-        <div className="absolute bottom-0 left-0 right-0 h-px bg-white/10" />
+        {/* Divider sutil */}
+        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
       </section>
 
       {/* Productos Destacados */}
@@ -227,15 +245,21 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* Trust Section - Lazy loaded */}
+      <TrustSection />
+
+      {/* Testimonials - Lazy loaded */}
+      <Testimonials />
+
       {/* CTA Section */}
       <section className="py-16 px-4">
         <div className="max-w-4xl mx-auto text-center">
-          <p className="text-lg sm:text-xl text-gray-700 mb-6">
+          <p className="text-lg sm:text-xl text-gray-700 mb-6 font-medium">
             Insumos dentales confiables, entregados a todo México.
           </p>
           <Link
             href={ROUTES.tienda()}
-            className={`${buttonPrimary} text-lg px-8 py-3`}
+            className={`${buttonPrimary} text-lg px-8 py-3 font-semibold shadow-lg hover:shadow-xl transition-shadow`}
           >
             <span>Ver tienda</span>
           </Link>

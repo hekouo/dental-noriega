@@ -166,21 +166,21 @@ export default function ProductCard({
 
   return (
     <div 
-      className="rounded-2xl border border-gray-200 p-3 flex flex-col bg-white shadow-sm hover:shadow-xl transition-all duration-300 ease-out hover:-translate-y-2 active:scale-[0.98] group"
+      className="rounded-2xl border border-gray-200/80 p-3 flex flex-col bg-white shadow-sm hover:shadow-xl transition-all duration-300 ease-out hover:-translate-y-1 active:scale-[0.98] group"
       style={{
         animation: "fadeInUp 0.5s ease-out backwards",
         animationDelay: "var(--delay, 0ms)",
       }}
     >
-      {/* Imagen con link a PDP */}
-      <Link href={href} prefetch={false} className="block">
+      {/* Imagen con link a PDP - mejorado con zoom sutil */}
+      <Link href={href} prefetch={false} className="block overflow-hidden rounded-lg">
         <div className="relative w-full aspect-square bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg overflow-hidden group-hover:from-gray-100 group-hover:to-gray-200 transition-all duration-300">
           <ImageWithFallback
             src={image_url}
             width={400}
             height={400}
             alt={title}
-            className="w-full h-full object-contain transition-transform duration-500 ease-out group-hover:scale-110"
+            className="w-full h-full object-contain transition-transform duration-700 ease-out group-hover:scale-[1.08]"
             square
             priority={priority}
             sizes={sizes ?? "(min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw"}
@@ -199,9 +199,9 @@ export default function ProductCard({
         </Link>
       </h3>
 
-      {/* Precio */}
-      <div className="mt-1 text-blue-600 font-bold">
-        {price !== null ? formatMXN(price) : "Consultar precio"}
+      {/* Precio - más destacado */}
+      <div className="mt-2 text-primary-600 font-bold text-lg">
+        {price !== null ? formatMXN(price) : <span className="text-gray-500 text-sm font-normal">Consultar precio</span>}
       </div>
 
       {/* Badges compactos: stock, envío gratis, puntos */}
@@ -260,10 +260,10 @@ export default function ProductCard({
                 disabled={isAdding || !canPurchase}
                 aria-busy={isAdding}
                 aria-label={`Agregar ${title} al carrito`}
-                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 transition-all duration-200 font-medium shadow-sm ${
+                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 transition-all duration-200 font-semibold shadow-md ${
                   isAdding 
                     ? "scale-95 bg-primary-700" 
-                    : "hover:scale-105 active:scale-95 hover:shadow-lg"
+                    : "hover:scale-[1.02] active:scale-[0.98] hover:shadow-lg"
                 }`}
                 title="Agregar al carrito"
               >

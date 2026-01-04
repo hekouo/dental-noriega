@@ -12,6 +12,46 @@
   --brand: rgb(59, 130, 246); /* primary-500 */
   --brand2: rgb(147, 197, 253); /* primary-300 */
   --surface: rgb(255, 255, 255);
+  
+  /* Design tokens 2025 - Extended */
+  --bg: rgb(255, 255, 255);
+  --fg: rgb(17, 24, 39); /* gray-900 */
+  --muted: rgb(107, 114, 128); /* gray-500 */
+  --muted-fg: rgb(156, 163, 175); /* gray-400 */
+  --card: rgb(255, 255, 255);
+  --card-fg: rgb(17, 24, 39);
+  --border: rgb(229, 231, 235); /* gray-200 */
+  --border-subtle: rgb(243, 244, 246); /* gray-100 */
+  --brand: rgb(37, 99, 235); /* primary-600 */
+  --brand-2: rgb(59, 130, 246); /* primary-500 */
+  --success: rgb(34, 197, 94); /* green-500 */
+  --warning: rgb(234, 179, 8); /* amber-500 */
+  --error: rgb(239, 68, 68); /* red-500 */
+  
+  /* Spacing scale (8pt grid) */
+  --space-xs: 0.25rem; /* 4px */
+  --space-sm: 0.5rem; /* 8px */
+  --space-md: 1rem; /* 16px */
+  --space-lg: 1.5rem; /* 24px */
+  --space-xl: 2rem; /* 32px */
+  --space-2xl: 3rem; /* 48px */
+  --space-3xl: 4rem; /* 64px */
+  
+  /* Typography scale */
+  --font-display: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  
+  /* Radius */
+  --radius-sm: 0.375rem; /* 6px */
+  --radius-md: 0.5rem; /* 8px */
+  --radius-lg: 0.75rem; /* 12px */
+  --radius-xl: 1rem; /* 16px */
 }
 
 html,
