@@ -186,6 +186,7 @@ export default function RootLayout({
             }}
           />
           <CheckoutDevGuard />
+          {/* Top Info Bar */}
           <TopInfoBar />
           <HeaderWithScrollEffect>
             <nav className="max-w-6xl mx-auto flex items-center justify-between p-4 gap-4">

@@ -270,33 +270,42 @@ export default async function BuscarPage({ searchParams }: Props) {
       {items.length === 0 && (
         <>
           <div className="bg-card rounded-xl border border-border p-8 sm:p-12 text-center max-w-2xl mx-auto shadow-sm">
-            <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-primary-50 to-primary-100 dark:from-primary-900/30 dark:to-primary-800/30 flex items-center justify-center mb-6">
-              <AlertCircle className="w-10 h-10 text-primary-500 dark:text-primary-400" aria-hidden="true" />
+            <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-primary-50 dark:from-primary-900/30 to-primary-100 dark:to-primary-800/30 flex items-center justify-center mb-6">
+              <AlertCircle className="w-10 h-10 text-primary-600 dark:text-primary-400" aria-hidden="true" />
             </div>
-            <h2 className="text-2xl font-bold text-foreground mb-3">
+            <h2 className="text-2xl font-bold text-foreground mb-4">
               No encontramos eso
             </h2>
             <p className="text-sm text-muted-foreground mb-6">
-              Prueba con estas sugerencias:
+              Prueba con estas sugerencias de búsqueda:
             </p>
             
             {/* Chips de sugerencias */}
-            <div className="flex flex-wrap gap-2 justify-center mb-6">
+            <div className="flex flex-wrap gap-2 justify-center mb-8">
               {["guantes", "brackets", "resina", "anestesia"].map((suggestion) => (
                 <Link
                   key={suggestion}
                   href={`/buscar?q=${encodeURIComponent(suggestion)}`}
-                  className="px-4 py-2 bg-card border border-border rounded-full text-sm text-foreground hover:bg-muted hover:border-primary-500 hover:text-primary-600 transition-all duration-200 active:scale-95 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+                  className="px-4 py-2 bg-muted hover:bg-muted/80 border border-border rounded-full text-sm text-foreground hover:text-primary-600 dark:hover:text-primary-400 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
                 >
                   {suggestion}
                 </Link>
               ))}
             </div>
 
+            {/* CTAs */}
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              {(inStockOnly || priceRange !== "all" || sort !== "relevance") && (
+                <Link
+                  href={`/buscar?q=${encodeURIComponent(q)}`}
+                  className="px-6 py-3 bg-muted hover:bg-muted/80 border border-border text-foreground rounded-lg transition-all duration-200 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 min-h-[44px] inline-flex items-center justify-center"
+                >
+                  Quitar filtros
+                </Link>
+              )}
               <Link
                 href={ROUTES.destacados()}
-                className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-all duration-200 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 hover:scale-105 active:scale-95 min-h-[44px] inline-flex items-center justify-center"
+                className="px-6 py-3 bg-primary-600 dark:bg-primary-700 text-white rounded-lg hover:bg-primary-700 dark:hover:bg-primary-600 transition-all duration-200 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 min-h-[44px] inline-flex items-center justify-center"
               >
                 Ver destacados
               </Link>
@@ -305,7 +314,7 @@ export default async function BuscarPage({ searchParams }: Props) {
                   href={getWhatsAppUrl(`Hola, busco productos relacionados con "${q}" en Depósito Dental Noriega.`)!}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-6 py-3 border-2 border-green-500 text-green-700 dark:text-green-400 dark:border-green-400 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 transition-all duration-200 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 hover:scale-105 active:scale-95 min-h-[44px] inline-flex items-center justify-center"
+                  className="px-6 py-3 border-2 border-green-500 dark:border-green-600 text-green-700 dark:text-green-400 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 transition-all duration-200 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 min-h-[44px] inline-flex items-center justify-center"
                 >
                   Preguntar por WhatsApp
                 </Link>
