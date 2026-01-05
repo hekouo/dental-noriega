@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import { MessageCircle, Clock, HelpCircle, FileText, ChevronRight } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
 import { getWhatsAppUrl } from "@/lib/whatsapp/config";
-import { SITE } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Contacto | Depósito Dental Noriega",
