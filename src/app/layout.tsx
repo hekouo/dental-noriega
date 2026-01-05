@@ -49,6 +49,7 @@ const CartDevGuard = dynamic(() => import("@/components/CartDevGuard"), {
   ssr: false,
 });
 import { Footer } from "@/components/layout/Footer";
+import { TopInfoBar } from "@/components/layout/TopInfoBar";
 const FinalThanks = dynamic(() => import("@/components/FinalThanks"), {
   ssr: false,
 });
