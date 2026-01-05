@@ -269,55 +269,45 @@ export default async function BuscarPage({ searchParams }: Props) {
 
       {items.length === 0 && (
         <>
-          <div className="bg-white rounded-xl border border-gray-200 p-8 sm:p-12 text-center max-w-2xl mx-auto shadow-sm">
-            <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center mb-6">
-              <AlertCircle className="w-10 h-10 text-primary-500" aria-hidden="true" />
+          <div className="bg-card rounded-xl border border-border p-8 sm:p-12 text-center max-w-2xl mx-auto shadow-sm">
+            <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-primary-50 to-primary-100 dark:from-primary-900/30 dark:to-primary-800/30 flex items-center justify-center mb-6">
+              <AlertCircle className="w-10 h-10 text-primary-500 dark:text-primary-400" aria-hidden="true" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-3">
-              No encontramos resultados para "{q}"
+            <h2 className="text-2xl font-bold text-foreground mb-3">
+              No encontramos eso
             </h2>
-            <p className="text-sm text-gray-600 mb-6">
-              Prueba con estas opciones:
+            <p className="text-sm text-muted-foreground mb-6">
+              Prueba con estas sugerencias:
             </p>
-            <div className="bg-gradient-to-br from-blue-50 to-sky-50 border border-blue-200 rounded-xl p-6 mb-8 text-left">
-              <ul className="text-sm text-slate-700 space-y-3 list-none">
-                <li className="flex items-start">
-                  <span className="text-blue-600 mr-3 font-bold">•</span>
-                  <span>Revisa la ortografía del nombre del producto.</span>
-                </li>
-                <li className="flex items-start">
-                  <span className="text-blue-600 mr-3 font-bold">•</span>
-                  <span>Prueba con un término más general (por ejemplo, "guantes" en lugar de la marca exacta).</span>
-                </li>
-                <li className="flex items-start">
-                  <span className="text-blue-600 mr-3 font-bold">•</span>
-                  <span>Busca por tipo de producto (por ejemplo, "resina", "brackets", "arcos").</span>
-                </li>
-              </ul>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              {(inStockOnly || priceRange !== "all" || sort !== "relevance") && (
+            
+            {/* Chips de sugerencias */}
+            <div className="flex flex-wrap gap-2 justify-center mb-6">
+              {["guantes", "brackets", "resina", "anestesia"].map((suggestion) => (
                 <Link
-                  href={`/buscar?q=${encodeURIComponent(q)}`}
-                  className="px-6 py-3 bg-gray-100 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-200 transition-all duration-200 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2 hover:scale-105 active:scale-95 min-h-[44px] inline-flex items-center justify-center"
+                  key={suggestion}
+                  href={`/buscar?q=${encodeURIComponent(suggestion)}`}
+                  className="px-4 py-2 bg-card border border-border rounded-full text-sm text-foreground hover:bg-muted hover:border-primary-500 hover:text-primary-600 transition-all duration-200 active:scale-95 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
                 >
-                  Quitar filtros
+                  {suggestion}
                 </Link>
-              )}
+              ))}
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Link
-                href={ROUTES.catalogIndex()}
+                href={ROUTES.destacados()}
                 className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-all duration-200 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 hover:scale-105 active:scale-95 min-h-[44px] inline-flex items-center justify-center"
               >
-                Ver todo el catálogo
+                Ver destacados
               </Link>
               {getWhatsAppUrl(`Hola, busco productos relacionados con "${q}" en Depósito Dental Noriega.`) && (
                 <Link
                   href={getWhatsAppUrl(`Hola, busco productos relacionados con "${q}" en Depósito Dental Noriega.`)!}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-6 py-3 border-2 border-green-500 text-green-700 rounded-lg hover:bg-green-50 transition-all duration-200 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 hover:scale-105 active:scale-95 min-h-[44px] inline-flex items-center justify-center"
+                  className="px-6 py-3 border-2 border-green-500 text-green-700 dark:text-green-400 dark:border-green-400 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 transition-all duration-200 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 hover:scale-105 active:scale-95 min-h-[44px] inline-flex items-center justify-center"
                 >
-                  Hablar por WhatsApp
+                  Preguntar por WhatsApp
                 </Link>
               )}
             </div>
