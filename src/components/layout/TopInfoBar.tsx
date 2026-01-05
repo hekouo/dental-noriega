@@ -6,51 +6,41 @@ export function TopInfoBar() {
   const whatsappUrl = getWhatsAppUrl("Hola, tengo una consulta.");
 
   return (
-    <div className="bg-muted/50 dark:bg-muted/30 border-b border-border">
-      <div className="max-w-6xl mx-auto px-4">
-        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 py-2 text-xs sm:text-sm text-muted-foreground">
-          {/* Envíos */}
-          <Link
-            href="/envios"
-            className="flex items-center gap-1.5 hover:text-foreground transition-colors"
-          >
-            <Truck className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            <span>Envíos a todo México</span>
-          </Link>
-
-          {/* Separador */}
-          <span className="hidden sm:inline text-border" aria-hidden="true">
-            |
-          </span>
-
-          {/* Métodos de pago */}
-          <div className="flex items-center gap-1.5">
-            <CreditCard className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            <span>Tarjeta o transferencia</span>
-          </div>
-
-          {/* Separador */}
-          <span className="hidden sm:inline text-border" aria-hidden="true">
-            |
-          </span>
-
-          {/* Soporte WhatsApp */}
-          {whatsappUrl ? (
-            <Link
-              href={whatsappUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 hover:text-foreground transition-colors"
-            >
-              <MessageCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span>Soporte WhatsApp</span>
-            </Link>
-          ) : (
+    <div className="bg-card border-b border-border text-sm">
+      <div className="max-w-6xl mx-auto px-4 py-2">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 text-muted-foreground">
+          {/* Mobile: Stack en 2 líneas */}
+          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4">
             <div className="flex items-center gap-1.5">
-              <MessageCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span>Soporte WhatsApp</span>
+              <Truck className="w-3.5 h-3.5" />
+              <span>Envíos a todo México</span>
+              <Link
+                href="/envios"
+                className="text-foreground hover:text-primary-600 dark:hover:text-primary-400 underline underline-offset-2 transition-colors ml-1"
+              >
+                Ver envíos
+              </Link>
             </div>
-          )}
+            <span className="hidden sm:inline text-border">|</span>
+            <div className="flex items-center gap-1.5">
+              <CreditCard className="w-3.5 h-3.5" />
+              <span>Tarjeta o transferencia</span>
+            </div>
+            <span className="hidden sm:inline text-border">|</span>
+            {whatsappUrl && (
+              <div className="flex items-center gap-1.5">
+                <MessageCircle className="w-3.5 h-3.5" />
+                <Link
+                  href={whatsappUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-foreground hover:text-primary-600 dark:hover:text-primary-400 underline underline-offset-2 transition-colors"
+                >
+                  Soporte WhatsApp
+                </Link>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
