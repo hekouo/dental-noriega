@@ -48,9 +48,7 @@ const CheckoutDevGuard = dynamic(
 const CartDevGuard = dynamic(() => import("@/components/CartDevGuard"), {
   ssr: false,
 });
-const SiteFooter = dynamic(() => import("@/components/SiteFooter"), {
-  ssr: false,
-});
+import { Footer } from "@/components/layout/Footer";
 const FinalThanks = dynamic(() => import("@/components/FinalThanks"), {
   ssr: false,
 });
@@ -283,7 +281,7 @@ export default function RootLayout({
         {process.env.NEXT_PUBLIC_DEBUG === "1" ? <WarmupTrigger /> : null}
 
         {/* Footer */}
-        <SiteFooter />
+        <Footer />
 
         {/* Analytics GA4 Bridge */}
         <AnalyticsGa4Bridge />
