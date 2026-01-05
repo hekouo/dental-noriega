@@ -9,6 +9,7 @@ import { MessageCircle } from "lucide-react";
 import TrustBadges from "@/components/ui/TrustBadges";
 import SectionHeader from "@/components/ui/SectionHeader";
 import { getWhatsAppUrl } from "@/lib/whatsapp/config";
+import { HelpWidget } from "@/components/support/HelpWidget";
 
 // Lazy load componentes no críticos
 const Testimonials = dynamicImport(() => import("@/components/ui/Testimonials"), {
@@ -269,6 +270,11 @@ export default async function HomePage() {
       {/* Bloque final con agradecimiento - Cargado dinámicamente */}
       <div className="max-w-6xl mx-auto px-4">
         <FinalThanks />
+      </div>
+
+      {/* Help Widget */}
+      <div className="max-w-6xl mx-auto px-4 py-8 sm:py-12">
+        <HelpWidget context="home" />
       </div>
     </main>
   );

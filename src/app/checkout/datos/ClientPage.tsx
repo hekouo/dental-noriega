@@ -16,6 +16,7 @@ import Link from "next/link";
 import TrustStrip from "@/components/ui/TrustStrip";
 import { getWhatsAppUrl } from "@/lib/whatsapp/config";
 import { trackBeginCheckout } from "@/lib/analytics/events";
+import { HelpWidget } from "@/components/support/HelpWidget";
 import { formatMXN as formatMXNMoney } from "@/lib/utils/money";
 import { getSelectedItems } from "@/lib/checkout/selection";
 import type { AccountAddress } from "@/lib/supabase/addresses.server";
@@ -1552,6 +1553,11 @@ function DatosPageContent() {
           </button>
         </div>
       </form>
+
+      {/* Help Widget */}
+      <div className="mt-8">
+        <HelpWidget context="checkout" compact />
+      </div>
     </main>
   );
 }

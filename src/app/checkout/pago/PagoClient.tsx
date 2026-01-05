@@ -17,6 +17,7 @@ import CheckoutOrderSummary from "@/components/checkout/CheckoutOrderSummary";
 import CheckoutDebugPanel from "@/components/CheckoutDebugPanel";
 import CheckoutBenefitsHeader from "@/components/checkout/CheckoutBenefitsHeader";
 import CheckoutWhatsAppHelpBlock from "@/components/checkout/CheckoutWhatsAppHelpBlock";
+import { HelpWidget } from "@/components/support/HelpWidget";
 import { cpToZone, quote } from "@/lib/shipping/config";
 import { cartKg } from "@/lib/shipping/weights";
 import { track } from "@/lib/analytics";
@@ -1511,6 +1512,11 @@ export default function PagoClient() {
             <CheckoutWhatsAppHelpBlock />
           </div>
         </div>
+      </div>
+
+      {/* Help Widget */}
+      <div className="mt-8">
+        <HelpWidget context="checkout" compact />
       </div>
     </div>
   );
