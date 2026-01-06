@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { MessageCircle, Truck, Clock, MapPin, Shield, RotateCcw } from "lucide-react";
+import { MessageCircle, Truck, Clock, MapPin, RotateCcw, ArrowRight } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
 import { getWhatsAppUrl } from "@/lib/whatsapp/config";
 
@@ -138,9 +138,16 @@ export default function EnviosPage() {
               <p className="text-muted-foreground leading-relaxed mb-4">
                 Si recibes un producto defectuoso o no corresponde a lo solicitado, contáctanos inmediatamente por WhatsApp con el número de pedido. Te ayudaremos a resolver el problema lo antes posible.
               </p>
-              <p className="text-muted-foreground leading-relaxed">
+              <p className="text-muted-foreground leading-relaxed mb-4">
                 Las devoluciones están disponibles dentro de los primeros 15 días posteriores a la recepción, siempre que el producto esté en su empaque original y sin uso.
               </p>
+              <Link
+                href="/devoluciones"
+                className="inline-flex items-center gap-2 text-primary-600 dark:text-primary-400 font-medium hover:text-primary-700 dark:hover:text-primary-300 transition-colors duration-200"
+              >
+                Consulta devoluciones y garantías
+                <ArrowRight className="w-4 h-4" />
+              </Link>
             </div>
           </div>
         </div>
