@@ -271,8 +271,9 @@ export default function CartBubble() {
     };
   }, [count]);
 
-  // No mostrar si hay items (CartSticky se encargará)
-  if (count > 0 || !shouldMount) return null;
+  // No mostrar si el carrito está vacío (evitar globo azul) o si no se debe montar
+  // Si count > 0, el useEffect ya establece shouldMount = false, así que !shouldMount será true
+  if (count <= 0 || !shouldMount) return null;
 
   return (
     <>
