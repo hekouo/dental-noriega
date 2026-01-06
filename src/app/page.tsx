@@ -10,7 +10,6 @@ import TrustBadges from "@/components/ui/TrustBadges";
 import SectionHeader from "@/components/ui/SectionHeader";
 import { getWhatsAppUrl } from "@/lib/whatsapp/config";
 import { HelpWidget } from "@/components/support/HelpWidget";
-import { TrustBanners } from "@/components/marketing/TrustBanners";
 
 // Lazy load componentes no críticos
 const Testimonials = dynamicImport(() => import("@/components/ui/Testimonials"), {
@@ -168,11 +167,6 @@ export default async function HomePage() {
         {/* Divider sutil */}
         <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
       </section>
-
-      {/* Trust Banners */}
-      <div className="max-w-6xl mx-auto px-4 py-8 sm:py-12">
-        <TrustBanners />
-      </div>
 
       {/* Productos Destacados */}
       <section className="max-w-6xl mx-auto px-4 py-8 sm:py-12">

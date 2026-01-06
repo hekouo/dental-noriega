@@ -2,15 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Ocultar scrollbar en carrusel */
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
-}
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
 /* Altura móvil real y safe area */
 :root {
   color-scheme: light;

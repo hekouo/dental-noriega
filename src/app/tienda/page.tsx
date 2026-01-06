@@ -9,7 +9,6 @@ import CategoryIcon from "@/components/categories/CategoryIcon";
 import { AlertCircle, MessageCircle } from "lucide-react";
 import { getWhatsAppUrl } from "@/lib/whatsapp/config";
 import { HelpWidget } from "@/components/support/HelpWidget";
-import { TrustBanners } from "@/components/marketing/TrustBanners";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -159,11 +158,6 @@ export default async function TiendaPage() {
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Trust Banners */}
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <TrustBanners />
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-8">
