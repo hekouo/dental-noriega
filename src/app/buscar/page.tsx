@@ -3,7 +3,7 @@ import React from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
 import dynamicImport from "next/dynamic";
-import { AlertCircle, MessageCircle } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import SearchResultCard from "@/components/SearchResultCard";
 import { ROUTES } from "@/lib/routes";
 import { getWhatsAppUrl } from "@/lib/whatsapp/config";
