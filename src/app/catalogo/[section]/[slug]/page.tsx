@@ -24,6 +24,7 @@ import {
   getBreadcrumbsJsonLd,
   getProductJsonLd,
 } from "@/lib/seo/schema";
+import { HelpWidget } from "@/components/support/HelpWidget";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -493,6 +494,11 @@ export default async function ProductDetailPage({ params }: Props) {
 
           {/* Productos vistos recientemente */}
           <RecentlyViewed />
+
+          {/* Help Widget */}
+          <div className="mt-12">
+            <HelpWidget context="pdp" productTitle={product.title} />
+          </div>
         </div>
 
         {/* Sticky CTA móvil */}
