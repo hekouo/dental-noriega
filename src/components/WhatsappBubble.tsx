@@ -46,26 +46,28 @@ export default function WhatsappBubble() {
   };
 
   return (
-    <FAB offset={88}>
-      <a
-        href={whatsappUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={handleClick}
-        aria-label="Abrir chat de WhatsApp de Depósito Dental Noriega"
-        title="Abrir WhatsApp"
-        className={`h-14 w-14 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg flex items-center justify-center transition-all hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 ${isPulsing ? "animate-pulse-subtle" : ""}`}
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            handleClick();
-            window.open(whatsappUrl, "_blank", "noopener,noreferrer");
-          }
-        }}
-      >
-        <MessageCircle className="h-6 w-6" aria-hidden="true" />
-      </a>
-    </FAB>
+    <div className="md:hidden">
+      <FAB offset={88}>
+        <a
+          href={whatsappUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={handleClick}
+          aria-label="Abrir chat de WhatsApp de Depósito Dental Noriega"
+          title="Abrir WhatsApp"
+          className={`h-14 w-14 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg flex items-center justify-center transition-all hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 ${isPulsing ? "animate-pulse-subtle" : ""}`}
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              handleClick();
+              window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+            }
+          }}
+        >
+          <MessageCircle className="h-6 w-6" aria-hidden="true" />
+        </a>
+      </FAB>
+    </div>
   );
 }
