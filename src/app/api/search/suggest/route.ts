@@ -50,7 +50,29 @@ export async function GET(req: Request) {
       price_cents: item.price_cents ? Number(item.price_cents) : null,
     }));
 
-    return NextResponse.json<SuggestItem[]>(items, {
+    // Ranking ligero: reordenar por relevancia
+    const ranked = items.sort((a, b) => {
+      const aTitle = a.title.toLowerCase();
+      const bTitle = b.title.toLowerCase();
+      const qLower = q.toLowerCase();
+
+      // 1) title startsWith(q) tiene prioridad
+      const aStartsWith = aTitle.startsWith(qLower);
+      const bStartsWith = bTitle.startsWith(qLower);
+      if (aStartsWith && !bStartsWith) return -1;
+      if (!aStartsWith && bStartsWith) return 1;
+
+      // 2) title includes(q) tiene prioridad sobre otros
+      const aIncludes = aTitle.includes(qLower);
+      const bIncludes = bTitle.includes(qLower);
+      if (aIncludes && !bIncludes) return -1;
+      if (!aIncludes && bIncludes) return 1;
+
+      // 3) Fallback: orden alfabético estable
+      return aTitle.localeCompare(bTitle);
+    });
+
+    return NextResponse.json<SuggestItem[]>(ranked, {
       headers: {
         "Cache-Control": "public, max-age=30",
       },

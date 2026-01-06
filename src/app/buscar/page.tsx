@@ -21,6 +21,10 @@ import SectionHeader from "@/components/ui/SectionHeader";
 import { SITE_URL } from "@/lib/site";
 import QuickSearchBar from "@/components/search/QuickSearchBar";
 
+const BuscarClient = dynamicImport(() => import("./BuscarClient"), {
+  ssr: false,
+});
+
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
@@ -204,6 +208,9 @@ export default async function BuscarPage({ searchParams }: Props) {
 
       {/* Quick Search Bar */}
       <QuickSearchBar initialQuery={q} />
+
+      {/* Búsquedas recientes */}
+      <BuscarClient query={q} hasResults={items.length > 0} total={total} />
 
       {/* Cabecera mejorada */}
       <div>

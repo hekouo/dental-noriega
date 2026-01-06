@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import SearchAutocomplete from "./SearchAutocomplete.client";
+import RecentSearchChips from "./RecentSearchChips.client";
+import { addRecentSearch } from "./RecentSearchChips.client";
 
 const POPULAR_TERMS = [
   "guantes",
@@ -22,7 +24,13 @@ export default function QuickSearchBar({ initialQuery = "" }: QuickSearchBarProp
   const router = useRouter();
 
   const handleChipClick = (term: string) => {
+    addRecentSearch(term);
     router.push(`/buscar?q=${encodeURIComponent(term)}`);
+  };
+
+  const handleSearch = (query: string) => {
+    addRecentSearch(query);
+    router.push(`/buscar?q=${encodeURIComponent(query)}`);
   };
 
   return (
@@ -32,7 +40,13 @@ export default function QuickSearchBar({ initialQuery = "" }: QuickSearchBarProp
         <SearchAutocomplete
           placeholder="Buscar guantes, resina, brackets…"
           initialQuery={initialQuery}
+          onSearch={handleSearch}
         />
+      </div>
+
+      {/* Búsquedas recientes */}
+      <div className="mb-6">
+        <RecentSearchChips onSearch={handleSearch} />
       </div>
 
       {/* Chips populares */}
