@@ -50,6 +50,7 @@ const CartDevGuard = dynamic(() => import("@/components/CartDevGuard"), {
 });
 import { Footer } from "@/components/layout/Footer";
 import { TopInfoBar } from "@/components/layout/TopInfoBar";
+import { WhatsAppFloatingButton } from "@/components/support/WhatsAppFloatingButton";
 const FinalThanks = dynamic(() => import("@/components/FinalThanks"), {
   ssr: false,
 });
@@ -276,6 +277,7 @@ export default function RootLayout({
         <CartBubble />
         <WhatsappBubble />
         <CartSticky />
+        <WhatsAppFloatingButton />
 
         {/* Dev Guards */}
         <CheckoutDevGuard />
