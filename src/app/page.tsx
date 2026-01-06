@@ -11,6 +11,7 @@ import SectionHeader from "@/components/ui/SectionHeader";
 import { getWhatsAppUrl } from "@/lib/whatsapp/config";
 import { HelpWidget } from "@/components/support/HelpWidget";
 import { TrustBanners } from "@/components/marketing/TrustBanners";
+import SectionExplorer from "@/components/catalog/SectionExplorer";
 
 // Lazy load componentes no críticos
 const Testimonials = dynamicImport(() => import("@/components/ui/Testimonials"), {
@@ -172,6 +173,14 @@ export default async function HomePage() {
       {/* Trust Banners */}
       <div className="max-w-6xl mx-auto px-4 py-8 sm:py-12">
         <TrustBanners />
+      </div>
+
+      {/* Explorar por categorías */}
+      <div className="max-w-6xl mx-auto px-4 py-8 sm:py-12">
+        <SectionExplorer
+          title="Explora por categoría"
+          subtitle="Navega por nuestras categorías de productos"
+        />
       </div>
 
       {/* Productos Destacados */}
