@@ -1,13 +1,13 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Shield, Database, Users, Cookie, FileText, ExternalLink } from "lucide-react";
+import { FileText, DollarSign, CreditCard, Truck, RotateCcw, MessageCircle, ExternalLink } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Aviso de privacidad | Depósito Dental Noriega",
-  description: "Política de privacidad y protección de datos personales.",
+  title: "Términos y condiciones | Depósito Dental Noriega",
+  description: "Términos y condiciones de uso del sitio web y compra de productos.",
 };
 
-export default function PrivacidadPage() {
+export default function TerminosPage() {
   const lastUpdated = "Enero 2025";
 
   return (
@@ -16,163 +16,15 @@ export default function PrivacidadPage() {
       <section className="bg-gradient-to-br from-primary-600 via-primary-700 to-primary-800 text-white py-12 sm:py-16">
         <div className="max-w-4xl mx-auto px-4 text-center">
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-4">
-            Aviso de privacidad
+            Términos y condiciones
           </h1>
           <p className="text-lg sm:text-xl text-primary-100 mb-8 max-w-2xl mx-auto">
-            Protegemos tu información personal y respetamos tu privacidad
+            Condiciones de uso del sitio web y compra de productos
           </p>
         </div>
       </section>
 
-      {/* Datos que recopilamos */}
-      <section className="py-12 sm:py-16 px-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-card border border-border rounded-2xl p-6 sm:p-8 shadow-sm">
-            <div className="flex items-start gap-4 mb-6">
-              <div className="flex-shrink-0 w-12 h-12 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center">
-                <Database className="w-6 h-6 text-primary-600 dark:text-primary-400" />
-              </div>
-              <div>
-                <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-4">
-                  Datos que recopilamos
-                </h2>
-                <p className="text-muted-foreground leading-relaxed mb-4">
-                  Cuando realizas una consulta o pedido, podemos recopilar la siguiente información:
-                </p>
-                <ul className="space-y-2 text-muted-foreground">
-                  <li className="flex items-start gap-2">
-                    <span className="text-primary-600 dark:text-primary-400 mt-1">•</span>
-                    <span><strong>Datos de identificación:</strong> Nombre completo</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-primary-600 dark:text-primary-400 mt-1">•</span>
-                    <span><strong>Datos de contacto:</strong> Correo electrónico y número de teléfono</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-primary-600 dark:text-primary-400 mt-1">•</span>
-                    <span><strong>Datos de entrega:</strong> Dirección completa (calle, número, colonia, código postal, ciudad, estado)</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-primary-600 dark:text-primary-400 mt-1">•</span>
-                    <span><strong>Datos de facturación:</strong> Razón social, RFC y dirección fiscal (si solicitas factura)</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-primary-600 dark:text-primary-400 mt-1">•</span>
-                    <span><strong>Datos de pedidos:</strong> Historial de compras y preferencias</span>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Para qué se usan */}
-      <section className="py-12 sm:py-16 px-4 bg-muted/30">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-card border border-border rounded-2xl p-6 sm:p-8 shadow-sm">
-            <div className="flex items-start gap-4 mb-6">
-              <div className="flex-shrink-0 w-12 h-12 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center">
-                <Users className="w-6 h-6 text-primary-600 dark:text-primary-400" />
-              </div>
-              <div>
-                <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-4">
-                  Para qué se usan
-                </h2>
-                <p className="text-muted-foreground leading-relaxed mb-4">
-                  Utilizamos tu información personal únicamente para los siguientes fines:
-                </p>
-                <ul className="space-y-2 text-muted-foreground">
-                  <li className="flex items-start gap-2">
-                    <span className="text-primary-600 dark:text-primary-400 mt-1">•</span>
-                    <span><strong>Procesamiento de pedidos:</strong> Para procesar, confirmar y entregar tus compras</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-primary-600 dark:text-primary-400 mt-1">•</span>
-                    <span><strong>Soporte al cliente:</strong> Para responder tus consultas y brindarte asistencia</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-primary-600 dark:text-primary-400 mt-1">•</span>
-                    <span><strong>Facturación:</strong> Para generar facturas electrónicas cuando las solicitas</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-primary-600 dark:text-primary-400 mt-1">•</span>
-                    <span><strong>Comunicaciones:</strong> Para enviarte confirmaciones de pedido, guías de rastreo y actualizaciones</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-primary-600 dark:text-primary-400 mt-1">•</span>
-                    <span><strong>Mejora del servicio:</strong> Para analizar tendencias y mejorar nuestros productos y servicios</span>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Terceros */}
-      <section className="py-12 sm:py-16 px-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-card border border-border rounded-2xl p-6 sm:p-8 shadow-sm">
-            <div className="flex items-start gap-4 mb-6">
-              <div className="flex-shrink-0 w-12 h-12 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center">
-                <Shield className="w-6 h-6 text-primary-600 dark:text-primary-400" />
-              </div>
-              <div>
-                <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-4">
-                  Compartir con terceros
-                </h2>
-                <p className="text-muted-foreground leading-relaxed mb-4">
-                  Compartimos tu información únicamente con terceros necesarios para completar tu pedido:
-                </p>
-                <ul className="space-y-2 text-muted-foreground">
-                  <li className="flex items-start gap-2">
-                    <span className="text-primary-600 dark:text-primary-400 mt-1">•</span>
-                    <span><strong>Procesadores de pago:</strong> Stripe y otras plataformas de pago para procesar transacciones de forma segura</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-primary-600 dark:text-primary-400 mt-1">•</span>
-                    <span><strong>Paqueterías:</strong> Servicios de mensajería y logística para entregar tus pedidos</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-primary-600 dark:text-primary-400 mt-1">•</span>
-                    <span><strong>Analytics:</strong> Herramientas de análisis web para mejorar la experiencia del sitio (datos agregados y anónimos)</span>
-                  </li>
-                </ul>
-                <p className="text-muted-foreground leading-relaxed mt-4">
-                  Todos nuestros proveedores están comprometidos con la protección de datos y cumplen con estándares de seguridad.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Cookies y analytics */}
-      <section className="py-12 sm:py-16 px-4 bg-muted/30">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-card border border-border rounded-2xl p-6 sm:p-8 shadow-sm">
-            <div className="flex items-start gap-4 mb-6">
-              <div className="flex-shrink-0 w-12 h-12 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center">
-                <Cookie className="w-6 h-6 text-primary-600 dark:text-primary-400" />
-              </div>
-              <div>
-                <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-4">
-                  Cookies y analytics
-                </h2>
-                <p className="text-muted-foreground leading-relaxed mb-4">
-                  Utilizamos cookies esenciales para el funcionamiento del sitio web y para guardar tu carrito de compras localmente en tu navegador. También utilizamos herramientas de analytics para entender cómo los usuarios interactúan con nuestro sitio y mejorar la experiencia.
-                </p>
-                <p className="text-muted-foreground leading-relaxed">
-                  Puedes configurar tu navegador para rechazar cookies, aunque esto puede afectar algunas funcionalidades del sitio.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Derechos del usuario */}
+      {/* Uso del sitio */}
       <section className="py-12 sm:py-16 px-4">
         <div className="max-w-4xl mx-auto">
           <div className="bg-card border border-border rounded-2xl p-6 sm:p-8 shadow-sm">
@@ -182,31 +34,162 @@ export default function PrivacidadPage() {
               </div>
               <div>
                 <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-4">
-                  Tus derechos
+                  Uso del sitio
                 </h2>
                 <p className="text-muted-foreground leading-relaxed mb-4">
-                  Tienes derecho a:
+                  Al acceder y utilizar este sitio web, aceptas cumplir con estos términos y condiciones. El sitio es operado por Depósito Dental Noriega y tiene como objeto la comercialización de insumos y equipos dentales.
                 </p>
-                <ul className="space-y-2 text-muted-foreground mb-4">
+                <p className="text-muted-foreground leading-relaxed">
+                  Te comprometes a utilizar el sitio de manera legal y responsable, sin realizar actividades que puedan dañar, deshabilitar o sobrecargar el sitio o interferir con el uso de otros usuarios.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Precios e inventario */}
+      <section className="py-12 sm:py-16 px-4 bg-muted/30">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-card border border-border rounded-2xl p-6 sm:p-8 shadow-sm">
+            <div className="flex items-start gap-4 mb-6">
+              <div className="flex-shrink-0 w-12 h-12 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center">
+                <DollarSign className="w-6 h-6 text-primary-600 dark:text-primary-400" />
+              </div>
+              <div>
+                <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-4">
+                  Precios e inventario
+                </h2>
+                <p className="text-muted-foreground leading-relaxed mb-4">
+                  Todos los precios están expresados en pesos mexicanos (MXN) e incluyen IVA cuando aplica. Los precios y la disponibilidad de productos pueden cambiar sin previo aviso.
+                </p>
+                <p className="text-muted-foreground leading-relaxed mb-4">
+                  Nos reservamos el derecho de corregir errores en precios o disponibilidad. Si detectamos un error después de que hayas realizado un pedido, te notificaremos y te ofreceremos la opción de:
+                </p>
+                <ul className="space-y-2 text-muted-foreground">
                   <li className="flex items-start gap-2">
                     <span className="text-primary-600 dark:text-primary-400 mt-1">•</span>
-                    <span>Acceder a tus datos personales</span>
+                    <span>Confirmar tu pedido al precio correcto</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-primary-600 dark:text-primary-400 mt-1">•</span>
-                    <span>Rectificar datos inexactos o incompletos</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-primary-600 dark:text-primary-400 mt-1">•</span>
-                    <span>Cancelar tus datos cuando consideres que no son necesarios</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-primary-600 dark:text-primary-400 mt-1">•</span>
-                    <span>Oponerte al tratamiento de tus datos para fines específicos</span>
+                    <span>Cancelar tu pedido sin costo alguno</span>
                   </li>
                 </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Pedidos y pagos */}
+      <section className="py-12 sm:py-16 px-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-card border border-border rounded-2xl p-6 sm:p-8 shadow-sm">
+            <div className="flex items-start gap-4 mb-6">
+              <div className="flex-shrink-0 w-12 h-12 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center">
+                <CreditCard className="w-6 h-6 text-primary-600 dark:text-primary-400" />
+              </div>
+              <div>
+                <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-4">
+                  Pedidos y pagos
+                </h2>
+                <p className="text-muted-foreground leading-relaxed mb-4">
+                  Al realizar un pedido, realizas una oferta de compra. Nos reservamos el derecho de aceptar o rechazar cualquier pedido. Una vez que aceptamos tu pedido y se confirma el pago, recibirás una confirmación por correo electrónico.
+                </p>
+                <p className="text-muted-foreground leading-relaxed mb-4">
+                  Aceptamos los siguientes métodos de pago:
+                </p>
+                <ul className="space-y-2 text-muted-foreground">
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary-600 dark:text-primary-400 mt-1">•</span>
+                    <span><strong>Tarjeta de crédito o débito:</strong> Procesadas de forma segura a través de Stripe</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary-600 dark:text-primary-400 mt-1">•</span>
+                    <span><strong>Transferencia bancaria:</strong> Para pedidos mayores, puedes solicitar los datos bancarios</span>
+                  </li>
+                </ul>
+                <p className="text-muted-foreground leading-relaxed mt-4">
+                  Puedes cancelar tu pedido antes de que sea procesado contactándonos por WhatsApp o a través de nuestra página de <Link href="/contacto" className="text-primary-600 dark:text-primary-400 hover:underline font-medium">contacto</Link>.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Envíos */}
+      <section className="py-12 sm:py-16 px-4 bg-muted/30">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-card border border-border rounded-2xl p-6 sm:p-8 shadow-sm">
+            <div className="flex items-start gap-4 mb-6">
+              <div className="flex-shrink-0 w-12 h-12 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center">
+                <Truck className="w-6 h-6 text-primary-600 dark:text-primary-400" />
+              </div>
+              <div>
+                <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-4">
+                  Envíos
+                </h2>
+                <p className="text-muted-foreground leading-relaxed mb-4">
+                  Coordinamos el envío de tu pedido una vez confirmado el pago. Los tiempos y costos de envío se informan durante el proceso de compra antes de finalizar tu pedido.
+                </p>
+                <p className="text-muted-foreground leading-relaxed mb-4">
+                  Realizamos envíos a todo México a través de paqueterías confiables. Una vez despachado tu pedido, recibirás la guía de rastreo por correo electrónico y por WhatsApp.
+                </p>
                 <p className="text-muted-foreground leading-relaxed">
-                  Para ejercer estos derechos, contáctanos a través de nuestra página de <Link href="/contacto" className="text-primary-600 dark:text-primary-400 hover:underline font-medium">contacto</Link> o por WhatsApp.
+                  Para más información sobre envíos, consulta nuestra página de <Link href="/envios" className="text-primary-600 dark:text-primary-400 hover:underline font-medium">envíos</Link>.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Devoluciones y garantías */}
+      <section className="py-12 sm:py-16 px-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-card border border-border rounded-2xl p-6 sm:p-8 shadow-sm">
+            <div className="flex items-start gap-4 mb-6">
+              <div className="flex-shrink-0 w-12 h-12 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center">
+                <RotateCcw className="w-6 h-6 text-primary-600 dark:text-primary-400" />
+              </div>
+              <div>
+                <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-4">
+                  Devoluciones y garantías
+                </h2>
+                <p className="text-muted-foreground leading-relaxed mb-4">
+                  Todos los productos son nuevos y provienen directamente de fabricantes o distribuidores autorizados. Si recibes un producto defectuoso, incorrecto o incompleto, contáctanos inmediatamente.
+                </p>
+                <p className="text-muted-foreground leading-relaxed mb-4">
+                  Aceptamos devoluciones dentro de los primeros 15 días posteriores a la recepción, siempre que el producto esté en su empaque original y sin uso. Los costos de envío de devoluciones corren por cuenta del cliente, salvo que el producto sea defectuoso o no corresponda al pedido realizado.
+                </p>
+                <p className="text-muted-foreground leading-relaxed">
+                  Para más información sobre nuestra política de devoluciones, consulta nuestra página de <Link href="/devoluciones" className="text-primary-600 dark:text-primary-400 hover:underline font-medium">devoluciones y garantías</Link>.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Contacto */}
+      <section className="py-12 sm:py-16 px-4 bg-muted/30">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-card border border-border rounded-2xl p-6 sm:p-8 shadow-sm">
+            <div className="flex items-start gap-4 mb-6">
+              <div className="flex-shrink-0 w-12 h-12 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center">
+                <MessageCircle className="w-6 h-6 text-primary-600 dark:text-primary-400" />
+              </div>
+              <div>
+                <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-4">
+                  Contacto
+                </h2>
+                <p className="text-muted-foreground leading-relaxed mb-4">
+                  Si tienes preguntas sobre estos términos y condiciones, o sobre cualquier aspecto de nuestros productos o servicios, contáctanos a través de nuestra página de <Link href="/contacto" className="text-primary-600 dark:text-primary-400 hover:underline font-medium">contacto</Link> o por WhatsApp.
+                </p>
+                <p className="text-muted-foreground leading-relaxed">
+                  Estamos disponibles de lunes a viernes de 9:00 a 18:00 horas para atenderte.
                 </p>
               </div>
             </div>
@@ -215,7 +198,7 @@ export default function PrivacidadPage() {
       </section>
 
       {/* Última actualización */}
-      <section className="py-12 sm:py-16 px-4 bg-muted/30">
+      <section className="py-12 sm:py-16 px-4">
         <div className="max-w-4xl mx-auto text-center">
           <p className="text-sm text-muted-foreground">
             Última actualización: {lastUpdated}
@@ -224,7 +207,7 @@ export default function PrivacidadPage() {
       </section>
 
       {/* Links útiles */}
-      <section className="py-12 sm:py-16 px-4">
+      <section className="py-12 sm:py-16 px-4 bg-muted/30">
         <div className="max-w-4xl mx-auto">
           <h2 className="text-2xl sm:text-3xl font-bold text-foreground text-center mb-8">
             Links útiles
@@ -271,3 +254,4 @@ export default function PrivacidadPage() {
     </div>
   );
 }
+
