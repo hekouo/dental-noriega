@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Search, Loader2, X } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
 import { formatMXN } from "@/lib/utils/money";
+import { trackSearchEvent } from "@/lib/telemetry/searchTelemetry";
 
 type SuggestItem = {
   id: string;
@@ -121,20 +122,35 @@ export default function SearchAutocomplete({
   // Navegar a producto
   const navigateToProduct = useCallback(
     (item: SuggestItem) => {
+      // Telemetría: track click en sugerencia
+      trackSearchEvent("search_suggestion_click", {
+        query: query.trim(),
+        productId: item.id,
+        slug: item.slug,
+      });
+
       router.push(ROUTES.product(item.section_slug, item.slug));
       setIsOpen(false);
       setQuery(item.title);
     },
-    [router],
+    [router, query],
   );
 
   // Navegar a búsqueda
   const navigateToSearch = useCallback(
     (searchQuery: string) => {
+      const trimmedQuery = searchQuery.trim();
+      if (!trimmedQuery) return;
+
+      // Telemetría: track submit de búsqueda
+      trackSearchEvent("search_submit", {
+        query: trimmedQuery,
+      });
+
       if (onSearch) {
-        onSearch(searchQuery);
+        onSearch(trimmedQuery);
       } else {
-        router.push(`/buscar?q=${encodeURIComponent(searchQuery.trim())}`);
+        router.push(`/buscar?q=${encodeURIComponent(trimmedQuery)}`);
       }
       setIsOpen(false);
     },
@@ -300,8 +316,7 @@ export default function SearchAutocomplete({
                   <Link
                     href={ROUTES.product(item.section_slug, item.slug)}
                     onClick={() => {
-                      setIsOpen(false);
-                      setQuery(item.title);
+                      navigateToProduct(item);
                     }}
                     id={`suggestion-${index}`}
                     className={`block px-4 py-3 hover:bg-muted transition-colors duration-150 ${
