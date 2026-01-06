@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search } from "lucide-react";
+import SearchAutocomplete from "./SearchAutocomplete.client";
 
 const POPULAR_TERMS = [
   "guantes",
@@ -21,16 +20,6 @@ type QuickSearchBarProps = {
 
 export default function QuickSearchBar({ initialQuery = "" }: QuickSearchBarProps) {
   const router = useRouter();
-  const [query, setQuery] = useState(initialQuery);
-
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (query.trim()) {
-      router.push(`/buscar?q=${encodeURIComponent(query.trim())}`);
-    } else {
-      router.push("/buscar");
-    }
-  };
 
   const handleChipClick = (term: string) => {
     router.push(`/buscar?q=${encodeURIComponent(term)}`);
@@ -38,25 +27,13 @@ export default function QuickSearchBar({ initialQuery = "" }: QuickSearchBarProp
 
   return (
     <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">
-      {/* Input de búsqueda */}
-      <form onSubmit={handleSubmit} className="mb-6">
-        <div className="relative">
-          <Search
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
-            size={20}
-            aria-hidden="true"
-          />
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar guantes, resina, brackets…"
-            autoComplete="off"
-            className="w-full min-h-[44px] pl-10 pr-4 py-3 border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
-            aria-label="Buscar productos"
-          />
-        </div>
-      </form>
+      {/* Input de búsqueda con autocompletado */}
+      <div className="mb-6">
+        <SearchAutocomplete
+          placeholder="Buscar guantes, resina, brackets…"
+          initialQuery={initialQuery}
+        />
+      </div>
 
       {/* Chips populares */}
       <div>
