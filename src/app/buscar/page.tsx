@@ -3,7 +3,7 @@ import React from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
 import dynamicImport from "next/dynamic";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, MessageCircle } from "lucide-react";
 import SearchResultCard from "@/components/SearchResultCard";
 import { ROUTES } from "@/lib/routes";
 import { getWhatsAppUrl } from "@/lib/whatsapp/config";
@@ -19,6 +19,7 @@ import { getFeaturedItems } from "@/lib/catalog/getFeatured.server";
 import FeaturedGrid from "@/components/FeaturedGrid";
 import SectionHeader from "@/components/ui/SectionHeader";
 import { SITE_URL } from "@/lib/site";
+import QuickSearchBar from "@/components/search/QuickSearchBar";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -102,19 +103,12 @@ export default async function BuscarPage({ searchParams }: Props) {
   if (!q) {
     return (
       <section className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold mb-2 text-gray-900">
-            Buscar productos
-          </h1>
-          <p className="text-sm text-slate-600 mb-6">
-            Escribe el nombre del producto, marca o categoría que necesitas.
-          </p>
-          <SearchInput sticky />
-        </div>
+        {/* Quick Search Bar */}
+        <QuickSearchBar />
 
         {/* Búsquedas populares */}
-        <div className="mt-10">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+        <div className="mt-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-foreground mb-4">
             Búsquedas populares
           </h2>
           <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar scroll-smooth">
@@ -122,7 +116,7 @@ export default async function BuscarPage({ searchParams }: Props) {
               <Link
                 key={search}
                 href={`/buscar?q=${encodeURIComponent(search)}`}
-                className="flex-shrink-0 px-4 py-2 bg-white border border-gray-300 rounded-full text-sm text-gray-700 hover:bg-primary-50 hover:border-primary-500 hover:text-primary-700 transition-all duration-200 active:scale-95 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1"
+                className="flex-shrink-0 px-4 py-2 bg-white dark:bg-card border border-gray-300 dark:border-border rounded-full text-sm text-gray-700 dark:text-foreground hover:bg-primary-50 dark:hover:bg-primary-900/30 hover:border-primary-500 dark:hover:border-primary-500 hover:text-primary-700 dark:hover:text-primary-400 transition-all duration-200 active:scale-95 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1"
               >
                 {search}
               </Link>
@@ -132,7 +126,7 @@ export default async function BuscarPage({ searchParams }: Props) {
 
         {/* Categorías */}
         <div className="mt-8">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-foreground mb-4">
             Explorar por categoría
           </h2>
           <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar scroll-smooth">
@@ -140,7 +134,7 @@ export default async function BuscarPage({ searchParams }: Props) {
               <Link
                 key={category.slug}
                 href={ROUTES.section(category.slug)}
-                className="flex-shrink-0 px-4 py-2 bg-primary-50 border border-primary-200 rounded-full text-sm text-primary-700 hover:bg-primary-100 hover:border-primary-400 transition-all duration-200 active:scale-95 font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1"
+                className="flex-shrink-0 px-4 py-2 bg-primary-50 dark:bg-primary-900/30 border border-primary-200 dark:border-primary-700 rounded-full text-sm text-primary-700 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/50 hover:border-primary-400 dark:hover:border-primary-600 transition-all duration-200 active:scale-95 font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1"
               >
                 {category.name}
               </Link>
@@ -208,13 +202,16 @@ export default async function BuscarPage({ searchParams }: Props) {
       {/* Analytics tracking */}
       {total > 0 && <SearchTracker query={q} resultsCount={total} />}
 
+      {/* Quick Search Bar */}
+      <QuickSearchBar initialQuery={q} />
+
       {/* Cabecera mejorada */}
       <div>
-        <h1 className="text-xl sm:text-2xl font-semibold mb-2 text-gray-900">
+        <h1 className="text-xl sm:text-2xl font-semibold mb-2 text-gray-900 dark:text-foreground">
           {q ? `Resultados para "${q}"` : "Buscar productos"}
         </h1>
         <div className="flex items-center justify-between mb-4">
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-slate-600 dark:text-muted-foreground">
             {total > 0
               ? `Mostrando ${total} producto${total !== 1 ? "s" : ""}`
               : ""}
@@ -282,9 +279,9 @@ export default async function BuscarPage({ searchParams }: Props) {
             
             {/* Chips con sugerencias */}
             <div className="mb-8">
-              <p className="text-xs text-muted-foreground mb-3">Sugerencias:</p>
+              <p className="text-xs text-muted-foreground mb-3 font-medium">Sugerencias:</p>
               <div className="flex flex-wrap gap-2 justify-center">
-                {["guantes", "brackets", "resina", "anestesia", "algodon"].map((suggestion) => (
+                {["guantes", "brackets", "resina", "anestesia", "algodon", "mascarillas", "ácido grabador", "limas"].map((suggestion) => (
                   <Link
                     key={suggestion}
                     href={`/buscar?q=${encodeURIComponent(suggestion)}`}
