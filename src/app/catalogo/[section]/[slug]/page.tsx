@@ -12,7 +12,7 @@ import RecentlyViewedTracker from "@/components/catalog/RecentlyViewedTracker.cl
 import RecentlyViewed from "@/components/catalog/RecentlyViewed.client";
 import { ROUTES } from "@/lib/routes";
 import { SITE } from "@/lib/site";
-import PdpRelatedSection from "./PdpRelatedSection";
+import RelatedProducts from "@/components/pdp/RelatedProducts";
 import { FREE_SHIPPING_THRESHOLD_MXN } from "@/lib/shipping/freeShipping";
 import Breadcrumbs from "@/components/pdp/Breadcrumbs";
 import ShareProductButton from "@/components/pdp/ShareProductButton.client";
@@ -488,9 +488,10 @@ export default async function ProductDetailPage({ params }: Props) {
           </div>
 
           {/* Productos relacionados */}
-          <PdpRelatedSection
-            section={product.section}
-            currentProductId={product.id}
+          <RelatedProducts
+            currentId={product.id}
+            sectionSlug={product.section}
+            limit={8}
           />
 
           {/* Productos vistos recientemente */}
