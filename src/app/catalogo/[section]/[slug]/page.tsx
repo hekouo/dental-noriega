@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { getProduct } from "@/lib/catalog/getProduct.server";
 import { getProductImages } from "@/lib/catalog/getProductImages.server";
 import { sortProductImages } from "@/lib/catalog/sortProductImages";
-import ProductGallery from "@/components/pdp/ProductGallery";
+import ProductGallery from "@/components/pdp/ProductGallery.client";
 import ProductActions from "@/components/product/ProductActions.client";
 import ProductViewTracker from "@/components/ProductViewTracker.client";
 import PdpStickyCTA from "@/components/pdp/PdpStickyCTA.client";
@@ -14,7 +14,8 @@ import { ROUTES } from "@/lib/routes";
 import { SITE } from "@/lib/site";
 import PdpRelatedSection from "./PdpRelatedSection";
 import { FREE_SHIPPING_THRESHOLD_MXN } from "@/lib/shipping/freeShipping";
-import Breadcrumbs from "@/components/navigation/Breadcrumbs";
+import Breadcrumbs from "@/components/pdp/Breadcrumbs";
+import ShareProductButton from "@/components/pdp/ShareProductButton.client";
 import FreeShippingProgressPDP from "@/components/cart/FreeShippingProgressPDP";
 import ProductLoyaltyInfo from "@/components/pdp/ProductLoyaltyInfo";
 import TrustBadgesPDP from "@/components/pdp/TrustBadgesPDP";
@@ -189,23 +190,17 @@ export default async function ProductDetailPage({ params }: Props) {
         <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
           <div className="max-w-6xl mx-auto px-4 py-3">
             <Breadcrumbs
-              items={[
-                { href: ROUTES.home(), label: "Inicio" },
-                { href: ROUTES.catalogIndex(), label: "Catálogo" },
-                {
-                  href: ROUTES.section(product.section),
-                  label: sectionLabel,
-                },
-                { label: product.title },
-              ]}
+              sectionSlug={product.section}
+              sectionName={sectionLabel}
+              productTitle={product.title}
             />
           </div>
         </div>
 
         <div className="max-w-6xl mx-auto px-4 py-6 sm:py-8">
           <div className="grid lg:grid-cols-2 gap-6 sm:gap-8">
-            {/* Galería de imágenes */}
-            <div className="space-y-4">
+            {/* Galería de imágenes - Sticky en desktop */}
+            <div className="lg:sticky lg:top-24 lg:self-start space-y-4">
               <ProductGallery
                 images={sortedImages}
                 title={product.title}
@@ -216,12 +211,18 @@ export default async function ProductDetailPage({ params }: Props) {
             {/* Información del producto */}
             <div className="space-y-4 sm:space-y-6">
               <div>
-                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 dark:text-white mb-2">
-                  {product.title}
-                </h1>
-                <p className="text-base sm:text-lg text-gray-600 dark:text-gray-400 capitalize">
-                  {product.section.replace(/-/g, " ")}
-                </p>
+                <div className="flex items-start justify-between gap-4 mb-2">
+                  <div className="flex-1">
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 dark:text-white mb-2">
+                      {product.title}
+                    </h1>
+                    <p className="text-base sm:text-lg text-gray-600 dark:text-gray-400 capitalize">
+                      {product.section.replace(/-/g, " ")}
+                    </p>
+                  </div>
+                  {/* Botón compartir */}
+                  <ShareProductButton />
+                </div>
               </div>
 
               {/* Precio y disponibilidad */}
