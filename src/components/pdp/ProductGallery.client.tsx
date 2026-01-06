@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { ZoomIn } from "lucide-react";
 import { normalizeImageUrl } from "@/lib/img/normalizeImageUrl";
+import ProductLightbox from "./ProductLightbox.client";
 
 type ProductImage = {
   url: string;
@@ -17,6 +19,7 @@ type Props = {
 
 export default function ProductGallery({ images, title, fallbackImage }: Props) {
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 
   // Si no hay imágenes, usar fallback
   const displayImages =
@@ -36,8 +39,13 @@ export default function ProductGallery({ images, title, fallbackImage }: Props) 
     setSelectedIndex(index);
   };
 
+  const handleImageClick = () => {
+    setIsLightboxOpen(true);
+  };
+
   const currentImage = displayImages[selectedIndex];
   const normalizedUrl = normalizeImageUrl(currentImage.url, 800);
+  const lightboxImages = displayImages.map((img) => img.url);
 
   return (
     <div className="space-y-4">
@@ -77,16 +85,29 @@ export default function ProductGallery({ images, title, fallbackImage }: Props) 
         )}
 
         {/* Imagen principal */}
-        <div className="relative flex-1 aspect-square bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-sm">
-          <Image
-            src={normalizedUrl}
-            alt={`${title} - Imagen ${selectedIndex + 1}`}
-            width={800}
-            height={800}
-            className="w-full h-full object-contain"
-            sizes="(max-width: 1024px) 100vw, 50vw"
-            priority={selectedIndex === 0}
-          />
+        <div className="relative flex-1 aspect-square bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-sm group cursor-pointer">
+          <button
+            type="button"
+            onClick={handleImageClick}
+            className="w-full h-full focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded-lg"
+            aria-label={`Ver imagen ${selectedIndex + 1} en pantalla completa`}
+          >
+            <Image
+              src={normalizedUrl}
+              alt={`${title} - Imagen ${selectedIndex + 1}`}
+              width={800}
+              height={800}
+              className="w-full h-full object-contain"
+              sizes="(max-width: 1024px) 100vw, 50vw"
+              priority={selectedIndex === 0}
+            />
+          </button>
+          {/* Botón zoom discreto (desktop) */}
+          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="bg-black/50 dark:bg-black/70 text-white rounded-full p-2">
+              <ZoomIn size={20} aria-hidden="true" />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -94,15 +115,22 @@ export default function ProductGallery({ images, title, fallbackImage }: Props) 
       <div className="lg:hidden space-y-4">
         {/* Imagen principal */}
         <div className="relative w-full aspect-square bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-sm">
-          <Image
-            src={normalizedUrl}
-            alt={`${title} - Imagen ${selectedIndex + 1}`}
-            width={800}
-            height={800}
-            className="w-full h-full object-contain"
-            sizes="100vw"
-            priority={selectedIndex === 0}
-          />
+          <button
+            type="button"
+            onClick={handleImageClick}
+            className="w-full h-full focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded-lg"
+            aria-label={`Ver imagen ${selectedIndex + 1} en pantalla completa`}
+          >
+            <Image
+              src={normalizedUrl}
+              alt={`${title} - Imagen ${selectedIndex + 1}`}
+              width={800}
+              height={800}
+              className="w-full h-full object-contain"
+              sizes="100vw"
+              priority={selectedIndex === 0}
+            />
+          </button>
 
           {/* Indicador de imagen actual */}
           {displayImages.length > 1 && (
@@ -147,6 +175,16 @@ export default function ProductGallery({ images, title, fallbackImage }: Props) 
           </div>
         )}
       </div>
+
+      {/* Lightbox */}
+      <ProductLightbox
+        open={isLightboxOpen}
+        onOpenChange={setIsLightboxOpen}
+        images={lightboxImages}
+        activeIndex={selectedIndex}
+        onActiveIndexChange={setSelectedIndex}
+        alt={title}
+      />
     </div>
   );
 }
