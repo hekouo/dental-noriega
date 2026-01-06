@@ -90,15 +90,31 @@ export function Footer() {
             </p>
           </div>
 
-          {/* Información adicional */}
+          {/* Información adicional y Legal */}
           <div>
             <h3 className="font-semibold text-foreground mb-4">Depósito Dental Noriega</h3>
             <p className="text-sm text-muted-foreground leading-relaxed mb-4">
               Insumos dentales de calidad para consultorios, clínicas y ortodoncistas en México.
             </p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground mb-6">
               Envíos a todo el país. Atención personalizada.
             </p>
+
+            <h3 className="font-semibold text-foreground mb-4">Legal</h3>
+            <nav className="flex flex-col space-y-2">
+              <Link
+                href="/privacidad"
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Aviso de privacidad
+              </Link>
+              <Link
+                href="/terminos"
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Términos y condiciones
+              </Link>
+            </nav>
           </div>
         </div>
 
