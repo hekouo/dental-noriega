@@ -45,6 +45,12 @@ export function Footer() {
                 Facturación
               </Link>
               <Link
+                href="/devoluciones"
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Devoluciones
+              </Link>
+              <Link
                 href="/contacto"
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
