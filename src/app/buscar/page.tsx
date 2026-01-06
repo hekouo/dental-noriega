@@ -277,9 +277,19 @@ export default async function BuscarPage({ searchParams }: Props) {
               Prueba otra búsqueda o escríbenos y lo conseguimos.
             </p>
             
+            {/* Sugerencias de texto */}
+            <div className="mb-6 bg-muted/50 rounded-lg p-4 text-left max-w-lg mx-auto">
+              <p className="text-xs font-semibold text-foreground mb-2">💡 Sugerencias para mejorar tu búsqueda:</p>
+              <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
+                <li>Prueba con una palabra más general (ej: "guantes" en lugar de "guantes de nitrilo azul")</li>
+                <li>Revisa la ortografía o usa sinónimos</li>
+                <li>Busca por categoría o marca</li>
+              </ul>
+            </div>
+            
             {/* Chips con sugerencias */}
             <div className="mb-8">
-              <p className="text-xs text-muted-foreground mb-3 font-medium">Sugerencias:</p>
+              <p className="text-xs text-muted-foreground mb-3 font-medium">Búsquedas populares:</p>
               <div className="flex flex-wrap gap-2 justify-center">
                 {["guantes", "brackets", "resina", "anestesia", "algodon", "mascarillas", "ácido grabador", "limas"].map((suggestion) => (
                   <Link
@@ -323,19 +333,25 @@ export default async function BuscarPage({ searchParams }: Props) {
           </div>
 
           {/* Productos destacados cuando no hay resultados */}
-          {filteredFeatured.length > 0 && (
-            <div className="mt-12">
-              <SectionHeader
-                title="Te recomendamos estos productos destacados"
-                subtitle="Productos que podrían interesarte"
-              />
+          <div className="mt-12">
+            <SectionHeader
+              title="Te recomendamos estos productos destacados"
+              subtitle="Productos que podrían interesarte"
+            />
+            {filteredFeatured.length > 0 ? (
               <FeaturedGrid
                 items={filteredFeatured.slice(0, 8)}
                 source="search_no_results"
                 query={q}
               />
-            </div>
-          )}
+            ) : (
+              <FeaturedGrid
+                items={featuredItems.slice(0, 8)}
+                source="search_no_results"
+                query={q}
+              />
+            )}
+          </div>
         </>
       )}
 
