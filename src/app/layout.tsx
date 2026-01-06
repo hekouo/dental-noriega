@@ -2,7 +2,6 @@
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
-import { Suspense } from "react";
 import { Inter } from "next/font/google";
 import Script from "next/script";
 import dynamic from "next/dynamic";
@@ -34,9 +33,14 @@ import {
 import Providers from "./providers";
 import { HeaderWithScrollEffect } from "@/components/header/HeaderWithScrollEffect";
 import { DarkModeToggle } from "@/components/header/DarkModeToggle";
-const NavbarSearch = dynamic(() => import("@/components/NavbarSearch"), {
-  ssr: false,
-});
+const HeaderSearchBar = dynamic(
+  () => import("@/components/header/HeaderSearchBar.client"),
+  { ssr: false },
+);
+const HeaderSearchMobile = dynamic(
+  () => import("@/components/header/HeaderSearchMobile.client"),
+  { ssr: false },
+);
 
 // ConsultarDrawer removido - ya no se usa
 const CheckoutDevGuard = dynamic(
@@ -215,11 +219,7 @@ export default function RootLayout({
 
               {/* Buscador desktop */}
               <div className="hidden md:block">
-                <Suspense
-                  fallback={<div className="flex-1 max-w-md min-h-[44px]" />}
-                >
-                  <NavbarSearch />
-                </Suspense>
+                <HeaderSearchBar />
               </div>
 
               <div className="flex items-center gap-4 text-sm">
@@ -255,17 +255,13 @@ export default function RootLayout({
                 {/* Dark mode toggle */}
                 <DarkModeToggle />
 
+                {/* Búsqueda móvil (botón) */}
+                <HeaderSearchMobile />
+
                 {/* Menú de cuenta con muela 3D */}
                 <ToothAccountMenu />
               </div>
             </nav>
-
-            {/* Buscador móvil */}
-            <div className="md:hidden px-4 pb-3">
-              <Suspense fallback={<div className="min-h-[44px]" />}>
-                <NavbarSearch />
-              </Suspense>
-            </div>
           </HeaderWithScrollEffect>
 
         <main className="max-w-6xl mx-auto p-4 flex-1 w-full pb-24 md:pb-safe">
