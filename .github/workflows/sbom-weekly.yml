@@ -17,16 +17,27 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Cache Syft para reducir descargas y flakiness
+      - name: Cache Syft
+        uses: actions/cache@v4
+        with:
+          path: /opt/hostedtoolcache/syft
+          key: syft-${{ runner.os }}-1.38.2
+          restore-keys: |
+            syft-${{ runner.os }}-
+
       - name: Generate SBOM (SPDX JSON)
+        id: generate-sbom
         uses: anchore/sbom-action@v0.20.11
         with:
-          syft-version: v1.38.2
+          syft-version: "1.38.2"
           path: .
           format: spdx-json
           output-file: sbom.spdx.json
           upload-artifact: false
 
       - name: Upload artifact
+        if: steps.generate-sbom.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: sbomweekly
@@ -35,13 +46,17 @@ jobs:
 
       # Sube el SBOM al Dependency Graph cuando es ejecución manual o schedule
       - name: Upload to GitHub Dependency Graph
-        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+        if: (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') && steps.generate-sbom.outcome == 'success'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh api \
-            --method POST \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            /repos/${{ github.repository }}/dependency-graph/sbom \
-            -f sbom=@sbom.spdx.json || echo "Upload failed, continuing..."
+          if [ -f sbom.spdx.json ]; then
+            gh api \
+              --method POST \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              /repos/${{ github.repository }}/dependency-graph/sbom \
+              -f sbom=@sbom.spdx.json || echo "Upload failed, continuing..."
+          else
+            echo "SBOM file not found, skipping upload"
+          fi
