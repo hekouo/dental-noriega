@@ -32,6 +32,8 @@ type CreateLabelResponse =
         | "missing_address_data"
         | "skydropx_error"
         | "skydropx_not_found"
+        | "skydropx_oauth_failed"
+        | "skydropx_unauthorized"
         | "config_error"
         | "unknown_error";
       message: string;
@@ -492,10 +494,23 @@ export async function POST(req: NextRequest) {
     const errorDetails = (error as Error & { details?: unknown }).details;
 
     // Detectar errores específicos de Skydropx
-    if (errorMessage.includes("Skydropx") || errorMessage.includes("token") || errorCode === "skydropx_not_found") {
-      const skydropxCode: Extract<CreateLabelResponse, { ok: false }>["code"] = 
-        errorCode === "skydropx_not_found" ? "skydropx_not_found" : "skydropx_error";
-      
+    if (
+      errorMessage.includes("Skydropx") ||
+      errorMessage.includes("token") ||
+      errorMessage.includes("Credenciales") ||
+      errorCode === "skydropx_not_found" ||
+      errorCode === "skydropx_oauth_failed" ||
+      errorCode === "skydropx_unauthorized"
+    ) {
+      const skydropxCode: Extract<CreateLabelResponse, { ok: false }>["code"] =
+        errorCode === "skydropx_not_found"
+          ? "skydropx_not_found"
+          : errorCode === "skydropx_oauth_failed"
+            ? "skydropx_oauth_failed"
+            : errorCode === "skydropx_unauthorized" || statusCode === 401 || statusCode === 403
+              ? "skydropx_unauthorized"
+              : "skydropx_error";
+
       return NextResponse.json(
         {
           ok: false,
@@ -504,7 +519,14 @@ export async function POST(req: NextRequest) {
           statusCode: statusCode || undefined,
           details: errorDetails || undefined,
         } satisfies CreateLabelResponse,
-        { status: statusCode === 404 ? 404 : 500 },
+        {
+          status:
+            statusCode === 404
+              ? 404
+              : statusCode === 401 || statusCode === 403
+                ? 401
+                : statusCode || 500,
+        },
       );
     }
 
