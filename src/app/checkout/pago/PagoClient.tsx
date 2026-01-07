@@ -438,6 +438,20 @@ export default function PagoClient() {
         shippingCostCents,
         paymentMethod: "bank_transfer",
         paymentStatus: "pending",
+        // Dirección de envío (solo si no es pickup)
+        shippingAddress: displayShippingMethod !== "pickup" && datos.cp && datos.city && datos.state && datos.address
+          ? {
+              name: datos.name || "",
+              phone: datos.phone || null,
+              email: datos.email || null,
+              address1: datos.address || "",
+              address2: datos.neighborhood || null,
+              city: datos.city || "",
+              state: datos.state || "",
+              postal_code: datos.cp || "",
+              country: "MX",
+            }
+          : undefined,
         shipping: selectedShippingOption
           ? {
               provider: "skydropx",
@@ -645,6 +659,20 @@ export default function PagoClient() {
         shippingCostCents, // Costo de envío en centavos
         paymentMethod: selectedPaymentMethodValue, // Método de pago seleccionado
         paymentStatus: selectedPaymentStatusValue, // Estado de pago (pending para métodos manuales)
+        // Dirección de envío (solo si no es pickup)
+        shippingAddress: displayShippingMethod !== "pickup" && datos.cp && datos.city && datos.state && datos.address
+          ? {
+              name: datos.name || "",
+              phone: datos.phone || null,
+              email: datos.email || null,
+              address1: datos.address || "",
+              address2: datos.neighborhood || null,
+              city: datos.city || "",
+              state: datos.state || "",
+              postal_code: datos.cp || "",
+              country: "MX",
+            }
+          : undefined,
         // Información de Skydropx si hay opción seleccionada
         shipping: selectedShippingOption
           ? {
