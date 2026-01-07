@@ -55,6 +55,7 @@ const CreateOrderRequestSchema = z.object({
       eta_min_days: z.number().int().nullable().optional(),
       eta_max_days: z.number().int().nullable().optional(),
     }),
+    // address_validation removed for PR1 (will be in PR2)
   }).optional(),
   // Datos de loyalty opcionales
   loyalty: z.object({

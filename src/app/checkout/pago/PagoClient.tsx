@@ -57,6 +57,8 @@ type ExtendedDatosForm = DatosForm & {
   notes?: string;
 };
 
+
+
 export default function PagoClient() {
   const router = useRouter();
   const datos = useCheckoutStore((s) => s.datos);
@@ -452,6 +454,7 @@ export default function PagoClient() {
               country: "MX",
             }
           : undefined,
+        // Información de Skydropx si hay opción seleccionada
         shipping: selectedShippingOption
           ? {
               provider: "skydropx",
