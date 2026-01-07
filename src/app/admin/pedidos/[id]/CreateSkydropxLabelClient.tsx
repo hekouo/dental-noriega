@@ -79,8 +79,8 @@ export default function CreateSkydropxLabelClient({
                               ? "Error al crear la guía en Skydropx. Revisa los logs."
                               : data.message || "Error desconocido al crear la guía.";
 
-        // Si hay errores de Skydropx (422), mostrar lista
-        if (data.code === "skydropx_unprocessable_entity" && data.details?.upstream?.errors) {
+        // Si hay errores de Skydropx (422/400), mostrar lista
+        if ((data.code === "skydropx_unprocessable_entity" || data.code === "skydropx_bad_request") && data.details?.upstream?.errors) {
           const errors = data.details.upstream.errors as Array<{ field?: string | null; message?: string }>;
           if (Array.isArray(errors) && errors.length > 0) {
             errorMessage += "\n\nErrores de validación:\n";
@@ -89,6 +89,12 @@ export default function CreateSkydropxLabelClient({
               const msg = err.message || "Error desconocido";
               errorMessage += `${idx + 1}. ${field} ${msg}\n`;
             });
+          }
+        } else if (data.code === "skydropx_unprocessable_entity" || data.code === "skydropx_bad_request") {
+          // Si no hay errors pero sí keys, avisar que no se pudo parsear
+          const upstream = data.details?.upstream as Record<string, unknown> | undefined;
+          if (upstream?.keys && Array.isArray(upstream.keys) && upstream.keys.includes("errors")) {
+            errorMessage += "\n\nNota: Skydropx devolvió errores, pero no se pudo parsear el formato. Ver logs para detalles.";
           }
         }
 
