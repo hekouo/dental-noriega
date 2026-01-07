@@ -17,6 +17,7 @@ import AdminNotesClient from "./AdminNotesClient";
 import EditShippingAndNotesClient from "./EditShippingAndNotesClient";
 import NotifyShippingClient from "./NotifyShippingClient";
 import { normalizePhoneToE164Mx } from "@/lib/utils/phone";
+import EditShippingOverrideClient from "./EditShippingOverrideClient";
 
 export const dynamic = "force-dynamic";
 
@@ -458,6 +459,15 @@ export default async function AdminPedidoDetailPage({
               </div>
             </div>
           )}
+        </div>
+
+        {/* Editor de override de dirección de envío */}
+        <div className="px-6 py-6 border-b border-gray-200">
+          <h2 className="text-lg font-semibold mb-4">Override de dirección</h2>
+          <EditShippingOverrideClient
+            orderId={order.id}
+            currentOverride={((order.metadata as Record<string, unknown>)?.shipping_address_override as any) || null}
+          />
         </div>
 
         {/* Estado de pago */}
