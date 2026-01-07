@@ -56,7 +56,7 @@ export default function CreateSkydropxLabelClient({
           const data = await response.json();
 
       if (!data.ok) {
-        const errorMessage =
+        let errorMessage =
           data.code === "payment_not_paid"
             ? "La orden no está pagada. Solo se pueden crear guías para órdenes pagadas."
             : data.code === "unauthorized"
@@ -67,18 +67,33 @@ export default function CreateSkydropxLabelClient({
                   ? "El proveedor de envío no es compatible."
                   : data.code === "missing_shipping_rate"
                     ? "La orden no tiene un rate_id de Skydropx guardado."
-                        : data.code === "missing_address_data"
-                          ? "No se encontraron datos de dirección en la orden."
-                      : data.code === "skydropx_error"
-                        ? "Error al crear la guía en Skydropx. Revisa los logs."
-                        : data.message || "Error desconocido al crear la guía.";
+                    : data.code === "missing_address_data"
+                      ? "No se encontraron datos de dirección en la orden."
+                      : data.code === "invalid_shipping_payload"
+                        ? `Faltan campos requeridos: ${Array.isArray(data.details?.missingFields) ? data.details.missingFields.join(", ") : "ver logs"}`
+                        : data.code === "skydropx_bad_request"
+                          ? "Skydropx rechazó el payload. Revisa ORIGIN_* env vars y campos requeridos. Ver detalles abajo."
+                          : data.code === "skydropx_error"
+                            ? "Error al crear la guía en Skydropx. Revisa los logs."
+                            : data.message || "Error desconocido al crear la guía.";
+
+        // Si hay payloadHealth, agregarlo al mensaje
+        if (data.code === "skydropx_bad_request" && data.details?.payloadHealth) {
+          const ph = data.details.payloadHealth as Record<string, boolean | number>;
+          const missing = Object.entries(ph)
+            .filter(([k, v]) => k.startsWith("has") && v === false)
+            .map(([k]) => k.replace("has", "").replace(/([A-Z])/g, " $1").trim());
+          if (missing.length > 0) {
+            errorMessage += `\n\nCampos faltantes detectados: ${missing.join(", ")}`;
+          }
+        }
 
         setError(errorMessage);
-            // Si falta dirección, sugerir editar override
-            if (data.code === "missing_address_data" && typeof window !== "undefined") {
-              // agregar un hash para ayudar a ubicar el editor
-              window.location.hash = "#shipping-override";
-            }
+        // Si falta dirección, sugerir editar override
+        if (data.code === "missing_address_data" && typeof window !== "undefined") {
+          // agregar un hash para ayudar a ubicar el editor
+          window.location.hash = "#shipping-override";
+        }
         return;
       }
 
