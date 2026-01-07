@@ -24,6 +24,9 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 # Skydropx (envíos)
 # IMPORTANTE: Este proyecto usa OAuth 2.0 (no API Key). Skydropx tiene documentación antigua
 # con API Key y endpoints api.skydropx.com/v1/*, pero este proyecto usa OAuth exclusivamente.
+# 
+# NOTA CRÍTICA: Para PRO con OAuth, TODOS los endpoints deben usar api-pro.skydropx.com.
+# NO usar api.skydropx.com (legacy) con OAuth, causará 401 "Bad credentials".
 
 # OAuth: autenticación (grant_type=client_credentials)
 SKYDROPX_CLIENT_ID=tu_client_id
@@ -39,9 +42,12 @@ SKYDROPX_OAUTH_TOKEN_URL=https://api-pro.skydropx.com/api/v1/oauth/token  # Opci
 # Cotizaciones: obtener rates de envío (default: https://api-pro.skydropx.com)
 SKYDROPX_QUOTATIONS_BASE_URL=https://api-pro.skydropx.com
 
-# REST API: shipments y otros endpoints (default: https://api.skydropx.com)
-# IMPORTANTE: Los endpoints de shipments (/v1/shipments) están en api.skydropx.com, NO en api-pro
-SKYDROPX_BASE_URL=https://api.skydropx.com
+# REST API: shipments y otros endpoints (default: https://api-pro.skydropx.com)
+# IMPORTANTE: Para PRO con OAuth, debe ser api-pro.skydropx.com (NO api.skydropx.com legacy)
+# El sistema intentará automáticamente:
+#   1. ${SKYDROPX_BASE_URL}/api/v1/shipments
+#   2. ${SKYDROPX_BASE_URL}/v1/shipments (fallback si 404)
+SKYDROPX_BASE_URL=https://api-pro.skydropx.com
 
 # App URL
 NEXT_PUBLIC_APP_URL=http://localhost:3000
