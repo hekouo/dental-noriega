@@ -208,6 +208,8 @@ async function getAccessToken(): Promise<string | null> {
 /**
  * Función genérica para hacer requests a la API de Skydropx
  * Maneja automáticamente la autenticación OAuth
+ * 
+ * Hardening: Si falla 404 con api-pro y el path es /v1/shipments, reintenta con api.skydropx.com
  */
 export async function skydropxFetch(
   path: string,
@@ -221,13 +223,16 @@ export async function skydropxFetch(
   // Construir URL completa usando restBaseUrl (API)
   const url = `${config.restBaseUrl}${path.startsWith("/") ? path : `/${path}`}`;
 
-  // Log temporal para debug (URL exacta)
+  // Log seguro de URL (sin secretos)
   if (process.env.NODE_ENV !== "production") {
     console.log(
-      "[Skydropx debug] URL:",
-      url.toString(),
-      "method:",
-      options.method ?? "GET",
+      "[Skydropx] Request:",
+      {
+        method: options.method ?? "GET",
+        path,
+        baseUrl: config.restBaseUrl,
+        fullUrl: url,
+      },
     );
   }
 
@@ -243,10 +248,34 @@ export async function skydropxFetch(
   headers.set("Authorization", `Bearer ${accessToken}`);
 
   // Hacer el request
-  const response = await fetch(url, {
+  let response = await fetch(url, {
     ...options,
     headers,
   });
+
+  // Hardening: Si recibimos 404 y estamos usando api-pro para shipments, reintentar con api.skydropx.com
+  if (
+    response.status === 404 &&
+    config.restBaseUrl.includes("api-pro") &&
+    path.includes("/v1/shipments")
+  ) {
+    const fallbackBaseUrl = "https://api.skydropx.com";
+    const fallbackUrl = `${fallbackBaseUrl}${path.startsWith("/") ? path : `/${path}`}`;
+    
+    console.warn(
+      "[Skydropx] 404 con api-pro, reintentando con api.skydropx.com:",
+      {
+        originalUrl: url,
+        fallbackUrl,
+        path,
+      },
+    );
+    
+    response = await fetch(fallbackUrl, {
+      ...options,
+      headers,
+    });
+  }
 
   // Si recibimos 401, el token puede haber expirado, intentar refrescar una vez
   if (response.status === 401) {
@@ -259,7 +288,7 @@ export async function skydropxFetch(
     if (newToken) {
       // Reintentar con nuevo token
       headers.set("Authorization", `Bearer ${newToken}`);
-      return await fetch(url, {
+      response = await fetch(url, {
         ...options,
         headers,
       });
@@ -646,12 +675,29 @@ export type SkydropxShipmentResponse = {
 
 /**
  * Crea un envío/guía en Skydropx
+ * 
+ * Hardening: Mejora diagnóstico de errores con status_code y snippet del body
  */
 export async function createShipment(
   payload: SkydropxShipmentPayload,
 ): Promise<SkydropxShipmentResponse> {
+  const config = getSkydropxConfig();
+  if (!config) {
+    throw new Error("Skydropx no está configurado");
+  }
+
   // Skydropx API usa /v1/shipments (no /api/v1/shipments)
   // porque baseUrl ya es https://api.skydropx.com
+  const fullUrl = `${config.restBaseUrl}/v1/shipments`;
+  
+  // Log seguro de URL (sin secretos)
+  console.log("[Skydropx createShipment] Creando shipment:", {
+    url: fullUrl,
+    baseUrl: config.restBaseUrl,
+    path: "/v1/shipments",
+    rateId: payload.rate_id,
+  });
+
   const response = await skydropxFetch("/v1/shipments", {
     method: "POST",
     body: JSON.stringify(payload),
@@ -659,14 +705,51 @@ export async function createShipment(
 
   if (!response.ok) {
     const errorText = await response.text();
-    if (process.env.NODE_ENV !== "production") {
-      console.error("[Skydropx createShipment] Error:", {
-        status: response.status,
-        statusText: response.statusText,
-        body: errorText,
-      });
+    
+    // Intentar parsear JSON del error (sin exponer PII ni tokens)
+    let errorSnippet: string | null = null;
+    try {
+      const errorJson = JSON.parse(errorText) as Record<string, unknown>;
+      // Extraer solo campos seguros para logging
+      const safeFields: Record<string, unknown> = {};
+      if (typeof errorJson.message === "string") {
+        safeFields.message = errorJson.message;
+      }
+      if (typeof errorJson.error === "string") {
+        safeFields.error = errorJson.error;
+      }
+      if (Array.isArray(errorJson.errors)) {
+        safeFields.errors = errorJson.errors;
+      }
+      errorSnippet = JSON.stringify(safeFields);
+    } catch {
+      // Si no es JSON, usar primeros 200 caracteres
+      errorSnippet = errorText.substring(0, 200);
     }
-    throw new Error(`Error al crear envío: ${response.statusText}`);
+
+    const errorDetails = {
+      status: response.status,
+      statusText: response.statusText,
+      url: fullUrl,
+      baseUrl: config.restBaseUrl,
+      errorSnippet,
+    };
+
+    console.error("[Skydropx createShipment] Error:", errorDetails);
+
+    // Mapear 404 a código específico
+    if (response.status === 404) {
+      const error = new Error(`Error al crear envío: Rate no encontrado o expirado (404)`);
+      (error as Error & { code?: string; statusCode?: number; details?: unknown }).code = "skydropx_not_found";
+      (error as Error & { code?: string; statusCode?: number; details?: unknown }).statusCode = 404;
+      (error as Error & { code?: string; statusCode?: number; details?: unknown }).details = errorDetails;
+      throw error;
+    }
+
+    const error = new Error(`Error al crear envío: ${response.statusText || `HTTP ${response.status}`}`);
+    (error as Error & { code?: string; statusCode?: number; details?: unknown }).statusCode = response.status;
+    (error as Error & { code?: string; statusCode?: number; details?: unknown }).details = errorDetails;
+    throw error;
   }
 
   return (await response.json()) as SkydropxShipmentResponse;
