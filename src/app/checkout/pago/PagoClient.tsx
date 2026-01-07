@@ -525,6 +525,7 @@ export default function PagoClient() {
               country: "MX",
             }
           : undefined,
+        // Información de Skydropx y validación de dirección (si existe)
         shipping:
           selectedShippingOption || addressValidation
             ? {
