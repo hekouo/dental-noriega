@@ -60,6 +60,13 @@ function getSkydropxConfig() {
 /**
  * Obtiene un token de acceso OAuth desde Skydropx
  * Usa grant_type=client_credentials
+ * 
+ * Hardening: Intenta múltiples URLs si falla con 404:
+ * 1. Si existe SKYDROPX_OAUTH_TOKEN_URL, úsalo tal cual
+ * 2. Si no existe, intenta en orden:
+ *    a) ${SKYDROPX_AUTH_BASE_URL}/api/v1/oauth/token
+ *    b) ${SKYDROPX_AUTH_BASE_URL}/oauth/token
+ * 3. Si el primer intento da 404, prueba el segundo automáticamente
  */
 async function fetchAccessToken(): Promise<string | null> {
   const config = getSkydropxConfig();
@@ -67,129 +74,181 @@ async function fetchAccessToken(): Promise<string | null> {
     return null;
   }
 
-  try {
-    // URL del token: puede venir de env o construirse desde authBaseUrl
-    let tokenUrl: string;
-    if (process.env.SKYDROPX_OAUTH_TOKEN_URL) {
-      tokenUrl = process.env.SKYDROPX_OAUTH_TOKEN_URL;
-    } else {
-      // Construir URL desde authBaseUrl, limpiando slashes dobles
-      const baseUrl = config.authBaseUrl.replace(/\/$/, ""); // Quitar trailing slash
-      tokenUrl = `${baseUrl}/oauth/token`;
-    }
-    
-    if (process.env.NODE_ENV !== "production") {
-      console.log("[Skydropx OAuth] Obteniendo token desde:", tokenUrl);
-    }
-    
-    // Usar application/x-www-form-urlencoded como especifica OAuth 2.0
-    const body = new URLSearchParams({
-      grant_type: "client_credentials",
-      client_id: config.clientId,
-      client_secret: config.clientSecret,
-    });
-    
-    const response = await fetch(tokenUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        "Accept": "application/json",
-      },
-      body: body.toString(),
-    });
-
-    if (!response.ok) {
-      const contentType = response.headers.get("content-type");
-      let errorBody: string | unknown = "";
-      
-      // Intentar leer como texto primero
-      const errorText = await response.text();
-      
-      // Si es JSON, parsearlo; si no, usar el texto tal cual
-      if (contentType?.includes("application/json")) {
-        try {
-          errorBody = JSON.parse(errorText);
-        } catch {
-          errorBody = errorText;
-        }
-      } else {
-        errorBody = errorText;
-        // Si es HTML, truncar para no llenar logs
-        if (typeof errorBody === "string" && errorBody.includes("<!DOCTYPE")) {
-          errorBody = errorBody.slice(0, 500) + "... (HTML truncado)";
-        }
-      }
-      
-      // Logs mejorados para depuración
-      if (process.env.NODE_ENV !== "production") {
-        console.error("[Skydropx OAuth] Error obteniendo token:", {
-          url: tokenUrl,
-          status: response.status,
-          statusText: response.statusText,
-          contentType,
-          body: errorBody,
-        });
-      }
-      
-      // Lanzar error descriptivo si es necesario
-      if (response.status === 401 || response.status === 403) {
-        throw new Error("Credenciales de Skydropx inválidas. Verifica SKYDROPX_CLIENT_ID y SKYDROPX_CLIENT_SECRET");
-      }
-      
-      return null;
-    }
-
-    // Verificar que la respuesta sea JSON antes de parsear
-    const contentType = response.headers.get("content-type");
-    if (!contentType?.includes("application/json")) {
-      const text = await response.text();
-      if (process.env.NODE_ENV !== "production") {
-        console.error("[Skydropx OAuth] Respuesta no es JSON:", {
-          url: tokenUrl,
-          contentType,
-          body: text.slice(0, 500),
-        });
-      }
-      return null;
-    }
-
-    const data = (await response.json()) as OAuthTokenResponse;
-
-    if (!data.access_token) {
-      if (process.env.NODE_ENV !== "production") {
-        console.error("[Skydropx OAuth] Respuesta sin access_token:", data);
-      }
-      return null;
-    }
-
-    // Calcular fecha de expiración (con margen de 60 segundos para evitar race conditions)
-    const expiresIn = data.expires_in || 3600; // default 1 hora
-    const expiresAt = Date.now() + (expiresIn - 60) * 1000;
-
-    // Actualizar caché
-    tokenCache = {
-      accessToken: data.access_token,
-      expiresAt,
-    };
-
-    if (process.env.NODE_ENV !== "production") {
-      console.log("[Skydropx OAuth] Token obtenido, expira en", expiresIn, "segundos");
-    }
-
-    return data.access_token;
-  } catch (error) {
-    if (process.env.NODE_ENV !== "production") {
-      console.error("[Skydropx OAuth] Error inesperado obteniendo token:", {
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-      });
-    }
-    // Si el error ya tiene mensaje descriptivo, propagarlo
-    if (error instanceof Error && error.message.includes("Credenciales")) {
-      throw error;
-    }
-    return null;
+  // Construir lista de URLs a intentar
+  const tokenUrls: string[] = [];
+  
+  if (process.env.SKYDROPX_OAUTH_TOKEN_URL) {
+    // Si existe URL explícita, úsala primero
+    tokenUrls.push(process.env.SKYDROPX_OAUTH_TOKEN_URL);
+  } else {
+    // Construir URLs desde authBaseUrl, limpiando slashes dobles
+    const baseUrl = config.authBaseUrl.replace(/\/$/, ""); // Quitar trailing slash
+    // Intentar primero con /api/v1/oauth/token, luego /oauth/token
+    tokenUrls.push(`${baseUrl}/api/v1/oauth/token`);
+    tokenUrls.push(`${baseUrl}/oauth/token`);
   }
+
+  // Usar application/x-www-form-urlencoded como especifica OAuth 2.0
+  const body = new URLSearchParams({
+    grant_type: "client_credentials",
+    client_id: config.clientId,
+    client_secret: config.clientSecret,
+  });
+
+  let lastError: Error | null = null;
+  
+  for (let i = 0; i < tokenUrls.length; i++) {
+    const tokenUrl = tokenUrls[i];
+    
+    try {
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[Skydropx OAuth] Intentando obtener token desde:", tokenUrl);
+      }
+      
+      const response = await fetch(tokenUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Accept": "application/json",
+        },
+        body: body.toString(),
+      });
+
+      if (!response.ok) {
+        const contentType = response.headers.get("content-type");
+        let errorBody: string | unknown = "";
+        
+        // Intentar leer como texto primero
+        const errorText = await response.text();
+        
+        // Si es JSON, parsearlo; si no, usar el texto tal cual
+        if (contentType?.includes("application/json")) {
+          try {
+            errorBody = JSON.parse(errorText);
+          } catch {
+            errorBody = errorText;
+          }
+        } else {
+          errorBody = errorText;
+          // Si es HTML, truncar para no llenar logs
+          if (typeof errorBody === "string" && errorBody.includes("<!DOCTYPE")) {
+            errorBody = errorBody.slice(0, 500) + "... (HTML truncado)";
+          }
+        }
+        
+        // Logs seguros (sin secretos)
+        if (process.env.NODE_ENV !== "production") {
+          console.error("[Skydropx OAuth] Error obteniendo token:", {
+            url: tokenUrl,
+            status: response.status,
+            statusText: response.statusText,
+            contentType,
+            body: errorBody,
+          });
+        }
+        
+        // Si es 404 y hay más URLs para intentar, continuar
+        if (response.status === 404 && i < tokenUrls.length - 1) {
+          console.warn(`[Skydropx OAuth] 404 en ${tokenUrl}, intentando siguiente URL...`);
+          continue;
+        }
+        
+        // Si es 401/400, devolver error claro (sin filtrar secretos en mensaje, pero sin exponerlos en logs)
+        if (response.status === 401 || response.status === 403) {
+          const error = new Error("Credenciales de Skydropx inválidas. Verifica SKYDROPX_CLIENT_ID y SKYDROPX_CLIENT_SECRET");
+          (error as Error & { code?: string; statusCode?: number }).code = "skydropx_oauth_failed";
+          (error as Error & { code?: string; statusCode?: number }).statusCode = response.status;
+          throw error;
+        }
+        
+        if (response.status === 400) {
+          const error = new Error(`Error de autenticación OAuth: ${response.statusText}`);
+          (error as Error & { code?: string; statusCode?: number }).code = "skydropx_oauth_failed";
+          (error as Error & { code?: string; statusCode?: number }).statusCode = response.status;
+          throw error;
+        }
+        
+        // Para otros errores, si es el último intento, devolver null
+        if (i === tokenUrls.length - 1) {
+          return null;
+        }
+        continue;
+      }
+
+      // Verificar que la respuesta sea JSON antes de parsear
+      const responseContentType = response.headers.get("content-type");
+      if (!responseContentType?.includes("application/json")) {
+        const text = await response.text();
+        if (process.env.NODE_ENV !== "production") {
+          console.error("[Skydropx OAuth] Respuesta no es JSON:", {
+            url: tokenUrl,
+            contentType: responseContentType,
+            body: text.slice(0, 500),
+          });
+        }
+        // Si es el último intento, devolver null; si no, continuar
+        if (i === tokenUrls.length - 1) {
+          return null;
+        }
+        continue;
+      }
+
+      const data = (await response.json()) as OAuthTokenResponse;
+
+      if (!data.access_token) {
+        if (process.env.NODE_ENV !== "production") {
+          console.error("[Skydropx OAuth] Respuesta sin access_token:", {
+            url: tokenUrl,
+            data: Object.keys(data),
+          });
+        }
+        // Si es el último intento, devolver null; si no, continuar
+        if (i === tokenUrls.length - 1) {
+          return null;
+        }
+        continue;
+      }
+
+      // Éxito: calcular fecha de expiración (con margen de 60 segundos para evitar race conditions)
+      const expiresIn = data.expires_in || 3600; // default 1 hora
+      const expiresAt = Date.now() + (expiresIn - 60) * 1000;
+
+      // Actualizar caché
+      tokenCache = {
+        accessToken: data.access_token,
+        expiresAt,
+      };
+
+      console.log("[Skydropx OAuth] Token obtenido exitosamente desde:", tokenUrl, "expira en", expiresIn, "segundos");
+
+      return data.access_token;
+    } catch (error) {
+      // Si es un error lanzado explícitamente (401/400), propagarlo
+      if (error instanceof Error && (error as Error & { code?: string }).code === "skydropx_oauth_failed") {
+        throw error;
+      }
+      
+      // Para otros errores, guardar y continuar si hay más URLs
+      lastError = error instanceof Error ? error : new Error(String(error));
+      
+      console.warn(`[Skydropx OAuth] Error en ${tokenUrl}:`, {
+        error: lastError.message,
+        ...(i < tokenUrls.length - 1 && { action: "intentando siguiente URL..." }),
+      });
+      
+      if (i < tokenUrls.length - 1) {
+        continue;
+      }
+      
+      // Si es el último intento y el error ya tiene mensaje descriptivo, propagarlo
+      if (error instanceof Error && error.message.includes("Credenciales")) {
+        throw error;
+      }
+      return null;
+    }
+  }
+
+  return null;
 }
 
 /**
