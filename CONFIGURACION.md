@@ -21,6 +21,15 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
 STRIPE_SECRET_KEY=sk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 
+# Skydropx (envíos)
+# OAuth: autenticación (usa api-pro)
+SKYDROPX_CLIENT_ID=tu_client_id
+SKYDROPX_CLIENT_SECRET=tu_client_secret
+SKYDROPX_AUTH_BASE_URL=https://api-pro.skydropx.com  # Opcional, default: api-pro
+SKYDROPX_QUOTATIONS_BASE_URL=https://api-pro.skydropx.com  # Opcional, default: api-pro
+# REST API: shipments y otros endpoints (usa api.skydropx.com)
+SKYDROPX_BASE_URL=https://api.skydropx.com  # Opcional, default: api.skydropx.com
+
 # App URL
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```

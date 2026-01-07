@@ -31,9 +31,12 @@ type CreateLabelResponse =
         | "missing_shipping_rate"
         | "missing_address_data"
         | "skydropx_error"
+        | "skydropx_not_found"
         | "config_error"
         | "unknown_error";
       message: string;
+      statusCode?: number;
+      details?: unknown;
     };
 
 /**
@@ -481,21 +484,27 @@ export async function POST(req: NextRequest) {
       shipmentId: finalShipmentId,
     } satisfies CreateLabelResponse);
   } catch (error) {
-    if (process.env.NODE_ENV !== "production") {
-      console.error("[create-label] Error inesperado:", error);
-    }
+    console.error("[create-label] Error inesperado:", error);
 
     const errorMessage = error instanceof Error ? error.message : "Error desconocido";
+    const errorCode = (error as Error & { code?: string }).code;
+    const statusCode = (error as Error & { statusCode?: number }).statusCode;
+    const errorDetails = (error as Error & { details?: unknown }).details;
 
     // Detectar errores específicos de Skydropx
-    if (errorMessage.includes("Skydropx") || errorMessage.includes("token")) {
+    if (errorMessage.includes("Skydropx") || errorMessage.includes("token") || errorCode === "skydropx_not_found") {
+      const skydropxCode: Extract<CreateLabelResponse, { ok: false }>["code"] = 
+        errorCode === "skydropx_not_found" ? "skydropx_not_found" : "skydropx_error";
+      
       return NextResponse.json(
         {
           ok: false,
-          code: "skydropx_error",
+          code: skydropxCode,
           message: errorMessage,
+          statusCode: statusCode || undefined,
+          details: errorDetails || undefined,
         } satisfies CreateLabelResponse,
-        { status: 500 },
+        { status: statusCode === 404 ? 404 : 500 },
       );
     }
 
@@ -504,8 +513,10 @@ export async function POST(req: NextRequest) {
         ok: false,
         code: "unknown_error",
         message: errorMessage,
+        statusCode: statusCode || undefined,
+        details: errorDetails || undefined,
       } satisfies CreateLabelResponse,
-      { status: 500 },
+      { status: statusCode || 500 },
     );
   }
 }
