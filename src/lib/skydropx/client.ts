@@ -37,7 +37,8 @@ function getSkydropxConfig() {
   const quotationsBaseUrl = process.env.SKYDROPX_QUOTATIONS_BASE_URL || "https://api-pro.skydropx.com";
   
   // URL base para otros endpoints de API (shipments, etc.)
-  const restBaseUrl = process.env.SKYDROPX_BASE_URL || "https://api.skydropx.com";
+  // IMPORTANTE: Para PRO con OAuth, debe ser api-pro.skydropx.com (no api.skydropx.com legacy)
+  const restBaseUrl = process.env.SKYDROPX_BASE_URL || "https://api-pro.skydropx.com";
 
   if (!clientId || !clientSecret) {
     if (process.env.NODE_ENV !== "production") {
@@ -311,30 +312,6 @@ export async function skydropxFetch(
     ...options,
     headers,
   });
-
-  // Hardening: Si recibimos 404 y estamos usando api-pro para shipments, reintentar con api.skydropx.com
-  if (
-    response.status === 404 &&
-    config.restBaseUrl.includes("api-pro") &&
-    path.includes("/v1/shipments")
-  ) {
-    const fallbackBaseUrl = "https://api.skydropx.com";
-    const fallbackUrl = `${fallbackBaseUrl}${path.startsWith("/") ? path : `/${path}`}`;
-    
-    console.warn(
-      "[Skydropx] 404 con api-pro, reintentando con api.skydropx.com:",
-      {
-        originalUrl: url,
-        fallbackUrl,
-        path,
-      },
-    );
-    
-    response = await fetch(fallbackUrl, {
-      ...options,
-      headers,
-    });
-  }
 
   // Si recibimos 401, el token puede haber expirado, intentar refrescar una vez
   if (response.status === 401) {
@@ -735,7 +712,10 @@ export type SkydropxShipmentResponse = {
 /**
  * Crea un envío/guía en Skydropx
  * 
- * Hardening: Mejora diagnóstico de errores con status_code y snippet del body
+ * Hardening: Fallback solo de PATH (no de host)
+ * - Intenta POST ${base}/api/v1/shipments
+ * - Si 404, intenta POST ${base}/v1/shipments
+ * - NO cambia de host (api-pro debe usarse con OAuth)
  */
 export async function createShipment(
   payload: SkydropxShipmentPayload,
@@ -745,22 +725,65 @@ export async function createShipment(
     throw new Error("Skydropx no está configurado");
   }
 
-  // Skydropx API usa /v1/shipments (no /api/v1/shipments)
-  // porque baseUrl ya es https://api.skydropx.com
-  const fullUrl = `${config.restBaseUrl}/v1/shipments`;
-  
-  // Log seguro de URL (sin secretos)
-  console.log("[Skydropx createShipment] Creando shipment:", {
-    url: fullUrl,
-    baseUrl: config.restBaseUrl,
-    path: "/v1/shipments",
-    rateId: payload.rate_id,
-  });
+  // Intentar primero con /api/v1/shipments, luego /v1/shipments (solo path, mismo host)
+  const paths = ["/api/v1/shipments", "/v1/shipments"];
+  let lastError: Error | null = null;
+  let lastResponse: Response | null = null;
+  let lastPath: string | null = null;
 
-  const response = await skydropxFetch("/v1/shipments", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+  for (let i = 0; i < paths.length; i++) {
+    const path = paths[i];
+    const fullUrl = `${config.restBaseUrl}${path}`;
+    lastPath = path;
+    
+    // Log seguro de URL (sin secretos)
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[Skydropx createShipment] Intentando:", {
+        url: fullUrl,
+        baseUrl: config.restBaseUrl,
+        path,
+        rateId: payload.rate_id,
+        attempt: i + 1,
+      });
+    }
+
+    try {
+      const response = await skydropxFetch(path, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+
+      // Si es exitoso, retornar
+      if (response.ok) {
+        return (await response.json()) as SkydropxShipmentResponse;
+      }
+
+      // Si es 404 y hay más paths para intentar, continuar
+      if (response.status === 404 && i < paths.length - 1) {
+        console.warn(`[Skydropx createShipment] 404 en ${path}, intentando siguiente path...`);
+        lastResponse = response;
+        continue;
+      }
+
+      // Para otros errores o último intento, procesar error
+      lastResponse = response;
+      break;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      if (i < paths.length - 1) {
+        continue;
+      }
+      throw lastError;
+    }
+  }
+
+  // Si llegamos aquí, hubo un error
+  if (!lastResponse) {
+    throw lastError || new Error("Error desconocido al crear shipment");
+  }
+
+  const response = lastResponse;
+  const finalUrl = lastPath ? `${config.restBaseUrl}${lastPath}` : `${config.restBaseUrl}/v1/shipments`;
 
   if (!response.ok) {
     const errorText = await response.text();
@@ -789,7 +812,7 @@ export async function createShipment(
     const errorDetails = {
       status: response.status,
       statusText: response.statusText,
-      url: fullUrl,
+      url: finalUrl,
       baseUrl: config.restBaseUrl,
       errorSnippet,
     };
