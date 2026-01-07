@@ -73,11 +73,26 @@ export default function CreateSkydropxLabelClient({
                         ? `Faltan campos requeridos: ${Array.isArray(data.details?.missingFields) ? data.details.missingFields.join(", ") : "ver logs"}`
                         : data.code === "skydropx_bad_request"
                           ? "Skydropx rechazó el payload. Revisa ORIGIN_* env vars y campos requeridos. Ver detalles abajo."
-                          : data.code === "skydropx_error"
-                            ? "Error al crear la guía en Skydropx. Revisa los logs."
-                            : data.message || "Error desconocido al crear la guía.";
+                          : data.code === "skydropx_unprocessable_entity"
+                            ? "Skydropx rechazó el envío por errores de validación. Ver lista de errores abajo."
+                            : data.code === "skydropx_error"
+                              ? "Error al crear la guía en Skydropx. Revisa los logs."
+                              : data.message || "Error desconocido al crear la guía.";
 
-        // Si hay payloadHealth, agregarlo al mensaje
+        // Si hay errores de Skydropx (422), mostrar lista
+        if (data.code === "skydropx_unprocessable_entity" && data.details?.upstream?.errors) {
+          const errors = data.details.upstream.errors as Array<{ field?: string | null; message?: string }>;
+          if (Array.isArray(errors) && errors.length > 0) {
+            errorMessage += "\n\nErrores de validación:\n";
+            errors.forEach((err, idx) => {
+              const field = err.field ? `[${err.field}]` : "";
+              const msg = err.message || "Error desconocido";
+              errorMessage += `${idx + 1}. ${field} ${msg}\n`;
+            });
+          }
+        }
+
+        // Si hay payloadHealth (400), agregarlo al mensaje
         if (data.code === "skydropx_bad_request" && data.details?.payloadHealth) {
           const ph = data.details.payloadHealth as Record<string, boolean | number>;
           const missing = Object.entries(ph)

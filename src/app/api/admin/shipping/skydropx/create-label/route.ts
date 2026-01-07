@@ -35,6 +35,7 @@ type CreateLabelResponse =
         | "skydropx_oauth_failed"
         | "skydropx_unauthorized"
         | "skydropx_bad_request"
+        | "skydropx_unprocessable_entity"
         | "invalid_shipping_payload"
         | "config_error"
         | "unknown_error";
@@ -660,9 +661,11 @@ export async function POST(req: NextRequest) {
               ? 404
               : statusCode === 401 || statusCode === 403
                 ? 401
-                : statusCode === 400
-                  ? 400
-                  : statusCode || 500,
+                : statusCode === 422
+                  ? 422
+                  : statusCode === 400
+                    ? 400
+                    : statusCode || 500,
         },
       );
     }

@@ -597,8 +597,10 @@ export async function createSkydropxShipment(input: {
       shipment: {
         rate_id: input.rateId,
         address_from: {
-          country: config.origin.country,
+          country: config.origin.country || "MX",
+          country_code: config.origin.country || "MX",
           zip: config.origin.postalCode,
+          postal_code: config.origin.postalCode,
           city: config.origin.city,
           state: config.origin.state,
           province: config.origin.state,
@@ -612,7 +614,9 @@ export async function createSkydropxShipment(input: {
         },
         address_to: {
           country: input.destination.country || "MX",
+          country_code: input.destination.country || "MX",
           zip: input.destination.postalCode,
+          postal_code: input.destination.postalCode,
           city: input.destination.city,
           state: input.destination.state,
           province: input.destination.state,

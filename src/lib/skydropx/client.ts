@@ -638,12 +638,13 @@ export type SkydropxShipmentPayload = {
     rate_id: string;
     address_from: {
       // Campos comunes
-      country: string;
+      country: string; // "MX"
+      country_code?: string; // "MX" (alias opcional)
       zip: string;
+      postal_code?: string; // alias opcional de zip
       city: string;
-      // PRO suele usar state; dejamos province como alias para compatibilidad
-      state?: string;
-      province?: string;
+      state: string; // requerido
+      province?: string; // alias de state
       // Requeridos por PRO (mínimos recomendados)
       street1: string;
       name: string;
@@ -655,11 +656,13 @@ export type SkydropxShipmentPayload = {
       address1?: string;
     };
     address_to: {
-      country: string;
+      country: string; // "MX"
+      country_code?: string; // "MX" (alias opcional)
       zip: string;
+      postal_code?: string; // alias opcional de zip
       city: string;
-      state?: string;
-      province?: string;
+      state: string; // requerido
+      province?: string; // alias de state
       street1: string;
       name: string;
       company: string;
@@ -750,22 +753,17 @@ function sanitizeSkydropxErrorBody(body: unknown): unknown {
   if (typeof obj.message === "string") safe.message = obj.message;
   if (typeof obj.error === "string") safe.error = obj.error;
 
-  // Algunos errores vienen como { errors: [...] }
+  // Extraer errors array de forma segura (sin PII)
   const maybeErrors = obj.errors;
   if (Array.isArray(maybeErrors)) {
     safe.errors = maybeErrors.slice(0, 50).map((e) => {
       if (!e || typeof e !== "object") return { type: typeof e };
       const er = e as Record<string, unknown>;
       return {
+        field: typeof er.field === "string" ? er.field : typeof er.path === "string" ? er.path : typeof er.attribute === "string" ? er.attribute : null,
+        message: typeof er.message === "string" ? er.message : typeof er.detail === "string" ? er.detail : typeof er.code === "string" ? er.code : "unknown",
         code: typeof er.code === "string" ? er.code : undefined,
-        field:
-          typeof er.field === "string"
-            ? er.field
-            : typeof er.attribute === "string"
-              ? er.attribute
-              : undefined,
         path: typeof er.path === "string" ? er.path : undefined,
-        message: typeof er.message === "string" ? er.message : undefined,
       };
     });
   }
@@ -874,11 +872,21 @@ export async function createShipment(
 
     console.error("[Skydropx createShipment] Error:", errorDetails);
 
-    const error = new Error(
-      response.status === 400
-        ? 'Los parámetros de la solicitud son inválidos.'
-        : `Error al crear envío: ${response.statusText || `HTTP ${response.status}`}`,
-    );
+    // Extraer primer error para mensaje más útil
+    let errorMessage = `Error al crear envío: ${response.statusText || `HTTP ${response.status}`}`;
+    if (sanitizedUpstream && typeof sanitizedUpstream === "object") {
+      const upstream = sanitizedUpstream as Record<string, unknown>;
+      if (Array.isArray(upstream.errors) && upstream.errors.length > 0) {
+        const firstError = upstream.errors[0] as { message?: string; field?: string | null };
+        if (firstError.message) {
+          errorMessage = `Skydropx rechazó el envío: ${firstError.message}${firstError.field ? ` (campo: ${firstError.field})` : ""}`;
+        }
+      } else if (typeof upstream.message === "string") {
+        errorMessage = `Skydropx rechazó el envío: ${upstream.message}`;
+      }
+    }
+
+    const error = new Error(errorMessage);
     (error as Error & { code?: string; statusCode?: number; details?: unknown }).statusCode =
       response.status;
     (error as Error & { code?: string; statusCode?: number; details?: unknown }).details =
@@ -888,13 +896,15 @@ export async function createShipment(
     (error as Error & { code?: string }).code =
       response.status === 400
         ? "skydropx_bad_request"
-        : response.status === 401 || response.status === 403
-          ? "skydropx_unauthorized"
-          : response.status === 404
-            ? "skydropx_not_found"
-            : response.status >= 500
-              ? "skydropx_upstream_error"
-              : "skydropx_error";
+        : response.status === 422
+          ? "skydropx_unprocessable_entity"
+          : response.status === 401 || response.status === 403
+            ? "skydropx_unauthorized"
+            : response.status === 404
+              ? "skydropx_not_found"
+              : response.status >= 500
+                ? "skydropx_upstream_error"
+                : "skydropx_error";
 
     throw error;
   }
@@ -952,8 +962,10 @@ export async function createShipmentFromRate(input: {
     shipment: {
       rate_id: input.rateExternalId,
       address_from: {
-        country: input.addressFrom.countryCode,
+        country: input.addressFrom.countryCode || "MX",
+        country_code: input.addressFrom.countryCode || "MX",
         zip: input.addressFrom.postalCode,
+        postal_code: input.addressFrom.postalCode,
         city: input.addressFrom.city,
         state: input.addressFrom.state,
         province: input.addressFrom.state,
@@ -966,8 +978,10 @@ export async function createShipmentFromRate(input: {
         email: input.addressFrom.email || null,
       },
       address_to: {
-        country: input.addressTo.countryCode,
+        country: input.addressTo.countryCode || "MX",
+        country_code: input.addressTo.countryCode || "MX",
         zip: input.addressTo.postalCode,
+        postal_code: input.addressTo.postalCode,
         city: input.addressTo.city,
         state: input.addressTo.state,
         province: input.addressTo.state,
