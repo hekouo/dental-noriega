@@ -56,19 +56,23 @@ function extractAddressFromMetadata(metadata: unknown): {
 
   const meta = metadata as Record<string, unknown>;
 
-  // PRIORIDAD 1: metadata.shipping_address (nuevo formato estructurado)
+  // PRIORIDAD 1: metadata.shipping_address_override (admin override)
   let addressData: Record<string, unknown> | null = null;
-  if (meta.shipping_address && typeof meta.shipping_address === "object") {
+  if (meta.shipping_address_override && typeof meta.shipping_address_override === "object") {
+    addressData = meta.shipping_address_override as Record<string, unknown>;
+  }
+  // PRIORIDAD 2: metadata.shipping_address (nuevo formato estructurado)
+  else if (meta.shipping_address && typeof meta.shipping_address === "object") {
     addressData = meta.shipping_address as Record<string, unknown>;
   }
-  // PRIORIDAD 2: metadata.shipping.address (compatibilidad)
+  // PRIORIDAD 3: metadata.shipping.address (compatibilidad)
   else if (meta.shipping && typeof meta.shipping === "object") {
     const shipping = meta.shipping as Record<string, unknown>;
     if (shipping.address && typeof shipping.address === "object") {
       addressData = shipping.address as Record<string, unknown>;
     }
   }
-  // PRIORIDAD 3: metadata.address (legacy)
+  // PRIORIDAD 4: metadata.address (legacy)
   else if (meta.address && typeof meta.address === "object") {
     addressData = meta.address as Record<string, unknown>;
   }
