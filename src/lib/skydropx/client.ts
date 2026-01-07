@@ -680,8 +680,8 @@ export type SkydropxShipmentPayload = {
       width: number; // cm
       length: number; // cm
       declared_value?: number; // opcional
-      consignment_note?: string; // opcional
-      package_type?: string; // opcional
+      consignment_note: string; // REQUIRED para PRO: código Carta Porte (SAT)
+      package_type: string; // REQUIRED para PRO: código tipo empaque (SAT)
     }>;
     declared_value?: number;
     printing_format?: "standard" | "thermal";
@@ -1004,6 +1004,8 @@ export async function createShipmentFromRate(input: {
     width: number;
     length: number;
   }>;
+  consignmentNote?: string; // Código Carta Porte (SAT) - requerido para PRO
+  packageType?: string; // Código tipo empaque (SAT) - requerido para PRO
 }): Promise<{
   trackingNumber: string;
   labelUrl: string | null;
@@ -1060,6 +1062,8 @@ export async function createShipmentFromRate(input: {
         height: p.height,
         width: p.width,
         length: p.length,
+        consignment_note: input.consignmentNote || "",
+        package_type: input.packageType || "",
       })),
       declared_value: 0,
       printing_format: "standard",
