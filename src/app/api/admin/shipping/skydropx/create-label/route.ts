@@ -34,6 +34,8 @@ type CreateLabelResponse =
         | "skydropx_not_found"
         | "skydropx_oauth_failed"
         | "skydropx_unauthorized"
+        | "skydropx_bad_request"
+        | "invalid_shipping_payload"
         | "config_error"
         | "unknown_error";
       message: string;
@@ -188,13 +190,13 @@ export async function POST(req: NextRequest) {
     });
 
     // Cargar la orden
-    const { data: order, error: orderError } = await supabase
+    const { data: orderData, error: orderError } = await supabase
       .from("orders")
       .select("*")
       .eq("id", orderId)
       .single();
 
-    if (orderError || !order) {
+    if (orderError || !orderData) {
       if (process.env.NODE_ENV !== "production") {
         console.warn("[create-label] Orden no encontrada:", { orderId, error: orderError });
       }
@@ -207,6 +209,8 @@ export async function POST(req: NextRequest) {
         { status: 404 },
       );
     }
+    
+    const order = orderData;
 
     // IDEMPOTENCIA: Si ya tiene tracking y label, retornar datos existentes
     if (order.shipping_tracking_number && order.shipping_label_url) {
@@ -344,6 +348,62 @@ export async function POST(req: NextRequest) {
       phone: config.origin.phone || null,
       email: config.origin.email || null,
     };
+
+    // VALIDACIONES LOCALES 422 antes de llamar a Skydropx
+    const missingFields: string[] = [];
+    
+    // Validar rate_id
+    if (!order.shipping_rate_ext_id || typeof order.shipping_rate_ext_id !== "string" || order.shipping_rate_ext_id.trim() === "") {
+      missingFields.push("rate_id");
+    }
+    
+    // Validar address_from required
+    if (!addressFrom.address1 || addressFrom.address1.trim() === "") {
+      missingFields.push("address_from.street1");
+    }
+    if (!addressFrom.name || addressFrom.name.trim() === "") {
+      missingFields.push("address_from.name");
+    }
+    if (!config.origin.postalCode || config.origin.postalCode.trim() === "") {
+      missingFields.push("address_from.zip");
+    }
+    if (!config.origin.city || config.origin.city.trim() === "") {
+      missingFields.push("address_from.city");
+    }
+    if (!config.origin.state || config.origin.state.trim() === "") {
+      missingFields.push("address_from.state");
+    }
+    
+    // Validar address_to required
+    if (!addressTo.address1 || addressTo.address1.trim() === "") {
+      missingFields.push("address_to.street1");
+    }
+    if (!addressTo.name || addressTo.name.trim() === "") {
+      missingFields.push("address_to.name");
+    }
+    if (!addressTo.postalCode || addressTo.postalCode.trim() === "") {
+      missingFields.push("address_to.zip");
+    }
+    if (!addressTo.city || addressTo.city.trim() === "") {
+      missingFields.push("address_to.city");
+    }
+    if (!addressTo.state || addressTo.state.trim() === "") {
+      missingFields.push("address_to.state");
+    }
+    
+    if (missingFields.length > 0) {
+      return NextResponse.json(
+        {
+          ok: false,
+          code: "invalid_shipping_payload",
+          message: `Faltan campos requeridos para crear el envío: ${missingFields.join(", ")}`,
+          details: {
+            missingFields,
+          },
+        } satisfies CreateLabelResponse,
+        { status: 422 },
+      );
+    }
 
     // Calcular dimensiones del paquete (usar valores estándar si no están disponibles)
     // TODO: Calcular desde order_items si están disponibles
@@ -486,7 +546,9 @@ export async function POST(req: NextRequest) {
       shipmentId: finalShipmentId,
     } satisfies CreateLabelResponse);
   } catch (error) {
-    console.error("[create-label] Error inesperado:", error);
+    if (process.env.NODE_ENV !== "production") {
+      console.error("[create-label] Error inesperado:", error);
+    }
 
     const errorMessage = error instanceof Error ? error.message : "Error desconocido";
     const errorCode = (error as Error & { code?: string }).code;
@@ -500,7 +562,8 @@ export async function POST(req: NextRequest) {
       errorMessage.includes("Credenciales") ||
       errorCode === "skydropx_not_found" ||
       errorCode === "skydropx_oauth_failed" ||
-      errorCode === "skydropx_unauthorized"
+      errorCode === "skydropx_unauthorized" ||
+      errorCode === "skydropx_bad_request"
     ) {
       const skydropxCode: Extract<CreateLabelResponse, { ok: false }>["code"] =
         errorCode === "skydropx_not_found"
@@ -509,7 +572,79 @@ export async function POST(req: NextRequest) {
             ? "skydropx_oauth_failed"
             : errorCode === "skydropx_unauthorized" || statusCode === 401 || statusCode === 403
               ? "skydropx_unauthorized"
-              : "skydropx_error";
+              : errorCode === "skydropx_bad_request" || statusCode === 400
+                ? "skydropx_bad_request"
+                : "skydropx_error";
+
+      // Si es 400, construir payloadHealth sin PII
+      let enhancedDetails = errorDetails;
+      if (statusCode === 400 || errorCode === "skydropx_bad_request") {
+        // Re-leer order para payloadHealth (solo si orderId está disponible)
+        try {
+          const orderIdForPayloadHealth = (req as any)._orderId || null;
+          if (orderIdForPayloadHealth) {
+            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+            const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+            if (supabaseUrl && serviceRoleKey) {
+              const tempSupabase = createClient(supabaseUrl, serviceRoleKey, {
+                auth: { autoRefreshToken: false, persistSession: false },
+              });
+              const { data: tempOrder } = await tempSupabase
+                .from("orders")
+                .select("metadata, shipping_rate_ext_id")
+                .eq("id", orderIdForPayloadHealth)
+                .single();
+              
+              if (tempOrder) {
+                const config = getSkydropxConfig();
+                const addressTo = extractAddressFromMetadata(tempOrder.metadata);
+                const addressFrom = config
+                  ? {
+                      countryCode: config.origin.country,
+                      postalCode: config.origin.postalCode,
+                      state: config.origin.state,
+                      city: config.origin.city,
+                      address1: config.origin.addressLine1 || "",
+                      name: config.origin.name,
+                      phone: config.origin.phone || null,
+                      email: config.origin.email || null,
+                    }
+                  : null;
+
+                const payloadHealth = {
+                  hasRateId: !!(tempOrder.shipping_rate_ext_id && typeof tempOrder.shipping_rate_ext_id === "string" && tempOrder.shipping_rate_ext_id.trim() !== ""),
+                  hasFromStreet1: !!(addressFrom?.address1 && addressFrom.address1.trim() !== ""),
+                  hasFromName: !!(addressFrom?.name && addressFrom.name.trim() !== ""),
+                  hasFromCompany: true, // Siempre se asigna default "DDN"
+                  hasFromReference: true, // Siempre se asigna default "Sin referencia"
+                  hasFromZip: !!(addressFrom?.postalCode && addressFrom.postalCode.trim() !== ""),
+                  hasFromCity: !!(addressFrom?.city && addressFrom.city.trim() !== ""),
+                  hasFromState: !!(addressFrom?.state && addressFrom.state.trim() !== ""),
+                  hasToStreet1: !!(addressTo?.address1 && addressTo.address1.trim() !== ""),
+                  hasToName: !!(addressTo?.name && addressTo.name.trim() !== ""),
+                  hasToCompany: true, // Siempre se asigna default "Particular"
+                  hasToReference: true, // Siempre se asigna default "Sin referencia"
+                  hasToZip: !!(addressTo?.postalCode && addressTo.postalCode.trim() !== ""),
+                  hasToCity: !!(addressTo?.city && addressTo.city.trim() !== ""),
+                  hasToState: !!(addressTo?.state && addressTo.state.trim() !== ""),
+                  hasPackages: true, // Siempre se crea al menos 1 paquete
+                  phoneDigitsLen: addressFrom?.phone ? addressFrom.phone.replace(/\D/g, "").length : 0,
+                  toPhoneDigitsLen: addressTo?.phone ? addressTo.phone.replace(/\D/g, "").length : 0,
+                  fromStreet1Len: addressFrom?.address1?.length || 0,
+                  toStreet1Len: addressTo?.address1?.length || 0,
+                };
+
+                enhancedDetails = {
+                  ...(typeof errorDetails === "object" && errorDetails !== null ? errorDetails : {}),
+                  payloadHealth,
+                };
+              }
+            }
+          }
+        } catch {
+          // Si falla obtener order, usar errorDetails sin payloadHealth
+        }
+      }
 
       return NextResponse.json(
         {
@@ -517,7 +652,7 @@ export async function POST(req: NextRequest) {
           code: skydropxCode,
           message: errorMessage,
           statusCode: statusCode || undefined,
-          details: errorDetails || undefined,
+          details: enhancedDetails || undefined,
         } satisfies CreateLabelResponse,
         {
           status:
@@ -525,7 +660,9 @@ export async function POST(req: NextRequest) {
               ? 404
               : statusCode === 401 || statusCode === 403
                 ? 401
-                : statusCode || 500,
+                : statusCode === 400
+                  ? 400
+                  : statusCode || 500,
         },
       );
     }

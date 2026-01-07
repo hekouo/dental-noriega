@@ -583,43 +583,65 @@ export async function createSkydropxShipment(input: {
   const heightCm = input.pkg.heightCm || 10;
 
   try {
+    const sanitizePhone = (v?: string | null) => {
+      if (!v) return null;
+      const digits = v.replace(/\D/g, "");
+      if (!digits) return null;
+      const withoutCountry =
+        digits.length === 12 && digits.startsWith("52") ? digits.slice(2) : digits;
+      if (withoutCountry.length > 10) return withoutCountry.slice(-10);
+      return withoutCountry;
+    };
+
     const payload: SkydropxShipmentPayload = {
-      address_from: {
-        province: config.origin.state,
-        city: config.origin.city,
-        country: config.origin.country,
-        zip: config.origin.postalCode,
-        name: config.origin.name,
-        phone: config.origin.phone || null,
-        email: config.origin.email || null,
-        address1: config.origin.addressLine1 || null,
-      },
-      address_to: {
-        province: input.destination.state,
-        city: input.destination.city,
-        country: input.destination.country || "MX",
-        zip: input.destination.postalCode,
-        name: input.destination.name,
-        phone: input.destination.phone || null,
-        email: input.destination.email || null,
-        address1: input.destination.addressLine1 || null,
-      },
-      parcels: [
-        {
-          weight: weightKg, // En kilogramos, no gramos
-          distance_unit: "CM",
-          mass_unit: "KG",
-          height: heightCm,
-          width: widthCm,
-          length: lengthCm,
+      shipment: {
+        rate_id: input.rateId,
+        address_from: {
+          country: config.origin.country,
+          zip: config.origin.postalCode,
+          city: config.origin.city,
+          state: config.origin.state,
+          province: config.origin.state,
+          street1: config.origin.addressLine1 || "",
+          address1: config.origin.addressLine1 || "",
+          name: config.origin.name,
+          company: "DDN",
+          reference: "Sin referencia",
+          phone: sanitizePhone(config.origin.phone) || null,
+          email: config.origin.email || null,
         },
-      ],
-      rate_id: input.rateId,
+        address_to: {
+          country: input.destination.country || "MX",
+          zip: input.destination.postalCode,
+          city: input.destination.city,
+          state: input.destination.state,
+          province: input.destination.state,
+          street1: input.destination.addressLine1 || "",
+          address1: input.destination.addressLine1 || "",
+          name: input.destination.name || "Cliente",
+          company: "Particular",
+          reference: "Sin referencia",
+          phone: sanitizePhone(input.destination.phone) || null,
+          email: input.destination.email || null,
+        },
+        packages: [
+          {
+            package_number: "1",
+            package_protected: false,
+            weight: weightKg,
+            height: heightCm,
+            width: widthCm,
+            length: lengthCm,
+          },
+        ],
+        declared_value: 0,
+        printing_format: "standard",
+      },
     };
 
     // Agregar productos si están disponibles
     if (input.products && input.products.length > 0) {
-      payload.products = input.products;
+      payload.shipment.products = input.products;
     }
 
     const data = await createShipment(payload);
