@@ -3,7 +3,8 @@ import Link from "next/link";
 import { checkAdminAccess } from "@/lib/admin/access";
 import { getOrderWithItemsAdmin } from "@/lib/supabase/orders.server";
 import { formatMXNFromCents } from "@/lib/utils/currency";
-import { createSkydropxLabelAction } from "@/lib/actions/shipping.admin";
+import CreateSkydropxLabelClient from "./CreateSkydropxLabelClient";
+import CancelSkydropxLabelClient from "./CancelSkydropxLabelClient";
 import { getShippingStatusLabel, getShippingStatusVariant } from "@/lib/orders/shippingStatus";
 import { getPaymentMethodLabel, getPaymentStatusLabel, getPaymentStatusVariant } from "@/lib/orders/paymentStatus";
 import { variantDetailFromJSON } from "@/lib/products/parseVariantDetail";
@@ -385,19 +386,24 @@ export default async function AdminPedidoDetailPage({
                 )}
               </div>
 
-              {/* Botón para crear guía si es Skydropx y no tiene tracking */}
-              {order.shipping_provider === "skydropx" &&
-                order.shipping_rate_ext_id &&
-                !order.shipping_tracking_number && (
-                  <form action={createSkydropxLabelAction.bind(null, order.id)}>
-                    <button
-                      type="submit"
-                      className="mt-4 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium"
-                    >
-                      Crear guía en Skydropx
-                    </button>
-                  </form>
-                )}
+              {/* Botón para crear guía si es Skydropx */}
+              <CreateSkydropxLabelClient
+                orderId={order.id}
+                paymentStatus={order.payment_status}
+                shippingProvider={order.shipping_provider}
+                shippingRateExtId={order.shipping_rate_ext_id}
+                shippingStatus={order.shipping_status}
+                currentTrackingNumber={order.shipping_tracking_number}
+                currentLabelUrl={order.shipping_label_url}
+              />
+
+              {/* Botón para cancelar envío si es Skydropx y tiene label creada */}
+              <CancelSkydropxLabelClient
+                orderId={order.id}
+                shippingStatus={order.shipping_status}
+                shippingProvider={order.shipping_provider}
+                hasTracking={!!order.shipping_tracking_number}
+              />
 
               {/* Botón para notificar tracking al cliente */}
               <NotifyShippingClient

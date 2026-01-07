@@ -334,6 +334,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ received: true, message: "Order not from Skydropx" });
     }
 
+    // Cargar metadata completo para merge seguro
+    const { data: fullOrder } = await supabase
+      .from("orders")
+      .select("metadata")
+      .eq("id", order.id)
+      .single();
+
     // Preparar actualización
     const updateData: Record<string, unknown> = {
       shipping_status: shippingStatus,
@@ -352,6 +359,38 @@ export async function POST(req: NextRequest) {
             incoming: trackingNumber,
           });
         }
+      }
+    }
+
+    // Si el evento confirma cancelación (approved) o rechaza (rejected), actualizar metadata.shipping.cancel_status
+    // Merge seguro de metadata (NO sobreescribir completo)
+    if (fullOrder?.metadata) {
+      const currentMetadata = fullOrder.metadata as Record<string, unknown>;
+      const shippingMeta = (currentMetadata.shipping as Record<string, unknown>) || {};
+      
+      // Detectar si es evento de cancelación aprobada/rechazada
+      const normalizedStatus = status?.toLowerCase().trim() || "";
+      const normalizedEvent = eventType?.toLowerCase().trim() || "";
+      
+      if (
+        normalizedStatus === "approved" ||
+        normalizedStatus === "rejected" ||
+        normalizedStatus === "cancelled" ||
+        normalizedEvent === "cancel_approved" ||
+        normalizedEvent === "cancel_rejected"
+      ) {
+        // Actualizar cancel_status en metadata (merge seguro)
+        const updatedShippingMeta = {
+          ...shippingMeta, // Preservar datos existentes
+          cancel_status: normalizedStatus || normalizedEvent || "cancelled",
+        };
+
+        const updatedMetadata = {
+          ...currentMetadata, // Preservar todos los campos existentes
+          shipping: updatedShippingMeta,
+        };
+
+        updateData.metadata = updatedMetadata;
       }
     }
 
