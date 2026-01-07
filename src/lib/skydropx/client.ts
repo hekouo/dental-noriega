@@ -742,6 +742,69 @@ function sanitizeMxPhoneDigits(input: string | null | undefined): string | null 
   return withoutCountry;
 }
 
+/**
+ * Normaliza errores de Skydropx desde múltiples formatos a un array uniforme
+ */
+function normalizeSkydropxErrors(errors: unknown, maxDepth = 2, currentDepth = 0): Array<{ field: string | null; message: string; code?: string; path?: string }> {
+  const result: Array<{ field: string | null; message: string; code?: string; path?: string }> = [];
+  
+  if (currentDepth > maxDepth || !errors) return result;
+
+  // Caso 1: Array de objetos
+  if (Array.isArray(errors)) {
+    for (const item of errors.slice(0, 10)) {
+      if (typeof item === "string") {
+        // Array<string> -> [{field:null, message:str}]
+        result.push({ field: null, message: item });
+      } else if (item && typeof item === "object") {
+        // Array<object> -> normalizar
+        const er = item as Record<string, unknown>;
+        result.push({
+          field: typeof er.field === "string" ? er.field : typeof er.path === "string" ? er.path : typeof er.attribute === "string" ? er.attribute : null,
+          message: typeof er.message === "string" ? er.message : typeof er.detail === "string" ? er.detail : typeof er.code === "string" ? er.code : "unknown",
+          code: typeof er.code === "string" ? er.code : undefined,
+          path: typeof er.path === "string" ? er.path : undefined,
+        });
+      }
+    }
+    return result;
+  }
+
+  // Caso 2: Object/dictionary (ej: { field: ["msg1","msg2"] } o { field: "msg" })
+  if (typeof errors === "object") {
+    const obj = errors as Record<string, unknown>;
+    for (const [key, value] of Object.entries(obj)) {
+      if (Array.isArray(value)) {
+        // Si v es array<string> -> push {field:k, message:s}
+        for (const item of value) {
+          if (typeof item === "string") {
+            result.push({ field: key, message: item });
+          } else if (item && typeof item === "object" && currentDepth < maxDepth) {
+            // Si v es array<object> -> normalizar recursivamente
+            const nested = normalizeSkydropxErrors(item, maxDepth, currentDepth + 1);
+            result.push(...nested.map((e) => ({ ...e, field: e.field || key })));
+          }
+        }
+      } else if (typeof value === "string") {
+        // Si v es string -> push {field:k, message:v}
+        result.push({ field: key, message: value });
+      } else if (value && typeof value === "object" && currentDepth < maxDepth) {
+        // Si v es object -> flatten recursivo
+        const nested = normalizeSkydropxErrors(value, maxDepth, currentDepth + 1);
+        result.push(...nested.map((e) => ({ ...e, field: e.field || key })));
+      }
+    }
+    return result;
+  }
+
+  // Caso 3: string directo
+  if (typeof errors === "string") {
+    return [{ field: null, message: errors }];
+  }
+
+  return result;
+}
+
 function sanitizeSkydropxErrorBody(body: unknown): unknown {
   if (!body || typeof body !== "object") return null;
   const obj = body as Record<string, unknown>;
@@ -753,19 +816,13 @@ function sanitizeSkydropxErrorBody(body: unknown): unknown {
   if (typeof obj.message === "string") safe.message = obj.message;
   if (typeof obj.error === "string") safe.error = obj.error;
 
-  // Extraer errors array de forma segura (sin PII)
+  // Extraer errors desde múltiples formatos posibles
   const maybeErrors = obj.errors;
-  if (Array.isArray(maybeErrors)) {
-    safe.errors = maybeErrors.slice(0, 50).map((e) => {
-      if (!e || typeof e !== "object") return { type: typeof e };
-      const er = e as Record<string, unknown>;
-      return {
-        field: typeof er.field === "string" ? er.field : typeof er.path === "string" ? er.path : typeof er.attribute === "string" ? er.attribute : null,
-        message: typeof er.message === "string" ? er.message : typeof er.detail === "string" ? er.detail : typeof er.code === "string" ? er.code : "unknown",
-        code: typeof er.code === "string" ? er.code : undefined,
-        path: typeof er.path === "string" ? er.path : undefined,
-      };
-    });
+  if (maybeErrors !== undefined && maybeErrors !== null) {
+    const normalizedErrors = normalizeSkydropxErrors(maybeErrors).slice(0, 10);
+    if (normalizedErrors.length > 0) {
+      safe.errors = normalizedErrors;
+    }
   }
 
   return safe;
@@ -876,12 +933,15 @@ export async function createShipment(
     let errorMessage = `Error al crear envío: ${response.statusText || `HTTP ${response.status}`}`;
     if (sanitizedUpstream && typeof sanitizedUpstream === "object") {
       const upstream = sanitizedUpstream as Record<string, unknown>;
+      // Intentar obtener primer error desde errors normalizados
       if (Array.isArray(upstream.errors) && upstream.errors.length > 0) {
         const firstError = upstream.errors[0] as { message?: string; field?: string | null };
-        if (firstError.message) {
+        if (firstError.message && firstError.message !== "unknown") {
           errorMessage = `Skydropx rechazó el envío: ${firstError.message}${firstError.field ? ` (campo: ${firstError.field})` : ""}`;
         }
-      } else if (typeof upstream.message === "string") {
+      }
+      // Fallback a message general si no hay errors parseados
+      if (errorMessage === `Error al crear envío: ${response.statusText || `HTTP ${response.status}`}` && typeof upstream.message === "string") {
         errorMessage = `Skydropx rechazó el envío: ${upstream.message}`;
       }
     }

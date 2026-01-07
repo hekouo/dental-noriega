@@ -557,25 +557,44 @@ export async function POST(req: NextRequest) {
     const errorDetails = (error as Error & { details?: unknown }).details;
 
     // Detectar errores específicos de Skydropx
-    if (
+    // Respetar err.code si ya viene seteado, pero mapear explícitamente por statusCode
+    const isSkydropxError =
       errorMessage.includes("Skydropx") ||
       errorMessage.includes("token") ||
       errorMessage.includes("Credenciales") ||
       errorCode === "skydropx_not_found" ||
       errorCode === "skydropx_oauth_failed" ||
       errorCode === "skydropx_unauthorized" ||
-      errorCode === "skydropx_bad_request"
-    ) {
+      errorCode === "skydropx_bad_request" ||
+      errorCode === "skydropx_unprocessable_entity" ||
+      statusCode === 422 ||
+      statusCode === 400 ||
+      statusCode === 401 ||
+      statusCode === 403 ||
+      statusCode === 404;
+
+    if (isSkydropxError) {
+      // Mapear explícitamente por statusCode primero, luego por errorCode
       const skydropxCode: Extract<CreateLabelResponse, { ok: false }>["code"] =
-        errorCode === "skydropx_not_found"
-          ? "skydropx_not_found"
-          : errorCode === "skydropx_oauth_failed"
-            ? "skydropx_oauth_failed"
-            : errorCode === "skydropx_unauthorized" || statusCode === 401 || statusCode === 403
-              ? "skydropx_unauthorized"
-              : errorCode === "skydropx_bad_request" || statusCode === 400
-                ? "skydropx_bad_request"
-                : "skydropx_error";
+        statusCode === 422
+          ? "skydropx_unprocessable_entity"
+          : statusCode === 400
+            ? "skydropx_bad_request"
+            : statusCode === 404
+              ? "skydropx_not_found"
+              : statusCode === 401 || statusCode === 403
+                ? "skydropx_unauthorized"
+                : errorCode === "skydropx_not_found"
+                  ? "skydropx_not_found"
+                  : errorCode === "skydropx_oauth_failed"
+                    ? "skydropx_oauth_failed"
+                    : errorCode === "skydropx_unauthorized"
+                      ? "skydropx_unauthorized"
+                      : errorCode === "skydropx_unprocessable_entity"
+                        ? "skydropx_unprocessable_entity"
+                        : errorCode === "skydropx_bad_request"
+                          ? "skydropx_bad_request"
+                          : "skydropx_error";
 
       // Si es 400, construir payloadHealth sin PII
       let enhancedDetails = errorDetails;
