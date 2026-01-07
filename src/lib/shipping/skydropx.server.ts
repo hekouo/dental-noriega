@@ -636,6 +636,8 @@ export async function createSkydropxShipment(input: {
             height: heightCm,
             width: widthCm,
             length: lengthCm,
+            consignment_note: process.env.SKYDROPX_DEFAULT_CONSIGNMENT_NOTE || "",
+            package_type: process.env.SKYDROPX_DEFAULT_PACKAGE_TYPE || "",
           },
         ],
         declared_value: 0,

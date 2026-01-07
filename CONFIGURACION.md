@@ -49,6 +49,23 @@ SKYDROPX_QUOTATIONS_BASE_URL=https://api-pro.skydropx.com
 #   2. ${SKYDROPX_BASE_URL}/v1/shipments (fallback si 404)
 SKYDROPX_BASE_URL=https://api-pro.skydropx.com
 
+# Carta Porte (SAT) - REQUERIDO para crear shipments/labels en Skydropx PRO
+# consignment_note = código Carta Porte (SAT) del producto/servicio
+# package_type = código de tipo de empaque (SAT)
+# Ambos pueden depender de la paquetería/rate seleccionado y se obtienen del listado oficial de Skydropx.
+# También pueden guardarse por orden en metadata.shipping.consignment_note / metadata.shipping.package_type
+SKYDROPX_DEFAULT_CONSIGNMENT_NOTE=tu_codigo_carta_porte
+SKYDROPX_DEFAULT_PACKAGE_TYPE=tu_codigo_tipo_empaque
+
+# Datos de origen (requeridos para crear shipments)
+SKYDROPX_ORIGIN_NAME=Depósito Dental Noriega
+SKYDROPX_ORIGIN_STATE=Ciudad de México
+SKYDROPX_ORIGIN_CITY=Ciudad de México
+SKYDROPX_ORIGIN_POSTAL_CODE=01234
+SKYDROPX_ORIGIN_ADDRESS_LINE_1=Calle Principal 123
+SKYDROPX_ORIGIN_PHONE=5512345678
+SKYDROPX_ORIGIN_EMAIL=envios@ddnshop.mx
+
 # App URL
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```

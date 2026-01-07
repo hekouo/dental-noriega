@@ -70,11 +70,28 @@ export default function CreateSkydropxLabelClient({
                     : data.code === "missing_address_data"
                       ? "No se encontraron datos de dirección en la orden."
                       : data.code === "invalid_shipping_payload"
-                        ? `Faltan campos requeridos: ${Array.isArray(data.details?.missingFields) ? data.details.missingFields.join(", ") : "ver logs"}`
+                        ? (() => {
+                            const missing = Array.isArray(data.details?.missingFields) ? data.details.missingFields as string[] : [];
+                            const hasConsignmentNote = missing.some((f) => f.includes("consignment_note"));
+                            const hasPackageType = missing.some((f) => f.includes("package_type"));
+                            if (hasConsignmentNote || hasPackageType) {
+                              return "Faltan códigos Carta Porte: consignment_note y package_type. Configura env vars (SKYDROPX_DEFAULT_CONSIGNMENT_NOTE, SKYDROPX_DEFAULT_PACKAGE_TYPE) o guarda en metadata.shipping.";
+                            }
+                            return `Faltan campos requeridos: ${missing.join(", ")}`;
+                          })()
                         : data.code === "skydropx_bad_request"
                           ? "Skydropx rechazó el payload. Revisa ORIGIN_* env vars y campos requeridos. Ver detalles abajo."
                           : data.code === "skydropx_unprocessable_entity"
-                            ? "Skydropx rechazó el envío por errores de validación. Ver lista de errores abajo."
+                            ? (() => {
+                                const upstream = data.details?.upstream as Record<string, unknown> | undefined;
+                                const errors = upstream?.errors as Array<{ field?: string | null; message?: string }> | undefined;
+                                const hasConsignmentNote = errors?.some((e) => e.field?.includes("consignment_note") || e.message?.includes("consignment_note"));
+                                const hasPackageType = errors?.some((e) => e.field?.includes("package_type") || e.message?.includes("package_type"));
+                                if (hasConsignmentNote || hasPackageType) {
+                                  return "Faltan códigos Carta Porte: consignment_note y package_type. Configura env vars (SKYDROPX_DEFAULT_CONSIGNMENT_NOTE, SKYDROPX_DEFAULT_PACKAGE_TYPE) o guarda en metadata.shipping.";
+                                }
+                                return "Skydropx rechazó el envío por errores de validación. Ver lista de errores abajo.";
+                              })()
                             : data.code === "skydropx_error"
                               ? "Error al crear la guía en Skydropx. Revisa los logs."
                               : data.message || "Error desconocido al crear la guía.";

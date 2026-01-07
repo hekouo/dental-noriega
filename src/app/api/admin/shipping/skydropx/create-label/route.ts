@@ -406,6 +406,45 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Extraer consignment_note y package_type desde metadata o env vars
+    const orderMetadata = (order.metadata as Record<string, unknown>) || {};
+    const orderShippingMeta = (orderMetadata.shipping as Record<string, unknown>) || {};
+    
+    // Intentar obtener desde metadata.shipping.consignment_note o metadata.shipping.consignment_note_code
+    const consignmentNoteFromMeta = 
+      (typeof orderShippingMeta.consignment_note === "string" ? orderShippingMeta.consignment_note : null) ||
+      (typeof orderShippingMeta.consignment_note_code === "string" ? orderShippingMeta.consignment_note_code : null);
+    
+    // Intentar obtener package_type desde metadata (menos común)
+    const packageTypeFromMeta = typeof orderShippingMeta.package_type === "string" ? orderShippingMeta.package_type : null;
+    
+    // Fallback a env vars
+    const consignmentNote = consignmentNoteFromMeta || process.env.SKYDROPX_DEFAULT_CONSIGNMENT_NOTE || null;
+    const packageType = packageTypeFromMeta || process.env.SKYDROPX_DEFAULT_PACKAGE_TYPE || null;
+    
+    // Validar que existan antes de llamar a Skydropx
+    if (!consignmentNote || consignmentNote.trim() === "") {
+      missingFields.push("packages[].consignment_note");
+    }
+    if (!packageType || packageType.trim() === "") {
+      missingFields.push("packages[].package_type");
+    }
+    
+    // Si faltan, responder 422 local (ya validado arriba, pero re-check para estos campos)
+    if (missingFields.length > 0) {
+      return NextResponse.json(
+        {
+          ok: false,
+          code: "invalid_shipping_payload",
+          message: `Faltan campos requeridos para crear el envío: ${missingFields.join(", ")}`,
+          details: {
+            missingFields,
+          },
+        } satisfies CreateLabelResponse,
+        { status: 422 },
+      );
+    }
+
     // Calcular dimensiones del paquete (usar valores estándar si no están disponibles)
     // TODO: Calcular desde order_items si están disponibles
     const weightKg = 1.0; // Default 1kg
@@ -419,6 +458,8 @@ export async function POST(req: NextRequest) {
         rateId: order.shipping_rate_ext_id,
         from: `${addressFrom.city}, ${addressFrom.postalCode}`,
         to: `${addressTo.city}, ${addressTo.postalCode}`,
+        hasConsignmentNote: !!consignmentNote,
+        hasPackageType: !!packageType,
       });
     }
 
@@ -435,6 +476,8 @@ export async function POST(req: NextRequest) {
           length: lengthCm,
         },
       ],
+      consignmentNote: consignmentNote!, // Ya validado arriba
+      packageType: packageType!, // Ya validado arriba
     });
 
     // Merge seguro de metadata (NO sobreescribir completo)
