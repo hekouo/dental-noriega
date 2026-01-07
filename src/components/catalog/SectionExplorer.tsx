@@ -1,6 +1,6 @@
 import "server-only";
 import Link from "next/link";
-import { getSections, type SectionInfo } from "@/lib/catalog/getSections";
+import { getSections } from "@/lib/catalog/getSections";
 import { ROUTES } from "@/lib/routes";
 import {
   Package,
