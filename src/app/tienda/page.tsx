@@ -5,12 +5,12 @@ import FeaturedGrid from "@/components/FeaturedGrid";
 import { getFeaturedItems } from "@/lib/catalog/getFeatured.server";
 import { ROUTES } from "@/lib/routes";
 import ProductsGridSkeleton from "@/components/products/ProductsGridSkeleton";
-import CategoryIcon from "@/components/categories/CategoryIcon";
 import { AlertCircle, MessageCircle } from "lucide-react";
 import { getWhatsAppUrl } from "@/lib/whatsapp/config";
 import { HelpWidget } from "@/components/support/HelpWidget";
 import { TrustBanners } from "@/components/marketing/TrustBanners";
 import QuickSearchBar from "@/components/search/QuickSearchBar";
+import SectionExplorer from "@/components/catalog/SectionExplorer";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -31,21 +31,6 @@ export const metadata: Metadata = {
   },
 };
 
-const categories = [
-  { title: "Consumibles y Profilaxis", sectionSlug: "consumibles-y-profilaxis" },
-  { title: "Equipos", sectionSlug: "equipos" },
-  { title: "Instrumental Clínico", sectionSlug: "instrumental-clinico" },
-  { title: "Instrumental Ortodoncia", sectionSlug: "instrumental-ortodoncia" },
-  {
-    title: "Ortodoncia: Brackets y Tubos",
-    sectionSlug: "ortodoncia-brackets-y-tubos",
-  },
-  { title: "Ortodoncia: Arcos y Resortes", sectionSlug: "ortodoncia-arcos-y-resortes" },
-  {
-    title: "Ortodoncia: Accesorios y Retenedores",
-    sectionSlug: "ortodoncia-accesorios-y-retenedores",
-  },
-];
 
 async function FeaturedItemsSection() {
   const featured = await getFeaturedItems();
@@ -172,6 +157,11 @@ export default async function TiendaPage() {
         <QuickSearchBar />
       </div>
 
+      {/* Section Explorer */}
+      <div className="max-w-7xl mx-auto px-4 pb-8">
+        <SectionExplorer />
+      </div>
+
       <div className="max-w-7xl mx-auto px-4 py-8">
         <Suspense
           fallback={
@@ -189,32 +179,6 @@ export default async function TiendaPage() {
           <FeaturedItemsSection />
         </Suspense>
 
-        <div>
-          <h2 className="text-2xl font-semibold tracking-tight mb-2 text-gray-900">
-            Categorías
-          </h2>
-          <p className="text-sm text-gray-600 mb-6">
-            Navega por nuestras categorías de productos
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            {categories.map((category, index) => (
-              <Link
-                key={category.sectionSlug}
-                href={ROUTES.section(category.sectionSlug)}
-                className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 p-6 sm:p-8 text-center group hover:-translate-y-1 active:scale-[0.98]"
-                aria-label={`Ver productos de ${category.title}`}
-                style={{ "--delay": `${index * 50}ms` } as React.CSSProperties}
-              >
-                <div className="flex flex-col items-center gap-3">
-                  <CategoryIcon sectionSlug={category.sectionSlug} size={24} />
-                  <h3 className="text-lg sm:text-xl font-semibold text-gray-900 group-hover:text-primary-600 transition-colors">
-                    {category.title}
-                  </h3>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
       </div>
 
       {/* Help Widget */}
