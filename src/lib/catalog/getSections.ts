@@ -19,11 +19,11 @@ export async function getSections(limit = 12): Promise<SectionInfo[]> {
 
   try {
     // Intentar obtener desde public.sections
+    // Manejar ambos schemas: (key/title) o (slug/name)
     const { data, error } = await supabase
       .from("sections")
-      .select("key, title, position")
+      .select("key, slug, title, name, position")
       .order("position", { ascending: true, nullsFirst: false })
-      .order("title", { ascending: true })
       .limit(limit);
 
     if (error) {
@@ -40,10 +40,15 @@ export async function getSections(limit = 12): Promise<SectionInfo[]> {
     }
 
     // Mapear a SectionInfo
-    return data.map((item) => ({
-      slug: String(item.key ?? ""),
-      name: String(item.title ?? item.key ?? ""),
-    }));
+    // Priorizar: name > title, slug > key
+    return data
+      .map((item) => {
+        const slug = String(item.slug ?? item.key ?? "");
+        const name = String(item.name ?? item.title ?? slug);
+        return { slug, name };
+      })
+      .filter((item) => item.slug.length > 0)
+      .sort((a, b) => a.name.localeCompare(b.name)); // Orden alfabético por name
   } catch (error) {
     if (process.env.NODE_ENV !== "production") {
       console.warn("[getSections] Error:", error);
