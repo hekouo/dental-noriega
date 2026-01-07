@@ -31,6 +31,18 @@ const CreateOrderRequestSchema = z.object({
   // Método y estado de pago
   paymentMethod: z.enum(["card", "bank_transfer"]).optional(),
   paymentStatus: z.enum(["pending", "paid", "canceled"]).optional(),
+  // Dirección de envío (opcional, solo si no es pickup)
+  shippingAddress: z.object({
+    name: z.string(),
+    phone: z.string().nullable().optional(),
+    email: z.string().nullable().optional(),
+    address1: z.string(),
+    address2: z.string().nullable().optional(),
+    city: z.string(),
+    state: z.string(),
+    postal_code: z.string(),
+    country: z.string().default("MX"),
+  }).optional(),
   // Información de Skydropx opcional
   shipping: z.object({
     provider: z.string(),
@@ -198,6 +210,11 @@ export async function POST(req: NextRequest) {
       contact_phone: phone || null,
       whatsapp: phone || null, // Usar el mismo teléfono como WhatsApp por defecto
     };
+
+    // Guardar dirección de envío en metadata.shipping_address (solo si no es pickup)
+    if (orderData.shippingAddress) {
+      metadata.shipping_address = orderData.shippingAddress;
+    }
 
     // Incluir información de Skydropx si está presente
     if (orderData.shipping) {

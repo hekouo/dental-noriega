@@ -230,15 +230,34 @@ export async function POST(req: NextRequest) {
       contact_city: metadataFromPayload.contact_city || null,
       contact_state: metadataFromPayload.contact_state || null,
       contact_cp: metadataFromPayload.contact_cp || null,
-      // Items detallados (opcional, para referencia)
-      items: orderData.items.map((item) => ({
-        productId: item.productId,
-        title: item.title,
-        qty: item.qty,
-        unitPriceCents: item.unitPriceCents,
-        image_url: item.image_url,
-      })),
     };
+
+    // Guardar dirección de envío en metadata.shipping_address (merge seguro, preservar si ya existe)
+    if (metadataFromPayload.shipping_address && typeof metadataFromPayload.shipping_address === "object") {
+      metadata.shipping_address = metadataFromPayload.shipping_address;
+    } else if (metadataFromPayload.contact_address && metadataFromPayload.contact_city && metadataFromPayload.contact_state && metadataFromPayload.contact_cp) {
+      // Fallback: construir desde campos legacy si shipping_address no existe
+      metadata.shipping_address = {
+        name: metadataFromPayload.contact_name || null,
+        phone: metadataFromPayload.contact_phone || null,
+        email: metadataFromPayload.contact_email || orderData.email || null,
+        address1: metadataFromPayload.contact_address || "",
+        address2: null,
+        city: metadataFromPayload.contact_city || "",
+        state: metadataFromPayload.contact_state || "",
+        postal_code: metadataFromPayload.contact_cp || "",
+        country: "MX",
+      };
+    }
+
+    // Items detallados (opcional, para referencia)
+    metadata.items = orderData.items.map((item) => ({
+      productId: item.productId,
+      title: item.title,
+      qty: item.qty,
+      unitPriceCents: item.unitPriceCents,
+      image_url: item.image_url,
+    }));
 
     // Preparar datos de shipping: priorizar Skydropx si está disponible, sino usar método manual
     let shippingProvider: string | null = null;

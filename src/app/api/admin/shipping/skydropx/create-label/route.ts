@@ -38,6 +38,7 @@ type CreateLabelResponse =
 
 /**
  * Extrae datos de dirección desde metadata de la orden
+ * Prioridad: metadata.shipping_address > metadata.shipping.address > metadata.address
  */
 function extractAddressFromMetadata(metadata: unknown): {
   countryCode: string;
@@ -55,35 +56,51 @@ function extractAddressFromMetadata(metadata: unknown): {
 
   const meta = metadata as Record<string, unknown>;
 
-  // Intentar obtener desde metadata.address o metadata.shipping.address
-  const addressData =
-    (meta.address as Record<string, unknown>) ||
-    (meta.shipping && typeof meta.shipping === "object"
-      ? (meta.shipping as Record<string, unknown>).address
-      : null);
+  // PRIORIDAD 1: metadata.shipping_address (nuevo formato estructurado)
+  let addressData: Record<string, unknown> | null = null;
+  if (meta.shipping_address && typeof meta.shipping_address === "object") {
+    addressData = meta.shipping_address as Record<string, unknown>;
+  }
+  // PRIORIDAD 2: metadata.shipping.address (compatibilidad)
+  else if (meta.shipping && typeof meta.shipping === "object") {
+    const shipping = meta.shipping as Record<string, unknown>;
+    if (shipping.address && typeof shipping.address === "object") {
+      addressData = shipping.address as Record<string, unknown>;
+    }
+  }
+  // PRIORIDAD 3: metadata.address (legacy)
+  else if (meta.address && typeof meta.address === "object") {
+    addressData = meta.address as Record<string, unknown>;
+  }
 
-  if (!addressData || typeof addressData !== "object") {
+  if (!addressData) {
     return null;
   }
 
-  const addr = addressData as Record<string, unknown>;
-  const postalCode = addr.cp || addr.postalCode || addr.postal_code;
-  const state = addr.state || addr.estado;
-  const city = addr.city || addr.ciudad;
-  const address1 = addr.address || addr.address1 || addr.direccion;
-  const name = addr.name || addr.nombre || meta.contact_name;
-  const phone = addr.phone || addr.telefono || meta.contact_phone;
-  const email = addr.email || meta.contact_email;
+  // Extraer campos con múltiples variantes para compatibilidad
+  const postalCode = addressData.postal_code || addressData.cp || addressData.postalCode;
+  const state = addressData.state || addressData.estado;
+  const city = addressData.city || addressData.ciudad;
+  const address1 = addressData.address1 || addressData.address || addressData.direccion;
+  const name = addressData.name || addressData.nombre || (meta.contact_name as string);
+  const phone = addressData.phone || addressData.telefono || (meta.contact_phone as string | null);
+  const email = addressData.email || (meta.contact_email as string | null);
 
+  // Validar campos mínimos requeridos
   if (
     typeof postalCode === "string" &&
     typeof state === "string" &&
     typeof city === "string" &&
     typeof address1 === "string" &&
-    typeof name === "string"
+    typeof name === "string" &&
+    postalCode.length > 0 &&
+    state.length > 0 &&
+    city.length > 0 &&
+    address1.length > 0 &&
+    name.length > 0
   ) {
     return {
-      countryCode: (addr.countryCode || addr.country || "MX") as string,
+      countryCode: (addressData.countryCode || addressData.country || "MX") as string,
       postalCode,
       state,
       city,
