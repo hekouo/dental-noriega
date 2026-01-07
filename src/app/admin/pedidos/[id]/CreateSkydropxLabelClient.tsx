@@ -53,7 +53,7 @@ export default function CreateSkydropxLabelClient({
         body: JSON.stringify({ orderId }),
       });
 
-      const data = await response.json();
+          const data = await response.json();
 
       if (!data.ok) {
         const errorMessage =
@@ -67,13 +67,18 @@ export default function CreateSkydropxLabelClient({
                   ? "El proveedor de envío no es compatible."
                   : data.code === "missing_shipping_rate"
                     ? "La orden no tiene un rate_id de Skydropx guardado."
-                    : data.code === "missing_address_data"
-                      ? "No se encontraron datos de dirección en la orden."
+                        : data.code === "missing_address_data"
+                          ? "No se encontraron datos de dirección en la orden."
                       : data.code === "skydropx_error"
                         ? "Error al crear la guía en Skydropx. Revisa los logs."
                         : data.message || "Error desconocido al crear la guía.";
 
         setError(errorMessage);
+            // Si falta dirección, sugerir editar override
+            if (data.code === "missing_address_data" && typeof window !== "undefined") {
+              // agregar un hash para ayudar a ubicar el editor
+              window.location.hash = "#shipping-override";
+            }
         return;
       }
 

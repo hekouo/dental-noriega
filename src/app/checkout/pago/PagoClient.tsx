@@ -57,7 +57,23 @@ type ExtendedDatosForm = DatosForm & {
   notes?: string;
 };
 
+type ValidatedAddress = {
+  name: string;
+  phone?: string | null;
+  email?: string | null;
+  address1: string;
+  address2?: string | null;
+  city: string;
+  state: string;
+  postal_code: string;
+  country?: string;
+};
 
+type AddressValidationPayload = {
+  verdict: "valid" | "needs_review" | "invalid";
+  normalized_address: ValidatedAddress | null;
+  missing_fields: string[];
+};
 
 export default function PagoClient() {
   const router = useRouter();
@@ -92,6 +108,7 @@ export default function PagoClient() {
   // El store se limpia con resetAfterSuccess() después de pago exitoso
   const storeOrderId = useCheckoutStore((s) => s.orderId);
   const setStoreOrderId = useCheckoutStore((s) => s.setOrderId);
+  const setDatos = useCheckoutStore((s) => s.setDatos);
   const [orderId, setOrderId] = useState<string | null>(null); // Estado local solo para UI (StripePaymentForm)
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
 
@@ -432,6 +449,60 @@ export default function PagoClient() {
         ? selectedShippingOption.priceCents
         : Math.round(shippingCost * 100);
 
+      // Validar dirección antes de crear orden (si no es pickup)
+      let addressValidation: AddressValidationPayload | null = null;
+
+      if (displayShippingMethod !== "pickup" && datos.cp && datos.city && datos.state && datos.address) {
+        const shippingAddress = {
+          name: datos.name || "",
+          phone: datos.phone || null,
+          email: datos.email || null,
+          address1: datos.address || "",
+          address2: datos.neighborhood || null,
+          city: datos.city || "",
+          state: datos.state || "",
+          postal_code: datos.cp || "",
+          country: "MX",
+        };
+        try {
+          const resp = await fetch("/api/checkout/validate-address", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ shipping_address: shippingAddress }),
+          });
+          if (resp.ok) {
+            const result = (await resp.json()) as AddressValidationPayload & { needs_confirmation?: boolean };
+            if (result.needs_confirmation) {
+              const msg = `Verifica tu dirección:\n\n${JSON.stringify(result.normalized_address, null, 2)}\n\n¿Usar esta dirección?`;
+              const accepted = typeof window !== "undefined" ? window.confirm(msg) : false;
+              if (!accepted) {
+                setError("Revisa y confirma tu dirección antes de continuar.");
+                setToast({ message: "Revisa y confirma tu dirección", type: "error" });
+                setIsCreatingOrder(false);
+                return;
+              }
+              if (result.normalized_address && datos) {
+                setDatos({
+                  ...datos,
+                  address: result.normalized_address.address1,
+                  neighborhood: result.normalized_address.address2 || "",
+                  city: result.normalized_address.city,
+                  state: result.normalized_address.state,
+                  cp: result.normalized_address.postal_code,
+                });
+              }
+            }
+            addressValidation = {
+              verdict: result.verdict,
+              normalized_address: result.normalized_address,
+              missing_fields: result.missing_fields || [],
+            };
+          }
+        } catch {
+          // Ignorar errores de validación externa
+        }
+      }
+
       const orderPayload = {
         email: datos.email,
         name: datos.name,
@@ -454,21 +525,31 @@ export default function PagoClient() {
               country: "MX",
             }
           : undefined,
-        // Información de Skydropx si hay opción seleccionada
-        shipping: selectedShippingOption
-          ? {
-              provider: "skydropx",
-              option_code: selectedShippingOption.code,
-              price_cents: selectedShippingOption.priceCents,
-              rate: {
-                external_id: selectedShippingOption.externalRateId,
-                provider: selectedShippingOption.provider,
-                service: selectedShippingOption.label,
-                eta_min_days: selectedShippingOption.etaMinDays,
-                eta_max_days: selectedShippingOption.etaMaxDays,
-              },
-            }
-          : undefined,
+        // Información de Skydropx y validación de dirección (si existe)
+        shipping:
+          selectedShippingOption || addressValidation
+            ? {
+                ...(selectedShippingOption
+                  ? {
+                      provider: "skydropx",
+                      option_code: selectedShippingOption.code,
+                      price_cents: selectedShippingOption.priceCents,
+                      rate: {
+                        external_id: selectedShippingOption.externalRateId,
+                        provider: selectedShippingOption.provider,
+                        service: selectedShippingOption.label,
+                        eta_min_days: selectedShippingOption.etaMinDays,
+                        eta_max_days: selectedShippingOption.etaMaxDays,
+                      },
+                    }
+                  : {}),
+                ...(addressValidation
+                  ? {
+                      address_validation: addressValidation,
+                    }
+                  : {}),
+              }
+            : undefined,
         loyalty: loyaltyApplied && loyaltyPoints?.canApplyDiscount
           ? {
               applied: true,
@@ -654,6 +735,60 @@ export default function PagoClient() {
       const selectedPaymentMethodValue = paymentMethod === "card" ? "card" : paymentMethod === "bank_transfer" ? "bank_transfer" : null;
       const selectedPaymentStatusValue = selectedPaymentMethodValue === "card" ? "pending" : selectedPaymentMethodValue === "bank_transfer" ? "pending" : null;
 
+      // Validar dirección antes de crear orden (si no es pickup)
+      let addressValidation: AddressValidationPayload | null = null;
+
+      if (displayShippingMethod !== "pickup" && datos.cp && datos.city && datos.state && datos.address) {
+        const shippingAddress = {
+          name: datos.name || "",
+          phone: datos.phone || null,
+          email: datos.email || null,
+          address1: datos.address || "",
+          address2: datos.neighborhood || null,
+          city: datos.city || "",
+          state: datos.state || "",
+          postal_code: datos.cp || "",
+          country: "MX",
+        };
+        try {
+          const resp = await fetch("/api/checkout/validate-address", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ shipping_address: shippingAddress }),
+          });
+          if (resp.ok) {
+            const result = (await resp.json()) as AddressValidationPayload & { needs_confirmation?: boolean };
+            if (result.needs_confirmation) {
+              const msg = `Verifica tu dirección:\n\n${JSON.stringify(result.normalized_address, null, 2)}\n\n¿Usar esta dirección?`;
+              const accepted = typeof window !== "undefined" ? window.confirm(msg) : false;
+              if (!accepted) {
+                setError("Revisa y confirma tu dirección antes de continuar.");
+                setToast({ message: "Revisa y confirma tu dirección", type: "error" });
+                setIsCreatingOrder(false);
+                return;
+              }
+              if (result.normalized_address && datos) {
+                setDatos({
+                  ...datos,
+                  address: result.normalized_address.address1,
+                  neighborhood: result.normalized_address.address2 || "",
+                  city: result.normalized_address.city,
+                  state: result.normalized_address.state,
+                  cp: result.normalized_address.postal_code,
+                });
+              }
+            }
+            addressValidation = {
+              verdict: result.verdict,
+              normalized_address: result.normalized_address,
+              missing_fields: result.missing_fields || [],
+            };
+          }
+        } catch {
+          // Ignorar errores de validación externa
+        }
+      }
+
       const orderPayload = {
         email: datos.email, // Email del checkout para la orden y Stripe
         name: datos.name, // Nombre para metadata
@@ -676,21 +811,31 @@ export default function PagoClient() {
               country: "MX",
             }
           : undefined,
-        // Información de Skydropx si hay opción seleccionada
-        shipping: selectedShippingOption
-          ? {
-              provider: "skydropx",
-              option_code: selectedShippingOption.code,
-              price_cents: selectedShippingOption.priceCents,
-              rate: {
-                external_id: selectedShippingOption.externalRateId,
-                provider: selectedShippingOption.provider,
-                service: selectedShippingOption.label,
-                eta_min_days: selectedShippingOption.etaMinDays,
-                eta_max_days: selectedShippingOption.etaMaxDays,
-              },
-            }
-          : undefined,
+        // Información de Skydropx y validación de dirección (si existe)
+        shipping:
+          selectedShippingOption || addressValidation
+            ? {
+                ...(selectedShippingOption
+                  ? {
+                      provider: "skydropx",
+                      option_code: selectedShippingOption.code,
+                      price_cents: selectedShippingOption.priceCents,
+                      rate: {
+                        external_id: selectedShippingOption.externalRateId,
+                        provider: selectedShippingOption.provider,
+                        service: selectedShippingOption.label,
+                        eta_min_days: selectedShippingOption.etaMinDays,
+                        eta_max_days: selectedShippingOption.etaMaxDays,
+                      },
+                    }
+                  : {}),
+                ...(addressValidation
+                  ? {
+                      address_validation: addressValidation,
+                    }
+                  : {}),
+              }
+            : undefined,
         // NO incluir orderId aquí - queremos que create-order cree SIEMPRE una nueva orden
         // Incluir datos de loyalty si está aplicado
         loyalty: loyaltyApplied && loyaltyPoints?.canApplyDiscount

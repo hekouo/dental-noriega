@@ -55,7 +55,26 @@ const CreateOrderRequestSchema = z.object({
       eta_min_days: z.number().int().nullable().optional(),
       eta_max_days: z.number().int().nullable().optional(),
     }),
-    // address_validation removed for PR1 (will be in PR2)
+    address_validation: z
+      .object({
+        verdict: z.enum(["valid", "needs_review", "invalid"]),
+        normalized_address: z
+          .object({
+            name: z.string(),
+            phone: z.string().nullable().optional(),
+            email: z.string().nullable().optional(),
+            address1: z.string(),
+            address2: z.string().nullable().optional(),
+            city: z.string(),
+            state: z.string(),
+            postal_code: z.string(),
+            country: z.string().optional(),
+          })
+          .nullable()
+          .optional(),
+        missing_fields: z.array(z.string()).optional(),
+      })
+      .optional(),
   }).optional(),
   // Datos de loyalty opcionales
   loyalty: z.object({
@@ -219,7 +238,12 @@ export async function POST(req: NextRequest) {
 
     // Incluir información de Skydropx si está presente
     if (orderData.shipping) {
-      metadata.shipping = orderData.shipping;
+      const shippingMeta: Record<string, unknown> = { ...orderData.shipping };
+      // Persistir address_validation dentro de metadata.shipping.address_validation
+      if (orderData.shipping.address_validation) {
+        shippingMeta.address_validation = orderData.shipping.address_validation;
+      }
+      metadata.shipping = shippingMeta;
     }
 
     // Validar y procesar datos de loyalty si están presentes
