@@ -33,24 +33,23 @@ export type SkydropxRatesRequestInput = {
 export type SkydropxRatesRequestDiagnostic = {
   origin: {
     postal_code_present: boolean;
-    city_len: number;
-    state_len: number;
+    city: string;
+    state: string;
+    country_code: string;
     street1_len: number;
-    country: string;
   };
   destination: {
     postal_code_present: boolean;
-    city_len: number;
-    state_len: number;
+    city: string;
+    state: string;
+    country_code: string;
     street1_len: number;
-    country: string;
   };
   pkg: {
     length_cm: number;
     width_cm: number;
     height_cm: number;
     weight_g: number;
-    weight_kg: number;
   };
   usedSources: {
     origin: "config" | "provided";
@@ -92,12 +91,18 @@ export function buildSkydropxRatesRequest(
 
   const destCountry = input.destination.country || "MX";
 
-  // PAQUETE: Valores por defecto si no se proporcionan
-  const weightGrams = input.package.weightGrams || 1000;
+  // PAQUETE: Valores por defecto si no se proporcionan, con hardening (valores mínimos razonables)
+  const rawWeightGrams = input.package.weightGrams || 1000;
+  const rawLengthCm = input.package.lengthCm || 20;
+  const rawWidthCm = input.package.widthCm || 20;
+  const rawHeightCm = input.package.heightCm || 10;
+
+  // Hardening: valores mínimos razonables para evitar payloads inválidos
+  const weightGrams = Math.max(rawWeightGrams, 50); // Mínimo 50g
   const weightKg = weightGrams / 1000;
-  const lengthCm = input.package.lengthCm || 20;
-  const widthCm = input.package.widthCm || 20;
-  const heightCm = input.package.heightCm || 10;
+  const lengthCm = Math.max(rawLengthCm, 1); // Mínimo 1cm
+  const widthCm = Math.max(rawWidthCm, 1); // Mínimo 1cm
+  const heightCm = Math.max(rawHeightCm, 1); // Mínimo 1cm
 
   // Construir payload según estructura esperada por Skydropx
   const payload: SkydropxQuotationPayload = {
@@ -141,24 +146,23 @@ export function buildSkydropxRatesRequest(
   const diagnostic: SkydropxRatesRequestDiagnostic = {
     origin: {
       postal_code_present: !!originPostalCode && originPostalCode.length > 0,
-      city_len: originCity?.length || 0,
-      state_len: originState?.length || 0,
+      city: originCity || "[missing]",
+      state: originState || "[missing]",
+      country_code: originCountry,
       street1_len: (config.origin.addressLine1 || "").substring(0, 45).length,
-      country: originCountry,
     },
     destination: {
       postal_code_present: !!normalizedDest.postalCode && normalizedDest.postalCode.length > 0,
-      city_len: normalizedDest.city?.length || 0,
-      state_len: normalizedDest.state?.length || 0,
+      city: normalizedDest.city || "[missing]",
+      state: normalizedDest.state || "[missing]",
+      country_code: destCountry,
       street1_len: 0, // No disponible en destination para cotizaciones
-      country: destCountry,
     },
     pkg: {
       length_cm: lengthCm,
       width_cm: widthCm,
       height_cm: heightCm,
       weight_g: weightGrams,
-      weight_kg: weightKg,
     },
     usedSources: {
       origin: input.origin ? "provided" : "config",

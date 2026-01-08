@@ -31,6 +31,9 @@ export default function RequoteSkydropxRatesClient({
   const [applying, setApplying] = useState<string | null>(null);
   const [rates, setRates] = useState<Rate[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [diagnostic, setDiagnostic] = useState<any>(null);
+  const [emptyReason, setEmptyReason] = useState<string | null>(null);
+  const [showDiagnostic, setShowDiagnostic] = useState(false);
 
   // Verificar si la tarifa está expirada o próxima a expirar
   const isExpiredOrExpiring = (): boolean => {
@@ -57,6 +60,9 @@ export default function RequoteSkydropxRatesClient({
     setLoading(true);
     setError(null);
     setRates(null);
+    setDiagnostic(null);
+    setEmptyReason(null);
+    setShowDiagnostic(false);
 
     try {
       const res = await fetch("/api/admin/shipping/skydropx/requote", {
@@ -70,33 +76,32 @@ export default function RequoteSkydropxRatesClient({
       const data = await res.json();
 
       if (!data.ok) {
+        // Si es precondition failed, mostrar reason y missingFields
         const errorMessage =
           data.code === "unauthorized"
             ? "No tienes permisos para realizar esta acción."
-            : data.code === "order_not_found"
-              ? "La orden no existe."
-              : data.code === "unsupported_provider"
-                ? "Esta orden no usa Skydropx como proveedor de envío."
-                : data.code === "pickup_not_quotable"
-                  ? "No se pueden recotizar envíos de recogida en tienda."
-                  : data.code === "missing_address_data"
-                    ? "No se encontraron datos de dirección en la orden."
-                    : data.message || "Error al recotizar el envío.";
+            : data.code === "requote_precondition_failed"
+              ? `${data.message}${data.reason ? ` (${data.reason})` : ""}${data.missingFields ? `. Campos faltantes: ${data.missingFields.join(", ")}` : ""}`
+              : data.code === "order_not_found"
+                ? "La orden no existe."
+                : data.message || "Error al recotizar el envío.";
 
         setError(errorMessage);
         return;
       }
 
       setRates(data.rates || []);
+      setDiagnostic(data.diagnostic || null);
+      setEmptyReason(data.emptyReason || null);
       
       // Mostrar warning si viene del backend
       if (data.warning) {
         setError(data.warning);
       }
       
-      // Si rates está vacío y hay diagnóstico, mostrarlo en consola (para debugging)
-      if (((data.rates?.length ?? 0) === 0) && data.diagnostic && process.env.NODE_ENV === "development") {
-        console.warn("[RequoteSkydropxRatesClient] 0 rates con diagnóstico:", data.diagnostic);
+      // Si rates está vacío y hay diagnóstico, mostrar panel por defecto
+      if (((data.rates?.length ?? 0) === 0) && data.diagnostic) {
+        setShowDiagnostic(true);
       }
     } catch (err) {
       console.error("[RequoteSkydropxRatesClient] Error:", err);
@@ -280,10 +285,40 @@ export default function RequoteSkydropxRatesClient({
       )}
 
       {rates && rates.length === 0 && (
-        <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
-          <p className="text-sm text-yellow-800">
-            No se encontraron tarifas disponibles para esta dirección.
-          </p>
+        <div className="space-y-3">
+          <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+            <p className="text-sm text-yellow-800">
+              No se encontraron tarifas disponibles para esta dirección.
+              {emptyReason && (
+                <span className="ml-2 text-xs text-yellow-700">
+                  (Razón: {emptyReason})
+                </span>
+              )}
+            </p>
+          </div>
+
+          {/* Panel de diagnóstico (solo admin) */}
+          {diagnostic && (
+            <div className="rounded-lg border border-gray-200 bg-gray-50">
+              <button
+                type="button"
+                onClick={() => setShowDiagnostic(!showDiagnostic)}
+                className="w-full px-4 py-2 text-left text-sm font-medium text-gray-700 hover:bg-gray-100 flex items-center justify-between"
+              >
+                <span>Diagnóstico (sin PII)</span>
+                <span className="text-xs text-gray-500">
+                  {showDiagnostic ? "▼" : "▶"}
+                </span>
+              </button>
+              {showDiagnostic && (
+                <div className="px-4 pb-4">
+                  <pre className="text-xs bg-white border border-gray-200 rounded p-3 overflow-x-auto">
+                    {JSON.stringify(diagnostic, null, 2)}
+                  </pre>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

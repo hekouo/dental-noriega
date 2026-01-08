@@ -22,24 +22,23 @@ type RequoteResponse =
       diagnostic?: {
         origin: {
           postal_code_present: boolean;
-          city_len: number;
-          state_len: number;
+          city: string;
+          state: string;
+          country_code: string;
           street1_len: number;
-          country: string;
         };
         destination: {
           postal_code_present: boolean;
-          city_len: number;
-          state_len: number;
+          city: string;
+          state: string;
+          country_code: string;
           street1_len: number;
-          country: string;
         };
         pkg: {
           length_cm: number;
           width_cm: number;
           height_cm: number;
           weight_g: number;
-          weight_kg: number;
         };
         usedSources: {
           origin: "config" | "provided";
@@ -47,11 +46,14 @@ type RequoteResponse =
           package: "provided" | "default";
         };
       };
+      emptyReason?: "skydropx_no_rates";
     }
   | {
       ok: false;
       code: string;
       message: string;
+      reason?: string;
+      missingFields?: string[];
     };
 
 /**
@@ -173,8 +175,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           ok: false,
-          code: "unsupported_provider",
+          code: "requote_precondition_failed",
           message: "Esta orden no usa Skydropx como proveedor de envío.",
+          reason: "unsupported_provider",
         } satisfies RequoteResponse,
         { status: 400 },
       );
@@ -187,8 +190,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           ok: false,
-          code: "pickup_not_quotable",
+          code: "requote_precondition_failed",
           message: "No se pueden recotizar envíos de recogida en tienda.",
+          reason: "pickup_not_quotable",
         } satisfies RequoteResponse,
         { status: 400 },
       );
@@ -200,8 +204,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           ok: false,
-          code: "missing_address_data",
+          code: "requote_precondition_failed",
           message: "No se encontraron datos de dirección en la orden.",
+          reason: "missing_address_data",
+          missingFields: ["postalCode", "state", "city"],
         } satisfies RequoteResponse,
         { status: 400 },
       );
@@ -232,11 +238,11 @@ export async function POST(req: NextRequest) {
       typeof shippingPackage.width_cm === "number" &&
       typeof shippingPackage.height_cm === "number"
     ) {
-      // Usar package guardado
-      weightGrams = shippingPackage.weight_g;
-      lengthCm = shippingPackage.length_cm;
-      widthCm = shippingPackage.width_cm;
-      heightCm = shippingPackage.height_cm;
+      // Usar package guardado con hardening (valores mínimos razonables)
+      weightGrams = Math.max(shippingPackage.weight_g, 50); // Mínimo 50g
+      lengthCm = Math.max(shippingPackage.length_cm, 1); // Mínimo 1cm
+      widthCm = Math.max(shippingPackage.width_cm, 1); // Mínimo 1cm
+      heightCm = Math.max(shippingPackage.height_cm, 1); // Mínimo 1cm
     } else {
       // Usar default (BOX_S: 25x20x15 cm, 150g base)
       weightGrams = 1000; // 1kg total (incluyendo productos)
@@ -247,6 +253,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Llamar a Skydropx para obtener rates (usando builder unificado con diagnóstico)
+    // SIEMPRE pedir diagnóstico para poder diagnosticar cuando rates está vacío
     const ratesResult = await getSkydropxRates(
       {
         postalCode: addressTo.postalCode,
@@ -261,7 +268,7 @@ export async function POST(req: NextRequest) {
         heightCm,
       },
       {
-        diagnostic: true, // Siempre incluir diagnóstico en admin
+        diagnostic: true, // SIEMPRE incluir diagnóstico en admin
       },
     );
 
@@ -280,32 +287,45 @@ export async function POST(req: NextRequest) {
       price_cents: rate.totalPriceCents,
     }));
 
-    // Log diagnóstico cuando rates está vacío (sin PII)
-    if (normalizedRates.length === 0 && diagnostic) {
-      console.warn("[requote] 0 rates devueltos por Skydropx", {
-        diagnostic: {
+    // Normalizar diagnóstico (usar keys nuevas directamente, sin PII completo)
+    const normalizedDiagnostic = diagnostic
+      ? {
           origin: {
             postal_code_present: diagnostic.origin.postal_code_present,
-            city_len: diagnostic.origin.city_len,
-            state_len: diagnostic.origin.state_len,
-            country: diagnostic.origin.country,
+            city: diagnostic.origin.city?.trim() || "[missing]",
+            state: diagnostic.origin.state?.trim() || "[missing]",
+            country_code: diagnostic.origin.country_code || "MX",
+            street1_len: diagnostic.origin.street1_len,
           },
           destination: {
             postal_code_present: diagnostic.destination.postal_code_present,
-            city_len: diagnostic.destination.city_len,
-            state_len: diagnostic.destination.state_len,
-            country: diagnostic.destination.country,
+            city: diagnostic.destination.city?.trim() || "[missing]",
+            state: diagnostic.destination.state?.trim() || "[missing]",
+            country_code: diagnostic.destination.country_code || "MX",
+            street1_len: diagnostic.destination.street1_len,
           },
-          pkg: diagnostic.pkg,
+          pkg: {
+            length_cm: diagnostic.pkg.length_cm,
+            width_cm: diagnostic.pkg.width_cm,
+            height_cm: diagnostic.pkg.height_cm,
+            weight_g: diagnostic.pkg.weight_g,
+          },
           usedSources: diagnostic.usedSources,
-        },
+        }
+      : undefined;
+
+    // Log diagnóstico cuando rates está vacío (sin PII)
+    if (normalizedRates.length === 0 && normalizedDiagnostic) {
+      console.warn("[requote] 0 rates devueltos por Skydropx", {
+        diagnostic: normalizedDiagnostic,
       });
     }
 
     return NextResponse.json({
       ok: true,
       rates: normalizedRates,
-      diagnostic: normalizedRates.length === 0 ? diagnostic : undefined, // Solo incluir diagnóstico si rates está vacío
+      diagnostic: normalizedRates.length === 0 ? normalizedDiagnostic : undefined, // Solo incluir diagnóstico si rates está vacío
+      emptyReason: normalizedRates.length === 0 ? "skydropx_no_rates" : undefined,
       warning: hasPackageWarning
         ? "No se encontró empaque guardado, usando dimensiones por defecto. Selecciona un empaque antes de recotizar para obtener tarifas precisas."
         : undefined,
