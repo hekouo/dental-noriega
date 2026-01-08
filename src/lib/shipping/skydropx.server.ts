@@ -202,6 +202,10 @@ export async function getSkydropxRates(
           });
         }
       }
+      // Si se solicita diagnóstico, incluirlo
+      if (options?.diagnostic) {
+        return { rates: [], diagnostic };
+      }
       return []; // Devolver array vacío sin romper el flujo
     }
     
@@ -258,6 +262,10 @@ export async function getSkydropxRates(
     if (ratesArray.length === 0) {
       if (process.env.NODE_ENV !== "production") {
         console.warn("[getSkydropxRates] No se encontraron tarifas en la respuesta. Estructura completa:", JSON.stringify(data, null, 2));
+      }
+      // Si se solicita diagnóstico, incluirlo
+      if (options?.diagnostic) {
+        return { rates: [], diagnostic };
       }
       return [];
     }
@@ -486,6 +494,10 @@ export async function getSkydropxRates(
         if (process.env.NODE_ENV !== "production") {
           console.warn("[getSkydropxRates] Parámetros inválidos o sin cobertura para esta ruta, devolviendo array vacío");
         }
+        // Si se solicita diagnóstico, incluirlo
+        if (options?.diagnostic) {
+          return { rates: [], diagnostic };
+        }
         return []; // Sin cobertura = sin tarifas, no es un error fatal
       }
       
@@ -500,6 +512,10 @@ export async function getSkydropxRates(
     // Para otros errores, devolver array vacío (sin cobertura o error no crítico)
     if (process.env.NODE_ENV !== "production") {
       console.warn("[getSkydropxRates] Error no crítico, devolviendo array vacío (sin tarifas)");
+    }
+    // Si se solicita diagnóstico, incluirlo
+    if (options?.diagnostic) {
+      return { rates: [], diagnostic };
     }
     return [];
   }
