@@ -221,6 +221,31 @@ Edita `src/components/WhatsappFloating.tsx`:
 const phoneNumber = "525512345678"; // Tu número con código de país
 ```
 
+## 🔄 Recotización de envíos Skydropx (Admin)
+
+Si una tarifa de Skydropx expira (+24 horas desde `quoted_at`), puedes recotizar desde Admin sin cancelar la orden:
+
+1. Ve a Admin → Pedidos → [Orden]
+2. Busca la sección "Recotizar envío"
+3. Click en "Recotizar envío (Skydropx)"
+4. Se mostrarán las tarifas disponibles actualizadas
+5. Selecciona una tarifa y click en "Aplicar esta tarifa"
+
+**Notas importantes:**
+- La recotización solo está disponible para órdenes con `shipping_provider = "skydropx"` y que NO sean pickup
+- Si ya se creó la guía (tiene `shipping_tracking_number` o `shipping_label_url`), no se puede recotizar. Primero cancela la guía existente
+- El sistema guarda `metadata.shipping.quoted_at` con la fecha/hora de la cotización (ISO string)
+- Si el precio de la nueva tarifa es mayor, se mostrará un badge "+ $X" para que el admin decida si absorber la diferencia o contactar al cliente
+- La tarifa expira después de 24 horas. El sistema muestra un warning si está próxima a expirar (20-24h) o ya expirada
+
+**Campos guardados en metadata.shipping:**
+- `quoted_at`: Fecha/hora de la cotización (ISO string)
+- `rate.external_id`: ID de la tarifa en Skydropx
+- `rate.provider`: Proveedor (ej: "estafeta", "dhl")
+- `rate.service`: Nombre del servicio
+- `rate.eta_min_days` / `rate.eta_max_days`: Tiempo estimado de entrega
+- `price_cents`: Precio de la tarifa en centavos
+
 ## ❓ Solución de problemas
 
 ### "No autenticado"
