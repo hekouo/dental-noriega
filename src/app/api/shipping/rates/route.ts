@@ -332,22 +332,25 @@ export async function POST(req: NextRequest) {
       attempt: string,
       retryCount = 0,
     ): Promise<SkydropxRate[]> => {
-      const rates = await getSkydropxRates(
-        {
-          postalCode: dest.postalCode,
-          state: dest.state,
-          city: dest.city,
-          country: dest.country,
-        },
-        {
-          weightGrams,
-        },
-      );
+        const ratesResult = await getSkydropxRates(
+          {
+            postalCode: dest.postalCode,
+            state: dest.state,
+            city: dest.city,
+            country: dest.country,
+          },
+          {
+            weightGrams,
+          },
+        );
 
-      // Si hay rates, devolverlas
-      if (rates.length > 0) {
-        return rates;
-      }
+        // Extraer rates (puede ser array directo o objeto con rates)
+        const rates = Array.isArray(ratesResult) ? ratesResult : ratesResult.rates;
+
+        // Si hay rates, devolverlas
+        if (rates.length > 0) {
+          return rates;
+        }
 
       // Si no hay rates y es el primer intento, hacer retry con backoff
       if (retryCount === 0) {
