@@ -5,6 +5,7 @@ import { getOrderWithItemsAdmin } from "@/lib/supabase/orders.server";
 import { formatMXNFromCents } from "@/lib/utils/currency";
 import CreateSkydropxLabelClient from "./CreateSkydropxLabelClient";
 import CancelSkydropxLabelClient from "./CancelSkydropxLabelClient";
+import RequoteSkydropxRatesClient from "./RequoteSkydropxRatesClient";
 import { getShippingStatusLabel, getShippingStatusVariant } from "@/lib/orders/shippingStatus";
 import { getPaymentMethodLabel, getPaymentStatusLabel, getPaymentStatusVariant } from "@/lib/orders/paymentStatus";
 import { variantDetailFromJSON } from "@/lib/products/parseVariantDetail";
@@ -386,6 +387,35 @@ export default async function AdminPedidoDetailPage({
                   </div>
                 )}
               </div>
+
+              {/* Botón para recotizar envío si es Skydropx */}
+              {(order.shipping_provider === "skydropx" || order.shipping_provider === "Skydropx") &&
+                (order.metadata as Record<string, unknown> | null)?.shipping_method !==
+                  "pickup" && (
+                  <div className="mb-4">
+                    <h3 className="text-md font-semibold mb-2">Recotizar envío</h3>
+                    <RequoteSkydropxRatesClient
+                      orderId={order.id}
+                      currentRatePriceCents={order.shipping_price_cents}
+                      quotedAt={
+                        (order.metadata as Record<string, unknown> | null)?.shipping &&
+                        typeof (order.metadata as Record<string, unknown>).shipping === "object"
+                          ? ((order.metadata as Record<string, unknown>).shipping as Record<
+                              string,
+                              unknown
+                            >)?.quoted_at
+                            ? String(
+                                ((order.metadata as Record<string, unknown>).shipping as Record<
+                                  string,
+                                  unknown
+                                >).quoted_at,
+                              )
+                            : null
+                          : null
+                      }
+                    />
+                  </div>
+                )}
 
               {/* Botón para crear guía si es Skydropx */}
               <CreateSkydropxLabelClient
