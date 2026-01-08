@@ -19,6 +19,34 @@ type RequoteResponse =
         eta_max_days: number | null;
         price_cents: number;
       }>;
+      diagnostic?: {
+        origin: {
+          postal_code_present: boolean;
+          city_len: number;
+          state_len: number;
+          street1_len: number;
+          country: string;
+        };
+        destination: {
+          postal_code_present: boolean;
+          city_len: number;
+          state_len: number;
+          street1_len: number;
+          country: string;
+        };
+        pkg: {
+          length_cm: number;
+          width_cm: number;
+          height_cm: number;
+          weight_g: number;
+          weight_kg: number;
+        };
+        usedSources: {
+          origin: "config" | "provided";
+          destination: "normalized" | "raw";
+          package: "provided" | "default";
+        };
+      };
     }
   | {
       ok: false;
@@ -27,7 +55,8 @@ type RequoteResponse =
     };
 
 /**
- * Extrae dirección de destino desde metadata (reutiliza lógica de create-label)
+ * Extrae dirección de destino desde metadata (mismo orden que create-label)
+ * PRIORIDAD: shipping_address_override > shipping_address > shipping.address > address
  */
 function extractAddressFromMetadata(metadata: unknown): {
   postalCode: string;
@@ -41,19 +70,23 @@ function extractAddressFromMetadata(metadata: unknown): {
 
   const meta = metadata as Record<string, unknown>;
 
-  // PRIORIDAD 1: metadata.shipping_address (nuevo formato estructurado)
+  // PRIORIDAD 1: metadata.shipping_address_override (override manual en admin)
   let addressData: Record<string, unknown> | null = null;
-  if (meta.shipping_address && typeof meta.shipping_address === "object") {
+  if (meta.shipping_address_override && typeof meta.shipping_address_override === "object") {
+    addressData = meta.shipping_address_override as Record<string, unknown>;
+  }
+  // PRIORIDAD 2: metadata.shipping_address (nuevo formato estructurado)
+  else if (meta.shipping_address && typeof meta.shipping_address === "object") {
     addressData = meta.shipping_address as Record<string, unknown>;
   }
-  // PRIORIDAD 2: metadata.shipping.address (compatibilidad)
+  // PRIORIDAD 3: metadata.shipping.address (compatibilidad)
   else if (meta.shipping && typeof meta.shipping === "object") {
     const shipping = meta.shipping as Record<string, unknown>;
     if (shipping.address && typeof shipping.address === "object") {
       addressData = shipping.address as Record<string, unknown>;
     }
   }
-  // PRIORIDAD 3: metadata.address (legacy)
+  // PRIORIDAD 4: metadata.address (legacy)
   else if (meta.address && typeof meta.address === "object") {
     addressData = meta.address as Record<string, unknown>;
   }
@@ -213,8 +246,8 @@ export async function POST(req: NextRequest) {
       hasPackageWarning = true;
     }
 
-    // Llamar a Skydropx para obtener rates (usando dimensiones del package)
-    const rates = await getSkydropxRates(
+    // Llamar a Skydropx para obtener rates (usando builder unificado con diagnóstico)
+    const ratesResult = await getSkydropxRates(
       {
         postalCode: addressTo.postalCode,
         state: addressTo.state,
@@ -227,7 +260,14 @@ export async function POST(req: NextRequest) {
         widthCm,
         heightCm,
       },
+      {
+        diagnostic: true, // Siempre incluir diagnóstico en admin
+      },
     );
+
+    // Extraer rates y diagnóstico
+    const rates = Array.isArray(ratesResult) ? ratesResult : ratesResult.rates;
+    const diagnostic = Array.isArray(ratesResult) ? undefined : ratesResult.diagnostic;
 
     // Normalizar y devolver rates
     const normalizedRates = rates.map((rate: SkydropxRate) => ({
@@ -240,9 +280,32 @@ export async function POST(req: NextRequest) {
       price_cents: rate.totalPriceCents,
     }));
 
+    // Log diagnóstico cuando rates está vacío (sin PII)
+    if (normalizedRates.length === 0 && diagnostic) {
+      console.warn("[requote] 0 rates devueltos por Skydropx", {
+        diagnostic: {
+          origin: {
+            postal_code_present: diagnostic.origin.postal_code_present,
+            city_len: diagnostic.origin.city_len,
+            state_len: diagnostic.origin.state_len,
+            country: diagnostic.origin.country,
+          },
+          destination: {
+            postal_code_present: diagnostic.destination.postal_code_present,
+            city_len: diagnostic.destination.city_len,
+            state_len: diagnostic.destination.state_len,
+            country: diagnostic.destination.country,
+          },
+          pkg: diagnostic.pkg,
+          usedSources: diagnostic.usedSources,
+        },
+      });
+    }
+
     return NextResponse.json({
       ok: true,
       rates: normalizedRates,
+      diagnostic: normalizedRates.length === 0 ? diagnostic : undefined, // Solo incluir diagnóstico si rates está vacío
       warning: hasPackageWarning
         ? "No se encontró empaque guardado, usando dimensiones por defecto. Selecciona un empaque antes de recotizar para obtener tarifas precisas."
         : undefined,

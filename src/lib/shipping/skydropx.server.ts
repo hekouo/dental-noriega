@@ -2,7 +2,6 @@ import "server-only";
 import {
   createQuotation,
   createShipment,
-  type SkydropxQuotationPayload,
   type SkydropxQuotationRate,
   type SkydropxShipmentPayload,
   type SkydropxShipmentResponse,
@@ -137,12 +136,15 @@ export function getSkydropxConfig(): SkydropxAuthConfig | null {
 
 /**
  * Obtiene tarifas de envío desde Skydropx
- * (Actualizado para usar cliente OAuth)
+ * (Actualizado para usar cliente OAuth y builder unificado)
  */
 export async function getSkydropxRates(
   destination: SkydropxDestination,
   pkg: SkydropxPackageInput,
-): Promise<SkydropxRate[]> {
+  options?: {
+    diagnostic?: boolean;
+  },
+): Promise<SkydropxRate[] | { rates: SkydropxRate[]; diagnostic?: any }> {
   const config = getSkydropxConfig();
   if (!config) {
     if (process.env.NODE_ENV !== "production") {
@@ -156,48 +158,23 @@ export async function getSkydropxRates(
     console.log("[getSkydropxRates] Usando autenticación: OAuth");
   }
 
-  // Valores por defecto para dimensiones si no se proporcionan
-  // 1kg, 20x20x10 cm es un default razonable para productos dentales pequeños
-  const weightGrams = pkg.weightGrams || 1000;
-  const weightKg = weightGrams / 1000; // Convertir gramos a kilogramos
-  const lengthCm = pkg.lengthCm || 20;
-  const widthCm = pkg.widthCm || 20;
-  const heightCm = pkg.heightCm || 10;
-
-  const payload: SkydropxQuotationPayload = {
-    address_from: {
-      state: config.origin.state, // Usar state para area_level1
-      province: config.origin.state, // Mantener province como fallback
-      city: config.origin.city,
-      country: config.origin.country,
-      zip: config.origin.postalCode,
-      neighborhood: config.origin.addressLine1 
-        ? config.origin.addressLine1.split(",")[0] 
-        : undefined, // Intentar extraer colonia de addressLine1
-      name: config.origin.name,
-      phone: config.origin.phone || null,
-      email: config.origin.email || null,
-      address1: config.origin.addressLine1 || null,
-    },
-    address_to: {
-      state: destination.state, // Usar state para area_level1
-      province: destination.state, // Mantener province como fallback
+  // Usar builder unificado para garantizar paridad con checkout
+  const { buildSkydropxRatesRequest } = await import("./buildSkydropxRatesRequest");
+  const buildResult = buildSkydropxRatesRequest({
+    destination: {
+      postalCode: destination.postalCode,
+      state: destination.state,
       city: destination.city,
-      country: destination.country || "MX",
-      zip: destination.postalCode,
-      // neighborhood no está disponible en destination, se usará city como fallback
+      country: destination.country,
     },
-    parcels: [
-      {
-        weight: weightKg, // En kilogramos, no gramos
-        distance_unit: "CM",
-        mass_unit: "KG",
-        height: heightCm,
-        width: widthCm,
-        length: lengthCm,
-      },
-    ],
-  };
+    package: {
+      weightGrams: pkg.weightGrams || 1000,
+      lengthCm: pkg.lengthCm,
+      widthCm: pkg.widthCm,
+      heightCm: pkg.heightCm,
+    },
+  });
+  const { payload, diagnostic } = buildResult;
 
   // Logging controlado: solo en desarrollo y sin exponer datos sensibles
   if (process.env.NODE_ENV !== "production") {
