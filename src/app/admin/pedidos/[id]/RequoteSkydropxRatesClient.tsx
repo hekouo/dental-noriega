@@ -95,7 +95,7 @@ export default function RequoteSkydropxRatesClient({
       }
       
       // Si rates está vacío y hay diagnóstico, mostrarlo en consola (para debugging)
-      if (data.rates.length === 0 && data.diagnostic && process.env.NODE_ENV === "development") {
+      if (((data.rates?.length ?? 0) === 0) && data.diagnostic && process.env.NODE_ENV === "development") {
         console.warn("[RequoteSkydropxRatesClient] 0 rates con diagnóstico:", data.diagnostic);
       }
     } catch (err) {
