@@ -58,6 +58,11 @@ export type AdminProduct = {
   description: string | null;
   sku: string | null;
   image_url: string | null;
+  shippingWeightG: number | null;
+  shippingLengthCm: number | null;
+  shippingWidthCm: number | null;
+  shippingHeightCm: number | null;
+  shippingProfile: string | null;
   createdAt: string;
   updatedAt: string | null;
 };
@@ -266,6 +271,11 @@ export async function getAdminProductById(
         description,
         sku,
         image_url,
+        shipping_weight_g,
+        shipping_length_cm,
+        shipping_width_cm,
+        shipping_height_cm,
+        shipping_profile,
         created_at,
         updated_at,
         sections!inner (
@@ -284,7 +294,7 @@ export async function getAdminProductById(
         // Intentar sin join si falla
         const { data: dataFallback, error: errorFallback } = await supabase
           .from("products")
-          .select("id, section_id, slug, title, price_cents, currency, stock_qty, active, description, sku, image_url, created_at, updated_at")
+          .select("id, section_id, slug, title, price_cents, currency, stock_qty, active, description, sku, image_url, shipping_weight_g, shipping_length_cm, shipping_width_cm, shipping_height_cm, shipping_profile, created_at, updated_at")
           .eq("id", productId)
           .maybeSingle();
 
@@ -306,6 +316,11 @@ export async function getAdminProductById(
           description: dataFallback.description || null,
           sku: dataFallback.sku || null,
           image_url: dataFallback.image_url || null,
+          shippingWeightG: (dataFallback as any).shipping_weight_g ?? null,
+          shippingLengthCm: (dataFallback as any).shipping_length_cm ?? null,
+          shippingWidthCm: (dataFallback as any).shipping_width_cm ?? null,
+          shippingHeightCm: (dataFallback as any).shipping_height_cm ?? null,
+          shippingProfile: (dataFallback as any).shipping_profile ?? null,
           createdAt: dataFallback.created_at || "",
           updatedAt: dataFallback.updated_at || null,
         };
@@ -330,6 +345,11 @@ export async function getAdminProductById(
       description: data.description || null,
       sku: data.sku || null,
       image_url: data.image_url || null,
+      shippingWeightG: (data as any).shipping_weight_g ?? null,
+      shippingLengthCm: (data as any).shipping_length_cm ?? null,
+      shippingWidthCm: (data as any).shipping_width_cm ?? null,
+      shippingHeightCm: (data as any).shipping_height_cm ?? null,
+      shippingProfile: (data as any).shipping_profile ?? null,
       createdAt: data.created_at || "",
       updatedAt: data.updated_at || null,
     };

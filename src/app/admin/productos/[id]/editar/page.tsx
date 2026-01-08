@@ -13,6 +13,7 @@ import {
   deleteProductImageAction,
   toggleProductActiveAction,
 } from "@/lib/actions/products.admin";
+import ProductShippingEditorClient from "./ProductShippingEditorClient";
 
 export const dynamic = "force-dynamic";
 
@@ -321,6 +322,18 @@ export default async function AdminProductosEditarPage({
             </div>
           </div>
         </form>
+      </div>
+
+      {/* Dimensiones de envío */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mt-6">
+        <ProductShippingEditorClient
+          productId={product.id}
+          initialWeightG={product.shippingWeightG}
+          initialLengthCm={product.shippingLengthCm}
+          initialWidthCm={product.shippingWidthCm}
+          initialHeightCm={product.shippingHeightCm}
+          initialProfile={(product.shippingProfile as any) || null}
+        />
       </div>
 
       {/* Estado y archivado */}

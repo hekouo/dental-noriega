@@ -6,6 +6,7 @@ import { formatMXNFromCents } from "@/lib/utils/currency";
 import CreateSkydropxLabelClient from "./CreateSkydropxLabelClient";
 import CancelSkydropxLabelClient from "./CancelSkydropxLabelClient";
 import RequoteSkydropxRatesClient from "./RequoteSkydropxRatesClient";
+import ShippingPackagePickerClient from "./ShippingPackagePickerClient";
 import { getShippingStatusLabel, getShippingStatusVariant } from "@/lib/orders/shippingStatus";
 import { getPaymentMethodLabel, getPaymentStatusLabel, getPaymentStatusVariant } from "@/lib/orders/paymentStatus";
 import { variantDetailFromJSON } from "@/lib/products/parseVariantDetail";
@@ -387,6 +388,31 @@ export default async function AdminPedidoDetailPage({
                   </div>
                 )}
               </div>
+
+              {/* Selector de empaque de envío */}
+              {(order.shipping_provider === "skydropx" || order.shipping_provider === "Skydropx") &&
+                (order.metadata as Record<string, unknown> | null)?.shipping_method !==
+                  "pickup" && (
+                  <div className="mb-4 pb-4 border-b border-gray-200">
+                    <ShippingPackagePickerClient
+                      orderId={order.id}
+                      currentPackage={
+                        (order.metadata as Record<string, unknown> | null)?.shipping_package &&
+                        typeof (order.metadata as Record<string, unknown>).shipping_package ===
+                          "object"
+                          ? {
+                              mode: ((order.metadata as Record<string, unknown>).shipping_package as { mode?: string })?.mode as "profile" | "custom" | undefined,
+                              profile: ((order.metadata as Record<string, unknown>).shipping_package as { profile?: string | null })?.profile as any,
+                              length_cm: ((order.metadata as Record<string, unknown>).shipping_package as { length_cm?: number })?.length_cm,
+                              width_cm: ((order.metadata as Record<string, unknown>).shipping_package as { width_cm?: number })?.width_cm,
+                              height_cm: ((order.metadata as Record<string, unknown>).shipping_package as { height_cm?: number })?.height_cm,
+                              weight_g: ((order.metadata as Record<string, unknown>).shipping_package as { weight_g?: number })?.weight_g,
+                            }
+                          : null
+                      }
+                    />
+                  </div>
+                )}
 
               {/* Botón para recotizar envío si es Skydropx */}
               {(order.shipping_provider === "skydropx" || order.shipping_provider === "Skydropx") &&
