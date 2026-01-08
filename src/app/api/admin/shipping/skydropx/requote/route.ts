@@ -287,21 +287,21 @@ export async function POST(req: NextRequest) {
       price_cents: rate.totalPriceCents,
     }));
 
-    // Normalizar diagnóstico para incluir city/state (sin PII completo)
+    // Normalizar diagnóstico (usar keys nuevas directamente, sin PII completo)
     const normalizedDiagnostic = diagnostic
       ? {
           origin: {
             postal_code_present: diagnostic.origin.postal_code_present,
-            city: diagnostic.origin.city_len > 0 ? "[present]" : "[missing]",
-            state: diagnostic.origin.state_len > 0 ? "[present]" : "[missing]",
-            country_code: diagnostic.origin.country,
+            city: diagnostic.origin.city?.trim() || "[missing]",
+            state: diagnostic.origin.state?.trim() || "[missing]",
+            country_code: diagnostic.origin.country_code || "MX",
             street1_len: diagnostic.origin.street1_len,
           },
           destination: {
             postal_code_present: diagnostic.destination.postal_code_present,
-            city: diagnostic.destination.city_len > 0 ? "[present]" : "[missing]",
-            state: diagnostic.destination.state_len > 0 ? "[present]" : "[missing]",
-            country_code: diagnostic.destination.country,
+            city: diagnostic.destination.city?.trim() || "[missing]",
+            state: diagnostic.destination.state?.trim() || "[missing]",
+            country_code: diagnostic.destination.country_code || "MX",
             street1_len: diagnostic.destination.street1_len,
           },
           pkg: {
