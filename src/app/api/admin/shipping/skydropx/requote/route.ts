@@ -148,8 +148,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Validar que no sea pickup (está en metadata.shipping_method)
-    const metadata = (order.metadata as Record<string, unknown>) || {};
-    const shippingMethod = metadata.shipping_method;
+    const orderMetadata = (order.metadata as Record<string, unknown>) || {};
+    const shippingMethod = orderMetadata.shipping_method;
     if (shippingMethod === "pickup") {
       return NextResponse.json(
         {
@@ -174,11 +174,46 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Construir package template (usar defaults: 1kg, 20x20x10 cm)
-    // TODO: Mejorar calculando desde order_items si están disponibles
-    const weightGrams = 1000; // Default 1kg
+    // Obtener package desde metadata.shipping_package o usar default
+    const shippingPackage = orderMetadata.shipping_package as
+      | {
+          mode?: "profile" | "custom";
+          profile?: string | null;
+          length_cm?: number;
+          width_cm?: number;
+          height_cm?: number;
+          weight_g?: number;
+        }
+      | undefined;
 
-    // Llamar a Skydropx para obtener rates
+    let weightGrams: number;
+    let lengthCm: number;
+    let widthCm: number;
+    let heightCm: number;
+    let hasPackageWarning = false;
+
+    if (
+      shippingPackage &&
+      typeof shippingPackage.weight_g === "number" &&
+      typeof shippingPackage.length_cm === "number" &&
+      typeof shippingPackage.width_cm === "number" &&
+      typeof shippingPackage.height_cm === "number"
+    ) {
+      // Usar package guardado
+      weightGrams = shippingPackage.weight_g;
+      lengthCm = shippingPackage.length_cm;
+      widthCm = shippingPackage.width_cm;
+      heightCm = shippingPackage.height_cm;
+    } else {
+      // Usar default (BOX_S: 25x20x15 cm, 150g base)
+      weightGrams = 1000; // 1kg total (incluyendo productos)
+      lengthCm = 25;
+      widthCm = 20;
+      heightCm = 15;
+      hasPackageWarning = true;
+    }
+
+    // Llamar a Skydropx para obtener rates (usando dimensiones del package)
     const rates = await getSkydropxRates(
       {
         postalCode: addressTo.postalCode,
@@ -188,6 +223,9 @@ export async function POST(req: NextRequest) {
       },
       {
         weightGrams,
+        lengthCm,
+        widthCm,
+        heightCm,
       },
     );
 
@@ -205,7 +243,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       ok: true,
       rates: normalizedRates,
-    } satisfies RequoteResponse);
+      warning: hasPackageWarning
+        ? "No se encontró empaque guardado, usando dimensiones por defecto. Selecciona un empaque antes de recotizar para obtener tarifas precisas."
+        : undefined,
+    } satisfies RequoteResponse & { warning?: string });
   } catch (error) {
     console.error("[requote] Error inesperado:", error);
     return NextResponse.json(

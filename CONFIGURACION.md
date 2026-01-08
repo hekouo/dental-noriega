@@ -221,12 +221,75 @@ Edita `src/components/WhatsappFloating.tsx`:
 const phoneNumber = "525512345678"; // Tu número con código de país
 ```
 
+## 📦 Perfiles de empaque y dimensiones de envío (Admin)
+
+### Seleccionar empaque en pedidos
+
+Para obtener cotizaciones precisas de Skydropx, es importante seleccionar el empaque correcto antes de recotizar o crear guías:
+
+1. Ve a Admin → Pedidos → [Orden con Skydropx]
+2. Busca la sección "Empaque de envío"
+3. Selecciona un perfil predefinido:
+   - **Sobre (ENVELOPE)**: 32×23×1 cm, 50g base - Para documentos/productos planos
+   - **Caja Pequeña (BOX_S)**: 25×20×15 cm, 150g base - Para productos pequeños
+   - **Caja Mediana (BOX_M)**: 35×30×25 cm, 300g base - Para productos medianos
+4. O elige "Personalizado" e ingresa dimensiones y peso manualmente
+5. Click "Guardar empaque"
+
+**Notas importantes:**
+- El empaque guardado se usa automáticamente en `/requote` y `/create-label`
+- Si no hay empaque guardado, el sistema usa BOX_S por defecto y muestra un warning
+- No se puede cambiar el empaque si ya se creó la guía (tiene `shipping_tracking_number` o `shipping_label_url`)
+
+**Estructura de `metadata.shipping_package`:**
+```typescript
+{
+  mode: "profile" | "custom",
+  profile: "ENVELOPE" | "BOX_S" | "BOX_M" | null,
+  length_cm: number,
+  width_cm: number,
+  height_cm: number,
+  weight_g: number
+}
+```
+
+### Dimensiones de productos
+
+Para ayudar con la estimación de empaques, puedes guardar peso y dimensiones por producto:
+
+1. Ve a Admin → Productos → [Producto] → Editar
+2. Busca la sección "Dimensiones de envío"
+3. Completa:
+   - **Peso (g)**: Peso del producto en gramos
+   - **Largo/Ancho/Alto (cm)**: Dimensiones del producto
+   - **Perfil recomendado**: Sugerencia de perfil (ENVELOPE/BOX_S/BOX_M/CUSTOM)
+4. Click "Guardar dimensiones"
+
+**Columnas agregadas a `products`:**
+- `shipping_weight_g`: Peso en gramos (INTEGER, nullable)
+- `shipping_length_cm`: Largo en centímetros (INTEGER, nullable)
+- `shipping_width_cm`: Ancho en centímetros (INTEGER, nullable)
+- `shipping_height_cm`: Alto en centímetros (INTEGER, nullable)
+- `shipping_profile`: Perfil recomendado (TEXT, nullable: "ENVELOPE", "BOX_S", "BOX_M", "CUSTOM")
+
+**Migración SQL:**
+Ejecuta `ops/sql/2025-01-XX_add_shipping_fields_to_products.sql` en Supabase SQL Editor.
+
+### Flujo recomendado
+
+1. **Configurar productos**: Editar dimensiones de productos individuales (opcional pero recomendado)
+2. **Crear pedido**: El cliente realiza su pedido normalmente
+3. **Seleccionar empaque**: En Admin → Pedidos → [Orden], seleccionar empaque apropiado
+4. **Recotizar**: Click "Recotizar envío" para obtener tarifas actualizadas usando el empaque seleccionado
+5. **Aplicar tarifa**: Seleccionar y aplicar la mejor tarifa
+6. **Crear guía**: Click "Crear guía en Skydropx" usando el mismo empaque
+
 ## 🔄 Recotización de envíos Skydropx (Admin)
 
 Si una tarifa de Skydropx expira (+24 horas desde `quoted_at`), puedes recotizar desde Admin sin cancelar la orden:
 
 1. Ve a Admin → Pedidos → [Orden]
-2. Busca la sección "Recotizar envío"
+2. Selecciona el empaque (si no está guardado)
 3. Click en "Recotizar envío (Skydropx)"
 4. Se mostrarán las tarifas disponibles actualizadas
 5. Selecciona una tarifa y click en "Aplicar esta tarifa"

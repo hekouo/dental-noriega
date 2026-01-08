@@ -445,12 +445,42 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Calcular dimensiones del paquete (usar valores estándar si no están disponibles)
-    // TODO: Calcular desde order_items si están disponibles
-    const weightKg = 1.0; // Default 1kg
-    const heightCm = 10;
-    const widthCm = 20;
-    const lengthCm = 20;
+    // Obtener package desde metadata.shipping_package o usar default
+    const shippingPackage = orderMetadata.shipping_package as
+      | {
+          mode?: "profile" | "custom";
+          profile?: string | null;
+          length_cm?: number;
+          width_cm?: number;
+          height_cm?: number;
+          weight_g?: number;
+        }
+      | undefined;
+
+    let weightKg: number;
+    let lengthCm: number;
+    let widthCm: number;
+    let heightCm: number;
+
+    if (
+      shippingPackage &&
+      typeof shippingPackage.weight_g === "number" &&
+      typeof shippingPackage.length_cm === "number" &&
+      typeof shippingPackage.width_cm === "number" &&
+      typeof shippingPackage.height_cm === "number"
+    ) {
+      // Usar package guardado (convertir peso a kg)
+      weightKg = shippingPackage.weight_g / 1000;
+      lengthCm = shippingPackage.length_cm;
+      widthCm = shippingPackage.width_cm;
+      heightCm = shippingPackage.height_cm;
+    } else {
+      // Usar default (BOX_S: 25x20x15 cm, 1kg)
+      weightKg = 1.0;
+      lengthCm = 25;
+      widthCm = 20;
+      heightCm = 15;
+    }
 
     if (process.env.NODE_ENV !== "production") {
       console.log("[create-label] Creando envío:", {

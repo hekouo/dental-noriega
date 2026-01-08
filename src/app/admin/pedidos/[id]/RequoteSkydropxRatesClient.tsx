@@ -88,6 +88,11 @@ export default function RequoteSkydropxRatesClient({
       }
 
       setRates(data.rates || []);
+      
+      // Mostrar warning si viene del backend
+      if (data.warning) {
+        setError(data.warning);
+      }
     } catch (err) {
       console.error("[RequoteSkydropxRatesClient] Error:", err);
       setError("Error de red al recotizar el envío.");
