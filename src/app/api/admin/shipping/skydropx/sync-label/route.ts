@@ -167,6 +167,23 @@ export async function POST(req: NextRequest) {
     const shippingMeta = (metadata.shipping as Record<string, unknown>) || {};
     const shipmentId = (shippingMeta.shipment_id as string) || null;
 
+    // Si no hay shipment_id pero sí hay tracking, intentar resolverlo desde Skydropx
+    // NOTA: Skydropx no tiene endpoint de lookup por tracking, así que solo podemos
+    // intentar si tenemos algún identificador adicional. Por ahora, requerimos shipment_id.
+    if (!shipmentId && orderData.shipping_tracking_number) {
+      // No podemos resolver shipment_id desde tracking sin endpoint de lookup
+      // El usuario debe usar create-label primero para obtener shipment_id
+      return NextResponse.json(
+        {
+          ok: false,
+          code: "missing_shipment_id",
+          message:
+            "La orden tiene tracking pero falta shipment_id. Usa 'Crear guía en Skydropx' para obtener el shipment_id.",
+        } satisfies SyncLabelResponse,
+        { status: 400 },
+      );
+    }
+
     if (!shipmentId) {
       return NextResponse.json(
         {
@@ -185,21 +202,33 @@ export async function POST(req: NextRequest) {
     const trackingNumber = extractTrackingNumber(shipmentResponse);
     const labelUrl = extractLabelUrl(shipmentResponse);
 
+    // Asegurar que shipment_id esté guardado en metadata (por si acaso no estaba)
+    const updatedShippingMeta = {
+      ...shippingMeta,
+      shipment_id: shipmentId, // SIEMPRE guardar shipment_id
+    };
+    const updatedMetadata = {
+      ...metadata,
+      shipping: updatedShippingMeta,
+    };
+
     // Determinar si hay cambios
     const hasChanges =
       (trackingNumber !== null && trackingNumber !== orderData.shipping_tracking_number) ||
       (labelUrl !== null && labelUrl !== orderData.shipping_label_url);
 
-    if (hasChanges) {
-      // Actualizar la orden
-      const updateData: Record<string, unknown> = {
-        updated_at: new Date().toISOString(),
-      };
+    // Actualizar metadata SIEMPRE para asegurar que shipment_id esté guardado
+    const updateData: Record<string, unknown> = {
+      metadata: updatedMetadata, // SIEMPRE actualizar metadata con shipment_id
+      updated_at: new Date().toISOString(),
+    };
 
-      if (trackingNumber) {
+    if (hasChanges) {
+      // Actualizar tracking/label si hay cambios
+      if (trackingNumber !== null && trackingNumber !== orderData.shipping_tracking_number) {
         updateData.shipping_tracking_number = trackingNumber;
       }
-      if (labelUrl) {
+      if (labelUrl !== null && labelUrl !== orderData.shipping_label_url) {
         updateData.shipping_label_url = labelUrl;
       }
 
@@ -209,17 +238,20 @@ export async function POST(req: NextRequest) {
       } else if (trackingNumber || labelUrl) {
         updateData.shipping_status = "label_pending_tracking";
       }
+    } else {
+      // Si no hay cambios en tracking/label, solo actualizar metadata para asegurar shipment_id
+      // (puede ser que shipment_id no estuviera guardado antes)
+    }
 
-      await supabase.from("orders").update(updateData).eq("id", orderId);
+    await supabase.from("orders").update(updateData).eq("id", orderId);
 
-      if (process.env.NODE_ENV !== "production") {
-        console.log("[sync-label] Tracking/label actualizados:", {
-          orderId,
-          shipmentId,
-          trackingNumber: trackingNumber || "[pendiente]",
-          hasLabel: !!labelUrl,
-        });
-      }
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[sync-label] Tracking/label actualizados:", {
+        orderId,
+        shipmentId,
+        trackingNumber: trackingNumber || "[pendiente]",
+        hasLabel: !!labelUrl,
+      });
     }
 
     return NextResponse.json({
@@ -227,7 +259,7 @@ export async function POST(req: NextRequest) {
       trackingNumber: trackingNumber || orderData.shipping_tracking_number || null,
       labelUrl: labelUrl || orderData.shipping_label_url || null,
       shipmentId,
-      updated: hasChanges,
+      updated: hasChanges || !shippingMeta.shipment_id, // También es "updated" si se guardó shipment_id por primera vez
     } satisfies SyncLabelResponse);
   } catch (error) {
     if (process.env.NODE_ENV !== "production") {

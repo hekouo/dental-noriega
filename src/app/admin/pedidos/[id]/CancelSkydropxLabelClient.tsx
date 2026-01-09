@@ -16,6 +16,9 @@ function getCancelErrorMessage(code: string | undefined, defaultMessage: string 
   if (code === "no_label_created") {
     return "La orden no tiene una guía creada para cancelar.";
   }
+  if (code === "missing_shipment_id") {
+    return "La orden tiene tracking pero falta shipment_id. Sincroniza la guía primero usando 'Sincronizar guía' para poder cancelar el envío.";
+  }
   if (code === "skydropx_error") {
     return "Error al cancelar en Skydropx. Revisa los logs.";
   }
@@ -27,6 +30,7 @@ type Props = {
   shippingStatus: string | null;
   shippingProvider: string | null;
   hasTracking: boolean;
+  hasShipmentId: boolean;
   onSuccess?: () => void;
 };
 
@@ -35,20 +39,104 @@ export default function CancelSkydropxLabelClient({
   shippingStatus,
   shippingProvider,
   hasTracking,
+  hasShipmentId,
   onSuccess,
 }: Props) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
-  // Verificar si se puede cancelar (solo si está en label_created, no si ya está cancel_requested o cancelled)
+  // Verificar si se puede cancelar (requiere shipment_id, label_created, y tracking)
   const canCancel =
     shippingStatus === "label_created" &&
     (shippingProvider === "skydropx" || shippingProvider === "Skydropx") &&
-    hasTracking;
+    hasTracking &&
+    hasShipmentId; // REQUERIDO: shipment_id debe estar presente
+
+  // Verificar si falta shipment_id pero hay tracking (necesita sincronización)
+  const needsSync = hasTracking && !hasShipmentId && shippingStatus === "label_created";
 
   // Verificar si ya está en proceso de cancelación
   const isCancelRequested = shippingStatus === "cancel_requested";
+
+  // Si necesita sincronización, mostrar mensaje con botón
+  if (needsSync) {
+    const handleSync = async () => {
+      setIsSyncing(true);
+      setError(null);
+
+      try {
+        const response = await fetch("/api/admin/shipping/skydropx/sync-label", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ orderId }),
+        });
+
+        const data = await response.json();
+
+        if (!data.ok) {
+          setError(
+            data.code === "missing_shipment_id"
+              ? "No se pudo sincronizar: falta shipment_id en Skydropx."
+              : data.message || "Error al sincronizar la guía.",
+          );
+          return;
+        }
+
+        // Si se sincronizó exitosamente, recargar página para actualizar estado
+        window.location.reload();
+      } catch (err) {
+        console.error("[CancelSkydropxLabelClient] Error al sincronizar:", err);
+        setError("Error de red al sincronizar la guía. Intenta de nuevo.");
+      } finally {
+        setIsSyncing(false);
+      }
+    };
+
+    return (
+      <div className="mt-4">
+        <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-orange-600 dark:text-orange-400 mt-0.5" />
+            <div className="flex-1">
+              <h4 className="text-sm font-semibold text-orange-900 dark:text-orange-100 mb-1">
+                Falta sincronizar guía
+              </h4>
+              <p className="text-sm text-orange-700 dark:text-orange-300 mb-3">
+                Hay tracking pero falta shipment_id. Sincroniza la guía para poder cancelar/descargar etiqueta.
+              </p>
+              <button
+                type="button"
+                onClick={handleSync}
+                disabled={isSyncing}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
+              >
+                {isSyncing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Sincronizando...
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="w-4 h-4" />
+                    Sincronizar guía
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+        {error && (
+          <div className="mt-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+            <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   // Si ya está cancelada o no se puede cancelar, no mostrar nada
   if (!canCancel && !isCancelRequested) {
