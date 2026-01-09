@@ -287,7 +287,7 @@ export async function POST(req: NextRequest) {
       price_cents: rate.totalPriceCents,
     }));
 
-    // Normalizar diagnóstico (usar keys nuevas directamente, sin PII completo)
+    // SIEMPRE construir diagnóstico normalizado (cuando se solicita, siempre debe estar disponible)
     const normalizedDiagnostic = diagnostic
       ? {
           origin: {
@@ -312,20 +312,48 @@ export async function POST(req: NextRequest) {
           },
           usedSources: diagnostic.usedSources,
         }
-      : undefined;
+      : null;
 
-    // Log diagnóstico cuando rates está vacío (sin PII)
-    if (normalizedRates.length === 0 && normalizedDiagnostic) {
-      console.warn("[requote] 0 rates devueltos por Skydropx", {
-        diagnostic: normalizedDiagnostic,
-      });
-    }
+    // GARANTIZAR: Si rates está vacío, SIEMPRE devolver diagnostic (incluso si viene null, construir uno mínimo)
+    const isEmpty = normalizedRates.length === 0;
+    const finalDiagnostic = isEmpty && normalizedDiagnostic 
+      ? normalizedDiagnostic 
+      : isEmpty && !normalizedDiagnostic
+        ? {
+            origin: {
+              postal_code_present: false,
+              city: "[unknown]",
+              state: "[unknown]",
+              country_code: "MX",
+              street1_len: 0,
+            },
+            destination: {
+              postal_code_present: !!addressTo.postalCode && addressTo.postalCode.length > 0,
+              city: addressTo.city || "[missing]",
+              state: addressTo.state || "[missing]",
+              country_code: addressTo.country || "MX",
+              street1_len: 0,
+            },
+            pkg: {
+              length_cm: lengthCm,
+              width_cm: widthCm,
+              height_cm: heightCm,
+              weight_g: weightGrams,
+            },
+            usedSources: {
+              origin: "config",
+              destination: "normalized",
+              package: hasPackageWarning ? "default" : "provided",
+            },
+          }
+        : undefined;
 
     return NextResponse.json({
       ok: true,
       rates: normalizedRates,
-      diagnostic: normalizedRates.length === 0 ? normalizedDiagnostic : undefined, // Solo incluir diagnóstico si rates está vacío
-      emptyReason: normalizedRates.length === 0 ? "skydropx_no_rates" : undefined,
+      // SIEMPRE incluir diagnóstico cuando rates está vacío (sin depender de NODE_ENV)
+      diagnostic: isEmpty ? finalDiagnostic : undefined,
+      emptyReason: isEmpty ? "skydropx_no_rates" : undefined,
       warning: hasPackageWarning
         ? "No se encontró empaque guardado, usando dimensiones por defecto. Selecciona un empaque antes de recotizar para obtener tarifas precisas."
         : undefined,
