@@ -52,6 +52,15 @@ type RequoteResponse =
     }
   | {
       ok: false;
+      code: "quotation_pending";
+      message: string;
+      quotationId?: string;
+      isCompleted?: boolean;
+      pollingInfo?: { attempts: number; elapsedMs: number };
+      diagnostic?: any;
+    }
+  | {
+      ok: false;
       code: string;
       message: string;
       reason?: string;
@@ -335,25 +344,89 @@ export async function POST(req: NextRequest) {
 
     // Llamar a Skydropx para obtener rates (usando builder unificado con diagnóstico)
     // SIEMPRE pedir diagnóstico para poder diagnosticar cuando rates está vacío
-    const ratesResult = await getSkydropxRates(
-      {
-        postalCode: addressTo.postalCode,
-        state: addressTo.state,
-        city: addressTo.city,
-        country: addressTo.country,
-        address1: addressTo.address1, // Pasar address1 (calle) al builder
-        address2: addressTo.address2, // Pasar address2 (colonia) al builder para area_level3
-      },
-      {
-        weightGrams,
-        lengthCm,
-        widthCm,
-        heightCm,
-      },
-      {
-        diagnostic: true, // SIEMPRE incluir diagnóstico en admin
-      },
-    );
+    let ratesResult;
+    try {
+      ratesResult = await getSkydropxRates(
+        {
+          postalCode: addressTo.postalCode,
+          state: addressTo.state,
+          city: addressTo.city,
+          country: addressTo.country,
+          address1: addressTo.address1, // Pasar address1 (calle) al builder
+          address2: addressTo.address2, // Pasar address2 (colonia) al builder para area_level3
+        },
+        {
+          weightGrams,
+          lengthCm,
+          widthCm,
+          heightCm,
+        },
+        {
+          diagnostic: true, // SIEMPRE incluir diagnóstico en admin
+        },
+      );
+    } catch (error: any) {
+      // Manejar error de quotation_pending
+      if (error instanceof Error && error.message === "skydropx_quotation_pending") {
+        const errorAny = error as any;
+        const quotationId = errorAny.quotationId;
+        const isCompleted = errorAny.isCompleted ?? false;
+        const pollingInfo = errorAny.pollingInfo;
+        
+        return NextResponse.json({
+          ok: false,
+          code: "quotation_pending",
+          message: "La cotización está en progreso. Por favor, reintenta en unos momentos.",
+          quotationId,
+          isCompleted,
+          pollingInfo,
+          diagnostic: {
+            origin: {
+              postal_code_present: false,
+              city: "[unknown]",
+              state: "[unknown]",
+              country_code: "MX",
+              street1_len: 0,
+              area_level3_len: 0,
+              area_level3_source: "none",
+            },
+            destination: {
+              postal_code_present: !!addressTo.postalCode && addressTo.postalCode.length > 0,
+              city: addressTo.city || "[missing]",
+              state: addressTo.state || "[missing]",
+              country_code: addressTo.country || "MX",
+              street1_len: addressTo.address1 ? addressTo.address1.length : 0,
+              area_level3_len: addressTo.address2 ? addressTo.address2.length : 0,
+              area_level3_source: addressTo.address2 ? "address2" : "none",
+            },
+            pkg: {
+              length_cm: lengthCm,
+              width_cm: widthCm,
+              height_cm: heightCm,
+              weight_g: weightGrams,
+              was_clamped: false,
+              min_billable_weight_g: parseInt(process.env.SKYDROPX_MIN_BILLABLE_WEIGHT_G || "1000", 10),
+            },
+            quotation: {
+              quotation_id: quotationId,
+              is_completed: isCompleted,
+              polling_attempts: pollingInfo?.attempts ?? 0,
+              polling_elapsed_ms: pollingInfo?.elapsedMs ?? 0,
+              rates_count_raw: 0,
+              rates_count_filtered: 0,
+              rates_by_status: {},
+            },
+            usedSources: {
+              origin: "config",
+              destination: "normalized",
+              package: hasPackageWarning ? "default" : "provided",
+            },
+          },
+        } satisfies RequoteResponse & { quotationId?: string; isCompleted?: boolean; pollingInfo?: { attempts: number; elapsedMs: number } });
+      }
+      // Re-lanzar otros errores
+      throw error;
+    }
 
     // Extraer rates y diagnóstico
     const rates = Array.isArray(ratesResult) ? ratesResult : ratesResult.rates;
@@ -483,12 +556,17 @@ export async function POST(req: NextRequest) {
       : undefined;
     const combinedWarning = [packageWarning, weightWarning].filter(Boolean).join(" ");
 
+    // Solo devolver emptyReason cuando is_completed === true y rates está vacío
+    const quotationInfo = normalizedDiagnostic ? (normalizedDiagnostic as any).quotation : undefined;
+    const isCompleted = quotationInfo?.is_completed ?? true; // Si no viene, asumir completada
+    const shouldReturnEmptyReason = isEmpty && isCompleted;
+    
     return NextResponse.json({
       ok: true,
       rates: normalizedRates,
       // SIEMPRE incluir diagnóstico cuando rates está vacío (sin depender de NODE_ENV)
       diagnostic: isEmpty ? finalDiagnostic : undefined,
-      emptyReason: isEmpty ? "skydropx_no_rates" : undefined,
+      emptyReason: shouldReturnEmptyReason ? "skydropx_no_rates" : undefined,
       warning: combinedWarning || undefined,
       weightClamped: wasWeightClamped, // Flag adicional para UI
     } satisfies RequoteResponse & { warning?: string; weightClamped?: boolean });

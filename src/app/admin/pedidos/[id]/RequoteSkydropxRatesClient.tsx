@@ -80,6 +80,13 @@ export default function RequoteSkydropxRatesClient({
       const data = await res.json();
 
       if (!data.ok) {
+        // Manejar quotation_pending de forma especial
+        if (data.code === "quotation_pending") {
+          setError("La cotización está en progreso. Por favor, reintenta en unos momentos.");
+          setDiagnostic(data.diagnostic || null);
+          return;
+        }
+        
         // Si es precondition failed, mostrar reason y missingFields
         const errorMessage =
           data.code === "unauthorized"

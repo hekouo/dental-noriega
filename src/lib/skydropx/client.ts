@@ -29,16 +29,16 @@ function getSkydropxConfig() {
   const clientSecret = process.env.SKYDROPX_CLIENT_SECRET;
   
   // URL base para autenticación OAuth (para /api/v1/oauth/token)
-  // OAuth sigue usando api-pro según la configuración actual
-  const authBaseUrl = process.env.SKYDROPX_AUTH_BASE_URL || "https://api-pro.skydropx.com";
+  // Skydropx docs indican usar pro.skydropx.com para OAuth/quotations/shipments
+  const authBaseUrl = process.env.SKYDROPX_AUTH_BASE_URL || process.env.SKYDROPX_API_BASE_URL || "https://pro.skydropx.com";
   
   // URL base para cotizaciones (para /api/v1/quotations)
-  // Actualmente usa api-pro.skydropx.com según la configuración del usuario
-  const quotationsBaseUrl = process.env.SKYDROPX_QUOTATIONS_BASE_URL || "https://api-pro.skydropx.com";
+  // Skydropx docs indican usar pro.skydropx.com/api/v1
+  const quotationsBaseUrl = process.env.SKYDROPX_QUOTATIONS_BASE_URL || process.env.SKYDROPX_API_BASE_URL || "https://pro.skydropx.com";
   
   // URL base para otros endpoints de API (shipments, etc.)
-  // IMPORTANTE: Para PRO con OAuth, debe ser api-pro.skydropx.com (NO api.skydropx.com legacy)
-  const restBaseUrl = process.env.SKYDROPX_BASE_URL || "https://api-pro.skydropx.com";
+  // Skydropx docs indican usar pro.skydropx.com/api/v1 para shipments también
+  const restBaseUrl = process.env.SKYDROPX_SHIPMENTS_BASE_URL || process.env.SKYDROPX_BASE_URL || process.env.SKYDROPX_API_BASE_URL || "https://pro.skydropx.com";
 
   if (!clientId || !clientSecret) {
     if (process.env.NODE_ENV !== "production") {
@@ -388,14 +388,21 @@ export type SkydropxQuotationRate = {
 };
 
 export type SkydropxQuotationResponse = {
+  id?: string; // quotation_id devuelto por POST
+  is_completed?: boolean; // true cuando la cotización está completa
   data?: SkydropxQuotationRate[];
   included?: SkydropxQuotationRate[];
+  quotation?: {
+    id?: string;
+    is_completed?: boolean;
+    rates?: SkydropxQuotationRate[];
+  };
   [key: string]: unknown;
 };
 
 export type SkydropxQuotationResult = 
-  | { ok: true; data: SkydropxQuotationResponse }
-  | { ok: false; code: "invalid_params" | "no_coverage" | "auth_error" | "network_error" | "unknown_error"; message: string; errors?: unknown };
+  | { ok: true; data: SkydropxQuotationResponse; quotationId?: string; isCompleted?: boolean; pollingInfo?: { attempts: number; elapsedMs: number } }
+  | { ok: false; code: "invalid_params" | "no_coverage" | "auth_error" | "network_error" | "unknown_error" | "quotation_pending"; message: string; errors?: unknown; quotationId?: string; isCompleted?: boolean; pollingInfo?: { attempts: number; elapsedMs: number } };
 
 /**
  * Crea una cotización de envío
@@ -606,23 +613,202 @@ export async function createQuotation(
     };
   }
 
-  // Respuesta exitosa
-  const data = (await response.json()) as SkydropxQuotationResponse;
+  // Respuesta exitosa del POST
+  const postData = (await response.json()) as SkydropxQuotationResponse;
+  
+  // Extraer quotation_id de la respuesta
+  const quotationId = postData.id || postData.quotation?.id || (postData as any).quotation_id;
+  const isCompleted = postData.is_completed ?? postData.quotation?.is_completed ?? false;
   
   if (process.env.NODE_ENV !== "production") {
-    console.log("[Skydropx createQuotation] Respuesta OK, tarifas recibidas");
+    console.log("[Skydropx createQuotation] POST OK", {
+      quotationId,
+      isCompleted,
+      hasRates: !!(postData.data?.length || postData.included?.length || postData.quotation?.rates?.length),
+    });
   }
   
-  return { ok: true, data };
+  // Si ya está completa, devolver directamente
+  if (isCompleted && quotationId) {
+    return { 
+      ok: true, 
+      data: postData,
+      quotationId,
+      isCompleted: true,
+      pollingInfo: { attempts: 0, elapsedMs: 0 },
+    };
+  }
+  
+  // Si no hay quotation_id, no podemos hacer polling
+  if (!quotationId) {
+    // Intentar usar la respuesta como está (compatibilidad con formato antiguo)
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[Skydropx createQuotation] No quotation_id en respuesta, devolviendo respuesta directa");
+    }
+    return { 
+      ok: true, 
+      data: postData,
+      isCompleted: isCompleted,
+      pollingInfo: { attempts: 0, elapsedMs: 0 },
+    };
+  }
+  
+  // Implementar polling: GET /api/v1/quotations/{id} hasta is_completed=true
+  const maxAttempts = 12; // ~6-8 segundos con 500ms entre intentos
+  const pollIntervalMs = 500; // Respetar rate limit (min 500ms)
+  const timeoutMs = 8000; // Timeout total de 8 segundos
+  
+  const startTime = Date.now();
+  let attempts = 0;
+  let lastResponse = postData;
+  
+  // Definir quotationsBaseUrl para usar en polling (misma que en POST)
+  const quotationsBaseUrlForPolling = process.env.SKYDROPX_QUOTATIONS_BASE_URL || process.env.SKYDROPX_API_BASE_URL || "https://pro.skydropx.com";
+  
+  while (attempts < maxAttempts) {
+    attempts++;
+    const elapsedMs = Date.now() - startTime;
+    
+    // Verificar timeout
+    if (elapsedMs >= timeoutMs) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[Skydropx createQuotation] Timeout en polling", {
+          quotationId,
+          attempts,
+          elapsedMs,
+          isCompleted: lastResponse.is_completed ?? lastResponse.quotation?.is_completed,
+        });
+      }
+      return {
+        ok: false,
+        code: "quotation_pending",
+        message: "La cotización está en progreso. Por favor, reintenta en unos momentos.",
+        quotationId,
+        isCompleted: false,
+        pollingInfo: { attempts, elapsedMs },
+      };
+    }
+    
+    // Esperar antes del siguiente intento (excepto el primero)
+    if (attempts > 1) {
+      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+    }
+    
+    try {
+      // GET /api/v1/quotations/{id}
+      const getUrl = `${quotationsBaseUrlForPolling}/api/v1/quotations/${quotationId}`;
+      const getResponse = await fetch(getUrl, {
+        method: "GET",
+        headers: {
+          "Accept": "application/json",
+          "Authorization": `Bearer ${accessToken}`,
+        },
+      });
+      
+      if (!getResponse.ok) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn(`[Skydropx createQuotation] GET error en intento ${attempts}:`, {
+            status: getResponse.status,
+            statusText: getResponse.statusText,
+          });
+        }
+        // Continuar polling si es un error temporal (5xx)
+        if (getResponse.status >= 500) {
+          continue;
+        }
+        // Para otros errores, devolver error
+        return {
+          ok: false,
+          code: "network_error",
+          message: `Error al obtener cotización: ${getResponse.statusText}`,
+          quotationId,
+          isCompleted: false,
+          pollingInfo: { attempts, elapsedMs },
+        };
+      }
+      
+      lastResponse = (await getResponse.json()) as SkydropxQuotationResponse;
+      const currentIsCompleted = lastResponse.is_completed ?? lastResponse.quotation?.is_completed ?? false;
+      
+      if (process.env.NODE_ENV !== "production") {
+        console.log(`[Skydropx createQuotation] Polling intento ${attempts}`, {
+          quotationId,
+          isCompleted: currentIsCompleted,
+          hasRates: !!(lastResponse.data?.length || lastResponse.included?.length || lastResponse.quotation?.rates?.length),
+          elapsedMs,
+        });
+      }
+      
+      // Si está completa, devolver resultado
+      if (currentIsCompleted) {
+        return {
+          ok: true,
+          data: lastResponse,
+          quotationId,
+          isCompleted: true,
+          pollingInfo: { attempts, elapsedMs },
+        };
+      }
+      
+      // Continuar polling
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn(`[Skydropx createQuotation] Error en polling intento ${attempts}:`, error);
+      }
+      // Continuar polling si es un error de red temporal
+      if (error instanceof Error && (error.message.includes("fetch") || error.message.includes("network"))) {
+        continue;
+      }
+      // Para otros errores, devolver error
+      return {
+        ok: false,
+        code: "network_error",
+        message: `Error en polling: ${error instanceof Error ? error.message : "unknown"}`,
+        quotationId,
+        isCompleted: false,
+        pollingInfo: { attempts, elapsedMs: Date.now() - startTime },
+      };
+    }
+  }
+  
+  // Si llegamos aquí, se agotaron los intentos sin completar
+  if (process.env.NODE_ENV !== "production") {
+    console.warn("[Skydropx createQuotation] Polling agotado sin completar", {
+      quotationId,
+      attempts,
+      elapsedMs: Date.now() - startTime,
+      isCompleted: lastResponse.is_completed ?? lastResponse.quotation?.is_completed,
+    });
+  }
+  
+  return {
+    ok: false,
+    code: "quotation_pending",
+    message: "La cotización está en progreso. Por favor, reintenta en unos momentos.",
+    quotationId,
+    isCompleted: false,
+    pollingInfo: { attempts, elapsedMs: Date.now() - startTime },
+  };
 }
 
 /**
  * Obtiene una cotización por ID
  */
 export async function getQuotation(id: string): Promise<SkydropxQuotationResponse> {
-  // Skydropx API usa /v1/quotations/{id} (no /api/v1/quotations/{id})
-  const response = await skydropxFetch(`/v1/quotations/${id}`, {
+  // Skydropx API usa /api/v1/quotations/{id} según docs
+  const quotationsBaseUrl = process.env.SKYDROPX_QUOTATIONS_BASE_URL || process.env.SKYDROPX_API_BASE_URL || "https://pro.skydropx.com";
+  const accessToken = await getAccessToken();
+  
+  if (!accessToken) {
+    throw new Error("No se pudo obtener token de acceso de Skydropx");
+  }
+  
+  const response = await fetch(`${quotationsBaseUrl}/api/v1/quotations/${id}`, {
     method: "GET",
+    headers: {
+      "Accept": "application/json",
+      "Authorization": `Bearer ${accessToken}`,
+    },
   });
 
   if (!response.ok) {

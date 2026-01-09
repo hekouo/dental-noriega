@@ -208,8 +208,25 @@ export async function getSkydropxRates(
   try {
     const result = await createQuotation(payload);
     
-    // Si el resultado indica error controlado, devolver array vacío sin lanzar excepción
+    // Si el resultado indica error controlado, manejar según el código
     if (!result.ok) {
+      // Si es quotation_pending, devolver error especial para que el endpoint lo maneje
+      if (result.code === "quotation_pending") {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[getSkydropxRates] Cotización pendiente:", {
+            quotationId: result.quotationId,
+            attempts: result.pollingInfo?.attempts,
+            elapsedMs: result.pollingInfo?.elapsedMs,
+          });
+        }
+        // Lanzar error especial para que el endpoint lo capture
+        const error = new Error("skydropx_quotation_pending");
+        (error as any).quotationId = result.quotationId;
+        (error as any).isCompleted = result.isCompleted;
+        (error as any).pollingInfo = result.pollingInfo;
+        throw error;
+      }
+      
       if (process.env.NODE_ENV !== "production") {
         if (result.code === "invalid_params" || result.code === "no_coverage") {
           console.warn("[getSkydropxRates] Sin cobertura o parámetros inválidos:", {
@@ -231,6 +248,9 @@ export async function getSkydropxRates(
     }
     
     const data = result.data;
+    const quotationId = result.quotationId;
+    const isCompleted = result.isCompleted ?? true; // Si no viene, asumir completada
+    const pollingInfo = result.pollingInfo;
 
     // Logging controlado: solo información esencial en desarrollo
     if (process.env.NODE_ENV !== "production") {
@@ -239,6 +259,10 @@ export async function getSkydropxRates(
       console.log("[getSkydropxRates] Respuesta recibida:", {
         format: dataType,
         keys: dataKeys.length > 0 ? dataKeys : undefined,
+        quotationId,
+        isCompleted,
+        pollingAttempts: pollingInfo?.attempts,
+        pollingElapsedMs: pollingInfo?.elapsedMs,
       });
     }
 
@@ -268,43 +292,86 @@ export async function getSkydropxRates(
     }
     // Caso 4: data puede tener otros campos con arrays (explorar)
     else if (data && typeof data === "object") {
-      // Buscar cualquier propiedad que sea un array
-      for (const key of Object.keys(data)) {
-        if (Array.isArray(data[key as keyof typeof data])) {
-          ratesArray = data[key as keyof typeof data] as SkydropxQuotationRate[];
-          if (process.env.NODE_ENV !== "production") {
-            console.log(`[getSkydropxRates] Formato: data.${key} array, encontradas`, ratesArray.length, "tarifas");
+      // Buscar quotation.rates si existe
+      if ((data as any).quotation?.rates && Array.isArray((data as any).quotation.rates)) {
+        ratesArray = (data as any).quotation.rates as SkydropxQuotationRate[];
+        if (process.env.NODE_ENV !== "production") {
+          console.log("[getSkydropxRates] Formato: quotation.rates array, encontradas", ratesArray.length, "tarifas");
+        }
+      } else {
+        // Buscar cualquier propiedad que sea un array
+        for (const key of Object.keys(data)) {
+          if (Array.isArray(data[key as keyof typeof data])) {
+            ratesArray = data[key as keyof typeof data] as SkydropxQuotationRate[];
+            if (process.env.NODE_ENV !== "production") {
+              console.log(`[getSkydropxRates] Formato: data.${key} array, encontradas`, ratesArray.length, "tarifas");
+            }
+            break;
           }
-          break;
         }
       }
     }
 
+    // Contar rates antes de filtrar (para diagnóstico)
+    const ratesCountRaw = ratesArray.length;
+    
+    // Contar rates por status antes de filtrar (para diagnóstico)
+    const ratesByStatus: Record<string, number> = {};
+    ratesArray.forEach((rate: any) => {
+      const status = rate.status || rate.workflow_status || "unknown";
+      ratesByStatus[status] = (ratesByStatus[status] || 0) + 1;
+    });
+    
     if (ratesArray.length === 0) {
       // Log diagnóstico sin PII cuando rates está vacío (SIEMPRE, no solo en desarrollo)
-      console.warn("[getSkydropxRates] skydropx_no_rates", {
-        origin: {
-          postal_code_present: diagnostic.origin.postal_code_present,
-          city_len: diagnostic.origin.city?.length || 0,
-          state_len: diagnostic.origin.state?.length || 0,
-          country_code: diagnostic.origin.country_code,
-        },
-        destination: {
-          postal_code_present: diagnostic.destination.postal_code_present,
-          city_len: diagnostic.destination.city?.length || 0,
-          state_len: diagnostic.destination.state?.length || 0,
-          country_code: diagnostic.destination.country_code,
-        },
-        pkg: {
-          weight_g: diagnostic.pkg.weight_g,
-          length_cm: diagnostic.pkg.length_cm,
-          width_cm: diagnostic.pkg.width_cm,
-          height_cm: diagnostic.pkg.height_cm,
-        },
-      });
+      // Solo si is_completed === true, de lo contrario es premature
+      if (isCompleted) {
+        console.warn("[getSkydropxRates] skydropx_no_rates (is_completed=true)", {
+          quotationId,
+          isCompleted,
+          pollingAttempts: pollingInfo?.attempts,
+          pollingElapsedMs: pollingInfo?.elapsedMs,
+          ratesCountRaw,
+          ratesByStatus,
+          origin: {
+            postal_code_present: diagnostic.origin.postal_code_present,
+            city: diagnostic.origin.city,
+            state: diagnostic.origin.state,
+            country_code: diagnostic.origin.country_code,
+            area_level3_len: diagnostic.origin.area_level3_len,
+            area_level3_source: diagnostic.origin.area_level3_source,
+          },
+          destination: {
+            postal_code_present: diagnostic.destination.postal_code_present,
+            city: diagnostic.destination.city,
+            state: diagnostic.destination.state,
+            country_code: diagnostic.destination.country_code,
+            area_level3_len: diagnostic.destination.area_level3_len,
+            area_level3_source: diagnostic.destination.area_level3_source,
+          },
+          pkg: {
+            weight_g: diagnostic.pkg.weight_g,
+            length_cm: diagnostic.pkg.length_cm,
+            width_cm: diagnostic.pkg.width_cm,
+            height_cm: diagnostic.pkg.height_cm,
+          },
+        });
+      }
       // SIEMPRE devolver diagnóstico cuando se solicita y rates está vacío
       if (options?.diagnostic) {
-        return { rates: [], diagnostic };
+        const enhancedDiagnostic = {
+          ...diagnostic,
+          quotation: {
+            quotation_id: quotationId,
+            is_completed: isCompleted,
+            polling_attempts: pollingInfo?.attempts ?? 0,
+            polling_elapsed_ms: pollingInfo?.elapsedMs ?? 0,
+            rates_count_raw: ratesCountRaw,
+            rates_count_filtered: 0,
+            rates_by_status: ratesByStatus,
+          },
+        };
+        return { rates: [], diagnostic: enhancedDiagnostic };
       }
       return [];
     }
@@ -339,8 +406,11 @@ export async function getSkydropxRates(
           }
 
           // Filtro 3: Excluir status no aplicable o sin cobertura
+          // Aceptar: success=true y status válidos (price_found_*, approved, coverage_checked, pending)
+          // Excluir: no_coverage, not_applicable, tariff_price_not_found, unavailable
           const status = rateAny.status || rateAny.workflow_status;
-          if (status === "not_applicable" || status === "no_coverage" || status === "unavailable") {
+          const excludedStatuses = ["not_applicable", "no_coverage", "unavailable", "tariff_price_not_found"];
+          if (status && excludedStatuses.includes(status)) {
             if (process.env.NODE_ENV !== "production") {
               console.warn(`[getSkydropxRates] Tarifa ${index} descartada: status=${status}`, rate);
             }
@@ -563,6 +633,16 @@ export async function getSkydropxRates(
     
     // Si es un error de autenticación, lanzarlo para que la API route lo maneje
     if (error instanceof Error) {
+      // Error especial de "quotation_pending" → propagar para que el endpoint lo maneje
+      if (error.message === "skydropx_quotation_pending") {
+        // Re-lanzar con información adicional
+        const pendingError: any = new Error("skydropx_quotation_pending");
+        pendingError.quotationId = (error as any).quotationId;
+        pendingError.isCompleted = (error as any).isCompleted;
+        pendingError.pollingInfo = (error as any).pollingInfo;
+        throw pendingError;
+      }
+      
       // Error especial de "parámetros inválidos" → tratar como sin cobertura, no error fatal
       if (error.message === "skydropx_invalid_params") {
         if (process.env.NODE_ENV !== "production") {
