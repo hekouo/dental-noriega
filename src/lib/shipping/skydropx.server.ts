@@ -39,6 +39,7 @@ export type SkydropxDestination = {
   city: string;
   country?: string; // default "MX"
   address1?: string; // Opcional: calle/dirección de destino
+  address2?: string; // Opcional: colonia/barrio (para area_level3 en Skydropx)
 };
 
 export type SkydropxPackageInput = {
@@ -60,6 +61,8 @@ type OriginConfig = {
   city: string;
   postalCode: string;
   addressLine1: string;
+  areaLevel3?: string; // Colonia/barrio para area_level3 en Skydropx (opcional, configurable via env)
+  reference?: string; // Referencia para shipments (opcional, NO para quotations)
 };
 
 /**
@@ -93,6 +96,8 @@ export function getSkydropxConfig(): SkydropxAuthConfig | null {
   const originCity = process.env.SKYDROPX_ORIGIN_CITY;
   const originPostalCode = process.env.SKYDROPX_ORIGIN_POSTAL_CODE;
   const originAddressLine1 = process.env.SKYDROPX_ORIGIN_ADDRESS_LINE_1;
+  const originAreaLevel3 = process.env.SKYDROPX_ORIGIN_AREA_LEVEL3; // Colonia/barrio para area_level3 (opcional)
+  const originReference = process.env.SKYDROPX_ORIGIN_REFERENCE; // Referencia para shipments (opcional)
 
   // Validación mínima de datos de origen
   if (!originName || !originState || !originCity || !originPostalCode) {
@@ -113,6 +118,8 @@ export function getSkydropxConfig(): SkydropxAuthConfig | null {
     city: originCity,
     postalCode: originPostalCode,
     addressLine1: originAddressLine1 || "",
+    areaLevel3: originAreaLevel3, // Colonia/barrio para area_level3 (opcional)
+    reference: originReference, // Referencia para shipments (opcional)
   };
 
   // URL base de la API de Skydropx
@@ -178,7 +185,8 @@ export async function getSkydropxRates(
       state: destination.state,
       city: destination.city,
       country: destination.country,
-      address1: destination.address1, // Pasar address1 si está disponible
+      address1: destination.address1, // Pasar address1 (calle) si está disponible
+      address2: destination.address2, // Pasar address2 (colonia) si está disponible para area_level3
     },
     package: {
       weightGrams: pkg.weightGrams || 1000,

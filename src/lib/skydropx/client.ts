@@ -429,10 +429,12 @@ export async function createQuotation(
           || payload.address_from.province 
           || "Ciudad de México",
         area_level2: payload.address_from.city || "",
-        // Usar address1 en area_level3 (prioridad sobre neighborhood)
-        area_level3: payload.address_from.address1 
-          || payload.address_from.neighborhood 
-          || payload.address_from.city 
+        // area_level3 = colonia/barrio (NO calle)
+        // PRIORIDAD: address2 (colonia) > neighborhood > address1 (último recurso)
+        area_level3: payload.address_from.address2
+          || payload.address_from.neighborhood
+          || payload.address_from.address1
+          || payload.address_from.city
           || "",
       },
       address_to: {
@@ -444,10 +446,12 @@ export async function createQuotation(
           || payload.address_from.province 
           || "Ciudad de México",
         area_level2: payload.address_to.city || "",
-        // Usar address1 en area_level3 (prioridad sobre neighborhood)
-        area_level3: payload.address_to.address1 
-          || payload.address_to.neighborhood 
-          || payload.address_to.city 
+        // area_level3 = colonia/barrio (NO calle)
+        // PRIORIDAD: address2 (colonia) > neighborhood > address1 (último recurso)
+        area_level3: payload.address_to.address2
+          || payload.address_to.neighborhood
+          || payload.address_to.address1
+          || payload.address_to.city
           || "",
       },
       parcels: [
