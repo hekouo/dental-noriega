@@ -66,6 +66,11 @@ SKYDROPX_ORIGIN_ADDRESS_LINE_1=Calle Principal 123
 SKYDROPX_ORIGIN_PHONE=5512345678
 SKYDROPX_ORIGIN_EMAIL=envios@ddnshop.mx
 
+# Peso mínimo billable para Skydropx (default: 1000g = 1kg)
+# Skydropx requiere/cobra mínimo 1kg para cotizaciones y envíos.
+# Si el paquete pesa menos de 1kg, se ajustará automáticamente a 1kg para la cotización/creación de guía.
+SKYDROPX_MIN_BILLABLE_WEIGHT_G=1000
+
 # App URL
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
@@ -240,6 +245,7 @@ Para obtener cotizaciones precisas de Skydropx, es importante seleccionar el emp
 - El empaque guardado se usa automáticamente en `/requote` y `/create-label`
 - Si no hay empaque guardado, el sistema usa BOX_S por defecto y muestra un warning
 - No se puede cambiar el empaque si ya se creó la guía (tiene `shipping_tracking_number` o `shipping_label_url`)
+- **Peso mínimo**: Skydropx requiere/cobra mínimo 1kg (1000g) para cotizaciones y envíos. Si el paquete pesa menos de 1kg, se ajustará automáticamente a 1kg (ver `SKYDROPX_MIN_BILLABLE_WEIGHT_G`)
 
 **Estructura de `metadata.shipping_package`:**
 ```typescript

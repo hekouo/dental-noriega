@@ -7,6 +7,16 @@ import { getSkydropxConfig } from "./skydropx.server";
 import { normalizeMxAddress } from "./normalizeAddress";
 import type { SkydropxQuotationPayload } from "@/lib/skydropx/client";
 
+/**
+ * Peso mínimo billable para Skydropx (1kg)
+ * Skydropx requiere/cobra mínimo 1kg para cotizaciones y envíos
+ * Configurable vía env var: SKYDROPX_MIN_BILLABLE_WEIGHT_G (default: 1000)
+ */
+const MIN_BILLABLE_WEIGHT_G = parseInt(
+  process.env.SKYDROPX_MIN_BILLABLE_WEIGHT_G || "1000",
+  10,
+);
+
 export type SkydropxRatesRequestInput = {
   origin?: {
     postalCode?: string;
@@ -53,7 +63,9 @@ export type SkydropxRatesRequestDiagnostic = {
     length_cm: number;
     width_cm: number;
     height_cm: number;
-    weight_g: number;
+    weight_g: number; // Peso final usado (después de clamp)
+    was_clamped: boolean; // Si el peso fue ajustado al mínimo
+    min_billable_weight_g: number; // Mínimo billable usado (para diagnóstico)
   };
   usedSources: {
     origin: "config" | "provided";
@@ -124,7 +136,9 @@ export function buildSkydropxRatesRequest(
   const rawHeightCm = input.package.heightCm || 10;
 
   // Hardening: valores mínimos razonables para evitar payloads inválidos
-  const weightGrams = Math.max(rawWeightGrams, 50); // Mínimo 50g
+  // Skydropx requiere/cobra mínimo 1kg (1000g) para cotizaciones y envíos
+  const weightGrams = Math.max(rawWeightGrams, MIN_BILLABLE_WEIGHT_G);
+  const wasWeightClamped = rawWeightGrams < MIN_BILLABLE_WEIGHT_G;
   const weightKg = weightGrams / 1000;
   const lengthCm = Math.max(rawLengthCm, 1); // Mínimo 1cm
   const widthCm = Math.max(rawWidthCm, 1); // Mínimo 1cm
@@ -199,7 +213,9 @@ export function buildSkydropxRatesRequest(
       length_cm: lengthCm,
       width_cm: widthCm,
       height_cm: heightCm,
-      weight_g: weightGrams,
+      weight_g: weightGrams, // Peso final usado (después de clamp)
+      was_clamped: wasWeightClamped, // Si el peso fue ajustado al mínimo
+      min_billable_weight_g: MIN_BILLABLE_WEIGHT_G, // Mínimo billable usado (para diagnóstico)
     },
     usedSources: {
       origin: input.origin ? "provided" : "config",
