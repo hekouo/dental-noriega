@@ -13,12 +13,16 @@ export type SkydropxRatesRequestInput = {
     state?: string;
     city?: string;
     country?: string;
+    address1?: string; // Para origin desde env vars
+    address2?: string; // Para origin street2/reference
   };
   destination: {
     postalCode: string;
     state: string;
     city: string;
     country?: string;
+    address1?: string; // REQUERIDO: calle/dirección de destino
+    address2?: string; // Opcional: segunda línea o referencia
   };
   package: {
     weightGrams: number;
@@ -81,6 +85,8 @@ export function buildSkydropxRatesRequest(
   const originState = input.origin?.state || config.origin.state;
   const originCity = input.origin?.city || config.origin.city;
   const originCountry = input.origin?.country || config.origin.country || "MX";
+  const originAddress1 = (input.origin?.address1 || config.origin.addressLine1 || "").trim();
+  const originAddress2 = input.origin?.address2 ? input.origin.address2.trim() : undefined;
 
   // DESTINO: Normalizar dirección (especialmente CDMX)
   const normalizedDest = normalizeMxAddress({
@@ -90,6 +96,9 @@ export function buildSkydropxRatesRequest(
   });
 
   const destCountry = input.destination.country || "MX";
+  // DESTINO address1: REQUERIDO (si falta, debería fallar antes de llegar aquí)
+  const destAddress1 = (input.destination.address1 || "").trim();
+  const destAddress2 = input.destination.address2 ? input.destination.address2.trim() : undefined;
 
   // PAQUETE: Valores por defecto si no se proporcionan, con hardening (valores mínimos razonables)
   const rawWeightGrams = input.package.weightGrams || 1000;
@@ -112,13 +121,16 @@ export function buildSkydropxRatesRequest(
       city: originCity,
       country: originCountry,
       zip: originPostalCode,
-      neighborhood: config.origin.addressLine1
-        ? config.origin.addressLine1.split(",")[0]
+      // Usar address1 en neighborhood (para area_level3 en Skydropx)
+      neighborhood: originAddress1
+        ? originAddress1.split(",")[0].substring(0, 45)
         : undefined,
       name: config.origin.name,
       phone: config.origin.phone || null,
       email: config.origin.email || null,
-      address1: (config.origin.addressLine1 || "").substring(0, 45) || null, // Máximo 45 chars
+      address1: originAddress1 ? originAddress1.substring(0, 45) || null : null, // Máximo 45 chars
+      // address2 como referencia si existe
+      address2: originAddress2 ? originAddress2.substring(0, 45) : undefined,
     },
     address_to: {
       state: normalizedDest.state,
@@ -126,7 +138,12 @@ export function buildSkydropxRatesRequest(
       city: normalizedDest.city,
       country: destCountry,
       zip: normalizedDest.postalCode,
-      // neighborhood no está disponible en destination, se usará city como fallback
+      // Usar address1 en neighborhood (para area_level3 en Skydropx)
+      neighborhood: destAddress1 ? destAddress1.substring(0, 45) : undefined,
+      // También incluir address1 directamente (para compatibilidad)
+      address1: destAddress1 ? destAddress1.substring(0, 45) : null,
+      // address2 como referencia si existe
+      address2: destAddress2 ? destAddress2.substring(0, 45) : undefined,
     },
     parcels: [
       {
@@ -149,14 +166,14 @@ export function buildSkydropxRatesRequest(
       city: originCity || "[missing]",
       state: originState || "[missing]",
       country_code: originCountry,
-      street1_len: (config.origin.addressLine1 || "").substring(0, 45).length,
+      street1_len: originAddress1 ? originAddress1.substring(0, 45).length : 0, // Reflejar address1 real (post-fallback)
     },
     destination: {
       postal_code_present: !!normalizedDest.postalCode && normalizedDest.postalCode.length > 0,
       city: normalizedDest.city || "[missing]",
       state: normalizedDest.state || "[missing]",
       country_code: destCountry,
-      street1_len: 0, // No disponible en destination para cotizaciones
+      street1_len: destAddress1 ? destAddress1.substring(0, 45).length : 0, // Reflejar address1 real (post-fallback)
     },
     pkg: {
       length_cm: lengthCm,

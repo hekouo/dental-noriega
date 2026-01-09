@@ -347,6 +347,7 @@ export type SkydropxQuotationPayload = {
     phone?: string | null;
     email?: string | null;
     address1?: string | null;
+    address2?: string; // Opcional: segunda línea o referencia
   };
   address_to: {
     province?: string;
@@ -359,6 +360,7 @@ export type SkydropxQuotationPayload = {
     phone?: string | null;
     email?: string | null;
     address1?: string | null;
+    address2?: string; // Opcional: segunda línea o referencia
   };
   parcels: Array<{
     weight: number; // en kg
@@ -427,7 +429,9 @@ export async function createQuotation(
           || payload.address_from.province 
           || "Ciudad de México",
         area_level2: payload.address_from.city || "",
-        area_level3: payload.address_from.neighborhood 
+        // Usar address1 en area_level3 (prioridad sobre neighborhood)
+        area_level3: payload.address_from.address1 
+          || payload.address_from.neighborhood 
           || payload.address_from.city 
           || "",
       },
@@ -440,7 +444,9 @@ export async function createQuotation(
           || payload.address_from.province 
           || "Ciudad de México",
         area_level2: payload.address_to.city || "",
-        area_level3: payload.address_to.neighborhood 
+        // Usar address1 en area_level3 (prioridad sobre neighborhood)
+        area_level3: payload.address_to.address1 
+          || payload.address_to.neighborhood 
           || payload.address_to.city 
           || "",
       },
