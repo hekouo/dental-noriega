@@ -58,13 +58,22 @@ type RequoteResponse =
 
 /**
  * Extrae dirección de destino desde metadata (mismo orden que create-label)
- * PRIORIDAD: shipping_address_override > shipping_address > shipping.address > address
+ * PRIORIDAD: shipping_address_override > shipping_address > shipping.address_validation.normalized_address > shipping.address > address
+ * 
+ * Fallbacks robustos para address1:
+ * 1) shipping_address_override.address1
+ * 2) shipping_address.address1
+ * 3) shipping.address_validation.normalized_address.address1
+ * 4) shipping.address.address1
+ * 5) address.address1 (legacy)
+ * 6) (último recurso) shipping_address.address2 (solo si address1 vacío)
  */
 function extractAddressFromMetadata(metadata: unknown): {
   postalCode: string;
   state: string;
   city: string;
   country: string;
+  address1: string;
 } | null {
   if (!metadata || typeof metadata !== "object") {
     return null;
@@ -81,15 +90,22 @@ function extractAddressFromMetadata(metadata: unknown): {
   else if (meta.shipping_address && typeof meta.shipping_address === "object") {
     addressData = meta.shipping_address as Record<string, unknown>;
   }
-  // PRIORIDAD 3: metadata.shipping.address (compatibilidad)
+  // PRIORIDAD 3: metadata.shipping.address_validation.normalized_address (dirección validada)
   else if (meta.shipping && typeof meta.shipping === "object") {
     const shipping = meta.shipping as Record<string, unknown>;
-    if (shipping.address && typeof shipping.address === "object") {
+    if (shipping.address_validation && typeof shipping.address_validation === "object") {
+      const addrValidation = shipping.address_validation as Record<string, unknown>;
+      if (addrValidation.normalized_address && typeof addrValidation.normalized_address === "object") {
+        addressData = addrValidation.normalized_address as Record<string, unknown>;
+      }
+    }
+    // PRIORIDAD 4: metadata.shipping.address (compatibilidad)
+    if (!addressData && shipping.address && typeof shipping.address === "object") {
       addressData = shipping.address as Record<string, unknown>;
     }
   }
-  // PRIORIDAD 4: metadata.address (legacy)
-  else if (meta.address && typeof meta.address === "object") {
+  // PRIORIDAD 5: metadata.address (legacy)
+  if (!addressData && meta.address && typeof meta.address === "object") {
     addressData = meta.address as Record<string, unknown>;
   }
 
@@ -103,7 +119,29 @@ function extractAddressFromMetadata(metadata: unknown): {
   const city = addressData.city || addressData.ciudad;
   const country = addressData.country || addressData.country_code || "MX";
 
-  // Validar campos mínimos requeridos
+  // Extraer address1 con fallbacks robustos
+  let address1: string = "";
+  if (typeof addressData.address1 === "string") {
+    address1 = addressData.address1;
+  } else if (typeof addressData.address === "string") {
+    address1 = addressData.address;
+  } else if (typeof addressData.direccion === "string") {
+    address1 = addressData.direccion;
+  }
+  
+  // Si address1 está vacío, intentar fallback a address2 (solo si shipping_address.address2 existe)
+  if (!address1 || address1.trim().length === 0) {
+    const shippingAddress = meta.shipping_address as Record<string, unknown> | undefined;
+    if (shippingAddress && typeof shippingAddress === "object") {
+      if (typeof shippingAddress.address2 === "string") {
+        address1 = shippingAddress.address2;
+      } else if (typeof shippingAddress.address_line2 === "string") {
+        address1 = shippingAddress.address_line2;
+      }
+    }
+  }
+
+  // Validar campos mínimos requeridos (ahora incluyendo address1)
   if (
     typeof postalCode === "string" &&
     typeof state === "string" &&
@@ -112,11 +150,13 @@ function extractAddressFromMetadata(metadata: unknown): {
     state.length > 0 &&
     city.length > 0
   ) {
+    const trimmedAddress1 = address1.trim();
     return {
       postalCode,
       state,
       city,
       country: typeof country === "string" ? country : "MX",
+      address1: trimmedAddress1,
     };
   }
 
@@ -213,6 +253,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Guard: Si address1 está vacío después de todos los fallbacks, fallar con error claro
+    if (!addressTo.address1 || addressTo.address1.trim().length === 0) {
+      return NextResponse.json(
+        {
+          ok: false,
+          code: "requote_precondition_failed",
+          message: "No se encontró dirección (address1) en la orden. La dirección de destino requiere al menos una calle.",
+          reason: "missing_destination_street1",
+          missingFields: ["destination.address1"],
+        } satisfies RequoteResponse,
+        { status: 400 },
+      );
+    }
+
     // Obtener package desde metadata.shipping_package o usar default
     const shippingPackage = orderMetadata.shipping_package as
       | {
@@ -260,6 +314,7 @@ export async function POST(req: NextRequest) {
         state: addressTo.state,
         city: addressTo.city,
         country: addressTo.country,
+        address1: addressTo.address1, // Pasar address1 al builder
       },
       {
         weightGrams,

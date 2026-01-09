@@ -27,6 +27,7 @@ export type SkydropxDestination = {
   state: string;
   city: string;
   country?: string; // default "MX"
+  address1?: string; // Opcional: calle/dirección de destino
 };
 
 export type SkydropxPackageInput = {
@@ -166,6 +167,7 @@ export async function getSkydropxRates(
       state: destination.state,
       city: destination.city,
       country: destination.country,
+      address1: destination.address1, // Pasar address1 si está disponible
     },
     package: {
       weightGrams: pkg.weightGrams || 1000,
