@@ -87,7 +87,9 @@ export function normalizeMxAddress(input: AddressInput): NormalizedAddress & {
   
   // Si state es CDMX pero city NO es una variante de CDMX, entonces city es una alcaldía
   // Ej: state="Ciudad de México" + city="Tlalpan" → alcaldía
-  const cityIsAlcaldia = stateIsCDMX && !cityIsCDMX && trimmedCity.length > 0 && trimmedCity.toLowerCase() !== "ciudad de mexico";
+  // Usar normalizeForComparison para comparar sin acentos/case
+  const cityNormalized = normalizeForComparison(trimmedCity);
+  const cityIsAlcaldia = stateIsCDMX && !cityIsCDMX && trimmedCity.length > 0 && cityNormalized !== "ciudad de mexico";
   const alcaldiaName = cityIsAlcaldia ? trimmedCity : undefined;
   
   if (isCDMXAddress) {
