@@ -16,6 +16,11 @@ type CancelLabelResponse =
   | {
       ok: true;
       message: string;
+      diagnostic?: {
+        has_shipment_id: boolean;
+        has_tracking: boolean;
+        has_label_url: boolean;
+      };
     }
   | {
       ok: false;
@@ -24,10 +29,16 @@ type CancelLabelResponse =
         | "invalid_order_id"
         | "order_not_found"
         | "no_label_created"
+        | "missing_shipment_id"
         | "skydropx_error"
         | "config_error"
         | "unknown_error";
       message: string;
+      diagnostic?: {
+        has_shipment_id: boolean;
+        has_tracking: boolean;
+        has_label_url: boolean;
+      };
     };
 
 export async function POST(req: NextRequest) {
@@ -154,6 +165,49 @@ export async function POST(req: NextRequest) {
     const shippingMeta = (currentMetadata.shipping as Record<string, unknown>) || {};
     const shipmentId = (shippingMeta.shipment_id as string) || null;
 
+    // Construir diagnóstico sin PII
+    const diagnostic = {
+      has_shipment_id: !!shipmentId,
+      has_tracking: !!order.shipping_tracking_number,
+      has_label_url: !!order.shipping_label_url,
+    };
+
+    // Si NO hay shipment_id pero sí hay tracking, no podemos cancelar sin shipment_id
+    // Skydropx no tiene endpoint de lookup por tracking, así que debemos requerir shipment_id
+    if (!shipmentId && order.shipping_tracking_number) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[cancel-label] Falta shipment_id pero hay tracking:", {
+          orderId,
+          hasTracking: !!order.shipping_tracking_number,
+          hasLabelUrl: !!order.shipping_label_url,
+        });
+      }
+
+      return NextResponse.json(
+        {
+          ok: false,
+          code: "missing_shipment_id",
+          message:
+            "La orden tiene tracking pero falta shipment_id. Sincroniza la guía primero usando 'Sincronizar guía' para poder cancelar el envío.",
+          diagnostic,
+        } satisfies CancelLabelResponse,
+        { status: 400 },
+      );
+    }
+
+    // Si no tiene shipment_id y tampoco tiene tracking, no se puede cancelar
+    if (!shipmentId && !order.shipping_tracking_number) {
+      return NextResponse.json(
+        {
+          ok: false,
+          code: "no_label_created",
+          message: "La orden no tiene una guía creada para cancelar",
+          diagnostic,
+        } satisfies CancelLabelResponse,
+        { status: 400 },
+      );
+    }
+
     let cancelRequestId: string | null = null;
     let cancelStatus: string | null = null;
 
@@ -268,12 +322,18 @@ export async function POST(req: NextRequest) {
     }
 
     if (process.env.NODE_ENV !== "production") {
-      console.log("[cancel-label] Envío cancelado exitosamente:", { orderId });
+      console.log("[cancel-label] Envío cancelado exitosamente:", {
+        orderId,
+        shipmentId,
+        cancelRequestId,
+        diagnostic,
+      });
     }
 
     return NextResponse.json({
       ok: true,
       message: "Envío cancelado exitosamente",
+      diagnostic,
     } satisfies CancelLabelResponse);
   } catch (error) {
     if (process.env.NODE_ENV !== "production") {

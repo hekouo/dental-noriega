@@ -627,10 +627,11 @@ export async function POST(req: NextRequest) {
     const finalMetadata = (order.metadata as Record<string, unknown>) || {};
     const finalShippingMeta = (finalMetadata.shipping as Record<string, unknown>) || {};
     
-    // Si Skydropx devolvió shipment_id, guardarlo en metadata.shipping (merge seguro)
+    // IMPORTANTE: SIEMPRE guardar shipment_id en metadata, incluso si tracking está pendiente
+    // Esto permite cancelar el envío después aunque tracking no esté disponible inmediatamente
     const updatedShippingMeta = {
       ...finalShippingMeta, // Preservar datos existentes (cancel_request_id, cancel_status, etc.)
-      ...(shipmentResult.rawId && { shipment_id: shipmentResult.rawId }), // Agregar/actualizar shipment_id
+      shipment_id: shipmentResult.rawId || finalShippingMeta.shipment_id || null, // SIEMPRE guardar/actualizar shipment_id
     };
 
     const updatedMetadata = {
@@ -649,9 +650,9 @@ export async function POST(req: NextRequest) {
     }
 
     // Actualizar la orden con tracking y label (si están disponibles)
-    // IMPORTANTE: NO sobreescribir shipping_rate_ext_id, solo usarlo como input
+    // IMPORTANTE: SIEMPRE guardar shipment_id en metadata, incluso si tracking está pendiente
     const updateData: Record<string, unknown> = {
-      metadata: updatedMetadata, // Merge seguro de metadata
+      metadata: updatedMetadata, // Merge seguro de metadata (incluye shipment_id SIEMPRE)
       shipping_status: shippingStatus,
       updated_at: new Date().toISOString(),
     };

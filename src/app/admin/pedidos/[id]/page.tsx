@@ -460,6 +460,14 @@ export default async function AdminPedidoDetailPage({
                 shippingStatus={order.shipping_status}
                 shippingProvider={order.shipping_provider}
                 hasTracking={!!order.shipping_tracking_number}
+                hasShipmentId={
+                  !!(
+                    (order.metadata as Record<string, unknown> | null)?.shipping &&
+                    typeof (order.metadata as Record<string, unknown>).shipping === "object" &&
+                    ((order.metadata as Record<string, unknown>).shipping as Record<string, unknown>)
+                      ?.shipment_id
+                  )
+                }
               />
 
               {/* Botón para notificar tracking al cliente */}
