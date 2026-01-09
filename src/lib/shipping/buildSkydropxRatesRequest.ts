@@ -81,12 +81,29 @@ export function buildSkydropxRatesRequest(
   }
 
   // ORIGEN: Usar config por defecto, o input.origin si se proporciona
+  // Normalizar origin igual que destination (especialmente CDMX)
   const originPostalCode = input.origin?.postalCode || config.origin.postalCode;
-  const originState = input.origin?.state || config.origin.state;
-  const originCity = input.origin?.city || config.origin.city;
+  const originStateRaw = input.origin?.state || config.origin.state;
+  const originCityRaw = input.origin?.city || config.origin.city;
   const originCountry = input.origin?.country || config.origin.country || "MX";
   const originAddress1 = (input.origin?.address1 || config.origin.addressLine1 || "").trim();
   const originAddress2 = input.origin?.address2 ? input.origin.address2.trim() : undefined;
+  
+  // Normalizar origin (especialmente CDMX con acentos/alcaldías)
+  const normalizedOrigin = normalizeMxAddress({
+    state: originStateRaw,
+    city: originCityRaw || "",
+    postalCode: originPostalCode,
+  });
+  
+  // Si origin tenía una alcaldía (ej: "Tlalpan"), moverla a neighborhood/address2
+  const originAlcaldia = normalizedOrigin.wasAlcaldia;
+  // Construir neighborhood: priorizar alcaldía si existe, luego address1, luego address2
+  const originNeighborhood = originAlcaldia 
+    ? originAlcaldia.substring(0, 45) 
+    : originAddress1 
+      ? originAddress1.split(",")[0].substring(0, 45) 
+      : undefined;
 
   // DESTINO: Normalizar dirección (especialmente CDMX)
   const normalizedDest = normalizeMxAddress({
@@ -116,21 +133,24 @@ export function buildSkydropxRatesRequest(
   // Construir payload según estructura esperada por Skydropx
   const payload: SkydropxQuotationPayload = {
     address_from: {
-      state: originState,
-      province: originState, // Alias para compatibilidad
-      city: originCity,
+      state: normalizedOrigin.state, // Usar state normalizado
+      province: normalizedOrigin.state, // Alias para compatibilidad
+      city: normalizedOrigin.city, // Usar city normalizado (ej: "Ciudad de Mexico" sin acento)
       country: originCountry,
-      zip: originPostalCode,
-      // Usar address1 en neighborhood (para area_level3 en Skydropx)
-      neighborhood: originAddress1
-        ? originAddress1.split(",")[0].substring(0, 45)
-        : undefined,
+      zip: normalizedOrigin.postalCode,
+      // Usar alcaldía en neighborhood si existe (para area_level3 en Skydropx)
+      // Si no hay alcaldía, usar address1
+      neighborhood: originNeighborhood,
       name: config.origin.name,
       phone: config.origin.phone || null,
       email: config.origin.email || null,
       address1: originAddress1 ? originAddress1.substring(0, 45) || null : null, // Máximo 45 chars
-      // address2 como referencia si existe
-      address2: originAddress2 ? originAddress2.substring(0, 45) : undefined,
+      // address2 como referencia: priorizar address2 si existe, si no y hay alcaldía, usar address1
+      address2: originAddress2 
+        ? originAddress2.substring(0, 45) 
+        : originAlcaldia && originAddress1 
+          ? originAddress1.substring(0, 45) 
+          : undefined,
     },
     address_to: {
       state: normalizedDest.state,
@@ -162,9 +182,9 @@ export function buildSkydropxRatesRequest(
   // Construir diagnóstico (sin PII)
   const diagnostic: SkydropxRatesRequestDiagnostic = {
     origin: {
-      postal_code_present: !!originPostalCode && originPostalCode.length > 0,
-      city: originCity || "[missing]",
-      state: originState || "[missing]",
+      postal_code_present: !!normalizedOrigin.postalCode && normalizedOrigin.postalCode.length > 0,
+      city: normalizedOrigin.city || "[missing]", // Reflejar city normalizado (ej: "Ciudad de Mexico")
+      state: normalizedOrigin.state || "[missing]", // Reflejar state normalizado
       country_code: originCountry,
       street1_len: originAddress1 ? originAddress1.substring(0, 45).length : 0, // Reflejar address1 real (post-fallback)
     },
