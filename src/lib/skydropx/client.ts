@@ -1169,8 +1169,170 @@ export async function createShipment(
 }
 
 /**
+ * Obtiene un shipment desde Skydropx por ID
+ * Útil para polling/rehidratación cuando tracking/label no están disponibles inmediatamente
+ */
+export async function getShipment(shipmentId: string): Promise<SkydropxShipmentResponse> {
+  const config = getSkydropxConfig();
+  if (!config) {
+    throw new Error("Skydropx no está configurado");
+  }
+
+  const path = `/api/v1/shipments/${shipmentId}`;
+  const fullUrl = `${config.restBaseUrl}${path}`;
+
+  if (process.env.NODE_ENV !== "production") {
+    console.log("[Skydropx getShipment] Obteniendo shipment:", {
+      url: fullUrl,
+      shipmentId,
+    });
+  }
+
+  const response = await skydropxFetch(path, {
+    method: "GET",
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    let parsedBody: unknown = null;
+    try {
+      parsedBody = JSON.parse(errorText);
+    } catch {
+      parsedBody = null;
+    }
+
+    const sanitizedUpstream = parsedBody ? sanitizeSkydropxErrorBody(parsedBody) : null;
+    const errorSnippet =
+      sanitizedUpstream ? JSON.stringify(sanitizedUpstream) : errorText.substring(0, 200);
+
+    const errorDetails = {
+      status: response.status,
+      statusText: response.statusText,
+      baseUrl: config.restBaseUrl,
+      path,
+      upstream: sanitizedUpstream,
+      errorSnippet,
+    };
+
+    console.error("[Skydropx getShipment] Error:", errorDetails);
+
+    const error = new Error(`Error al obtener shipment: ${response.statusText || `HTTP ${response.status}`}`);
+    (error as Error & { code?: string; statusCode?: number; details?: unknown }).statusCode = response.status;
+    (error as Error & { code?: string; statusCode?: number; details?: unknown }).details = errorDetails;
+    (error as Error & { code?: string }).code =
+      response.status === 404
+        ? "skydropx_not_found"
+        : response.status === 401 || response.status === 403
+          ? "skydropx_unauthorized"
+          : response.status >= 500
+            ? "skydropx_upstream_error"
+            : "skydropx_error";
+
+    throw error;
+  }
+
+  return (await response.json()) as SkydropxShipmentResponse;
+}
+
+/**
+ * Extrae tracking_number desde múltiples rutas posibles en la respuesta de Skydropx
+ */
+function extractTrackingNumber(response: SkydropxShipmentResponse): string | null {
+  // Ruta 1: response.master_tracking_number
+  if (response.master_tracking_number && typeof response.master_tracking_number === "string") {
+    return response.master_tracking_number;
+  }
+
+  // Ruta 2: response.data.master_tracking_number
+  if (response.data?.master_tracking_number && typeof response.data.master_tracking_number === "string") {
+    return response.data.master_tracking_number;
+  }
+
+  // Ruta 3: response.tracking_number (usar any para acceder a propiedades dinámicas)
+  const anyResponse = response as any;
+  if (anyResponse.tracking_number && typeof anyResponse.tracking_number === "string") {
+    return anyResponse.tracking_number;
+  }
+
+  // Ruta 4: response.data.tracking_number
+  if (anyResponse.data?.tracking_number && typeof anyResponse.data.tracking_number === "string") {
+    return anyResponse.data.tracking_number;
+  }
+
+  // Ruta 5: response.tracking (alias)
+  if (anyResponse.tracking && typeof anyResponse.tracking === "string") {
+    return anyResponse.tracking;
+  }
+
+  // Ruta 6: Buscar en included packages
+  if (response.included && Array.isArray(response.included)) {
+    for (const pkg of response.included) {
+      const anyPkg = pkg as any;
+      if (anyPkg.tracking_number && typeof anyPkg.tracking_number === "string") {
+        return anyPkg.tracking_number;
+      }
+    }
+  }
+
+  // Ruta 7: Buscar en (response as any).shipment.tracking_number
+  if (anyResponse.shipment?.tracking_number && typeof anyResponse.shipment.tracking_number === "string") {
+    return anyResponse.shipment.tracking_number;
+  }
+
+  if (anyResponse.shipment?.master_tracking_number && typeof anyResponse.shipment.master_tracking_number === "string") {
+    return anyResponse.shipment.master_tracking_number;
+  }
+
+  return null;
+}
+
+/**
+ * Extrae label_url desde múltiples rutas posibles en la respuesta de Skydropx
+ */
+function extractLabelUrlFromResponse(response: SkydropxShipmentResponse): string | null {
+  // Ruta 1: Buscar en included packages
+  if (response.included && Array.isArray(response.included)) {
+    for (const pkg of response.included) {
+      if (pkg.label_url && typeof pkg.label_url === "string") {
+        return pkg.label_url;
+      }
+    }
+  }
+
+  // Ruta 2: response.label_url (usar any para acceder a propiedades dinámicas)
+  const anyResponse = response as any;
+  if (anyResponse.label_url && typeof anyResponse.label_url === "string") {
+    return anyResponse.label_url;
+  }
+
+  // Ruta 3: response.data.label_url
+  if (anyResponse.data?.label_url && typeof anyResponse.data.label_url === "string") {
+    return anyResponse.data.label_url;
+  }
+
+  // Ruta 4: response.label_url_pdf
+  if (anyResponse.label_url_pdf && typeof anyResponse.label_url_pdf === "string") {
+    return anyResponse.label_url_pdf;
+  }
+
+  // Ruta 5: Buscar en files.label
+  if (anyResponse.files?.label && typeof anyResponse.files.label === "string") {
+    return anyResponse.files.label;
+  }
+
+  if (anyResponse.shipment?.label_url && typeof anyResponse.shipment.label_url === "string") {
+    return anyResponse.shipment.label_url;
+  }
+
+  return null;
+}
+
+/**
  * Crea un envío en Skydropx a partir de un rate ID
  * Esta función simplifica la creación de envíos cuando ya se tiene un rate_id
+ * 
+ * Si tracking_number o label_url no están disponibles inmediatamente, hace polling
+ * hasta obtenerlos o hasta timeout (~8s).
  */
 export async function createShipmentFromRate(input: {
   rateExternalId: string;
@@ -1203,9 +1365,13 @@ export async function createShipmentFromRate(input: {
   consignmentNote?: string; // Código Carta Porte (SAT) - requerido para PRO
   packageType?: string; // Código tipo empaque (SAT) - requerido para PRO
 }): Promise<{
-  trackingNumber: string;
+  trackingNumber: string | null;
   labelUrl: string | null;
   rawId: string | null;
+  pollingInfo?: {
+    attempts: number;
+    elapsedMs: number;
+  };
 }> {
   const config = getSkydropxConfig();
   if (!config) {
@@ -1280,32 +1446,129 @@ export async function createShipmentFromRate(input: {
   // Llamar a createShipment
   const response = await createShipment(shipmentPayload);
 
-  // Extraer tracking number y label URL
-  const trackingNumber =
-    response.master_tracking_number || response.data?.master_tracking_number || "";
-  const rawId = response.id || response.data?.id || null;
+  // Extraer shipment_id (siempre debe estar presente si el shipment se creó)
+  const rawId = response.id || response.data?.id || (response as any).shipment?.id || null;
 
-  // Buscar label_url en los paquetes incluidos
-  let labelUrl: string | null = null;
-  if (response.included && Array.isArray(response.included)) {
-    const firstPackage = response.included.find((pkg) => pkg.label_url);
-    if (firstPackage?.label_url) {
-      labelUrl = firstPackage.label_url;
-    }
+  if (!rawId) {
+    // Si no hay shipment_id, el shipment no se creó correctamente
+    throw new Error("No se recibió shipment_id de Skydropx. El envío no se creó correctamente.");
   }
+
+  // Extraer tracking_number y label_url usando funciones tolerantes
+  let trackingNumber = extractTrackingNumber(response);
+  let labelUrl = extractLabelUrlFromResponse(response);
 
   if (process.env.NODE_ENV !== "production") {
     console.log("[Skydropx createShipmentFromRate] Envío creado:", {
-      trackingNumber,
-      labelUrl: labelUrl ? "presente" : "no disponible",
-      rawId,
+      shipmentId: rawId,
+      trackingNumber: trackingNumber || "[pendiente]",
+      labelUrl: labelUrl ? "presente" : "[pendiente]",
     });
   }
 
-  if (!trackingNumber) {
-    throw new Error("No se recibió tracking number de Skydropx");
+  // Si tracking_number o label_url no están disponibles, hacer polling
+  if (!trackingNumber || !labelUrl) {
+    const maxAttempts = 12;
+    const pollIntervalMs = 700; // ~700ms entre intentos (respetando rate limit de 2 req/s)
+    const timeoutMs = 8000; // ~8 segundos timeout
+
+    const startTime = Date.now();
+    let attempts = 0;
+    let lastResponse = response;
+
+    while (attempts < maxAttempts) {
+      attempts++;
+      const elapsedMs = Date.now() - startTime;
+
+      if (elapsedMs >= timeoutMs) {
+        // Timeout: devolver lo que tenemos (shipment_id) pero sin tracking
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[Skydropx createShipmentFromRate] Timeout en polling:", {
+            shipmentId: rawId,
+            attempts,
+            elapsedMs,
+            hasTracking: !!trackingNumber,
+            hasLabel: !!labelUrl,
+          });
+        }
+
+        return {
+          trackingNumber,
+          labelUrl,
+          rawId,
+          pollingInfo: {
+            attempts,
+            elapsedMs,
+          },
+        };
+      }
+
+      // Esperar antes de hacer el siguiente intento (excepto el primero)
+      if (attempts > 1) {
+        await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+      }
+
+      try {
+        const pollResponse = await getShipment(rawId);
+        lastResponse = pollResponse;
+
+        // Intentar extraer tracking y label nuevamente
+        const pollTracking = extractTrackingNumber(pollResponse);
+        const pollLabel = extractLabelUrlFromResponse(pollResponse);
+
+        if (pollTracking) {
+          trackingNumber = pollTracking;
+        }
+        if (pollLabel) {
+          labelUrl = pollLabel;
+        }
+
+        // Si ya tenemos ambos, salir del loop
+        if (trackingNumber && labelUrl) {
+          if (process.env.NODE_ENV !== "production") {
+            console.log("[Skydropx createShipmentFromRate] Polling exitoso:", {
+              shipmentId: rawId,
+              attempts,
+              elapsedMs: Date.now() - startTime,
+              trackingNumber,
+              hasLabel: !!labelUrl,
+            });
+          }
+          break;
+        }
+      } catch (pollError) {
+        // Si falla el polling, continuar con el siguiente intento
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[Skydropx createShipmentFromRate] Error en polling (intento", attempts, "):", pollError);
+        }
+        // Continuar con el siguiente intento
+      }
+    }
+
+    // Si salimos del loop sin obtener tracking/label, devolver lo que tenemos
+    const finalElapsedMs = Date.now() - startTime;
+    if (!trackingNumber && !labelUrl) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[Skydropx createShipmentFromRate] Polling completado sin tracking/label:", {
+          shipmentId: rawId,
+          attempts,
+          elapsedMs: finalElapsedMs,
+        });
+      }
+    }
+
+    return {
+      trackingNumber,
+      labelUrl,
+      rawId,
+      pollingInfo: {
+        attempts,
+        elapsedMs: finalElapsedMs,
+      },
+    };
   }
 
+  // Si ya tenemos tracking y label, retornar directamente
   return {
     trackingNumber,
     labelUrl,

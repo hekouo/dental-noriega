@@ -346,7 +346,7 @@ export async function POST(req: NextRequest) {
         {
           ok: true,
           orderId,
-          trackingNumber: shipmentResult.trackingNumber,
+          trackingNumber: shipmentResult.trackingNumber || "",
           labelUrl: shipmentResult.labelUrl,
         } satisfies CreateShipmentResponse,
         { status: 200 },
@@ -356,7 +356,7 @@ export async function POST(req: NextRequest) {
     if (process.env.NODE_ENV !== "production") {
       console.log("[create-shipment] Envío creado exitosamente:", {
         orderId,
-        trackingNumber: shipmentResult.trackingNumber,
+        trackingNumber: shipmentResult.trackingNumber || "[pendiente]",
         hasLabel: !!shipmentResult.labelUrl,
       });
     }
@@ -364,7 +364,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       ok: true,
       orderId,
-      trackingNumber: shipmentResult.trackingNumber,
+      trackingNumber: shipmentResult.trackingNumber || "",
       labelUrl: shipmentResult.labelUrl,
     } satisfies CreateShipmentResponse);
   } catch (error) {

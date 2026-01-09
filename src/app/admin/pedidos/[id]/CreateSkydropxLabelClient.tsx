@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Package, ExternalLink, Download } from "lucide-react";
+import { Loader2, Package, ExternalLink, Download, RefreshCw } from "lucide-react";
 
 type Props = {
   orderId: string;
@@ -25,16 +25,21 @@ export default function CreateSkydropxLabelClient({
   onSuccess,
 }: Props) {
   const [isLoading, setIsLoading] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [trackingNumber, setTrackingNumber] = useState<string | null>(currentTrackingNumber);
   const [labelUrl, setLabelUrl] = useState<string | null>(currentLabelUrl);
+  const [trackingPending, setTrackingPending] = useState(
+    shippingStatus === "label_pending_tracking" || (!currentTrackingNumber && !currentLabelUrl && shippingStatus !== "label_created"),
+  );
 
   // Verificar si ya tiene label creada
   const hasLabelCreated = shippingStatus === "label_created" && currentLabelUrl;
 
-  // Verificar si se puede crear guía (solo si NO tiene label_created)
+  // Verificar si se puede crear guía (solo si NO tiene label_created y NO está pendiente)
   const canCreateLabel =
     !hasLabelCreated &&
+    !trackingPending &&
     paymentStatus === "paid" &&
     (shippingProvider === "skydropx" || shippingProvider === "Skydropx") &&
     shippingRateExtId &&
@@ -56,6 +61,14 @@ export default function CreateSkydropxLabelClient({
           const data = await response.json();
 
       if (!data.ok) {
+        // Manejar tracking_pending como caso especial (no es un error real)
+        if (data.code === "tracking_pending") {
+          setTrackingPending(true);
+          setError(null);
+          // No recargar página, mostrar mensaje y botón de sincronización
+          return;
+        }
+
         let errorMessage =
           data.code === "payment_not_paid"
             ? "La orden no está pagada. Solo se pueden crear guías para órdenes pagadas."
@@ -138,11 +151,18 @@ export default function CreateSkydropxLabelClient({
       // Actualizar estado local
       setTrackingNumber(data.trackingNumber);
       setLabelUrl(data.labelUrl);
+      setTrackingPending(data.trackingPending || false);
+
+      // Si tracking está pendiente, no recargar página (mostrar mensaje)
+      if (data.trackingPending) {
+        setError(null);
+        return;
+      }
 
       // Llamar callback si existe
       if (onSuccess) {
         onSuccess({
-          trackingNumber: data.trackingNumber,
+          trackingNumber: data.trackingNumber || "",
           labelUrl: data.labelUrl,
         });
       }
@@ -156,6 +176,107 @@ export default function CreateSkydropxLabelClient({
       setIsLoading(false);
     }
   };
+
+  const handleSyncTracking = async () => {
+    setIsSyncing(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/admin/shipping/skydropx/sync-label", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ orderId }),
+      });
+
+      const data = await response.json();
+
+      if (!data.ok) {
+        let errorMessage =
+          data.code === "missing_shipment_id"
+            ? "La orden no tiene shipment_id guardado. Crea la guía primero."
+            : data.code === "skydropx_not_found"
+              ? "No se encontró el envío en Skydropx."
+              : data.code === "skydropx_unauthorized"
+                ? "Error de autenticación con Skydropx."
+                : data.message || "Error desconocido al sincronizar tracking.";
+
+        setError(errorMessage);
+        return;
+      }
+
+      // Actualizar estado local
+      if (data.trackingNumber) {
+        setTrackingNumber(data.trackingNumber);
+      }
+      if (data.labelUrl) {
+        setLabelUrl(data.labelUrl);
+      }
+
+      // Si ahora tenemos tracking y label completos, dejar de mostrar como pendiente
+      if (data.trackingNumber && data.labelUrl) {
+        setTrackingPending(false);
+      }
+
+      // Si se actualizó, recargar página
+      if (data.updated) {
+        window.location.reload();
+      } else {
+        // Si no se actualizó, puede ser que aún esté pendiente
+        setError("El tracking/label aún no está disponible en Skydropx. Reintenta en unos momentos.");
+      }
+    } catch (err) {
+      console.error("[CreateSkydropxLabelClient] Error al sincronizar:", err);
+      setError("Error de red al sincronizar tracking. Intenta de nuevo.");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  // Si tracking está pendiente, mostrar mensaje y botón de sincronización
+  if (trackingPending && !trackingNumber && !labelUrl) {
+    return (
+      <div className="mt-4 space-y-3">
+        <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <Package className="w-5 h-5 text-orange-600 dark:text-orange-400 mt-0.5" />
+            <div className="flex-1">
+              <h4 className="text-sm font-semibold text-orange-900 dark:text-orange-100 mb-1">
+                Guía creada en Skydropx
+              </h4>
+              <p className="text-sm text-orange-700 dark:text-orange-300 mb-3">
+                El tracking/label aún no está disponible. Skydropx está procesando el envío. Reintenta en unos momentos.
+              </p>
+              <button
+                type="button"
+                onClick={handleSyncTracking}
+                disabled={isSyncing}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
+              >
+                {isSyncing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Sincronizando...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="w-4 h-4" />
+                    Actualizar tracking
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+        {error && (
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+            <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   // Si ya tiene tracking, mostrar información
   if (trackingNumber || hasLabelCreated) {

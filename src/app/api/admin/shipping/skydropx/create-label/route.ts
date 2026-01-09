@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
 import { checkAdminAccess } from "@/lib/admin/access";
-import { createShipmentFromRate } from "@/lib/skydropx/client";
+import { createShipmentFromRate, getShipment } from "@/lib/skydropx/client";
 import { getSkydropxConfig } from "@/lib/shipping/skydropx.server";
 
 export const dynamic = "force-dynamic";
@@ -16,9 +16,14 @@ const CreateLabelRequestSchema = z.object({
 type CreateLabelResponse =
   | {
       ok: true;
-      trackingNumber: string;
+      trackingNumber: string | null;
       labelUrl: string | null;
       shipmentId: string | null;
+      trackingPending?: boolean;
+      pollingInfo?: {
+        attempts: number;
+        elapsedMs: number;
+      };
     }
   | {
       ok: false;
@@ -38,10 +43,16 @@ type CreateLabelResponse =
         | "skydropx_unprocessable_entity"
         | "invalid_shipping_payload"
         | "config_error"
+        | "tracking_pending"
         | "unknown_error";
       message: string;
       statusCode?: number;
       details?: unknown;
+      shipmentId?: string | null;
+      pollingInfo?: {
+        attempts: number;
+        elapsedMs: number;
+      };
     };
 
 /**
@@ -213,22 +224,124 @@ export async function POST(req: NextRequest) {
     
     const order = orderData;
 
-    // IDEMPOTENCIA: Si ya tiene tracking y label, retornar datos existentes
-    if (order.shipping_tracking_number && order.shipping_label_url) {
-      // Extraer shipment_id de metadata si existe
-      const metadata = (order.metadata as Record<string, unknown>) || {};
-      const shippingMeta = (metadata.shipping as Record<string, unknown>) || {};
-      const shipmentId = (shippingMeta.shipment_id as string) || null;
+    // IDEMPOTENCIA: Verificar si ya existe shipment_id en metadata
+    const orderMetadata = (order.metadata as Record<string, unknown>) || {};
+    const orderShippingMeta = (orderMetadata.shipping as Record<string, unknown>) || {};
+    const existingShipmentId = (orderShippingMeta.shipment_id as string) || null;
 
+    // Si ya tiene tracking y label completos, retornar datos existentes
+    if (order.shipping_tracking_number && order.shipping_label_url) {
       return NextResponse.json(
         {
           ok: true,
           trackingNumber: order.shipping_tracking_number,
           labelUrl: order.shipping_label_url,
-          shipmentId,
+          shipmentId: existingShipmentId,
         } satisfies CreateLabelResponse,
         { status: 200 },
       );
+    }
+
+    // Si existe shipment_id pero no tiene tracking/label completo, intentar rehidratar
+    if (existingShipmentId) {
+      try {
+        const shipmentResponse = await getShipment(existingShipmentId);
+        
+        // Extraer tracking y label usando las mismas funciones tolerantes
+        const anyResponse = shipmentResponse as any;
+        const trackingNumber =
+          shipmentResponse.master_tracking_number ||
+          shipmentResponse.data?.master_tracking_number ||
+          (shipmentResponse as any).tracking_number ||
+          (shipmentResponse.data as any)?.tracking_number ||
+          (shipmentResponse as any).tracking ||
+          (shipmentResponse.included && Array.isArray(shipmentResponse.included)
+            ? shipmentResponse.included.find((pkg: any) => (pkg as any).tracking_number)?.tracking_number
+            : null) ||
+          anyResponse.shipment?.tracking_number ||
+          anyResponse.shipment?.master_tracking_number ||
+          null;
+
+        let labelUrl: string | null = null;
+        if (shipmentResponse.included && Array.isArray(shipmentResponse.included)) {
+          const firstPackage = shipmentResponse.included.find((pkg: any) => pkg.label_url);
+          if (firstPackage?.label_url) {
+            labelUrl = firstPackage.label_url;
+          }
+        }
+        if (!labelUrl) {
+          labelUrl =
+            (shipmentResponse as any).label_url ||
+            (shipmentResponse.data as any)?.label_url ||
+            (shipmentResponse as any).label_url_pdf ||
+            anyResponse.files?.label ||
+            anyResponse.shipment?.label_url ||
+            null;
+        }
+
+        // Si ahora tenemos tracking y label, actualizar la orden
+        if (trackingNumber || labelUrl) {
+          const updatedShippingMeta = {
+            ...orderShippingMeta,
+            shipment_id: existingShipmentId,
+          };
+          const updatedMetadata = {
+            ...orderMetadata,
+            shipping: updatedShippingMeta,
+          };
+
+          const updateData: Record<string, unknown> = {
+            metadata: updatedMetadata,
+            updated_at: new Date().toISOString(),
+          };
+
+          if (trackingNumber && !order.shipping_tracking_number) {
+            updateData.shipping_tracking_number = trackingNumber;
+          }
+          if (labelUrl && !order.shipping_label_url) {
+            updateData.shipping_label_url = labelUrl;
+          }
+
+          if (trackingNumber && labelUrl) {
+            updateData.shipping_status = "label_created";
+          } else if (trackingNumber || labelUrl) {
+            updateData.shipping_status = "label_pending_tracking";
+          }
+
+          await supabase.from("orders").update(updateData).eq("id", orderId);
+
+          return NextResponse.json(
+            {
+              ok: true,
+              trackingNumber: trackingNumber || order.shipping_tracking_number || null,
+              labelUrl: labelUrl || order.shipping_label_url || null,
+              shipmentId: existingShipmentId,
+              trackingPending: !trackingNumber || !labelUrl,
+            } satisfies CreateLabelResponse,
+            { status: 200 },
+          );
+        }
+
+        // Si aún no tiene tracking/label, continuar con la creación normal
+        // (pero no crear otro shipment, solo retornar tracking_pending)
+        if (!trackingNumber && !labelUrl) {
+          return NextResponse.json(
+            {
+              ok: false,
+              code: "tracking_pending",
+              message: "El envío fue creado en Skydropx pero el tracking/label aún no está disponible. Reintenta en unos momentos.",
+              shipmentId: existingShipmentId,
+            } satisfies CreateLabelResponse,
+            { status: 202 }, // Accepted (procesando)
+          );
+        }
+      } catch (syncError) {
+        // Si falla la rehidratación, continuar con creación normal
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[create-label] Error al rehidratar shipment existente:", syncError);
+        }
+        // Continuar con la creación normal
+      }
     }
 
     // GUARD CONTRA RACE CONDITION: Intentar adquirir "lock" con UPDATE condicional
@@ -407,16 +520,16 @@ export async function POST(req: NextRequest) {
     }
 
     // Extraer consignment_note y package_type desde metadata o env vars
-    const orderMetadata = (order.metadata as Record<string, unknown>) || {};
-    const orderShippingMeta = (orderMetadata.shipping as Record<string, unknown>) || {};
+    const packageMetadata = (order.metadata as Record<string, unknown>) || {};
+    const packageShippingMeta = (packageMetadata.shipping as Record<string, unknown>) || {};
     
     // Intentar obtener desde metadata.shipping.consignment_note o metadata.shipping.consignment_note_code
     const consignmentNoteFromMeta = 
-      (typeof orderShippingMeta.consignment_note === "string" ? orderShippingMeta.consignment_note : null) ||
-      (typeof orderShippingMeta.consignment_note_code === "string" ? orderShippingMeta.consignment_note_code : null);
+      (typeof packageShippingMeta.consignment_note === "string" ? packageShippingMeta.consignment_note : null) ||
+      (typeof packageShippingMeta.consignment_note_code === "string" ? packageShippingMeta.consignment_note_code : null);
     
     // Intentar obtener package_type desde metadata (menos común)
-    const packageTypeFromMeta = typeof orderShippingMeta.package_type === "string" ? orderShippingMeta.package_type : null;
+    const packageTypeFromMeta = typeof packageShippingMeta.package_type === "string" ? packageShippingMeta.package_type : null;
     
     // Fallback a env vars
     const consignmentNote = consignmentNoteFromMeta || process.env.SKYDROPX_DEFAULT_CONSIGNMENT_NOTE || null;
@@ -446,7 +559,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Obtener package desde metadata.shipping_package o usar default
-    const shippingPackage = orderMetadata.shipping_package as
+    const shippingPackage = packageMetadata.shipping_package as
       | {
           mode?: "profile" | "custom";
           profile?: string | null;
@@ -511,31 +624,49 @@ export async function POST(req: NextRequest) {
     });
 
     // Merge seguro de metadata (NO sobreescribir completo)
-    const currentMetadata = (order.metadata as Record<string, unknown>) || {};
-    const shippingMeta = (currentMetadata.shipping as Record<string, unknown>) || {};
+    const finalMetadata = (order.metadata as Record<string, unknown>) || {};
+    const finalShippingMeta = (finalMetadata.shipping as Record<string, unknown>) || {};
     
     // Si Skydropx devolvió shipment_id, guardarlo en metadata.shipping (merge seguro)
     const updatedShippingMeta = {
-      ...shippingMeta, // Preservar datos existentes (cancel_request_id, cancel_status, etc.)
+      ...finalShippingMeta, // Preservar datos existentes (cancel_request_id, cancel_status, etc.)
       ...(shipmentResult.rawId && { shipment_id: shipmentResult.rawId }), // Agregar/actualizar shipment_id
     };
 
     const updatedMetadata = {
-      ...currentMetadata, // Preservar todos los campos existentes
+      ...finalMetadata, // Preservar todos los campos existentes
       shipping: updatedShippingMeta,
     };
 
-    // Actualizar la orden con tracking y label
+    // Determinar shipping_status según disponibilidad de tracking/label
+    let shippingStatus: string;
+    if (shipmentResult.trackingNumber && shipmentResult.labelUrl) {
+      shippingStatus = "label_created";
+    } else if (shipmentResult.trackingNumber || shipmentResult.labelUrl) {
+      shippingStatus = "label_pending_tracking";
+    } else {
+      shippingStatus = "label_pending_tracking"; // Si no hay ninguno, está pendiente
+    }
+
+    // Actualizar la orden con tracking y label (si están disponibles)
     // IMPORTANTE: NO sobreescribir shipping_rate_ext_id, solo usarlo como input
+    const updateData: Record<string, unknown> = {
+      metadata: updatedMetadata, // Merge seguro de metadata
+      shipping_status: shippingStatus,
+      updated_at: new Date().toISOString(),
+    };
+
+    // Solo actualizar tracking/label si están disponibles (no null)
+    if (shipmentResult.trackingNumber) {
+      updateData.shipping_tracking_number = shipmentResult.trackingNumber;
+    }
+    if (shipmentResult.labelUrl) {
+      updateData.shipping_label_url = shipmentResult.labelUrl;
+    }
+
     const { error: updateError } = await supabase
       .from("orders")
-      .update({
-        shipping_tracking_number: shipmentResult.trackingNumber,
-        shipping_label_url: shipmentResult.labelUrl,
-        shipping_status: "label_created",
-        metadata: updatedMetadata, // Merge seguro de metadata
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq("id", orderId)
       .is("shipping_tracking_number", null); // Solo actualizar si aún no tiene tracking (doble verificación)
 
@@ -588,36 +719,61 @@ export async function POST(req: NextRequest) {
       .eq("id", orderId)
       .single();
 
-    if (!verifyOrder?.shipping_tracking_number) {
-      // No se actualizó, puede ser race condition
+    // Verificar si se actualizó correctamente
+    if (!verifyOrder) {
       return NextResponse.json(
         {
           ok: false,
           code: "unknown_error",
-          message: "No se pudo actualizar la orden. Intenta de nuevo.",
+          message: "No se pudo verificar la actualización de la orden.",
         } satisfies CreateLabelResponse,
         { status: 500 },
       );
-    }
-
-    if (process.env.NODE_ENV !== "production") {
-      console.log("[create-label] Envío creado exitosamente:", {
-        orderId,
-        trackingNumber: shipmentResult.trackingNumber,
-        hasLabel: !!shipmentResult.labelUrl,
-        shipmentId: shipmentResult.rawId,
-      });
     }
 
     const verifyMetadata = (verifyOrder.metadata as Record<string, unknown>) || {};
     const verifyShippingMeta = (verifyMetadata.shipping as Record<string, unknown>) || {};
     const finalShipmentId = (verifyShippingMeta.shipment_id as string) || shipmentResult.rawId || null;
 
+    // Si no hay tracking después del polling, devolver tracking_pending
+    if (!shipmentResult.trackingNumber && !shipmentResult.labelUrl) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[create-label] Envío creado pero tracking/label pendientes:", {
+          orderId,
+          shipmentId: finalShipmentId,
+          pollingInfo: shipmentResult.pollingInfo,
+        });
+      }
+
+      return NextResponse.json(
+        {
+          ok: false,
+          code: "tracking_pending",
+          message: "El envío fue creado en Skydropx pero el tracking/label aún no está disponible. Reintenta en unos momentos.",
+          shipmentId: finalShipmentId,
+          pollingInfo: shipmentResult.pollingInfo,
+        } satisfies CreateLabelResponse,
+        { status: 202 }, // Accepted (procesando)
+      );
+    }
+
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[create-label] Envío creado exitosamente:", {
+        orderId,
+        trackingNumber: shipmentResult.trackingNumber || "[pendiente]",
+        hasLabel: !!shipmentResult.labelUrl,
+        shipmentId: finalShipmentId,
+        pollingInfo: shipmentResult.pollingInfo,
+      });
+    }
+
     return NextResponse.json({
       ok: true,
-      trackingNumber: verifyOrder.shipping_tracking_number,
-      labelUrl: verifyOrder.shipping_label_url,
+      trackingNumber: verifyOrder.shipping_tracking_number || shipmentResult.trackingNumber || null,
+      labelUrl: verifyOrder.shipping_label_url || shipmentResult.labelUrl || null,
       shipmentId: finalShipmentId,
+      trackingPending: !shipmentResult.trackingNumber || !shipmentResult.labelUrl,
+      pollingInfo: shipmentResult.pollingInfo,
     } satisfies CreateLabelResponse);
   } catch (error) {
     if (process.env.NODE_ENV !== "production") {
