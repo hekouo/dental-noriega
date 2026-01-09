@@ -193,7 +193,7 @@ export default function CreateSkydropxLabelClient({
       const data = await response.json();
 
       if (!data.ok) {
-        let errorMessage =
+        const errorMessage =
           data.code === "missing_shipment_id"
             ? "La orden no tiene shipment_id guardado. Crea la guía primero."
             : data.code === "skydropx_not_found"

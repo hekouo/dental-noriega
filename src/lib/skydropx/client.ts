@@ -1487,8 +1487,8 @@ export async function createShipmentFromRate(input: {
             shipmentId: rawId,
             attempts,
             elapsedMs,
-            hasTracking: !!trackingNumber,
-            hasLabel: !!labelUrl,
+            hasTracking: trackingNumber !== null && trackingNumber !== "",
+            hasLabel: labelUrl !== null && labelUrl !== "",
           });
         }
 
@@ -1531,7 +1531,7 @@ export async function createShipmentFromRate(input: {
               attempts,
               elapsedMs: Date.now() - startTime,
               trackingNumber,
-              hasLabel: !!labelUrl,
+              hasLabel: labelUrl !== null && labelUrl !== "",
             });
           }
           break;
