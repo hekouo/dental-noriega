@@ -452,6 +452,14 @@ export default async function AdminPedidoDetailPage({
                 shippingStatus={order.shipping_status}
                 currentTrackingNumber={order.shipping_tracking_number}
                 currentLabelUrl={order.shipping_label_url}
+                hasShipmentId={
+                  !!(
+                    (order.metadata as Record<string, unknown> | null)?.shipping &&
+                    typeof (order.metadata as Record<string, unknown>).shipping === "object" &&
+                    ((order.metadata as Record<string, unknown>).shipping as Record<string, unknown>)
+                      ?.shipment_id
+                  )
+                }
               />
 
               {/* Botón para cancelar envío si es Skydropx y tiene label creada */}

@@ -11,6 +11,7 @@ type Props = {
   shippingStatus: string | null;
   currentTrackingNumber: string | null;
   currentLabelUrl: string | null;
+  hasShipmentId: boolean;
   onSuccess?: (data: { trackingNumber: string; labelUrl: string | null }) => void;
 };
 
@@ -22,6 +23,7 @@ export default function CreateSkydropxLabelClient({
   shippingStatus,
   currentTrackingNumber,
   currentLabelUrl,
+  hasShipmentId,
   onSuccess,
 }: Props) {
   const [isLoading, setIsLoading] = useState(false);
@@ -29,21 +31,29 @@ export default function CreateSkydropxLabelClient({
   const [error, setError] = useState<string | null>(null);
   const [trackingNumber, setTrackingNumber] = useState<string | null>(currentTrackingNumber);
   const [labelUrl, setLabelUrl] = useState<string | null>(currentLabelUrl);
+  
+  // trackingPending solo debe ser true si REALMENTE hay evidencia de que se creó una guía:
+  // - shippingStatus === "label_pending_tracking" (explícitamente marcado como pendiente)
+  // - O hay shipment_id pero no hay tracking/label (guía creada pero tracking pendiente)
   const [trackingPending, setTrackingPending] = useState(
-    shippingStatus === "label_pending_tracking" || (!currentTrackingNumber && !currentLabelUrl && shippingStatus !== "label_created"),
+    shippingStatus === "label_pending_tracking" || (hasShipmentId && !currentTrackingNumber && !currentLabelUrl),
   );
 
-  // Verificar si ya tiene label creada
-  const hasLabelCreated = shippingStatus === "label_created" && currentLabelUrl;
+  // Verificar si ya tiene label creada (requiere evidencia real: tracking O label_url O shipment_id)
+  const hasLabelCreated =
+    (shippingStatus === "label_created" && currentLabelUrl) ||
+    (currentTrackingNumber && currentLabelUrl) ||
+    (hasShipmentId && (currentTrackingNumber || currentLabelUrl));
 
-  // Verificar si se puede crear guía (solo si NO tiene label_created y NO está pendiente)
+  // Verificar si realmente hay una guía creada (evidencia: shipment_id O tracking O label)
+  const hasLabelEvidence = hasShipmentId || currentTrackingNumber || currentLabelUrl;
+
+  // Verificar si se puede crear guía (solo si NO hay evidencia de guía creada)
   const canCreateLabel =
-    !hasLabelCreated &&
-    !trackingPending &&
+    !hasLabelEvidence &&
     paymentStatus === "paid" &&
     (shippingProvider === "skydropx" || shippingProvider === "Skydropx") &&
-    shippingRateExtId &&
-    !trackingNumber;
+    shippingRateExtId;
 
   const handleCreateLabel = async () => {
     setIsLoading(true);
@@ -234,8 +244,9 @@ export default function CreateSkydropxLabelClient({
     }
   };
 
-  // Si tracking está pendiente, mostrar mensaje y botón de sincronización
-  if (trackingPending && !trackingNumber && !labelUrl) {
+  // Si tracking está pendiente Y hay evidencia de guía creada (shipment_id), mostrar mensaje y botón de sincronización
+  // IMPORTANTE: Solo mostrar si REALMENTE hay shipment_id (evidencia de que se creó la guía)
+  if (trackingPending && hasShipmentId && !trackingNumber && !labelUrl) {
     return (
       <div className="mt-4 space-y-3">
         <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-4">
@@ -278,8 +289,8 @@ export default function CreateSkydropxLabelClient({
     );
   }
 
-  // Si ya tiene tracking, mostrar información
-  if (trackingNumber || hasLabelCreated) {
+  // Si ya tiene tracking O label O shipment_id (evidencia de guía creada), mostrar información
+  if (trackingNumber || labelUrl || hasLabelCreated || hasShipmentId) {
     const displayTracking = trackingNumber || currentTrackingNumber;
     const displayLabelUrl = labelUrl || currentLabelUrl;
 
