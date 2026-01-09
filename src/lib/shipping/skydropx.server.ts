@@ -6,6 +6,7 @@ import {
   type SkydropxShipmentPayload,
   type SkydropxShipmentResponse,
 } from "@/lib/skydropx/client";
+import { normalizeMxAddress } from "./normalizeAddress";
 
 /**
  * Tipos para la integración con Skydropx
@@ -641,22 +642,35 @@ export async function createSkydropxShipment(input: {
       return withoutCountry;
     };
 
+    // Normalizar origin (especialmente CDMX con acentos/alcaldías)
+    const normalizedOriginFrom = normalizeMxAddress({
+      state: config.origin.state,
+      city: config.origin.city,
+      postalCode: config.origin.postalCode,
+    });
+    
+    // Si origin tenía una alcaldía (ej: "Tlalpan"), moverla a reference
+    const originAlcaldia = normalizedOriginFrom.wasAlcaldia;
+    const originReference = originAlcaldia 
+      ? originAlcaldia 
+      : "Sin referencia";
+
     const payload: SkydropxShipmentPayload = {
       shipment: {
         rate_id: input.rateId,
         address_from: {
           country: config.origin.country || "MX",
           country_code: config.origin.country || "MX",
-          zip: config.origin.postalCode,
-          postal_code: config.origin.postalCode,
-          city: config.origin.city,
-          state: config.origin.state,
-          province: config.origin.state,
+          zip: normalizedOriginFrom.postalCode,
+          postal_code: normalizedOriginFrom.postalCode,
+          city: normalizedOriginFrom.city, // Usar city normalizado (ej: "Ciudad de Mexico" sin acento)
+          state: normalizedOriginFrom.state, // Usar state normalizado
+          province: normalizedOriginFrom.state,
           street1: config.origin.addressLine1 || "",
           address1: config.origin.addressLine1 || "",
           name: config.origin.name,
           company: "DDN",
-          reference: "Sin referencia",
+          reference: originReference, // Usar alcaldía si existe, sino "Sin referencia"
           phone: sanitizePhone(config.origin.phone) || null,
           email: config.origin.email || null,
         },
