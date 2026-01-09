@@ -3,6 +3,25 @@
 import { useState } from "react";
 import { Loader2, XCircle, AlertTriangle } from "lucide-react";
 
+/**
+ * Obtiene el mensaje de error para cancelación según el código
+ */
+function getCancelErrorMessage(code: string | undefined, defaultMessage: string | undefined): string {
+  if (code === "unauthorized") {
+    return "No tienes permisos para realizar esta acción.";
+  }
+  if (code === "order_not_found") {
+    return "La orden no existe.";
+  }
+  if (code === "no_label_created") {
+    return "La orden no tiene una guía creada para cancelar.";
+  }
+  if (code === "skydropx_error") {
+    return "Error al cancelar en Skydropx. Revisa los logs.";
+  }
+  return defaultMessage || "Error desconocido al cancelar el envío.";
+}
+
 type Props = {
   orderId: string;
   shippingStatus: string | null;
@@ -74,16 +93,7 @@ export default function CancelSkydropxLabelClient({
       const data = await response.json();
 
       if (!data.ok) {
-        const errorMessage =
-          data.code === "unauthorized"
-            ? "No tienes permisos para realizar esta acción."
-            : data.code === "order_not_found"
-              ? "La orden no existe."
-              : data.code === "no_label_created"
-                ? "La orden no tiene una guía creada para cancelar."
-                : data.code === "skydropx_error"
-                  ? "Error al cancelar en Skydropx. Revisa los logs."
-                  : data.message || "Error desconocido al cancelar el envío.";
+        const errorMessage = getCancelErrorMessage(data.code, data.message);
 
         setError(errorMessage);
         setShowConfirm(false);

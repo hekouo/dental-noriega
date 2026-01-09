@@ -114,6 +114,62 @@ export default function AdminPedidosClient({
     return "bg-gray-100 text-gray-700";
   };
 
+  const getOrderStatusBadgeClasses = (status: string) => {
+    if (status === "paid") {
+      return "bg-green-100 text-green-700";
+    }
+    if (status === "pending") {
+      return "bg-yellow-100 text-yellow-700";
+    }
+    if (status === "failed") {
+      return "bg-red-100 text-red-700";
+    }
+    return "bg-gray-100 text-gray-700";
+  };
+
+  const getPaymentStatusBadgeClasses = (paymentStatus: string | null) => {
+    const variant = getPaymentStatusVariant(paymentStatus);
+    switch (variant) {
+      case "success":
+        return "bg-green-100 text-green-700";
+      case "warning":
+        return "bg-yellow-100 text-yellow-700";
+      case "destructive":
+        return "bg-red-100 text-red-700";
+      default:
+        return "bg-gray-100 text-gray-700";
+    }
+  };
+
+  const renderShippingProvider = (order: OrderSummary) => {
+    if (order.shipping_provider === null || order.shipping_provider === "pickup") {
+      return <span className="text-gray-700">Recoger en tienda</span>;
+    }
+    if (order.shipping_provider === "skydropx") {
+      return (
+        <div>
+          <div className="font-medium text-gray-900">
+            {order.shipping_service_name || "Skydropx"}
+          </div>
+          {order.shipping_price_cents !== null && (
+            <div className="text-xs text-gray-500">
+              {formatMXNFromCents(order.shipping_price_cents)}
+            </div>
+          )}
+          {order.shipping_tracking_number && (
+            <div className="text-xs text-gray-400 font-mono mt-1">
+              {order.shipping_tracking_number}
+            </div>
+          )}
+        </div>
+      );
+    }
+    if (order.metadata?.shipping_method) {
+      return formatShippingMethod(order.metadata.shipping_method);
+    }
+    return <span className="text-gray-400">N/A</span>;
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <header className="mb-6">
@@ -331,15 +387,9 @@ export default function AdminPedidosClient({
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <span
-                        className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                          order.status === "paid"
-                            ? "bg-green-100 text-green-700"
-                            : order.status === "pending"
-                              ? "bg-yellow-100 text-yellow-700"
-                              : order.status === "failed"
-                                ? "bg-red-100 text-red-700"
-                                : "bg-gray-100 text-gray-700"
-                        }`}
+                        className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getOrderStatusBadgeClasses(
+                          order.status,
+                        )}`}
                       >
                         {formatStatus(order.status)}
                       </span>
@@ -355,49 +405,15 @@ export default function AdminPedidosClient({
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <span
-                        className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                          (() => {
-                            const variant = getPaymentStatusVariant(order.payment_status);
-                            switch (variant) {
-                              case "success":
-                                return "bg-green-100 text-green-700";
-                              case "warning":
-                                return "bg-yellow-100 text-yellow-700";
-                              case "destructive":
-                                return "bg-red-100 text-red-700";
-                              default:
-                                return "bg-gray-100 text-gray-700";
-                            }
-                          })()
-                        }`}
+                        className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getPaymentStatusBadgeClasses(
+                          order.payment_status,
+                        )}`}
                       >
                         {getPaymentStatusLabel(order.payment_status)}
                       </span>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                      {order.shipping_provider === null || order.shipping_provider === "pickup" ? (
-                        <span className="text-gray-700">Recoger en tienda</span>
-                      ) : order.shipping_provider === "skydropx" ? (
-                        <div>
-                          <div className="font-medium text-gray-900">
-                            {order.shipping_service_name || "Skydropx"}
-                          </div>
-                          {order.shipping_price_cents !== null && (
-                            <div className="text-xs text-gray-500">
-                              {formatMXNFromCents(order.shipping_price_cents)}
-                            </div>
-                          )}
-                          {order.shipping_tracking_number && (
-                            <div className="text-xs text-gray-400 font-mono mt-1">
-                              {order.shipping_tracking_number}
-                            </div>
-                          )}
-                        </div>
-                      ) : order.metadata?.shipping_method ? (
-                        formatShippingMethod(order.metadata.shipping_method)
-                      ) : (
-                        <span className="text-gray-400">N/A</span>
-                      )}
+                      {renderShippingProvider(order)}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       {order.shipping_provider || order.shipping_status ? (

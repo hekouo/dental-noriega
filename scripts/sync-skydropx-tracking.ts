@@ -15,11 +15,11 @@
  * - Acceso a Supabase con SERVICE_ROLE_KEY
  */
 
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { skydropxFetch } from "@/lib/skydropx/client";
 import { normalizeShippingStatus, isValidShippingStatus } from "@/lib/orders/statuses";
 
-let supabase: any = null;
+let supabase: SupabaseClient | null = null;
 
 function getSupabaseClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -116,7 +116,7 @@ async function processOrder(
     shipping_tracking_number: string | null;
     shipping_status: string | null;
   },
-  client: any,
+  client: SupabaseClient,
 ): Promise<{ updated: boolean; error: string | null }> {
   if (!order.shipping_tracking_number) {
     return { updated: false, error: "No tracking number" };
