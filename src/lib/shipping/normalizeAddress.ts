@@ -13,6 +13,7 @@ export type NormalizedAddress = {
   state: string;
   city: string;
   postalCode: string;
+  wasAlcaldia?: string; // Si city original era una alcaldía (ej: "Tlalpan"), guardarla aquí
 };
 
 /**
@@ -61,13 +62,17 @@ function isCDMX(state: string, city: string): boolean {
  * 
  * Reglas especiales para CDMX:
  * - state: "Ciudad de Mexico" (sin acento)
- * - city: "Ciudad de Mexico" (siempre, no usar "Tlalpan" u otras delegaciones)
+ * - city: "Ciudad de Mexico" (siempre, no usar "Tlalpan" u otras delegaciones/alcaldías)
  * 
  * Para otras direcciones:
  * - Quita acentos de city/state para consistencia
  * - Mantiene case original pero normalizado
+ * 
+ * @returns Dirección normalizada + información sobre si había alcaldía
  */
-export function normalizeMxAddress(input: AddressInput): NormalizedAddress {
+export function normalizeMxAddress(input: AddressInput): NormalizedAddress & {
+  wasAlcaldia?: string; // Si city original era una alcaldía (ej: "Tlalpan"), guardarla aquí
+} {
   const { state, city, postalCode } = input;
   
   // Trim todos los campos
@@ -75,14 +80,24 @@ export function normalizeMxAddress(input: AddressInput): NormalizedAddress {
   const trimmedCity = city.trim();
   const trimmedPostalCode = postalCode.trim();
   
-  // Si es CDMX, aplicar normalización especial (case-insensitive, con/sin acentos)
-  if (isCDMX(trimmedState, trimmedCity)) {
+  // Detectar si state es CDMX (incluso si city no lo es)
+  const stateIsCDMX = isCDMX(trimmedState, "");
+  const cityIsCDMX = isCDMX("", trimmedCity);
+  const isCDMXAddress = stateIsCDMX || cityIsCDMX;
+  
+  // Si state es CDMX pero city NO es una variante de CDMX, entonces city es una alcaldía
+  // Ej: state="Ciudad de México" + city="Tlalpan" → alcaldía
+  const cityIsAlcaldia = stateIsCDMX && !cityIsCDMX && trimmedCity.length > 0 && trimmedCity.toLowerCase() !== "ciudad de mexico";
+  const alcaldiaName = cityIsAlcaldia ? trimmedCity : undefined;
+  
+  if (isCDMXAddress) {
     // State y city siempre "Ciudad de Mexico" (sin acento) para Skydropx
-    // No usar "Tlalpan" u otras delegaciones, Skydropx prefiere el nombre genérico
+    // No usar "Tlalpan" u otras delegaciones/alcaldías, Skydropx prefiere el nombre genérico
     return {
       state: "Ciudad de Mexico",
       city: "Ciudad de Mexico",
       postalCode: trimmedPostalCode,
+      wasAlcaldia: alcaldiaName, // Guardar alcaldía original para moverla a neighborhood
     };
   }
   
