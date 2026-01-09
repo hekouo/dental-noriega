@@ -76,6 +76,7 @@ function extractAddressFromMetadata(metadata: unknown): {
   city: string;
   country: string;
   address1: string;
+  address2?: string; // Colonia/barrio (para area_level3)
 } | null {
   if (!metadata || typeof metadata !== "object") {
     return null;
@@ -121,7 +122,7 @@ function extractAddressFromMetadata(metadata: unknown): {
   const city = addressData.city || addressData.ciudad;
   const country = addressData.country || addressData.country_code || "MX";
 
-  // Extraer address1 con fallbacks robustos
+  // Extraer address1 con fallbacks robustos (calle)
   let address1: string = "";
   if (typeof addressData.address1 === "string") {
     address1 = addressData.address1;
@@ -142,6 +143,24 @@ function extractAddressFromMetadata(metadata: unknown): {
       }
     }
   }
+  
+  // Extraer address2 (colonia/barrio) - usado para area_level3 en Skydropx
+  // PRIORIDAD: addressData.address2 > shipping_address.address2 > shipping_address.neighborhood
+  let address2: string | undefined = undefined;
+  if (typeof addressData.address2 === "string" && addressData.address2.trim().length > 0) {
+    address2 = addressData.address2.trim();
+  } else {
+    const shippingAddress = meta.shipping_address as Record<string, unknown> | undefined;
+    if (shippingAddress && typeof shippingAddress === "object") {
+      if (typeof shippingAddress.address2 === "string" && shippingAddress.address2.trim().length > 0) {
+        address2 = shippingAddress.address2.trim();
+      } else if (typeof shippingAddress.address_line2 === "string" && shippingAddress.address_line2.trim().length > 0) {
+        address2 = shippingAddress.address_line2.trim();
+      } else if (typeof shippingAddress.neighborhood === "string" && shippingAddress.neighborhood.trim().length > 0) {
+        address2 = shippingAddress.neighborhood.trim();
+      }
+    }
+  }
 
   // Validar campos mínimos requeridos (ahora incluyendo address1)
   if (
@@ -159,6 +178,7 @@ function extractAddressFromMetadata(metadata: unknown): {
       city,
       country: typeof country === "string" ? country : "MX",
       address1: trimmedAddress1,
+      address2: address2, // Colonia/barrio (para area_level3)
     };
   }
 
@@ -321,7 +341,8 @@ export async function POST(req: NextRequest) {
         state: addressTo.state,
         city: addressTo.city,
         country: addressTo.country,
-        address1: addressTo.address1, // Pasar address1 al builder
+        address1: addressTo.address1, // Pasar address1 (calle) al builder
+        address2: addressTo.address2, // Pasar address2 (colonia) al builder para area_level3
       },
       {
         weightGrams,
@@ -358,6 +379,8 @@ export async function POST(req: NextRequest) {
             state: diagnostic.origin.state?.trim() || "[missing]",
             country_code: diagnostic.origin.country_code || "MX",
             street1_len: diagnostic.origin.street1_len,
+            area_level3_len: diagnostic.origin.area_level3_len ?? 0,
+            area_level3_source: diagnostic.origin.area_level3_source ?? "none",
           },
           destination: {
             postal_code_present: diagnostic.destination.postal_code_present,
@@ -365,6 +388,8 @@ export async function POST(req: NextRequest) {
             state: diagnostic.destination.state?.trim() || "[missing]",
             country_code: diagnostic.destination.country_code || "MX",
             street1_len: diagnostic.destination.street1_len,
+            area_level3_len: diagnostic.destination.area_level3_len ?? 0,
+            area_level3_source: diagnostic.destination.area_level3_source ?? "none",
           },
           pkg: {
             length_cm: diagnostic.pkg.length_cm,
@@ -390,6 +415,8 @@ export async function POST(req: NextRequest) {
               state: "[unknown]",
               country_code: "MX",
               street1_len: 0,
+              area_level3_len: 0,
+              area_level3_source: "none",
             },
             destination: {
               postal_code_present: !!addressTo.postalCode && addressTo.postalCode.length > 0,
@@ -397,6 +424,8 @@ export async function POST(req: NextRequest) {
               state: addressTo.state || "[missing]",
               country_code: addressTo.country || "MX",
               street1_len: 0,
+              area_level3_len: 0,
+              area_level3_source: "none",
             },
             pkg: {
               length_cm: lengthCm,
@@ -424,7 +453,26 @@ export async function POST(req: NextRequest) {
     // Log diagnóstico cuando rates está vacío (sin PII)
     if (isEmpty && finalDiagnostic) {
       console.warn("[requote] 0 rates devueltos por Skydropx", {
-        diagnostic: finalDiagnostic,
+        diagnostic: {
+          origin: {
+            postal_code: finalDiagnostic.origin.postal_code_present,
+            city: finalDiagnostic.origin.city,
+            state: finalDiagnostic.origin.state,
+            area_level3_len: finalDiagnostic.origin.area_level3_len ?? 0,
+            area_level3_source: finalDiagnostic.origin.area_level3_source ?? "none",
+          },
+          destination: {
+            postal_code: finalDiagnostic.destination.postal_code_present,
+            city: finalDiagnostic.destination.city,
+            state: finalDiagnostic.destination.state,
+            area_level3_len: finalDiagnostic.destination.area_level3_len ?? 0,
+            area_level3_source: finalDiagnostic.destination.area_level3_source ?? "none",
+          },
+          pkg: {
+            weight_g: finalDiagnostic.pkg.weight_g,
+            was_clamped: finalDiagnostic.pkg.was_clamped,
+          },
+        },
         weightClamped: wasWeightClamped,
       });
     }

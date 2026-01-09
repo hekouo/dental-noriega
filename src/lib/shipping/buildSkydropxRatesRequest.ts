@@ -51,6 +51,8 @@ export type SkydropxRatesRequestDiagnostic = {
     state: string;
     country_code: string;
     street1_len: number;
+    area_level3_len: number; // Longitud de colonia/barrio usado para area_level3
+    area_level3_source: "config" | "alcaldia" | "address2" | "address1" | "none"; // Source del area_level3
   };
   destination: {
     postal_code_present: boolean;
@@ -58,6 +60,8 @@ export type SkydropxRatesRequestDiagnostic = {
     state: string;
     country_code: string;
     street1_len: number;
+    area_level3_len: number; // Longitud de colonia/barrio usado para area_level3
+    area_level3_source: "address2" | "address1" | "none"; // Source del area_level3
   };
   pkg: {
     length_cm: number;
@@ -108,14 +112,30 @@ export function buildSkydropxRatesRequest(
     postalCode: originPostalCode,
   });
   
-  // Si origin tenía una alcaldía (ej: "Tlalpan"), moverla a neighborhood/address2
+  // ORIGEN: Construir area_level3 (colonia/barrio) para Skydropx
+  // PRIORIDAD: env var SKYDROPX_ORIGIN_AREA_LEVEL3 > alcaldía > address2 > address1 (último recurso)
   const originAlcaldia = normalizedOrigin.wasAlcaldia;
-  // Construir neighborhood: priorizar alcaldía si existe, luego address1, luego address2
-  const originNeighborhood = originAlcaldia 
-    ? originAlcaldia.substring(0, 45) 
-    : originAddress1 
-      ? originAddress1.split(",")[0].substring(0, 45) 
-      : undefined;
+  const originAreaLevel3FromEnv = config.origin.areaLevel3;
+  const originNeighborhood = originAreaLevel3FromEnv
+    ? originAreaLevel3FromEnv.substring(0, 45) // Prioridad 1: env var configurada
+    : originAlcaldia
+      ? originAlcaldia.substring(0, 45) // Prioridad 2: alcaldía detectada
+      : originAddress2
+        ? originAddress2.substring(0, 45) // Prioridad 3: address2 (colonia)
+        : originAddress1
+          ? originAddress1.split(",")[0].substring(0, 45) // Prioridad 4: address1 (último recurso)
+          : undefined;
+  
+  // Determinar source de origin area_level3 para diagnóstico
+  const originAreaLevel3Source = originAreaLevel3FromEnv
+    ? "config"
+    : originAlcaldia
+      ? "alcaldia"
+      : originAddress2
+        ? "address2"
+        : originAddress1
+          ? "address1"
+          : "none";
 
   // DESTINO: Normalizar dirección (especialmente CDMX)
   const normalizedDest = normalizeMxAddress({
@@ -128,6 +148,22 @@ export function buildSkydropxRatesRequest(
   // DESTINO address1: REQUERIDO (si falta, debería fallar antes de llegar aquí)
   const destAddress1 = (input.destination.address1 || "").trim();
   const destAddress2 = input.destination.address2 ? input.destination.address2.trim() : undefined;
+  
+  // DESTINO: Construir area_level3 (colonia/barrio) para Skydropx
+  // PRIORIDAD: address2 (colonia) > neighborhood > address1 (último recurso)
+  // En metadata.shipping_address.address2 suele venir la colonia (ej: "NARCISO MENDOZA")
+  const destNeighborhood = destAddress2
+    ? destAddress2.substring(0, 45) // Prioridad 1: address2 (colonia)
+    : destAddress1
+      ? destAddress1.split(",")[0].substring(0, 45) // Prioridad 2: address1 (último recurso)
+      : undefined;
+  
+  // Determinar source de destination area_level3 para diagnóstico
+  const destAreaLevel3Source = destAddress2
+    ? "address2"
+    : destAddress1
+      ? "address1"
+      : "none";
 
   // PAQUETE: Valores por defecto si no se proporcionan, con hardening (valores mínimos razonables)
   const rawWeightGrams = input.package.weightGrams || 1000;
@@ -152,19 +188,15 @@ export function buildSkydropxRatesRequest(
       city: normalizedOrigin.city, // Usar city normalizado (ej: "Ciudad de Mexico" sin acento)
       country: originCountry,
       zip: normalizedOrigin.postalCode,
-      // Usar alcaldía en neighborhood si existe (para area_level3 en Skydropx)
-      // Si no hay alcaldía, usar address1
+      // neighborhood = area_level3 (colonia/barrio) para Skydropx quotations
+      // Prioridad: env var > alcaldía > address2 > address1
       neighborhood: originNeighborhood,
       name: config.origin.name,
       phone: config.origin.phone || null,
       email: config.origin.email || null,
-      address1: originAddress1 ? originAddress1.substring(0, 45) || null : null, // Máximo 45 chars
-      // address2 como referencia: priorizar address2 si existe, si no y hay alcaldía, usar address1
-      address2: originAddress2 
-        ? originAddress2.substring(0, 45) 
-        : originAlcaldia && originAddress1 
-          ? originAddress1.substring(0, 45) 
-          : undefined,
+      address1: originAddress1 ? originAddress1.substring(0, 45) || null : null, // Máximo 45 chars (calle)
+      // address2 como referencia adicional (NO para area_level3 en quotations)
+      address2: originAddress2 ? originAddress2.substring(0, 45) : undefined,
     },
     address_to: {
       state: normalizedDest.state,
@@ -172,11 +204,12 @@ export function buildSkydropxRatesRequest(
       city: normalizedDest.city,
       country: destCountry,
       zip: normalizedDest.postalCode,
-      // Usar address1 en neighborhood (para area_level3 en Skydropx)
-      neighborhood: destAddress1 ? destAddress1.substring(0, 45) : undefined,
-      // También incluir address1 directamente (para compatibilidad)
+      // neighborhood = area_level3 (colonia/barrio) para Skydropx quotations
+      // Prioridad: address2 (colonia) > address1 (último recurso)
+      neighborhood: destNeighborhood,
+      // address1 = calle (NO usar como area_level3)
       address1: destAddress1 ? destAddress1.substring(0, 45) : null,
-      // address2 como referencia si existe
+      // address2 = colonia (usada como neighborhood/area_level3)
       address2: destAddress2 ? destAddress2.substring(0, 45) : undefined,
     },
     parcels: [
@@ -201,6 +234,8 @@ export function buildSkydropxRatesRequest(
       state: normalizedOrigin.state || "[missing]", // Reflejar state normalizado
       country_code: originCountry,
       street1_len: originAddress1 ? originAddress1.substring(0, 45).length : 0, // Reflejar address1 real (post-fallback)
+      area_level3_len: originNeighborhood ? originNeighborhood.length : 0, // Longitud de colonia/barrio usado para area_level3
+      area_level3_source: originAreaLevel3Source, // Source del area_level3
     },
     destination: {
       postal_code_present: !!normalizedDest.postalCode && normalizedDest.postalCode.length > 0,
@@ -208,6 +243,8 @@ export function buildSkydropxRatesRequest(
       state: normalizedDest.state || "[missing]",
       country_code: destCountry,
       street1_len: destAddress1 ? destAddress1.substring(0, 45).length : 0, // Reflejar address1 real (post-fallback)
+      area_level3_len: destNeighborhood ? destNeighborhood.length : 0, // Longitud de colonia/barrio usado para area_level3
+      area_level3_source: destAreaLevel3Source, // Source del area_level3
     },
     pkg: {
       length_cm: lengthCm,

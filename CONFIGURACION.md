@@ -65,6 +65,12 @@ SKYDROPX_ORIGIN_POSTAL_CODE=01234
 SKYDROPX_ORIGIN_ADDRESS_LINE_1=Calle Principal 123
 SKYDROPX_ORIGIN_PHONE=5512345678
 SKYDROPX_ORIGIN_EMAIL=envios@ddnshop.mx
+# Colonia/barrio para area_level3 en Skydropx quotations (opcional)
+# Si no se configura, se usa alcaldía detectada o address2
+# Ejemplo para CP 14380: SKYDROPX_ORIGIN_AREA_LEVEL3=San Bartolo El Chico
+SKYDROPX_ORIGIN_AREA_LEVEL3=
+# Referencia para shipments (opcional, NO se usa en quotations)
+SKYDROPX_ORIGIN_REFERENCE=
 
 # Peso mínimo billable para Skydropx (default: 1000g = 1kg)
 # Skydropx requiere/cobra mínimo 1kg para cotizaciones y envíos.
