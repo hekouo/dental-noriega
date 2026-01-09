@@ -260,10 +260,28 @@ export async function getSkydropxRates(
     }
 
     if (ratesArray.length === 0) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("[getSkydropxRates] No se encontraron tarifas en la respuesta. Estructura completa:", JSON.stringify(data, null, 2));
-      }
-      // Si se solicita diagnóstico, incluirlo
+      // Log diagnóstico sin PII cuando rates está vacío (SIEMPRE, no solo en desarrollo)
+      console.warn("[getSkydropxRates] skydropx_no_rates", {
+        origin: {
+          postal_code_present: diagnostic.origin.postal_code_present,
+          city_len: diagnostic.origin.city?.length || 0,
+          state_len: diagnostic.origin.state?.length || 0,
+          country_code: diagnostic.origin.country_code,
+        },
+        destination: {
+          postal_code_present: diagnostic.destination.postal_code_present,
+          city_len: diagnostic.destination.city?.length || 0,
+          state_len: diagnostic.destination.state?.length || 0,
+          country_code: diagnostic.destination.country_code,
+        },
+        pkg: {
+          weight_g: diagnostic.pkg.weight_g,
+          length_cm: diagnostic.pkg.length_cm,
+          width_cm: diagnostic.pkg.width_cm,
+          height_cm: diagnostic.pkg.height_cm,
+        },
+      });
+      // SIEMPRE devolver diagnóstico cuando se solicita y rates está vacío
       if (options?.diagnostic) {
         return { rates: [], diagnostic };
       }
@@ -479,6 +497,41 @@ export async function getSkydropxRates(
         fastest: fastestOption?.externalRateId,
         cheapest: cheapestOption?.externalRateId,
       });
+    }
+
+    // Si no hay tarifas después de selección, log y devolver con diagnóstico
+    if (selectedRates.length === 0) {
+      // Log diagnóstico sin PII cuando rates está vacío después de selección (SIEMPRE)
+      console.warn("[getSkydropxRates] skydropx_no_rates (después de selección)", {
+        origin: {
+          postal_code_present: diagnostic.origin.postal_code_present,
+          city_len: diagnostic.origin.city?.length || 0,
+          state_len: diagnostic.origin.state?.length || 0,
+          country_code: diagnostic.origin.country_code,
+        },
+        destination: {
+          postal_code_present: diagnostic.destination.postal_code_present,
+          city_len: diagnostic.destination.city?.length || 0,
+          state_len: diagnostic.destination.state?.length || 0,
+          country_code: diagnostic.destination.country_code,
+        },
+        pkg: {
+          weight_g: diagnostic.pkg.weight_g,
+          length_cm: diagnostic.pkg.length_cm,
+          width_cm: diagnostic.pkg.width_cm,
+          height_cm: diagnostic.pkg.height_cm,
+        },
+      });
+      // SIEMPRE devolver diagnóstico cuando se solicita y rates está vacío
+      if (options?.diagnostic) {
+        return { rates: [], diagnostic };
+      }
+      return [];
+    }
+
+    // Si se solicitó diagnóstico, devolverlo junto con rates (aunque rates no esté vacío)
+    if (options?.diagnostic) {
+      return { rates: selectedRates, diagnostic };
     }
 
     return selectedRates;

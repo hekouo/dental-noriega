@@ -16,21 +16,38 @@ export type NormalizedAddress = {
 };
 
 /**
+ * Quita acentos de un string (normalización para comparaciones)
+ * Ej: "México" → "Mexico", "Álvaro" → "Alvaro"
+ */
+function removeAccents(str: string): string {
+  return str
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
+/**
+ * Normaliza un string para comparación (lowercase, sin acentos, trimmed)
+ */
+function normalizeForComparison(str: string): string {
+  return removeAccents(str.trim().toLowerCase());
+}
+
+/**
  * Detecta si una dirección es de CDMX (Ciudad de México)
- * Acepta variaciones: "Ciudad de México", "Ciudad de Mexico", "cdmx", "df", "distrito federal", etc.
+ * Acepta variaciones case-insensitive y con/sin acentos:
+ * "Ciudad de México", "Ciudad de Mexico", "cdmx", "CDMX", "DF", "Distrito Federal", etc.
  */
 function isCDMX(state: string, city: string): boolean {
-  const normalizedState = state.trim().toLowerCase();
-  const normalizedCity = city.trim().toLowerCase();
+  const normalizedState = normalizeForComparison(state);
+  const normalizedCity = normalizeForComparison(city);
   
   const cdmxVariations = [
-    "ciudad de méxico",
-    "ciudad de mexico",
+    "ciudad de mexico", // sin acento, normalizado
     "cdmx",
     "df",
     "distrito federal",
     "mexico city",
-    "ciudad de mexico",
   ];
   
   return (
@@ -46,7 +63,9 @@ function isCDMX(state: string, city: string): boolean {
  * - state: "Ciudad de Mexico" (sin acento)
  * - city: "Ciudad de Mexico" (siempre, no usar "Tlalpan" u otras delegaciones)
  * 
- * Para otras direcciones: devuelve strings originales (trimmed)
+ * Para otras direcciones:
+ * - Quita acentos de city/state para consistencia
+ * - Mantiene case original pero normalizado
  */
 export function normalizeMxAddress(input: AddressInput): NormalizedAddress {
   const { state, city, postalCode } = input;
@@ -56,7 +75,7 @@ export function normalizeMxAddress(input: AddressInput): NormalizedAddress {
   const trimmedCity = city.trim();
   const trimmedPostalCode = postalCode.trim();
   
-  // Si es CDMX, aplicar normalización especial
+  // Si es CDMX, aplicar normalización especial (case-insensitive, con/sin acentos)
   if (isCDMX(trimmedState, trimmedCity)) {
     // State y city siempre "Ciudad de Mexico" (sin acento) para Skydropx
     // No usar "Tlalpan" u otras delegaciones, Skydropx prefiere el nombre genérico
@@ -67,10 +86,10 @@ export function normalizeMxAddress(input: AddressInput): NormalizedAddress {
     };
   }
   
-  // Para otras direcciones, devolver strings originales (trimmed)
+  // Para otras direcciones, quitar acentos y mantener formato original (trimmed)
   return {
-    state: trimmedState,
-    city: trimmedCity,
+    state: removeAccents(trimmedState),
+    city: removeAccents(trimmedCity),
     postalCode: trimmedPostalCode,
   };
 }
