@@ -9,6 +9,16 @@ import {
 import { normalizeMxAddress } from "./normalizeAddress";
 
 /**
+ * Peso mínimo billable para Skydropx (1kg)
+ * Skydropx requiere/cobra mínimo 1kg para cotizaciones y envíos
+ * Configurable vía env var: SKYDROPX_MIN_BILLABLE_WEIGHT_G (default: 1000)
+ */
+const MIN_BILLABLE_WEIGHT_G = parseInt(
+  process.env.SKYDROPX_MIN_BILLABLE_WEIGHT_G || "1000",
+  10,
+);
+
+/**
  * Tipos para la integración con Skydropx
  * (Mantener compatibilidad con código existente)
  */
@@ -625,7 +635,9 @@ export async function createSkydropxShipment(input: {
     console.log("[createSkydropxShipment] Usando autenticación: OAuth");
   }
 
-  const weightGrams = input.pkg.weightGrams || 1000;
+  // Skydropx requiere/cobra mínimo 1kg (1000g) para cotizaciones y envíos
+  const rawWeightGrams = input.pkg.weightGrams || 1000;
+  const weightGrams = Math.max(rawWeightGrams, MIN_BILLABLE_WEIGHT_G);
   const weightKg = weightGrams / 1000; // Convertir gramos a kilogramos
   const lengthCm = input.pkg.lengthCm || 20;
   const widthCm = input.pkg.widthCm || 20;

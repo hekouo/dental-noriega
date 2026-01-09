@@ -38,7 +38,9 @@ type RequoteResponse =
           length_cm: number;
           width_cm: number;
           height_cm: number;
-          weight_g: number;
+          weight_g: number; // Peso final usado (después de clamp)
+          was_clamped: boolean; // Si el peso fue ajustado al mínimo
+          min_billable_weight_g: number; // Mínimo billable usado (para diagnóstico)
         };
         usedSources: {
           origin: "config" | "provided";
@@ -293,7 +295,12 @@ export async function POST(req: NextRequest) {
       typeof shippingPackage.height_cm === "number"
     ) {
       // Usar package guardado con hardening (valores mínimos razonables)
-      weightGrams = Math.max(shippingPackage.weight_g, 50); // Mínimo 50g
+      // Skydropx requiere/cobra mínimo 1kg (1000g) para cotizaciones y envíos
+      const MIN_BILLABLE_WEIGHT_G = parseInt(
+        process.env.SKYDROPX_MIN_BILLABLE_WEIGHT_G || "1000",
+        10,
+      );
+      weightGrams = Math.max(shippingPackage.weight_g, MIN_BILLABLE_WEIGHT_G); // Mínimo 1kg (1000g)
       lengthCm = Math.max(shippingPackage.length_cm, 1); // Mínimo 1cm
       widthCm = Math.max(shippingPackage.width_cm, 1); // Mínimo 1cm
       heightCm = Math.max(shippingPackage.height_cm, 1); // Mínimo 1cm
@@ -363,7 +370,9 @@ export async function POST(req: NextRequest) {
             length_cm: diagnostic.pkg.length_cm,
             width_cm: diagnostic.pkg.width_cm,
             height_cm: diagnostic.pkg.height_cm,
-            weight_g: diagnostic.pkg.weight_g,
+            weight_g: diagnostic.pkg.weight_g, // Peso final usado (después de clamp)
+            was_clamped: diagnostic.pkg.was_clamped ?? false, // Si el peso fue ajustado al mínimo
+            min_billable_weight_g: diagnostic.pkg.min_billable_weight_g ?? 1000, // Mínimo billable usado
           },
           usedSources: diagnostic.usedSources,
         }
@@ -394,6 +403,8 @@ export async function POST(req: NextRequest) {
               width_cm: widthCm,
               height_cm: heightCm,
               weight_g: weightGrams,
+              was_clamped: false, // No clampado en este path (fallback diagnóstico mínimo)
+              min_billable_weight_g: parseInt(process.env.SKYDROPX_MIN_BILLABLE_WEIGHT_G || "1000", 10),
             },
             usedSources: {
               origin: "config",
@@ -403,16 +414,36 @@ export async function POST(req: NextRequest) {
           }
         : undefined;
 
+    // Detectar si el peso fue clampado al mínimo billable (desde diagnóstico normalizado)
+    const wasWeightClamped = normalizedDiagnostic?.pkg.was_clamped ?? false;
+    const minBillableWeightG = normalizedDiagnostic?.pkg.min_billable_weight_g ?? 1000;
+    const weightWarning = wasWeightClamped
+      ? `Skydropx requiere/cobra mínimo ${minBillableWeightG}g (1kg). Se cotizó con ${minBillableWeightG}g (${minBillableWeightG / 1000}kg).`
+      : undefined;
+
+    // Log diagnóstico cuando rates está vacío (sin PII)
+    if (isEmpty && finalDiagnostic) {
+      console.warn("[requote] 0 rates devueltos por Skydropx", {
+        diagnostic: finalDiagnostic,
+        weightClamped: wasWeightClamped,
+      });
+    }
+
+    // Combinar warnings (empaque y peso)
+    const packageWarning = hasPackageWarning
+      ? "No se encontró empaque guardado, usando dimensiones por defecto. Selecciona un empaque antes de recotizar para obtener tarifas precisas."
+      : undefined;
+    const combinedWarning = [packageWarning, weightWarning].filter(Boolean).join(" ");
+
     return NextResponse.json({
       ok: true,
       rates: normalizedRates,
       // SIEMPRE incluir diagnóstico cuando rates está vacío (sin depender de NODE_ENV)
       diagnostic: isEmpty ? finalDiagnostic : undefined,
       emptyReason: isEmpty ? "skydropx_no_rates" : undefined,
-      warning: hasPackageWarning
-        ? "No se encontró empaque guardado, usando dimensiones por defecto. Selecciona un empaque antes de recotizar para obtener tarifas precisas."
-        : undefined,
-    } satisfies RequoteResponse & { warning?: string });
+      warning: combinedWarning || undefined,
+      weightClamped: wasWeightClamped, // Flag adicional para UI
+    } satisfies RequoteResponse & { warning?: string; weightClamped?: boolean });
   } catch (error) {
     console.error("[requote] Error inesperado:", error);
     return NextResponse.json(

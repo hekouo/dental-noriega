@@ -34,6 +34,8 @@ export default function RequoteSkydropxRatesClient({
   const [diagnostic, setDiagnostic] = useState<any>(null);
   const [emptyReason, setEmptyReason] = useState<string | null>(null);
   const [showDiagnostic, setShowDiagnostic] = useState(false);
+  const [weightClamped, setWeightClamped] = useState(false);
+  const [warning, setWarning] = useState<string | null>(null);
 
   // Verificar si la tarifa está expirada o próxima a expirar
   const isExpiredOrExpiring = (): boolean => {
@@ -63,6 +65,8 @@ export default function RequoteSkydropxRatesClient({
     setDiagnostic(null);
     setEmptyReason(null);
     setShowDiagnostic(false);
+    setWeightClamped(false);
+    setWarning(null);
 
     try {
       const res = await fetch("/api/admin/shipping/skydropx/requote", {
@@ -93,11 +97,8 @@ export default function RequoteSkydropxRatesClient({
       setRates(data.rates || []);
       setDiagnostic(data.diagnostic || null);
       setEmptyReason(data.emptyReason || null);
-      
-      // Mostrar warning si viene del backend
-      if (data.warning) {
-        setError(data.warning);
-      }
+      setWeightClamped(data.weightClamped || false);
+      setWarning(data.warning || null);
       
       // Si rates está vacío y hay diagnóstico, mostrar panel por defecto
       if (((data.rates?.length ?? 0) === 0) && data.diagnostic) {
@@ -231,6 +232,23 @@ export default function RequoteSkydropxRatesClient({
       {error && (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4">
           <p className="text-sm text-red-800">{error}</p>
+        </div>
+      )}
+
+      {/* Warning si el peso fue clampado (informativo, no error) */}
+      {weightClamped && diagnostic?.pkg && (
+        <div className="rounded-lg border border-yellow-300 bg-yellow-50 p-4">
+          <p className="text-sm text-yellow-800">
+            <strong>Nota:</strong> Skydropx requiere/cobra mínimo {diagnostic.pkg.min_billable_weight_g}g (1kg). 
+            Se cotizó con {diagnostic.pkg.min_billable_weight_g}g ({diagnostic.pkg.min_billable_weight_g / 1000}kg).
+          </p>
+        </div>
+      )}
+
+      {/* Warning general (para empaque, etc.) */}
+      {warning && !weightClamped && (
+        <div className="rounded-lg border border-yellow-300 bg-yellow-50 p-4">
+          <p className="text-sm text-yellow-800">{warning}</p>
         </div>
       )}
 
