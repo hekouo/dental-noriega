@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Package, ExternalLink, Download, RefreshCw } from "lucide-react";
+import { Loader2, Package, Download, RefreshCw } from "lucide-react";
 
 type Props = {
   orderId: string;
@@ -293,6 +293,7 @@ export default function CreateSkydropxLabelClient({
   if (trackingNumber || labelUrl || hasLabelCreated || hasShipmentId) {
     const displayTracking = trackingNumber || currentTrackingNumber;
     const displayLabelUrl = labelUrl || currentLabelUrl;
+    const needsSync = hasShipmentId && !displayTracking && !displayLabelUrl;
 
     return (
       <div className="mt-4 space-y-3">
@@ -308,30 +309,68 @@ export default function CreateSkydropxLabelClient({
                   Número de rastreo: <span className="font-mono font-medium">{displayTracking}</span>
                 </p>
               )}
-              {displayLabelUrl && (
-                <div className="flex gap-2 mt-3">
+              {displayLabelUrl ? (
+                <div className="flex gap-2 mt-3 flex-wrap">
                   <a
                     href={displayLabelUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-green-700 dark:text-green-300 bg-white dark:bg-gray-800 border border-green-300 dark:border-green-700 rounded-md hover:bg-green-50 dark:hover:bg-green-900/30 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2"
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                    {hasLabelCreated ? "Reimprimir etiqueta" : "Abrir etiqueta"}
-                  </a>
-                  <a
-                    href={displayLabelUrl}
-                    download
-                    className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-green-700 dark:text-green-300 bg-white dark:bg-gray-800 border border-green-300 dark:border-green-700 rounded-md hover:bg-green-50 dark:hover:bg-green-900/30 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2"
+                    className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2"
                   >
                     <Download className="w-4 h-4" />
-                    Descargar PDF
+                    Descargar etiqueta (PDF)
                   </a>
+                  {needsSync && (
+                    <button
+                      type="button"
+                      onClick={handleSyncTracking}
+                      disabled={isSyncing}
+                      className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-green-700 dark:text-green-300 bg-white dark:bg-gray-800 border border-green-300 dark:border-green-700 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/30 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2"
+                    >
+                      {isSyncing ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Sincronizando...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="w-4 h-4" />
+                          Sincronizar
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
-              )}
+              ) : needsSync ? (
+                <div className="flex gap-2 mt-3">
+                  <button
+                    type="button"
+                    onClick={handleSyncTracking}
+                    disabled={isSyncing}
+                    className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2"
+                  >
+                    {isSyncing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Sincronizando...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="w-4 h-4" />
+                        Sincronizar
+                      </>
+                    )}
+                  </button>
+                </div>
+              ) : null}
             </div>
           </div>
         </div>
+        {error && (
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+            <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+          </div>
+        )}
       </div>
     );
   }
@@ -340,7 +379,20 @@ export default function CreateSkydropxLabelClient({
   if (!canCreateLabel) {
     if (paymentStatus !== "paid") {
       return (
-        <div className="mt-4">
+        <div className="mt-4 space-y-3">
+          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <Package className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5" />
+              <div className="flex-1">
+                <h4 className="text-sm font-semibold text-amber-900 dark:text-amber-100 mb-1">
+                  No se puede crear guía
+                </h4>
+                <p className="text-sm text-amber-700 dark:text-amber-300">
+                  No se puede crear guía hasta que el pedido esté marcado como pagado.
+                </p>
+              </div>
+            </div>
+          </div>
           <button
             type="button"
             disabled
@@ -349,9 +401,6 @@ export default function CreateSkydropxLabelClient({
           >
             Crear guía en Skydropx
           </button>
-          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-            La orden debe estar pagada para crear una guía de envío.
-          </p>
         </div>
       );
     }

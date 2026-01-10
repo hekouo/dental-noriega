@@ -19,6 +19,11 @@ type SyncLabelResponse =
       labelUrl: string | null;
       shipmentId: string | null;
       updated: boolean;
+      diagnostic?: {
+        has_shipment_id: boolean;
+        has_tracking: boolean;
+        has_label_url: boolean;
+      };
     }
   | {
       ok: false;
@@ -232,15 +237,20 @@ export async function POST(req: NextRequest) {
         updateData.shipping_label_url = labelUrl;
       }
 
-      // Actualizar shipping_status
+      // Actualizar shipping_status según disponibilidad de tracking/label
       if (trackingNumber && labelUrl) {
         updateData.shipping_status = "label_created";
       } else if (trackingNumber || labelUrl) {
         updateData.shipping_status = "label_pending_tracking";
+      } else if (shipmentId) {
+        // Si hay shipment_id pero no tracking/label, mantener como pendiente
+        updateData.shipping_status = "label_pending_tracking";
       }
     } else {
-      // Si no hay cambios en tracking/label, solo actualizar metadata para asegurar shipment_id
-      // (puede ser que shipment_id no estuviera guardado antes)
+      // Si no hay cambios en tracking/label pero hay shipment_id, asegurar estado pendiente
+      if (shipmentId && !orderData.shipping_tracking_number && !orderData.shipping_label_url) {
+        updateData.shipping_status = "label_pending_tracking";
+      }
     }
 
     await supabase.from("orders").update(updateData).eq("id", orderId);
@@ -254,12 +264,20 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // Construir diagnóstico sin PII
+    const diagnostic = {
+      has_shipment_id: !!shipmentId,
+      has_tracking: !!(trackingNumber || orderData.shipping_tracking_number),
+      has_label_url: !!(labelUrl || orderData.shipping_label_url),
+    };
+
     return NextResponse.json({
       ok: true,
       trackingNumber: trackingNumber || orderData.shipping_tracking_number || null,
       labelUrl: labelUrl || orderData.shipping_label_url || null,
       shipmentId,
       updated: hasChanges || !shippingMeta.shipment_id, // También es "updated" si se guardó shipment_id por primera vez
+      diagnostic, // Incluir diagnóstico sin PII
     } satisfies SyncLabelResponse);
   } catch (error) {
     if (process.env.NODE_ENV !== "production") {

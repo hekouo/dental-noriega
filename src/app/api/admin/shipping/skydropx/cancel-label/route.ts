@@ -130,37 +130,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // IDEMPOTENCIA: Si ya está cancelado, retornar éxito sin repetir
-    if (order.shipping_status === "cancelled" || order.shipping_status === "cancel_requested") {
-      return NextResponse.json(
-        {
-          ok: true,
-          message:
-            order.shipping_status === "cancelled"
-              ? "El envío ya está cancelado"
-              : "La solicitud de cancelación ya está en proceso",
-        } satisfies CancelLabelResponse,
-        { status: 200 },
-      );
-    }
-
-    // Si no tiene label creada, no se puede cancelar
-    if (
-      order.shipping_status !== "label_created" ||
-      !order.shipping_tracking_number ||
-      !order.shipping_label_url
-    ) {
-      return NextResponse.json(
-        {
-          ok: false,
-          code: "no_label_created",
-          message: "La orden no tiene una guía creada para cancelar",
-        } satisfies CancelLabelResponse,
-        { status: 400 },
-      );
-    }
-
-    // Obtener shipment_id de metadata si existe (merge seguro)
+    // Obtener shipment_id de metadata para verificar evidencia de guía creada
     const currentMetadata = (order.metadata as Record<string, unknown>) || {};
     const shippingMeta = (currentMetadata.shipping as Record<string, unknown>) || {};
     const shipmentId = (shippingMeta.shipment_id as string) || null;
@@ -172,7 +142,56 @@ export async function POST(req: NextRequest) {
       has_label_url: !!order.shipping_label_url,
     };
 
-    // Si NO hay shipment_id pero sí hay tracking, no podemos cancelar sin shipment_id
+    // IDEMPOTENCIA: Si ya está cancelado, retornar éxito sin repetir
+    if (order.shipping_status === "cancelled" || order.shipping_status === "cancel_requested") {
+      return NextResponse.json(
+        {
+          ok: true,
+          message:
+            order.shipping_status === "cancelled"
+              ? "El envío ya está cancelado"
+              : "La solicitud de cancelación ya está en proceso",
+          diagnostic,
+        } satisfies CancelLabelResponse,
+        { status: 200 },
+      );
+    }
+
+    // Verificar evidencia de guía creada: requiere shipment_id (REQUERIDO para cancelar)
+    // Si hay tracking/label pero NO shipment_id, requerir sincronización primero
+    if (!shipmentId && order.shipping_tracking_number) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[cancel-label] Falta shipment_id pero hay tracking:", {
+          orderId,
+          hasTracking: !!order.shipping_tracking_number,
+          hasLabelUrl: !!order.shipping_label_url,
+        });
+      }
+
+      return NextResponse.json(
+        {
+          ok: false,
+          code: "missing_shipment_id",
+          message:
+            "La orden tiene tracking pero falta shipment_id. Sincroniza la guía primero usando 'Sincronizar guía' para poder cancelar el envío.",
+          diagnostic,
+        } satisfies CancelLabelResponse,
+        { status: 400 },
+      );
+    }
+
+    // Si no tiene shipment_id y tampoco tiene tracking/label, no se puede cancelar
+    if (!shipmentId && !order.shipping_tracking_number && !order.shipping_label_url) {
+      return NextResponse.json(
+        {
+          ok: false,
+          code: "no_label_created",
+          message: "La orden no tiene una guía creada para cancelar",
+          diagnostic,
+        } satisfies CancelLabelResponse,
+        { status: 400 },
+      );
+    }
     // Skydropx no tiene endpoint de lookup por tracking, así que debemos requerir shipment_id
     if (!shipmentId && order.shipping_tracking_number) {
       if (process.env.NODE_ENV !== "production") {
@@ -295,17 +314,17 @@ export async function POST(req: NextRequest) {
       shipping: updatedShippingMeta,
     };
 
-    // Actualizar la orden localmente: estado = "cancel_requested" (al solicitar)
-    // Cuando Skydropx confirme vía webhook, se actualizará a "cancelled"
+    // Actualizar la orden localmente: estado = "cancelled" (marcar como cancelado)
+    // Conservar tracking/label para referencia histórica, pero marcar como cancelado
     const { error: updateError } = await supabase
       .from("orders")
       .update({
-        shipping_status: "cancel_requested", // Estado inicial: solicitud creada
-        metadata: updatedMetadata, // Merge seguro de metadata
+        shipping_status: "cancelled", // Marcar como cancelado
+        metadata: updatedMetadata, // Merge seguro de metadata (incluye cancel_request_id, cancel_status)
         updated_at: new Date().toISOString(),
+        // NO limpiar tracking/label: conservar para referencia histórica
       })
-      .eq("id", orderId)
-      .eq("shipping_status", "label_created"); // Solo actualizar si está en label_created (idempotente)
+      .eq("id", orderId);
 
     if (updateError) {
       if (process.env.NODE_ENV !== "production") {
