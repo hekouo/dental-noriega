@@ -235,12 +235,13 @@ export async function POST(req: NextRequest) {
     }
 
     if (hasChanges) {
-      // Actualizar tracking/label si hay cambios
-      if (trackingNumber !== null && trackingNumber !== orderData.shipping_tracking_number) {
-        updateData.shipping_tracking_number = trackingNumber;
+      // Actualizar tracking/label solo si hay cambios Y el nuevo valor no es null/empty
+      // NO sobreescribir valores existentes con null
+      if (trackingNumber && trackingNumber.trim().length > 0 && trackingNumber !== orderData.shipping_tracking_number) {
+        updateData.shipping_tracking_number = trackingNumber.trim();
       }
-      if (labelUrl !== null && labelUrl !== orderData.shipping_label_url) {
-        updateData.shipping_label_url = labelUrl;
+      if (labelUrl && labelUrl.trim().length > 0 && labelUrl !== orderData.shipping_label_url) {
+        updateData.shipping_label_url = labelUrl.trim();
       }
 
       // Actualizar shipping_status según disponibilidad de tracking/label

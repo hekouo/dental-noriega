@@ -82,6 +82,144 @@ SKYDROPX_MIN_BILLABLE_WEIGHT_G=1000
 # El webhook endpoint es: ${NEXT_PUBLIC_APP_URL}/api/shipping/skydropx/webhook
 # El header de validación es: x-skydropx-secret
 SKYDROPX_WEBHOOK_SECRET=tu_webhook_secret_aqui
+```
+
+## 📦 Skydropx - Webhooks y Tracking Automático
+
+### Configuración del Webhook en Skydropx Dashboard
+
+1. Ve a tu dashboard de Skydropx
+2. Navega a **Configuración → Webhooks**
+3. Agrega un nuevo webhook con:
+   - **URL**: `${NEXT_PUBLIC_APP_URL}/api/shipping/skydropx/webhook`
+   - **Secret**: Configura el mismo valor que `SKYDROPX_WEBHOOK_SECRET` en tu `.env.local`
+   - **Eventos**: Selecciona los eventos que quieres recibir (recomendado: todos los relacionados con shipments)
+
+### QA Checklist - Testing de Webhooks y Tracking
+
+#### 1. Prueba del Webhook con curl (PowerShell)
+
+```powershell
+# Reemplaza estos valores:
+$webhookSecret = "tu_secret_aqui"
+$webhookUrl = "http://localhost:3000/api/shipping/skydropx/webhook"
+$shipmentId = "shipment_id_de_prueba"
+$orderId = "uuid_de_orden_en_supabase"
+
+# Payload de ejemplo (formato JSON:API de Skydropx)
+$body = @{
+    data = @{
+        id = "event_123"
+        type = "shipment_event"
+        attributes = @{
+            status = "created"
+            tracking_number = "TRACK123456"
+            label_url = "https://example.com/label.pdf"
+            updated_at = (Get-Date -Format "o")
+        }
+        relationships = @{
+            shipment = @{
+                data = @{
+                    id = $shipmentId
+                    type = "shipment"
+                }
+            }
+        }
+    }
+} | ConvertTo-Json -Depth 10
+
+# Enviar webhook
+Invoke-RestMethod -Uri $webhookUrl -Method Post -Headers @{
+    "x-skydropx-secret" = $webhookSecret
+    "Content-Type" = "application/json"
+} -Body $body
+
+# Verificar respuesta (debe ser 200 con {received: true, message: "ok"})
+```
+
+#### 2. Caso: create-label → tracking_pending → sync-label → label_url aparece
+
+**Pasos**:
+1. Crear una orden y marcarla como pagada (`payment_status = "paid"`)
+2. En Admin → Pedido → Click "Crear guía en Skydropx"
+3. Verificar que:
+   - El endpoint responde `ok: true` con `shipment_id`
+   - La orden tiene `shipping_status = "label_pending_tracking"` (si tracking/label no están disponibles)
+   - La orden tiene `shipping_shipment_id` guardado (columna + metadata)
+4. Esperar 1-2 minutos o click "Actualizar tracking" (sync-label)
+5. Verificar que:
+   - `sync-label` devuelve `updated: true` si obtuvo tracking/label
+   - La orden tiene `shipping_tracking_number` y/o `shipping_label_url` actualizados
+   - `shipping_status` cambia a `"label_created"` si ambos están disponibles
+
+**Validación en Supabase**:
+```sql
+SELECT id, shipping_shipment_id, shipping_tracking_number, shipping_label_url, shipping_status
+FROM orders
+WHERE id = '<order_id>';
+```
+
+#### 3. Caso: Webhook actualiza timeline del cliente
+
+**Pasos**:
+1. Tener una orden con `shipping_shipment_id` guardado
+2. Enviar webhook de prueba con diferentes estados:
+   - `status: "created"` → `shipping_status` debe ser `"label_created"`
+   - `status: "in_transit"` → `shipping_status` debe ser `"in_transit"`
+   - `status: "delivered"` → `shipping_status` debe ser `"delivered"`
+3. Verificar que:
+   - El evento se guarda en `shipping_events` (idempotente)
+   - La orden se actualiza con el nuevo estado
+   - En `/cuenta/pedidos/<id>`, el timeline muestra el nuevo evento
+
+**Validación**:
+```sql
+-- Ver eventos guardados
+SELECT id, order_id, provider, raw_status, mapped_status, tracking_number, occurred_at
+FROM shipping_events
+WHERE order_id = '<order_id>'
+ORDER BY occurred_at DESC;
+
+-- Verificar que el evento es idempotente (enviar mismo webhook 2 veces, solo debe haber 1 registro)
+```
+
+#### 4. Validación de Guardrails
+
+**Admin UI**:
+- ✅ Si `payment_status !== "paid"`: Botón "Crear guía" debe estar deshabilitado con callout claro
+- ✅ Si hay evidencia de guía (`hasShipmentId || tracking || label_url`): Inputs manuales ocultos, solo override de emergencia (colapsado)
+- ✅ Si `label_url` existe: Botón "Descargar etiqueta (PDF)" visible y funcional
+- ✅ Tracking automático se muestra en sección dedicada cuando hay evidencia
+
+**Webhook**:
+- ✅ Validación de secret: Webhook sin `x-skydropx-secret` o secret incorrecto → 401
+- ✅ Matching por `shipping_shipment_id` (prioridad) → `tracking_number` (fallback)
+- ✅ Idempotencia: Mismo `provider_event_id` enviado 2 veces → Solo 1 registro en `shipping_events`
+- ✅ No sobreescribe valores existentes con null
+- ✅ Siempre responde 200 (incluso si no encuentra orden) para evitar reenvíos
+
+**Sync-label**:
+- ✅ Si no hay `shipment_id`: Devuelve `missing_shipment_id` con mensaje claro
+- ✅ Si hay `shipment_id`: Hace GET a Skydropx y actualiza solo si hay nuevos valores
+- ✅ No sobreescribe valores existentes con null
+- ✅ Devuelve `updated: true/false` según si hubo cambios
+
+### Troubleshooting
+
+**Problema**: Webhook responde 401 "Unauthorized"
+- **Solución**: Verificar que `SKYDROPX_WEBHOOK_SECRET` en `.env.local` coincida con el configurado en Skydropx dashboard
+
+**Problema**: Webhook responde 200 pero no actualiza la orden
+- **Solución**: Verificar que la orden tenga `shipping_shipment_id` guardado (ejecutar SQL de backfill si es necesario)
+
+**Problema**: Eventos duplicados en `shipping_events`
+- **Solución**: Verificar que el índice único `idx_shipping_events_provider_event_id` existe. Si no, ejecutar SQL de creación de tabla.
+
+**Problema**: Tracking no aparece después de create-label
+- **Solución**: Normal, Skydropx genera tracking asíncronamente. Usar botón "Actualizar tracking" (sync-label) o esperar webhook automático.
+
+**Problema**: Timeline cliente no muestra eventos
+- **Solución**: Verificar que la orden tenga `shipping_provider = "skydropx"` y que existan registros en `shipping_events` para esa orden.
 
 # App URL
 NEXT_PUBLIC_APP_URL=http://localhost:3000
