@@ -21,6 +21,7 @@ import {
 import LoyaltyRewardsTable from "@/components/loyalty/LoyaltyRewardsTable";
 import RepeatOrderButton from "./RepeatOrderButton.client";
 import { OrderWhatsAppBlock } from "@/components/checkout/OrderWhatsAppBlock";
+import ShippingTrackingTimeline from "@/components/orders/ShippingTrackingTimeline.client";
 
 export default function PedidosPage() {
   const [email, setEmail] = useState("");
@@ -825,123 +826,68 @@ export default function PedidosPage() {
                 </div>
               </div>
 
-              {/* Bloque de información de envío */}
+              {/* Bloque de información de envío con tracking visual */}
               {(orderDetail.shipping_provider || orderDetail.metadata?.shipping_method) && (
-                <div className="mt-6 pt-4 border-t border-gray-200">
-                  <h3 className="text-lg font-semibold mb-4">Información de envío</h3>
-                  <div className="space-y-3">
-                    {/* Método de envío */}
-                    <div>
-                      <p className="text-sm text-gray-600">Método de envío</p>
-                      <p className="font-medium">
-                        {orderDetail.shipping_provider === "pickup" ? (
-                          "Recoger en tienda · Sin costo"
-                        ) : orderDetail.shipping_provider && orderDetail.shipping_service_name ? (
-                          `${orderDetail.shipping_service_name} (${orderDetail.shipping_provider})`
-                        ) : orderDetail.metadata?.shipping_method ? (
-                          formatShippingMethod(orderDetail.metadata.shipping_method)
-                        ) : (
-                          "No especificado"
-                        )}
-                      </p>
-                    </div>
-
-                    {/* Costo de envío */}
-                    {orderDetail.shipping_price_cents !== null && orderDetail.shipping_price_cents !== undefined && (
+                <>
+                  {/* Información básica de envío */}
+                  <div className="mt-6 pt-4 border-t border-gray-200">
+                    <h3 className="text-lg font-semibold mb-4">Información de envío</h3>
+                    <div className="space-y-3">
+                      {/* Método de envío */}
                       <div>
-                        <p className="text-sm text-gray-600">Costo de envío</p>
+                        <p className="text-sm text-gray-600">Método de envío</p>
                         <p className="font-medium">
-                          {formatMXNFromCents(orderDetail.shipping_price_cents)}
+                          {orderDetail.shipping_provider === "pickup" ? (
+                            "Recoger en tienda · Sin costo"
+                          ) : orderDetail.shipping_provider && orderDetail.shipping_service_name ? (
+                            `${orderDetail.shipping_service_name} (${orderDetail.shipping_provider})`
+                          ) : orderDetail.metadata?.shipping_method ? (
+                            formatShippingMethod(orderDetail.metadata.shipping_method)
+                          ) : (
+                            "No especificado"
+                          )}
                         </p>
                       </div>
-                    )}
 
-                    {/* Estimado de entrega */}
-                    {(orderDetail.shipping_eta_min_days !== null || orderDetail.shipping_eta_max_days !== null) && (
-                      <div>
-                        <p className="text-sm text-gray-600">Tiempo estimado de entrega</p>
-                        <p className="font-medium">
-                          {orderDetail.shipping_eta_min_days !== null && orderDetail.shipping_eta_max_days !== null
-                            ? `Llega entre ${orderDetail.shipping_eta_min_days} y ${orderDetail.shipping_eta_max_days} días`
-                            : orderDetail.shipping_eta_min_days !== null
-                              ? `Aproximadamente en ${orderDetail.shipping_eta_min_days} días`
-                              : orderDetail.shipping_eta_max_days !== null
-                                ? `Aproximadamente en ${orderDetail.shipping_eta_max_days} días`
-                                : ""}
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Estado del envío */}
-                    <div>
-                      <p className="text-sm text-gray-600">Estado del envío</p>
-                      <p className="font-medium">
-                        {(() => {
-                          const status = orderDetail.shipping_status;
-                          const statusLabel = getShippingStatusLabel(status);
-                          
-                          // Mensajes contextuales según el estado
-                          if (status === "created" && orderDetail.shipping_tracking_number) {
-                            return `${statusLabel} (en preparación)`;
-                          }
-                          if (status === "ready_for_pickup") {
-                            return statusLabel;
-                          }
-                          if (status === "delivered") {
-                            return statusLabel;
-                          }
-                          if (status === "in_transit") {
-                            return statusLabel;
-                          }
-                          return statusLabel;
-                        })()}
-                      </p>
-                    </div>
-
-                    {/* Tracking */}
-                    {orderDetail.shipping_tracking_number ? (
-                    <div className="space-y-2">
+                      {/* Costo de envío */}
+                      {orderDetail.shipping_price_cents !== null && orderDetail.shipping_price_cents !== undefined && (
                         <div>
-                          <p className="text-sm text-gray-600">Número de guía</p>
-                          <p className="font-medium font-mono text-sm">
-                            {orderDetail.shipping_tracking_number}
+                          <p className="text-sm text-gray-600">Costo de envío</p>
+                          <p className="font-medium">
+                            {formatMXNFromCents(orderDetail.shipping_price_cents)}
                           </p>
                         </div>
-                        {orderDetail.shipping_label_url && (
-                          <div>
-                            <a
-                              href={orderDetail.shipping_label_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center text-sm text-primary-600 hover:text-primary-700 underline"
-                            >
-                              Ver guía / etiqueta PDF
-                              <svg
-                                className="ml-1 w-4 h-4"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                                />
-                              </svg>
-                            </a>
-                          </div>
-                        )}
-                      </div>
-                    ) : orderDetail.shipping_status !== "delivered" && orderDetail.shipping_status !== "canceled" ? (
-                      <div>
-                        <p className="text-sm text-gray-500 italic">
-                          La guía de envío aún no se ha generado. Si ya realizaste el pago, se generará en cuanto preparemos tu pedido.
-                        </p>
-                      </div>
-                    ) : null}
+                      )}
+
+                      {/* Estimado de entrega */}
+                      {(orderDetail.shipping_eta_min_days !== null || orderDetail.shipping_eta_max_days !== null) && (
+                        <div>
+                          <p className="text-sm text-gray-600">Tiempo estimado de entrega</p>
+                          <p className="font-medium">
+                            {orderDetail.shipping_eta_min_days !== null && orderDetail.shipping_eta_max_days !== null
+                              ? `Llega entre ${orderDetail.shipping_eta_min_days} y ${orderDetail.shipping_eta_max_days} días`
+                              : orderDetail.shipping_eta_min_days !== null
+                                ? `Aproximadamente en ${orderDetail.shipping_eta_min_days} días`
+                                : orderDetail.shipping_eta_max_days !== null
+                                  ? `Aproximadamente en ${orderDetail.shipping_eta_max_days} días`
+                                  : ""}
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
+
+                  {/* Componente de tracking visual tipo Amazon-lite */}
+                  {(orderDetail.shipping_provider === "skydropx" || orderDetail.shipping_provider === "Skydropx") && (
+                    <ShippingTrackingTimeline
+                      orderId={orderDetail.id}
+                      shippingStatus={orderDetail.shipping_status}
+                      trackingNumber={orderDetail.shipping_tracking_number}
+                      labelUrl={orderDetail.shipping_label_url}
+                      paymentStatus={orderDetail.payment_status}
+                    />
+                  )}
+                </>
               )}
 
               {/* Bloque de información de pago */}

@@ -650,12 +650,18 @@ export async function POST(req: NextRequest) {
     }
 
     // Actualizar la orden con tracking y label (si están disponibles)
-    // IMPORTANTE: SIEMPRE guardar shipment_id en metadata, incluso si tracking está pendiente
+    // IMPORTANTE: SIEMPRE guardar shipment_id en metadata Y columna shipping_shipment_id
+    const shipmentIdToSave = shipmentResult.rawId || finalShippingMeta.shipment_id || null;
     const updateData: Record<string, unknown> = {
       metadata: updatedMetadata, // Merge seguro de metadata (incluye shipment_id SIEMPRE)
       shipping_status: shippingStatus,
       updated_at: new Date().toISOString(),
     };
+
+    // Guardar shipment_id en columna dedicada para matching confiable en webhooks
+    if (shipmentIdToSave) {
+      updateData.shipping_shipment_id = shipmentIdToSave;
+    }
 
     // Solo actualizar tracking/label si están disponibles (no null)
     if (shipmentResult.trackingNumber) {

@@ -207,7 +207,7 @@ export async function POST(req: NextRequest) {
     const trackingNumber = extractTrackingNumber(shipmentResponse);
     const labelUrl = extractLabelUrl(shipmentResponse);
 
-    // Asegurar que shipment_id esté guardado en metadata (por si acaso no estaba)
+    // Asegurar que shipment_id esté guardado en metadata Y columna shipping_shipment_id
     const updatedShippingMeta = {
       ...shippingMeta,
       shipment_id: shipmentId, // SIEMPRE guardar shipment_id
@@ -220,13 +220,19 @@ export async function POST(req: NextRequest) {
     // Determinar si hay cambios
     const hasChanges =
       (trackingNumber !== null && trackingNumber !== orderData.shipping_tracking_number) ||
-      (labelUrl !== null && labelUrl !== orderData.shipping_label_url);
+      (labelUrl !== null && labelUrl !== orderData.shipping_label_url) ||
+      (shipmentId && shipmentId !== orderData.shipping_shipment_id);
 
     // Actualizar metadata SIEMPRE para asegurar que shipment_id esté guardado
     const updateData: Record<string, unknown> = {
       metadata: updatedMetadata, // SIEMPRE actualizar metadata con shipment_id
       updated_at: new Date().toISOString(),
     };
+
+    // Guardar shipment_id en columna dedicada para matching confiable en webhooks
+    if (shipmentId) {
+      updateData.shipping_shipment_id = shipmentId;
+    }
 
     if (hasChanges) {
       // Actualizar tracking/label si hay cambios
