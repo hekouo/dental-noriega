@@ -192,15 +192,6 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
     }
-
-    // Construir diagnóstico sin PII
-    const diagnostic = {
-      has_shipment_id: !!shipmentId,
-      has_tracking: !!order.shipping_tracking_number,
-      has_label_url: !!order.shipping_label_url,
-    };
-
-    // Si NO hay shipment_id pero sí hay tracking, no podemos cancelar sin shipment_id
     // Skydropx no tiene endpoint de lookup por tracking, así que debemos requerir shipment_id
     if (!shipmentId && order.shipping_tracking_number) {
       if (process.env.NODE_ENV !== "production") {
