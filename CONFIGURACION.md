@@ -77,6 +77,12 @@ SKYDROPX_ORIGIN_REFERENCE=
 # Si el paquete pesa menos de 1kg, se ajustará automáticamente a 1kg para la cotización/creación de guía.
 SKYDROPX_MIN_BILLABLE_WEIGHT_G=1000
 
+# Webhook Secret de Skydropx (requerido para validar webhooks automáticos de tracking)
+# Configura este secret en el dashboard de Skydropx → Webhooks → Configurar secret
+# El webhook endpoint es: ${NEXT_PUBLIC_APP_URL}/api/shipping/skydropx/webhook
+# El header de validación es: x-skydropx-secret
+SKYDROPX_WEBHOOK_SECRET=tu_webhook_secret_aqui
+
 # App URL
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
@@ -89,6 +95,21 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 2. Abre "SQL Editor"
 3. Ejecuta el archivo `supabase-setup.sql`
 4. Ejecuta el archivo `supabase-functions.sql`
+
+### Paso 1.5: Ejecutar migraciones de shipping events (requerido para webhooks)
+
+**IMPORTANTE**: Para que el webhook de Skydropx pueda hacer matching correcto de órdenes por `shipment_id` y guardar eventos de tracking, debes ejecutar el siguiente SQL:
+
+1. Ve a "SQL Editor" en Supabase
+2. Ejecuta el archivo `ops/sql/2025-01-15_add_shipping_events_and_shipment_id.sql`
+
+Este script:
+- Agrega la columna `shipping_shipment_id` a `public.orders` (si no existe)
+- Hace backfill de `shipping_shipment_id` desde `metadata.shipping.shipment_id` para órdenes existentes
+- Crea la tabla `public.shipping_events` para guardar eventos de tracking
+- Crea índices necesarios para optimización
+
+**Nota**: Sin ejecutar este SQL, el webhook de Skydropx no podrá hacer matching por `shipment_id` y los eventos de tracking no se guardarán.
 
 ### Paso 2: Configurar Storage
 

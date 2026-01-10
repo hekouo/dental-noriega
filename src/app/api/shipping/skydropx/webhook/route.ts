@@ -6,153 +6,145 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 /**
- * Mapea eventos/estados de Skydropx a estados canónicos de shipping
+ * Mapea raw_status de Skydropx a mapped_status canónico
  */
-function mapSkydropxEventToShippingStatus(
-  eventType: string | null | undefined,
-  status: string | null | undefined,
-): string | null {
-  // Normalizar eventType y status a lowercase
-  const normalizedEvent = eventType?.toLowerCase().trim() || "";
-  const normalizedStatus = status?.toLowerCase().trim() || "";
+function mapRawStatusToMappedStatus(rawStatus: string | null): string | null {
+  if (!rawStatus) return null;
 
-  // Mapeo de estados específicos de Skydropx
-  if (normalizedStatus) {
-    // delivered_to_branch -> ready_for_pickup
-    if (normalizedStatus.includes("delivered_to_branch") || normalizedStatus.includes("ready_for_pickup")) {
-      return "ready_for_pickup";
-    }
-    // last_mile -> in_transit
-    if (normalizedStatus.includes("last_mile") || normalizedStatus.includes("picked_up") || normalizedStatus.includes("in_transit")) {
-      return "in_transit";
-    }
-    // in_return -> cancelled
-    if (normalizedStatus.includes("in_return")) {
-      return "cancelled";
-    }
-    // delivered -> delivered
-    if (normalizedStatus.includes("delivered")) {
-      return "delivered";
-    }
-    // exception / cancelled / canceled -> cancelled
-    if (normalizedStatus.includes("exception") || normalizedStatus.includes("cancelled") || normalizedStatus.includes("canceled")) {
-      return "cancelled";
-    }
-    // created / label_created -> label_created
-    if (normalizedStatus.includes("label_created") || normalizedStatus.includes("created")) {
-      return "label_created";
-    }
+  const normalized = rawStatus.toLowerCase().trim();
+
+  // created/label_created -> label_created
+  if (normalized.includes("created") || normalized.includes("label_created")) {
+    return "label_created";
   }
 
-  // Mapeo por eventType si no hay status
-  if (normalizedEvent) {
-    if (normalizedEvent === "picked_up" || normalizedEvent === "in_transit" || normalizedEvent === "last_mile") {
-      return "in_transit";
-    }
-    if (normalizedEvent === "delivered") {
-      return "delivered";
-    }
-    if (normalizedEvent === "delivered_to_branch") {
-      return "ready_for_pickup";
-    }
-    if (normalizedEvent === "exception" || normalizedEvent === "cancelled" || normalizedEvent === "canceled" || normalizedEvent === "in_return") {
-      return "cancelled";
-    }
-    if (normalizedEvent === "label_created" || normalizedEvent === "created") {
-      return "label_created";
-    }
+  // in_transit/shipped/picked_up/last_mile -> in_transit
+  if (
+    normalized.includes("in_transit") ||
+    normalized.includes("shipped") ||
+    normalized.includes("picked_up") ||
+    normalized.includes("last_mile")
+  ) {
+    return "in_transit";
+  }
+
+  // delivered -> delivered (pero no delivered_to_branch)
+  if (normalized.includes("delivered") && !normalized.includes("branch") && !normalized.includes("delivered_to")) {
+    return "delivered";
+  }
+
+  // delivered_to_branch -> ready_for_pickup
+  if (normalized.includes("delivered_to_branch") || normalized.includes("ready_for_pickup")) {
+    return "ready_for_pickup";
+  }
+
+  // cancelled/canceled/in_return -> cancelled
+  if (normalized.includes("cancelled") || normalized.includes("canceled") || normalized.includes("in_return")) {
+    return "cancelled";
+  }
+
+  // exception/failed -> cancelled (tratado como cancelado)
+  if (normalized.includes("exception") || normalized.includes("failed")) {
+    return "cancelled";
   }
 
   // Intentar normalizar usando el helper genérico
-  if (normalizedStatus) {
-    const normalized = normalizeShippingStatus(normalizedStatus);
-    if (normalized) {
-      return normalized;
-    }
+  const normalizedHelper = normalizeShippingStatus(normalized);
+  if (normalizedHelper && isValidShippingStatus(normalizedHelper)) {
+    return normalizedHelper;
   }
 
   return null;
 }
 
 /**
- * Extrae datos del payload del webhook (soporta formato simple y JSON:API)
+ * Extrae datos del payload del webhook (formato JSON:API de Skydropx)
  */
 function extractWebhookData(body: unknown): {
-  eventType: string | null;
-  trackingNumber: string | null;
-  orderId: string | null;
+  providerEventId: string | null;
   shipmentId: string | null;
-  status: string | null;
+  rawStatus: string | null;
+  trackingNumber: string | null;
+  labelUrl: string | null;
+  occurredAt: string | null;
+  payloadSafe: Record<string, unknown> | null;
 } {
   if (!body || typeof body !== "object") {
     return {
-      eventType: null,
-      trackingNumber: null,
-      orderId: null,
+      providerEventId: null,
       shipmentId: null,
-      status: null,
+      rawStatus: null,
+      trackingNumber: null,
+      labelUrl: null,
+      occurredAt: null,
+      payloadSafe: null,
     };
   }
 
   const payload = body as Record<string, unknown>;
 
-  // Formato JSON:API (data.id, data.attributes, etc.)
+  // Formato JSON:API de Skydropx: data.id, data.attributes, data.relationships
   const data = payload.data as Record<string, unknown> | undefined;
   const attributes = data?.attributes as Record<string, unknown> | undefined;
+  const relationships = data?.relationships as Record<string, unknown> | undefined;
+  const shipmentData = relationships?.shipment as Record<string, unknown> | undefined;
+  const shipmentDataId = shipmentData?.data as Record<string, unknown> | undefined;
 
-  // Extraer eventType (puede venir en varios lugares)
-  const eventType =
-    payload.event_type ||
-    payload.type ||
-    payload.event ||
-    data?.type ||
-    attributes?.event_type ||
-    attributes?.type ||
-    null;
+  // provider_event_id: data.id (ID del evento en Skydropx)
+  const providerEventId = typeof data?.id === "string" ? data.id : null;
 
-  // Extraer tracking_number
-  const trackingNumber =
-    payload.tracking_number ||
-    payload.trackingNumber ||
-    payload.tracking ||
-    attributes?.tracking_number ||
-    attributes?.trackingNumber ||
-    attributes?.tracking ||
-    null;
-
-  // Extraer order_id (UUID interno, opcional)
-  const orderId =
-    payload.order_id ||
-    payload.orderId ||
-    payload.order ||
-    attributes?.order_id ||
-    attributes?.orderId ||
-    null;
-
-  // Extraer shipment_id (ext id de Skydropx)
+  // shipment_id: data.relationships.shipment.data.id
   const shipmentId =
-    data?.id ||
-    payload.shipment_id ||
-    payload.shipmentId ||
-    payload.shipment ||
-    attributes?.shipment_id ||
-    attributes?.shipmentId ||
+    (typeof shipmentDataId?.id === "string" ? shipmentDataId.id : null) ||
+    (typeof attributes?.shipment_id === "string" ? attributes.shipment_id : null) ||
+    (typeof payload.shipment_id === "string" ? payload.shipment_id : null);
+
+  // raw_status: data.attributes.status
+  const rawStatus =
+    (typeof attributes?.status === "string" ? attributes.status : null) ||
+    (typeof payload.status === "string" ? payload.status : null);
+
+  // tracking_number: data.attributes.tracking_number
+  const trackingNumber =
+    (typeof attributes?.tracking_number === "string" ? attributes.tracking_number : null) ||
+    (typeof attributes?.trackingNumber === "string" ? attributes.trackingNumber : null) ||
+    (typeof payload.tracking_number === "string" ? payload.tracking_number : null);
+
+  // label_url: data.attributes.label_url o label_url_pdf
+  const labelUrl =
+    (typeof attributes?.label_url === "string" ? attributes.label_url : null) ||
+    (typeof attributes?.label_url_pdf === "string" ? attributes.label_url_pdf : null) ||
+    (typeof attributes?.labelUrl === "string" ? attributes.labelUrl : null) ||
+    (typeof payload.label_url === "string" ? payload.label_url : null);
+
+  // occurred_at: data.attributes.updated_at || created_at || now()
+  const occurredAt =
+    (typeof attributes?.updated_at === "string" ? attributes.updated_at : null) ||
+    (typeof attributes?.created_at === "string" ? attributes.created_at : null) ||
+    (typeof data?.attributes === "object" && data.attributes !== null
+      ? ((data.attributes as Record<string, unknown>)?.updated_at as string | undefined) || null
+      : null) ||
     null;
 
-  // Extraer status
-  const status =
-    payload.status ||
-    payload.shipping_status ||
-    attributes?.status ||
-    attributes?.shipping_status ||
-    null;
+  // Payload seguro (sin PII): solo incluir campos no sensibles
+  const payloadSafe: Record<string, unknown> = {
+    event_id: providerEventId,
+    shipment_id: shipmentId,
+    status: rawStatus,
+    has_tracking: !!trackingNumber,
+    has_label: !!labelUrl,
+    occurred_at: occurredAt,
+    // NO incluir: direcciones completas, teléfonos, emails, nombres completos
+  };
 
   return {
-    eventType: typeof eventType === "string" ? eventType : null,
-    trackingNumber: typeof trackingNumber === "string" ? trackingNumber : null,
-    orderId: typeof orderId === "string" ? orderId : null,
-    shipmentId: typeof shipmentId === "string" ? shipmentId : null,
-    status: typeof status === "string" ? status : null,
+    providerEventId,
+    shipmentId,
+    rawStatus,
+    trackingNumber,
+    labelUrl,
+    occurredAt,
+    payloadSafe,
   };
 }
 
@@ -185,48 +177,28 @@ function validateWebhookSecret(request: NextRequest): boolean {
 }
 
 /**
- * Resuelve la orden usando prioridad: order_id (UUID) -> shipment_id -> tracking_number
+ * Resuelve la orden usando prioridad: shipping_shipment_id (prioridad) -> order_id -> tracking_number
  */
 async function resolveOrder(
   supabase: ReturnType<typeof createClient<any, "public">>,
-  orderId: string | null,
   shipmentId: string | null,
   trackingNumber: string | null,
-): Promise<{ id: string; shipping_provider: string | null; shipping_tracking_number: string | null } | null> {
-  // Prioridad 1: order_id (UUID interno)
-  if (orderId && orderId.trim().length > 0) {
-    const { data, error } = await supabase
-      .from("orders")
-      .select("id, shipping_provider, shipping_tracking_number")
-      .eq("id", orderId.trim())
-      .maybeSingle();
-
-    if (error) {
-      console.error("[skydropx/webhook] Error al buscar orden por order_id:", {
-        orderId,
-        error,
-      });
-      return null;
-    }
-
-    if (data) {
-      return data;
-    }
-  }
-
-  // Prioridad 2: shipment_id (shipping_rate_ext_id)
+): Promise<{ id: string; shipping_provider: string | null; shipping_tracking_number: string | null; shipping_shipment_id: string | null; shipping_label_url: string | null; metadata: Record<string, unknown> | null } | null> {
+  // Prioridad 1: shipping_shipment_id (matching confiable para webhooks)
   if (shipmentId && shipmentId.trim().length > 0) {
     const { data, error } = await supabase
       .from("orders")
-      .select("id, shipping_provider, shipping_tracking_number")
-      .eq("shipping_rate_ext_id", shipmentId.trim())
+      .select("id, shipping_provider, shipping_tracking_number, shipping_shipment_id, shipping_label_url, metadata")
+      .eq("shipping_shipment_id", shipmentId.trim())
       .maybeSingle();
 
     if (error) {
-      console.error("[skydropx/webhook] Error al buscar orden por shipment_id:", {
-        shipmentId,
-        error,
-      });
+      if (process.env.NODE_ENV !== "production") {
+        console.error("[skydropx/webhook] Error al buscar orden por shipping_shipment_id:", {
+          shipmentId,
+          error,
+        });
+      }
       return null;
     }
 
@@ -235,19 +207,21 @@ async function resolveOrder(
     }
   }
 
-  // Prioridad 3: tracking_number
+  // Prioridad 2: tracking_number (fallback)
   if (trackingNumber && trackingNumber.trim().length > 0) {
     const { data, error } = await supabase
       .from("orders")
-      .select("id, shipping_provider, shipping_tracking_number")
+      .select("id, shipping_provider, shipping_tracking_number, shipping_shipment_id, shipping_label_url, metadata")
       .eq("shipping_tracking_number", trackingNumber.trim())
       .maybeSingle();
 
     if (error) {
-      console.error("[skydropx/webhook] Error al buscar orden por tracking_number:", {
-        trackingNumber,
-        error,
-      });
+      if (process.env.NODE_ENV !== "production") {
+        console.error("[skydropx/webhook] Error al buscar orden por tracking_number:", {
+          trackingNumber,
+          error,
+        });
+      }
       return null;
     }
 
@@ -263,7 +237,9 @@ export async function POST(req: NextRequest) {
   try {
     // Validar secret del webhook
     if (!validateWebhookSecret(req)) {
-      console.error("[skydropx/webhook] Webhook secret inválido o faltante");
+      if (process.env.NODE_ENV !== "production") {
+        console.error("[skydropx/webhook] Webhook secret inválido o faltante");
+      }
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 },
@@ -278,28 +254,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Extraer datos del payload (soporta formato simple y JSON:API)
-    const { eventType, trackingNumber, orderId, shipmentId, status } = extractWebhookData(body);
+    // Extraer datos del payload JSON:API
+    const { providerEventId, shipmentId, rawStatus, trackingNumber, labelUrl, occurredAt, payloadSafe } = extractWebhookData(body);
 
-    // Mapear evento/estado a shipping_status canónico
-    const shippingStatus = mapSkydropxEventToShippingStatus(eventType, status);
-    if (!shippingStatus || !isValidShippingStatus(shippingStatus)) {
-      console.warn("[skydropx/webhook] No se pudo mapear evento a shipping_status:", {
-        eventType,
-        status,
-        orderId,
-        shipmentId,
-        trackingNumber,
-      });
-      return NextResponse.json({ received: true, message: "Event not mapped to shipping status" });
-    }
+    // Mapear raw_status a mapped_status canónico
+    const mappedStatus = mapRawStatusToMappedStatus(rawStatus);
 
     // Crear cliente Supabase con service role
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!supabaseUrl || !serviceRoleKey) {
-      console.error("[skydropx/webhook] Configuración de Supabase incompleta");
+      if (process.env.NODE_ENV !== "production") {
+        console.error("[skydropx/webhook] Configuración de Supabase incompleta");
+      }
       return NextResponse.json(
         { error: "Server configuration error" },
         { status: 500 },
@@ -313,123 +281,177 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Resolver orden con prioridad: order_id -> shipment_id -> tracking_number
-    const order = await resolveOrder(supabase, orderId, shipmentId, trackingNumber);
+    // Buscar orden por shipping_shipment_id (matching confiable)
+    const order = await resolveOrder(supabase, shipmentId, trackingNumber);
 
     if (!order) {
-      console.warn("[skydropx/webhook] Orden no encontrada con los identificadores proporcionados:", {
-        orderId,
-        shipmentId,
-        trackingNumber,
-      });
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[skydropx/webhook] Orden no encontrada con los identificadores proporcionados:", {
+          shipmentId,
+          trackingNumber,
+        });
+      }
       return NextResponse.json({ received: true, message: "No matching order" });
     }
 
     // Solo actualizar si es una orden de Skydropx
-    if (order.shipping_provider !== "skydropx") {
-      console.warn("[skydropx/webhook] Orden no es de Skydropx, ignorando:", {
-        orderId: order.id,
-        provider: order.shipping_provider,
-      });
+    if (order.shipping_provider !== "skydropx" && order.shipping_provider !== "Skydropx") {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[skydropx/webhook] Orden no es de Skydropx, ignorando:", {
+          orderId: order.id,
+          provider: order.shipping_provider,
+        });
+      }
       return NextResponse.json({ received: true, message: "Order not from Skydropx" });
     }
 
-    // Cargar metadata completo para merge seguro
-    const { data: fullOrder } = await supabase
-      .from("orders")
-      .select("metadata")
-      .eq("id", order.id)
-      .single();
+    // Insertar evento en shipping_events (idempotente por provider + provider_event_id)
+    if (providerEventId) {
+      const occurredAtParsed = occurredAt ? new Date(occurredAt) : new Date();
+      
+      // Insertar evento (idempotencia: unique constraint en (provider, provider_event_id))
+      const { error: eventInsertError } = await supabase
+        .from("shipping_events")
+        .insert({
+          order_id: order.id,
+          provider: "skydropx",
+          provider_event_id: providerEventId,
+          raw_status: rawStatus,
+          mapped_status: mappedStatus,
+          tracking_number: trackingNumber,
+          label_url: labelUrl,
+          payload: payloadSafe,
+          occurred_at: occurredAtParsed.toISOString(),
+        });
 
-    // Preparar actualización
-    const updateData: Record<string, unknown> = {
-      shipping_status: shippingStatus,
-    };
-
-    // Si viene tracking_number y la orden no tiene uno, setearlo
-    // Si ya tiene uno distinto, solo loguear en dev (no sobrescribir)
-    if (trackingNumber && typeof trackingNumber === "string" && trackingNumber.trim().length > 0) {
-      if (!order.shipping_tracking_number) {
-        updateData.shipping_tracking_number = trackingNumber.trim();
-      } else if (order.shipping_tracking_number !== trackingNumber.trim()) {
-        if (process.env.NODE_ENV === "development") {
-          console.warn("[skydropx/webhook] Tracking number diferente, no sobrescribiendo:", {
+      // Si hay error de unique constraint (evento duplicado), es OK (idempotencia)
+      // Código 23505 = violación de constraint único en PostgreSQL/Supabase
+      if (eventInsertError) {
+        if (eventInsertError.code === "23505" || eventInsertError.message.includes("duplicate") || eventInsertError.message.includes("unique")) {
+          if (process.env.NODE_ENV !== "production") {
+            console.log("[skydropx/webhook] Evento ya procesado (idempotencia):", {
+              orderId: order.id,
+              providerEventId,
+            });
+          }
+          // Evento duplicado es OK, continuar con actualización si es necesario
+        } else {
+          // Otro error: loguear pero continuar (podría ser problema de conexión)
+          if (process.env.NODE_ENV !== "production") {
+            console.warn("[skydropx/webhook] Error al insertar evento (continuando):", {
+              orderId: order.id,
+              providerEventId,
+              error: eventInsertError.message,
+              code: eventInsertError.code,
+            });
+          }
+        }
+      } else {
+        if (process.env.NODE_ENV !== "production") {
+          console.log("[skydropx/webhook] Evento nuevo registrado:", {
             orderId: order.id,
-            existing: order.shipping_tracking_number,
-            incoming: trackingNumber,
+            providerEventId,
+            rawStatus,
+            mappedStatus,
           });
         }
       }
     }
 
-    // Si el evento confirma cancelación (approved) o rechaza (rejected), actualizar metadata.shipping.cancel_status
-    // Merge seguro de metadata (NO sobreescribir completo)
-    if (fullOrder?.metadata) {
-      const currentMetadata = fullOrder.metadata as Record<string, unknown>;
-      const shippingMeta = (currentMetadata.shipping as Record<string, unknown>) || {};
-      
-      // Detectar si es evento de cancelación aprobada/rechazada
-      const normalizedStatus = status?.toLowerCase().trim() || "";
-      const normalizedEvent = eventType?.toLowerCase().trim() || "";
-      
-      if (
-        normalizedStatus === "approved" ||
-        normalizedStatus === "rejected" ||
-        normalizedStatus === "cancelled" ||
-        normalizedEvent === "cancel_approved" ||
-        normalizedEvent === "cancel_rejected"
-      ) {
-        // Actualizar cancel_status en metadata (merge seguro)
-        const updatedShippingMeta = {
-          ...shippingMeta, // Preservar datos existentes
-          cancel_status: normalizedStatus || normalizedEvent || "cancelled",
-        };
+    // Actualizar orden solo si mapped_status es válido
+    if (mappedStatus && isValidShippingStatus(mappedStatus)) {
+      const updateData: Record<string, unknown> = {
+        shipping_status: mappedStatus,
+        updated_at: new Date().toISOString(),
+      };
 
-        const updatedMetadata = {
-          ...currentMetadata, // Preservar todos los campos existentes
-          shipping: updatedShippingMeta,
-        };
+      // Si viene tracking_number y la orden no tiene uno, setearlo
+      if (trackingNumber && !order.shipping_tracking_number) {
+        updateData.shipping_tracking_number = trackingNumber.trim();
+      }
 
-        updateData.metadata = updatedMetadata;
+      // Si viene label_url y la orden no tiene uno, setearlo
+      if (labelUrl && !order.shipping_label_url) {
+        updateData.shipping_label_url = labelUrl.trim();
+      }
+
+      // Si viene shipment_id y la orden no tiene uno en columna, setearlo
+      if (shipmentId && !order.shipping_shipment_id) {
+        updateData.shipping_shipment_id = shipmentId.trim();
+        
+        // También actualizar metadata.shipping.shipment_id por consistencia
+        const { data: fullOrder } = await supabase
+          .from("orders")
+          .select("metadata")
+          .eq("id", order.id)
+          .single();
+
+        if (fullOrder?.metadata) {
+          const currentMetadata = fullOrder.metadata as Record<string, unknown>;
+          const shippingMeta = (currentMetadata.shipping as Record<string, unknown>) || {};
+          const updatedShippingMeta = {
+            ...shippingMeta,
+            shipment_id: shipmentId.trim(),
+          };
+          const updatedMetadata = {
+            ...currentMetadata,
+            shipping: updatedShippingMeta,
+          };
+          updateData.metadata = updatedMetadata;
+        }
+      }
+
+      // Actualizar orden
+      const { error: updateError } = await supabase
+        .from("orders")
+        .update(updateData)
+        .eq("id", order.id);
+
+      if (updateError) {
+        if (process.env.NODE_ENV !== "production") {
+          console.error("[skydropx/webhook] Error al actualizar orden:", {
+            orderId: order.id,
+            error: updateError,
+          });
+        }
+        // Continuar y responder 200 aunque falle el update (evento ya persistido)
+      } else {
+        if (process.env.NODE_ENV !== "production") {
+          console.log("[skydropx/webhook] Orden actualizada:", {
+            orderId: order.id,
+            rawStatus,
+            mappedStatus,
+            trackingNumber: trackingNumber || "no actualizado",
+            shipmentId: shipmentId || "no proporcionado",
+          });
+        }
+      }
+    } else {
+      // Si no se puede mapear, aún así respondemos 200 (evento recibido y guardado)
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[skydropx/webhook] Evento recibido pero no mapeado a shipping_status:", {
+          orderId: order.id,
+          rawStatus,
+          shipmentId,
+        });
       }
     }
 
-    // Actualizar orden
-    const { error: updateError } = await supabase
-      .from("orders")
-      .update(updateData)
-      .eq("id", order.id);
-
-    if (updateError) {
-      console.error("[skydropx/webhook] Error al actualizar orden:", {
-        orderId: order.id,
-        error: updateError,
-        updateData,
-      });
-      return NextResponse.json(
-        { error: "Update failed" },
-        { status: 500 },
-      );
-    }
-
-    console.log("[skydropx/webhook] Orden actualizada:", {
-      orderId: order.id,
-      eventType,
-      shippingStatus,
-      trackingNumber: trackingNumber || "no actualizado",
-      shipmentId: shipmentId || "no proporcionado",
-    });
-
+    // Siempre responder 200 para evitar reenvíos
     return NextResponse.json({
       received: true,
+      message: mappedStatus ? "ok" : "Event received but not mapped",
       orderId: order.id,
-      shippingStatus,
+      mappedStatus: mappedStatus || null,
     });
   } catch (error) {
-    console.error("[skydropx/webhook] Error inesperado:", error);
+    if (process.env.NODE_ENV !== "production") {
+      console.error("[skydropx/webhook] Error inesperado:", error);
+    }
+    // Responder 200 para evitar reenvíos por parte de Skydropx
     return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
+      { received: true, message: "Error processing event", error: error instanceof Error ? error.message : "Unknown error" },
+      { status: 200 },
     );
   }
 }
