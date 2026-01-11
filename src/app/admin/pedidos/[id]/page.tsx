@@ -7,6 +7,7 @@ import CreateSkydropxLabelClient from "./CreateSkydropxLabelClient";
 import CancelSkydropxLabelClient from "./CancelSkydropxLabelClient";
 import RequoteSkydropxRatesClient from "./RequoteSkydropxRatesClient";
 import ShippingPackagePickerClient from "./ShippingPackagePickerClient";
+import ShippingPackageFinalClient from "./ShippingPackageFinalClient";
 import { getShippingStatusLabel, getShippingStatusVariant } from "@/lib/orders/shippingStatus";
 import { getPaymentMethodLabel, getPaymentStatusLabel, getPaymentStatusVariant } from "@/lib/orders/paymentStatus";
 import { variantDetailFromJSON } from "@/lib/products/parseVariantDetail";
@@ -128,6 +129,21 @@ export default async function AdminPedidoDetailPage({
   const whatsappE164 = normalizePhoneToE164Mx(rawPhone);
   const contactName = rawMetadata?.contact_name ?? rawMetadata?.contactName ?? null;
   const orderShortId = order.id.slice(0, 8);
+
+  // Extraer shipping_package_final para ShippingPackageFinalClient
+  type ShippingPackageFinal = {
+    weight_g?: number;
+    length_cm?: number;
+    width_cm?: number;
+    height_cm?: number;
+    updated_at?: string;
+  };
+  const rawPackageFinal = (order.metadata as Record<string, unknown> | null)?.shipping_package_final;
+  const currentPackageFinal: ShippingPackageFinal | null =
+    rawPackageFinal && typeof rawPackageFinal === "object" ? (rawPackageFinal as ShippingPackageFinal) : null;
+  const isSkydropx = order.shipping_provider === "skydropx" || order.shipping_provider === "Skydropx";
+  const isNotPickup = (order.metadata as Record<string, unknown> | null)?.shipping_method !== "pickup";
+  const shouldShowPackageFinal: boolean = isSkydropx && isNotPickup;
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -414,6 +430,13 @@ export default async function AdminPedidoDetailPage({
                     />
                   </div>
                 )}
+
+              {shouldShowPackageFinal ? (
+                <div className="mb-4 pb-4 border-b border-gray-200">
+                  <h3 className="text-md font-semibold mb-2">Paquete real para guía</h3>
+                  <ShippingPackageFinalClient orderId={order.id} currentPackageFinal={currentPackageFinal} />
+                </div>
+              ) : null}
 
               {/* Botón para recotizar envío si es Skydropx */}
               {(order.shipping_provider === "skydropx" || order.shipping_provider === "Skydropx") &&

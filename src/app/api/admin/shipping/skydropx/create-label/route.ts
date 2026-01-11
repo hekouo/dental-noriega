@@ -35,6 +35,7 @@ type CreateLabelResponse =
         | "unsupported_provider"
         | "missing_shipping_rate"
         | "missing_address_data"
+        | "missing_final_package"
         | "skydropx_error"
         | "skydropx_not_found"
         | "skydropx_oauth_failed"
@@ -558,42 +559,49 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Obtener package desde metadata.shipping_package o usar default
-    const shippingPackage = packageMetadata.shipping_package as
+    // Obtener shipping_package_final (paquete real capturado por admin) - REQUERIDO para crear guía
+    const shippingPackageFinal = packageMetadata.shipping_package_final as
       | {
-          mode?: "profile" | "custom";
-          profile?: string | null;
+          weight_g?: number;
           length_cm?: number;
           width_cm?: number;
           height_cm?: number;
-          weight_g?: number;
+          mode?: string;
+          updated_at?: string;
         }
       | undefined;
 
-    let weightKg: number;
-    let lengthCm: number;
-    let widthCm: number;
-    let heightCm: number;
-
+    // Validar que existe shipping_package_final (paquete real)
     if (
-      shippingPackage &&
-      typeof shippingPackage.weight_g === "number" &&
-      typeof shippingPackage.length_cm === "number" &&
-      typeof shippingPackage.width_cm === "number" &&
-      typeof shippingPackage.height_cm === "number"
+      !shippingPackageFinal ||
+      typeof shippingPackageFinal.weight_g !== "number" ||
+      typeof shippingPackageFinal.length_cm !== "number" ||
+      typeof shippingPackageFinal.width_cm !== "number" ||
+      typeof shippingPackageFinal.height_cm !== "number" ||
+      shippingPackageFinal.weight_g <= 0 ||
+      shippingPackageFinal.length_cm <= 0 ||
+      shippingPackageFinal.width_cm <= 0 ||
+      shippingPackageFinal.height_cm <= 0
     ) {
-      // Usar package guardado (convertir peso a kg)
-      weightKg = shippingPackage.weight_g / 1000;
-      lengthCm = shippingPackage.length_cm;
-      widthCm = shippingPackage.width_cm;
-      heightCm = shippingPackage.height_cm;
-    } else {
-      // Usar default (BOX_S: 25x20x15 cm, 1kg)
-      weightKg = 1.0;
-      lengthCm = 25;
-      widthCm = 20;
-      heightCm = 15;
+      return NextResponse.json(
+        {
+          ok: false,
+          code: "missing_final_package",
+          message:
+            "Captura peso y medidas reales de la caja antes de crear guía. Ve a la sección 'Paquete real para guía'.",
+          details: {
+            missingFields: ["shipping_package_final"],
+          },
+        } satisfies CreateLabelResponse,
+        { status: 422 },
+      );
     }
+
+    // Usar shipping_package_final (paquete real) - convertir peso a kg
+    const weightKg = shippingPackageFinal.weight_g / 1000;
+    const lengthCm = shippingPackageFinal.length_cm;
+    const widthCm = shippingPackageFinal.width_cm;
+    const heightCm = shippingPackageFinal.height_cm;
 
     if (process.env.NODE_ENV !== "production") {
       console.log("[create-label] Creando envío:", {

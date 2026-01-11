@@ -77,6 +77,11 @@ SKYDROPX_ORIGIN_REFERENCE=
 # Si el paquete pesa menos de 1kg, se ajustará automáticamente a 1kg para la cotización/creación de guía.
 SKYDROPX_MIN_BILLABLE_WEIGHT_G=1000
 
+# Peso por defecto por producto (default: 100g)
+# Se usa cuando un producto no tiene shipping_weight_g registrado en la base de datos.
+# Este valor se usa para calcular el peso estimado en checkout (suma de productos).
+DEFAULT_ITEM_WEIGHT_G=100
+
 # Webhook Secret de Skydropx (requerido para validar webhooks automáticos de tracking)
 # Configura este secret en el dashboard de Skydropx → Webhooks → Configurar secret
 # El webhook endpoint es: ${NEXT_PUBLIC_APP_URL}/api/shipping/skydropx/webhook
@@ -450,10 +455,16 @@ Ejecuta `ops/sql/2025-01-XX_add_shipping_fields_to_products.sql` en Supabase SQL
 
 1. **Configurar productos**: Editar dimensiones de productos individuales (opcional pero recomendado)
 2. **Crear pedido**: El cliente realiza su pedido normalmente
-3. **Seleccionar empaque**: En Admin → Pedidos → [Orden], seleccionar empaque apropiado
-4. **Recotizar**: Click "Recotizar envío" para obtener tarifas actualizadas usando el empaque seleccionado
+   - El sistema calcula peso estimado automáticamente (suma de productos con fallback)
+   - El peso estimado se usa para cotizar tarifas en checkout
+3. **Seleccionar empaque (opcional)**: En Admin → Pedidos → [Orden], seleccionar empaque estimado para recotizar
+4. **Recotizar**: Click "Recotizar envío" para obtener tarifas actualizadas (usa empaque seleccionado o peso estimado)
 5. **Aplicar tarifa**: Seleccionar y aplicar la mejor tarifa
-6. **Crear guía**: Click "Crear guía en Skydropx" usando el mismo empaque
+6. **Capturar paquete real**: En Admin → Pedidos → [Orden], sección "Paquete real para guía":
+   - Armar la caja real con los productos
+   - Capturar peso y dimensiones reales
+   - Click "Guardar paquete"
+7. **Crear guía**: Click "Crear guía en Skydropx" (usa el paquete real capturado, NO el estimado)
 
 ## 🔄 Recotización de envíos Skydropx (Admin)
 

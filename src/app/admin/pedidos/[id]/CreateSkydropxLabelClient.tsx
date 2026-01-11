@@ -90,8 +90,10 @@ export default function CreateSkydropxLabelClient({
                   ? "El proveedor de envío no es compatible."
                   : data.code === "missing_shipping_rate"
                     ? "La orden no tiene un rate_id de Skydropx guardado."
-                    : data.code === "missing_address_data"
-                      ? "No se encontraron datos de dirección en la orden."
+                  : data.code === "missing_address_data"
+                    ? "No se encontraron datos de dirección en la orden."
+                    : data.code === "missing_final_package"
+                      ? "Captura peso y medidas reales de la caja antes de crear guía. Ve a la sección 'Paquete real para guía'."
                       : data.code === "invalid_shipping_payload"
                         ? (() => {
                             const missing = Array.isArray(data.details?.missingFields) ? data.details.missingFields as string[] : [];
