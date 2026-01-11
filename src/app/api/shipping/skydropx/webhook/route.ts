@@ -6,6 +6,13 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 /**
+ * GET no permitido - solo POST
+ */
+export async function GET() {
+  return NextResponse.json({ error: "Method not allowed" }, { status: 405 });
+}
+
+/**
  * Mapea raw_status de Skydropx a mapped_status canónico
  */
 function mapRawStatusToMappedStatus(rawStatus: string | null): string | null {
@@ -305,57 +312,88 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ received: true, message: "Order not from Skydropx" });
     }
 
-    // Insertar evento en shipping_events (idempotente por provider + provider_event_id)
-    if (providerEventId) {
-      const occurredAtParsed = occurredAt ? new Date(occurredAt) : new Date();
-      
-      // Insertar evento (idempotencia: unique constraint en (provider, provider_event_id))
-      const { error: eventInsertError } = await supabase
-        .from("shipping_events")
-        .insert({
-          order_id: order.id,
-          provider: "skydropx",
-          provider_event_id: providerEventId,
-          raw_status: rawStatus,
-          mapped_status: mappedStatus,
-          tracking_number: trackingNumber,
-          label_url: labelUrl,
-          payload: payloadSafe,
-          occurred_at: occurredAtParsed.toISOString(),
-        });
+    // Construir provider_event_id determinístico si no existe (para idempotencia)
+    // Usar shipment_id + raw_status + occurred_at (o timestamp actual) para crear un ID único
+    const finalProviderEventId =
+      providerEventId ||
+      (shipmentId && rawStatus
+        ? `${shipmentId}_${rawStatus}_${occurredAt || new Date().toISOString()}`
+        : null);
 
-      // Si hay error de unique constraint (evento duplicado), es OK (idempotencia)
-      // Código 23505 = violación de constraint único en PostgreSQL/Supabase
-      if (eventInsertError) {
-        if (eventInsertError.code === "23505" || eventInsertError.message.includes("duplicate") || eventInsertError.message.includes("unique")) {
-          if (process.env.NODE_ENV !== "production") {
-            console.log("[skydropx/webhook] Evento ya procesado (idempotencia):", {
-              orderId: order.id,
-              providerEventId,
-            });
+    // Insertar evento en shipping_events (idempotente por provider + provider_event_id)
+    // Solo insertar si tenemos al menos shipment_id + raw_status para construir un ID determinístico
+    if (finalProviderEventId) {
+      const occurredAtParsed = occurredAt ? new Date(occurredAt) : new Date();
+
+      // Verificar si el evento ya existe (idempotencia)
+      const { data: existingEvent } = await supabase
+        .from("shipping_events")
+        .select("id")
+        .eq("provider", "skydropx")
+        .eq("provider_event_id", finalProviderEventId)
+        .maybeSingle();
+
+      // Solo insertar si no existe
+      if (!existingEvent) {
+        const { error: eventInsertError } = await supabase
+          .from("shipping_events")
+          .insert({
+            order_id: order.id,
+            provider: "skydropx",
+            provider_event_id: finalProviderEventId,
+            raw_status: rawStatus,
+            mapped_status: mappedStatus,
+            tracking_number: trackingNumber,
+            label_url: labelUrl,
+            payload: payloadSafe,
+            occurred_at: occurredAtParsed.toISOString(),
+          });
+
+        // Manejar errores de inserción (incluyendo unique constraint)
+        if (eventInsertError) {
+          if (eventInsertError.code === "23505" || eventInsertError.message.includes("duplicate") || eventInsertError.message.includes("unique")) {
+            if (process.env.NODE_ENV !== "production") {
+              console.log("[skydropx/webhook] Evento ya procesado (idempotencia):", {
+                orderId: order.id,
+                providerEventId: finalProviderEventId,
+              });
+            }
+            // Evento duplicado es OK, continuar con actualización si es necesario
+          } else {
+            // Otro error: loguear pero continuar (podría ser problema de conexión)
+            if (process.env.NODE_ENV !== "production") {
+              console.warn("[skydropx/webhook] Error al insertar evento (continuando):", {
+                orderId: order.id,
+                providerEventId: finalProviderEventId,
+                error: eventInsertError.message,
+                code: eventInsertError.code,
+              });
+            }
           }
-          // Evento duplicado es OK, continuar con actualización si es necesario
         } else {
-          // Otro error: loguear pero continuar (podría ser problema de conexión)
           if (process.env.NODE_ENV !== "production") {
-            console.warn("[skydropx/webhook] Error al insertar evento (continuando):", {
+            console.log("[skydropx/webhook] Evento nuevo registrado:", {
               orderId: order.id,
-              providerEventId,
-              error: eventInsertError.message,
-              code: eventInsertError.code,
+              providerEventId: finalProviderEventId,
+              rawStatus,
+              mappedStatus,
             });
           }
         }
       } else {
         if (process.env.NODE_ENV !== "production") {
-          console.log("[skydropx/webhook] Evento nuevo registrado:", {
+          console.log("[skydropx/webhook] Evento ya procesado (idempotencia, verificación previa):", {
             orderId: order.id,
-            providerEventId,
-            rawStatus,
-            mappedStatus,
+            providerEventId: finalProviderEventId,
           });
         }
       }
+    } else if (process.env.NODE_ENV !== "production") {
+      console.warn("[skydropx/webhook] No se puede construir provider_event_id determinístico, omitiendo evento:", {
+        orderId: order.id,
+        shipmentId,
+        rawStatus,
+      });
     }
 
     // Actualizar orden solo si mapped_status es válido
@@ -365,13 +403,15 @@ export async function POST(req: NextRequest) {
         updated_at: new Date().toISOString(),
       };
 
-      // Si viene tracking_number y la orden no tiene uno, setearlo
-      if (trackingNumber && !order.shipping_tracking_number) {
+      // Si viene tracking_number y es diferente del actual (o no existe), actualizarlo
+      // NO sobreescribir valores existentes con null
+      if (trackingNumber && trackingNumber.trim().length > 0 && trackingNumber.trim() !== order.shipping_tracking_number) {
         updateData.shipping_tracking_number = trackingNumber.trim();
       }
 
-      // Si viene label_url y la orden no tiene uno, setearlo
-      if (labelUrl && !order.shipping_label_url) {
+      // Si viene label_url y es diferente del actual (o no existe), actualizarlo
+      // NO sobreescribir valores existentes con null
+      if (labelUrl && labelUrl.trim().length > 0 && labelUrl.trim() !== order.shipping_label_url) {
         updateData.shipping_label_url = labelUrl.trim();
       }
 
@@ -440,9 +480,7 @@ export async function POST(req: NextRequest) {
     // Siempre responder 200 para evitar reenvíos
     return NextResponse.json({
       received: true,
-      message: mappedStatus ? "ok" : "Event received but not mapped",
-      orderId: order.id,
-      mappedStatus: mappedStatus || null,
+      message: "ok",
     });
   } catch (error) {
     if (process.env.NODE_ENV !== "production") {

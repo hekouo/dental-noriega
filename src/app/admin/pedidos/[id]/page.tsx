@@ -20,6 +20,7 @@ import EditShippingAndNotesClient from "./EditShippingAndNotesClient";
 import NotifyShippingClient from "./NotifyShippingClient";
 import { normalizePhoneToE164Mx } from "@/lib/utils/phone";
 import EditShippingOverrideClient from "./EditShippingOverrideClient";
+import ShippingTrackingDisplay from "./ShippingTrackingDisplay";
 
 export const dynamic = "force-dynamic";
 
@@ -443,70 +444,87 @@ export default async function AdminPedidoDetailPage({
                   </div>
                 )}
 
-              {/* Botón para crear guía si es Skydropx */}
-              <CreateSkydropxLabelClient
-                orderId={order.id}
-                paymentStatus={order.payment_status}
-                shippingProvider={order.shipping_provider}
-                shippingRateExtId={order.shipping_rate_ext_id}
-                shippingStatus={order.shipping_status}
-                currentTrackingNumber={order.shipping_tracking_number}
-                currentLabelUrl={order.shipping_label_url}
-                hasShipmentId={
-                  !!(
-                    (order.metadata as Record<string, unknown> | null)?.shipping &&
-                    typeof (order.metadata as Record<string, unknown>).shipping === "object" &&
-                    ((order.metadata as Record<string, unknown>).shipping as Record<string, unknown>)
-                      ?.shipment_id
-                  )
-                }
-              />
+              {/* Determinar hasShipmentId y hasLabelEvidence usando columna shipping_shipment_id (prioridad) o metadata */}
+              {(() => {
+                const shipmentIdFromColumn = (order as { shipping_shipment_id?: string | null }).shipping_shipment_id;
+                const shipmentIdFromMetadata =
+                  (order.metadata as Record<string, unknown> | null)?.shipping &&
+                  typeof (order.metadata as Record<string, unknown>).shipping === "object" &&
+                  ((order.metadata as Record<string, unknown>).shipping as Record<string, unknown>)
+                    ?.shipment_id;
+                const hasShipmentId = !!(shipmentIdFromColumn || shipmentIdFromMetadata);
+                const hasLabelEvidence = hasShipmentId || !!order.shipping_tracking_number || !!order.shipping_label_url;
+                const isSkydropx = order.shipping_provider === "skydropx" || order.shipping_provider === "Skydropx";
 
-              {/* Botón para cancelar envío si es Skydropx y tiene label creada */}
-              <CancelSkydropxLabelClient
-                orderId={order.id}
-                shippingStatus={order.shipping_status}
-                shippingProvider={order.shipping_provider}
-                hasTracking={!!order.shipping_tracking_number}
-                hasShipmentId={
-                  !!(
-                    (order.metadata as Record<string, unknown> | null)?.shipping &&
-                    typeof (order.metadata as Record<string, unknown>).shipping === "object" &&
-                    ((order.metadata as Record<string, unknown>).shipping as Record<string, unknown>)
-                      ?.shipment_id
-                  )
-                }
-              />
+                return (
+                  <>
+                    {/* Mostrar tracking automático si hay evidencia de guía Skydropx */}
+                    {isSkydropx && hasLabelEvidence && (
+                      <div className="mt-6 pt-6 border-t border-gray-200">
+                        <h3 className="text-md font-semibold mb-4">Información de envío automático</h3>
+                        <ShippingTrackingDisplay
+                          trackingNumber={order.shipping_tracking_number}
+                          labelUrl={order.shipping_label_url}
+                          shippingStatus={order.shipping_status}
+                        />
+                      </div>
+                    )}
 
-              {/* Botón para notificar tracking al cliente */}
-              <NotifyShippingClient
-                orderRef={order.id.slice(0, 8)}
-                trackingNumber={order.shipping_tracking_number}
-                labelUrl={order.shipping_label_url}
-                shippingStatus={order.shipping_status}
-                shippingProvider={order.shipping_provider}
-                customerName={(order.metadata as { contact_name?: string } | null)?.contact_name || null}
-                customerEmail={order.email}
-              />
+                    {/* Botón para crear guía si es Skydropx */}
+                    <CreateSkydropxLabelClient
+                      orderId={order.id}
+                      paymentStatus={order.payment_status}
+                      shippingProvider={order.shipping_provider}
+                      shippingRateExtId={order.shipping_rate_ext_id}
+                      shippingStatus={order.shipping_status}
+                      currentTrackingNumber={order.shipping_tracking_number}
+                      currentLabelUrl={order.shipping_label_url}
+                      hasShipmentId={hasShipmentId}
+                    />
 
-              {/* Controles para actualizar estado de envío */}
-              <UpdateShippingStatusClient
-                orderId={order.id}
-                currentStatus={order.shipping_status}
-                shippingProvider={order.shipping_provider}
-              />
+                    {/* Botón para cancelar envío si es Skydropx y tiene label creada */}
+                    <CancelSkydropxLabelClient
+                      orderId={order.id}
+                      shippingStatus={order.shipping_status}
+                      shippingProvider={order.shipping_provider}
+                      hasTracking={!!order.shipping_tracking_number}
+                      hasShipmentId={hasShipmentId}
+                    />
 
-              {/* Editor de campos de envío y notas */}
-              <div className="mt-6 pt-6 border-t border-gray-200">
-                <h3 className="text-md font-semibold mb-4">Editar envío y notas</h3>
-                <EditShippingAndNotesClient
-                  orderId={order.id}
-                  initialAdminNotes={order.admin_notes}
-                  initialShippingStatus={order.shipping_status}
-                  initialShippingTrackingNumber={order.shipping_tracking_number}
-                  initialShippingLabelUrl={order.shipping_label_url}
-                />
-              </div>
+                    {/* Botón para notificar tracking al cliente */}
+                    <NotifyShippingClient
+                      orderRef={order.id.slice(0, 8)}
+                      trackingNumber={order.shipping_tracking_number}
+                      labelUrl={order.shipping_label_url}
+                      shippingStatus={order.shipping_status}
+                      shippingProvider={order.shipping_provider}
+                      customerName={(order.metadata as { contact_name?: string } | null)?.contact_name || null}
+                      customerEmail={order.email}
+                    />
+
+                    {/* Controles para actualizar estado de envío */}
+                    <UpdateShippingStatusClient
+                      orderId={order.id}
+                      currentStatus={order.shipping_status}
+                      shippingProvider={order.shipping_provider}
+                    />
+
+                    {/* Editor de campos de envío y notas */}
+                    <div className="mt-6 pt-6 border-t border-gray-200">
+                      <h3 className="text-md font-semibold mb-4">Editar envío y notas</h3>
+                      <EditShippingAndNotesClient
+                        orderId={order.id}
+                        initialAdminNotes={order.admin_notes}
+                        initialShippingStatus={order.shipping_status}
+                        initialShippingTrackingNumber={order.shipping_tracking_number}
+                        initialShippingLabelUrl={order.shipping_label_url}
+                        shippingProvider={order.shipping_provider}
+                        hasLabelEvidence={isSkydropx && hasLabelEvidence}
+                      />
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           ) : (
             <div>
@@ -527,6 +545,8 @@ export default async function AdminPedidoDetailPage({
                   initialShippingStatus={order.shipping_status}
                   initialShippingTrackingNumber={order.shipping_tracking_number}
                   initialShippingLabelUrl={order.shipping_label_url}
+                  shippingProvider={order.shipping_provider}
+                  hasLabelEvidence={false}
                 />
               </div>
             </div>
