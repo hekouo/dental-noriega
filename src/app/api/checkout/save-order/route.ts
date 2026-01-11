@@ -3,6 +3,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { createActionSupabase } from "@/lib/supabase/server-actions";
+import { estimatePackageWeight } from "@/lib/shipping/estimatePackageWeight";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -258,6 +259,72 @@ export async function POST(req: NextRequest) {
       unitPriceCents: item.unitPriceCents,
       image_url: item.image_url,
     }));
+
+    // Calcular peso estimado del paquete (solo si hay items con product_id)
+    // Solo calcular si NO existe ya shipping_package_estimated (no sobreescribir)
+    if (!metadataFromPayload.shipping_package_estimated && orderData.items.length > 0) {
+      const productIds = orderData.items
+        .map((item) => item.productId)
+        .filter((id): id is string => !!id);
+
+      if (productIds.length > 0) {
+        try {
+          // Obtener pesos de productos desde DB
+          const { data: products } = await supabase
+            .from("products")
+            .select("id, shipping_weight_g")
+            .in("id", productIds);
+
+          const productsMap = new Map<string, number | null>();
+          products?.forEach((p) => {
+            productsMap.set(p.id, p.shipping_weight_g);
+          });
+
+          const defaultItemWeightG = parseInt(
+            process.env.DEFAULT_ITEM_WEIGHT_G || "100",
+            10,
+          );
+
+          const estimated = await estimatePackageWeight(
+            orderData.items.map((item) => ({
+              product_id: item.productId || null,
+              qty: item.qty,
+            })),
+            productsMap,
+            defaultItemWeightG,
+          );
+
+          // Clamp a mínimo 1kg (Skydropx requiere mínimo 1kg)
+          const MIN_BILLABLE_WEIGHT_G = parseInt(
+            process.env.SKYDROPX_MIN_BILLABLE_WEIGHT_G || "1000",
+            10,
+          );
+          const finalWeightG = Math.max(estimated.weight_g, MIN_BILLABLE_WEIGHT_G);
+
+          metadata.shipping_package_estimated = {
+            weight_g: finalWeightG,
+            source: estimated.source,
+            fallback_used_count: estimated.fallback_used_count,
+            was_clamped: finalWeightG > estimated.weight_g,
+          };
+        } catch (error) {
+          // Si falla el cálculo, usar fallback pero no romper la orden
+          if (process.env.NODE_ENV !== "production") {
+            console.warn("[save-order] Error al calcular peso estimado:", error);
+          }
+          const MIN_BILLABLE_WEIGHT_G = parseInt(
+            process.env.SKYDROPX_MIN_BILLABLE_WEIGHT_G || "1000",
+            10,
+          );
+          metadata.shipping_package_estimated = {
+            weight_g: MIN_BILLABLE_WEIGHT_G,
+            source: "fallback",
+            fallback_used_count: orderData.items.reduce((sum, item) => sum + item.qty, 0),
+            was_clamped: true,
+          };
+        }
+      }
+    }
 
     // Preparar datos de shipping: priorizar Skydropx si está disponible, sino usar método manual
     let shippingProvider: string | null = null;
