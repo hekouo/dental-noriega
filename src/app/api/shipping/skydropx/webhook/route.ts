@@ -6,6 +6,13 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 /**
+ * GET no permitido - solo POST
+ */
+export async function GET() {
+  return NextResponse.json({ error: "Method not allowed" }, { status: 405 });
+}
+
+/**
  * Mapea raw_status de Skydropx a mapped_status canónico
  */
 function mapRawStatusToMappedStatus(rawStatus: string | null): string | null {
@@ -473,9 +480,7 @@ export async function POST(req: NextRequest) {
     // Siempre responder 200 para evitar reenvíos
     return NextResponse.json({
       received: true,
-      message: mappedStatus ? "ok" : "Event received but not mapped",
-      orderId: order.id,
-      mappedStatus: mappedStatus || null,
+      message: "ok",
     });
   } catch (error) {
     if (process.env.NODE_ENV !== "production") {
