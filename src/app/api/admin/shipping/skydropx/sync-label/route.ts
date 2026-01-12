@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
 import { checkAdminAccess } from "@/lib/admin/access";
-import { getShipment } from "@/lib/skydropx/client";
+import { getShipment, type SkydropxShipmentResponse } from "@/lib/skydropx/client";
+import { isValidShippingStatus } from "@/lib/orders/statuses";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -15,15 +16,10 @@ const SyncLabelRequestSchema = z.object({
 type SyncLabelResponse =
   | {
       ok: true;
-      trackingNumber: string | null;
-      labelUrl: string | null;
-      shipmentId: string | null;
+      trackingNumber?: string | null;
+      labelUrl?: string | null;
       updated: boolean;
-      diagnostic?: {
-        has_shipment_id: boolean;
-        has_tracking: boolean;
-        has_label_url: boolean;
-      };
+      message: string;
     }
   | {
       ok: false;
@@ -43,42 +39,96 @@ type SyncLabelResponse =
     };
 
 /**
- * Extrae tracking_number desde múltiples rutas posibles
+ * Extrae tracking_number y label_url desde included packages (JSON:API)
+ * Prioriza el primer package con ambos campos no vacíos
  */
-function extractTrackingNumber(response: any): string | null {
-  return (
-    response.master_tracking_number ||
-    response.data?.master_tracking_number ||
-    response.tracking_number ||
-    response.data?.tracking_number ||
-    response.tracking ||
-    (response.included && Array.isArray(response.included)
-      ? response.included.find((pkg: any) => pkg.tracking_number)?.tracking_number
-      : null) ||
-    response.shipment?.tracking_number ||
-    response.shipment?.master_tracking_number ||
-    null
-  );
-}
+function extractTrackingAndLabelFromPackages(
+  response: SkydropxShipmentResponse,
+): { trackingNumber: string | null; labelUrl: string | null; strategy: string } {
+  const anyResponse = response as any;
 
-/**
- * Extrae label_url desde múltiples rutas posibles
- */
-function extractLabelUrl(response: any): string | null {
+  // Estrategia 1: Buscar en included packages (JSON:API) - PRIORITARIO
   if (response.included && Array.isArray(response.included)) {
-    const firstPackage = response.included.find((pkg: any) => pkg.label_url);
-    if (firstPackage?.label_url) {
-      return firstPackage.label_url;
+    // Buscar el mejor candidato: package con tracking_number Y label_url no vacíos
+    const bestPackage = response.included.find((pkg: any) => {
+      const hasTracking = pkg.tracking_number && typeof pkg.tracking_number === "string" && pkg.tracking_number.trim().length > 0;
+      const hasLabel = pkg.label_url && typeof pkg.label_url === "string" && pkg.label_url.trim().length > 0;
+      return hasTracking && hasLabel;
+    });
+
+    if (bestPackage) {
+      return {
+        trackingNumber: bestPackage.tracking_number || null,
+        labelUrl: bestPackage.label_url || null,
+        strategy: "included_packages_best",
+      };
+    }
+
+    // Si no hay package con ambos, buscar el primero con tracking_number
+    const packageWithTracking = response.included.find((pkg: any) => {
+      return pkg.tracking_number && typeof pkg.tracking_number === "string" && pkg.tracking_number.trim().length > 0;
+    });
+
+    // Y el primero con label_url
+    const packageWithLabel = response.included.find((pkg: any) => {
+      return pkg.label_url && typeof pkg.label_url === "string" && pkg.label_url.trim().length > 0;
+    });
+
+    if (packageWithTracking || packageWithLabel) {
+      return {
+        trackingNumber: packageWithTracking?.tracking_number || null,
+        labelUrl: packageWithLabel?.label_url || null,
+        strategy: "included_packages_separate",
+      };
     }
   }
-  return (
-    response.label_url ||
-    response.data?.label_url ||
-    response.label_url_pdf ||
-    response.files?.label ||
-    response.shipment?.label_url ||
-    null
-  );
+
+  // Estrategia 2: Buscar en response directo
+  const trackingNumber =
+    response.master_tracking_number ||
+    anyResponse.data?.master_tracking_number ||
+    anyResponse.tracking_number ||
+    anyResponse.data?.tracking_number ||
+    anyResponse.tracking ||
+    null;
+
+  const labelUrl =
+    anyResponse.label_url ||
+    anyResponse.data?.label_url ||
+    anyResponse.label_url_pdf ||
+    anyResponse.files?.label ||
+    null;
+
+  if (trackingNumber || labelUrl) {
+    return {
+      trackingNumber: typeof trackingNumber === "string" ? trackingNumber.trim() : null,
+      labelUrl: typeof labelUrl === "string" ? labelUrl.trim() : null,
+      strategy: "response_direct",
+    };
+  }
+
+  // Estrategia 3: Buscar en response.shipment
+  if (anyResponse.shipment) {
+    const shipmentTracking =
+      anyResponse.shipment.tracking_number ||
+      anyResponse.shipment.master_tracking_number ||
+      null;
+    const shipmentLabel = anyResponse.shipment.label_url || null;
+
+    if (shipmentTracking || shipmentLabel) {
+      return {
+        trackingNumber: typeof shipmentTracking === "string" ? shipmentTracking.trim() : null,
+        labelUrl: typeof shipmentLabel === "string" ? shipmentLabel.trim() : null,
+        strategy: "response_shipment",
+      };
+    }
+  }
+
+  return {
+    trackingNumber: null,
+    labelUrl: null,
+    strategy: "none",
+  };
 }
 
 export async function POST(req: NextRequest) {
@@ -152,7 +202,7 @@ export async function POST(req: NextRequest) {
     // Cargar la orden
     const { data: orderData, error: orderError } = await supabase
       .from("orders")
-      .select("*")
+      .select("id, shipping_shipment_id, shipping_tracking_number, shipping_label_url, shipping_status, shipping_provider, metadata")
       .eq("id", orderId)
       .single();
 
@@ -167,29 +217,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Extraer shipment_id de metadata
-    const metadata = (orderData.metadata as Record<string, unknown>) || {};
-    const shippingMeta = (metadata.shipping as Record<string, unknown>) || {};
-    const shipmentId = (shippingMeta.shipment_id as string) || null;
+    // Leer shipping_shipment_id de la columna (PRIORITARIO) o metadata (fallback)
+    const shipmentId = (orderData.shipping_shipment_id as string) || null;
 
-    // Si no hay shipment_id pero sí hay tracking, intentar resolverlo desde Skydropx
-    // NOTA: Skydropx no tiene endpoint de lookup por tracking, así que solo podemos
-    // intentar si tenemos algún identificador adicional. Por ahora, requerimos shipment_id.
-    if (!shipmentId && orderData.shipping_tracking_number) {
-      // No podemos resolver shipment_id desde tracking sin endpoint de lookup
-      // El usuario debe usar create-label primero para obtener shipment_id
-      return NextResponse.json(
-        {
-          ok: false,
-          code: "missing_shipment_id",
-          message:
-            "La orden tiene tracking pero falta shipment_id. Usa 'Crear guía en Skydropx' para obtener el shipment_id.",
-        } satisfies SyncLabelResponse,
-        { status: 400 },
-      );
+    // Fallback: leer de metadata si no está en la columna
+    let shipmentIdFromMeta: string | null = null;
+    if (!shipmentId) {
+      const metadata = (orderData.metadata as Record<string, unknown>) || {};
+      const shippingMeta = (metadata.shipping as Record<string, unknown>) || {};
+      shipmentIdFromMeta = (shippingMeta.shipment_id as string) || null;
     }
 
-    if (!shipmentId) {
+    const finalShipmentId = shipmentId || shipmentIdFromMeta;
+
+    if (!finalShipmentId) {
       return NextResponse.json(
         {
           ok: false,
@@ -201,90 +242,165 @@ export async function POST(req: NextRequest) {
     }
 
     // Obtener shipment desde Skydropx
-    const shipmentResponse = await getShipment(shipmentId);
+    const shipmentResponse = await getShipment(finalShipmentId);
 
-    // Extraer tracking y label
-    const trackingNumber = extractTrackingNumber(shipmentResponse);
-    const labelUrl = extractLabelUrl(shipmentResponse);
+    // Extraer tracking y label desde packages (JSON:API)
+    const { trackingNumber: extractedTracking, labelUrl: extractedLabel, strategy: extractionStrategy } =
+      extractTrackingAndLabelFromPackages(shipmentResponse);
 
-    // Asegurar que shipment_id esté guardado en metadata Y columna shipping_shipment_id
-    const updatedShippingMeta = {
-      ...shippingMeta,
-      shipment_id: shipmentId, // SIEMPRE guardar shipment_id
-    };
-    const updatedMetadata = {
-      ...metadata,
-      shipping: updatedShippingMeta,
-    };
+    // Logs de diagnóstico (sin PII)
+    const packagesCount = Array.isArray((shipmentResponse as any).included) ? (shipmentResponse as any).included.length : 0;
+    const foundTracking = !!extractedTracking;
+    const foundLabel = !!extractedLabel;
 
-    // Determinar si hay cambios
-    const hasChanges =
-      (trackingNumber !== null && trackingNumber !== orderData.shipping_tracking_number) ||
-      (labelUrl !== null && labelUrl !== orderData.shipping_label_url) ||
-      (shipmentId && shipmentId !== orderData.shipping_shipment_id);
+    console.log("[sync-label] Datos extraídos de Skydropx:", {
+      shipmentId: finalShipmentId,
+      packagesCount,
+      foundTracking,
+      foundLabel,
+      strategyUsed: extractionStrategy,
+    });
 
-    // Actualizar metadata SIEMPRE para asegurar que shipment_id esté guardado
+    // Determinar si hay cambios (solo tracking/label, NO null sobreescribe existentes)
+    const hasTrackingChange = extractedTracking && extractedTracking.trim().length > 0 && extractedTracking !== orderData.shipping_tracking_number;
+    const hasLabelChange = extractedLabel && extractedLabel.trim().length > 0 && extractedLabel !== orderData.shipping_label_url;
+    const hasShipmentIdChange = finalShipmentId && finalShipmentId !== orderData.shipping_shipment_id;
+    const hasChanges = hasTrackingChange || hasLabelChange || hasShipmentIdChange;
+
+    // Actualizar metadata si shipmentId viene de metadata (para consistencia)
     const updateData: Record<string, unknown> = {
-      metadata: updatedMetadata, // SIEMPRE actualizar metadata con shipment_id
       updated_at: new Date().toISOString(),
     };
 
-    // Guardar shipment_id en columna dedicada para matching confiable en webhooks
-    if (shipmentId) {
-      updateData.shipping_shipment_id = shipmentId;
+    // Guardar shipment_id en columna dedicada (SIEMPRE si no está)
+    if (finalShipmentId && !orderData.shipping_shipment_id) {
+      updateData.shipping_shipment_id = finalShipmentId;
+
+      // También actualizar metadata.shipping.shipment_id por consistencia
+      const metadata = (orderData.metadata as Record<string, unknown>) || {};
+      const shippingMeta = (metadata.shipping as Record<string, unknown>) || {};
+      const updatedShippingMeta = {
+        ...shippingMeta,
+        shipment_id: finalShipmentId,
+      };
+      updateData.metadata = {
+        ...metadata,
+        shipping: updatedShippingMeta,
+      };
     }
 
-    if (hasChanges) {
-      // Actualizar tracking/label solo si hay cambios Y el nuevo valor no es null/empty
-      // NO sobreescribir valores existentes con null
-      if (trackingNumber && trackingNumber.trim().length > 0 && trackingNumber !== orderData.shipping_tracking_number) {
-        updateData.shipping_tracking_number = trackingNumber.trim();
-      }
-      if (labelUrl && labelUrl.trim().length > 0 && labelUrl !== orderData.shipping_label_url) {
-        updateData.shipping_label_url = labelUrl.trim();
-      }
+    // Actualizar tracking/label solo si hay cambios Y el nuevo valor no es null/empty
+    // NO sobreescribir valores existentes con null
+    if (hasTrackingChange) {
+      updateData.shipping_tracking_number = extractedTracking!.trim();
+    }
+    if (hasLabelChange) {
+      updateData.shipping_label_url = extractedLabel!.trim();
+    }
 
-      // Actualizar shipping_status según disponibilidad de tracking/label
-      if (trackingNumber && labelUrl) {
-        updateData.shipping_status = "label_created";
-      } else if (trackingNumber || labelUrl) {
-        updateData.shipping_status = "label_pending_tracking";
-      } else if (shipmentId) {
-        // Si hay shipment_id pero no tracking/label, mantener como pendiente
-        updateData.shipping_status = "label_pending_tracking";
+    // Actualizar shipping_status según disponibilidad de tracking/label
+    const finalTracking = extractedTracking || orderData.shipping_tracking_number;
+    const finalLabel = extractedLabel || orderData.shipping_label_url;
+
+    if (finalTracking && finalLabel) {
+      updateData.shipping_status = "label_created";
+    } else if (finalTracking || finalLabel) {
+      updateData.shipping_status = "label_pending_tracking";
+    } else if (finalShipmentId && !orderData.shipping_tracking_number && !orderData.shipping_label_url) {
+      // Si hay shipment_id pero no tracking/label aún, mantener como pendiente
+      updateData.shipping_status = "label_pending_tracking";
+    }
+
+    // Solo actualizar si hay cambios reales
+    if (Object.keys(updateData).length > 1 || hasChanges) {
+      // Si solo hay updated_at, no actualizar (evitar updates innecesarios)
+      const hasRealChanges = hasChanges || (updateData.shipping_shipment_id && !orderData.shipping_shipment_id);
+      if (hasRealChanges) {
+        await supabase.from("orders").update(updateData).eq("id", orderId);
       }
+    }
+
+    // Insertar evento en shipping_events si hay tracking/label nuevos (idempotente)
+    if ((hasTrackingChange || hasLabelChange) && finalShipmentId) {
+      // Construir provider_event_id determinístico para sync-label
+      const syncTimestamp = new Date().toISOString();
+      const providerEventId = `sync-${finalShipmentId}-${syncTimestamp}`;
+
+      // Verificar si el evento ya existe (idempotencia)
+      const { data: existingEvent } = await supabase
+        .from("shipping_events")
+        .select("id")
+        .eq("provider", "skydropx")
+        .eq("provider_event_id", providerEventId)
+        .maybeSingle();
+
+      // Solo insertar si no existe
+      if (!existingEvent) {
+        // Determinar raw_status y mapped_status según disponibilidad
+        const rawStatus = finalTracking && finalLabel ? "label_created" : finalTracking || finalLabel ? "tracking_pending" : "pending";
+        const mappedStatus = finalTracking && finalLabel ? "label_created" : "label_pending_tracking";
+
+        const { error: eventInsertError } = await supabase.from("shipping_events").insert({
+          order_id: orderId,
+          provider: "skydropx",
+          provider_event_id: providerEventId,
+          raw_status: rawStatus,
+          mapped_status: mappedStatus,
+          tracking_number: extractedTracking,
+          label_url: extractedLabel,
+          payload: {
+            source: "sync-label",
+            shipment_id: finalShipmentId,
+            has_tracking: !!extractedTracking,
+            has_label: !!extractedLabel,
+          },
+          occurred_at: syncTimestamp,
+        });
+
+        if (eventInsertError) {
+          // Si es unique constraint, ignorar (idempotencia)
+          if (eventInsertError.code !== "23505" && !eventInsertError.message.includes("duplicate")) {
+            console.error("[sync-label] Error al insertar evento:", {
+              orderId,
+              errorCode: eventInsertError.code,
+              errorMessage: eventInsertError.message,
+            });
+          }
+        } else {
+          console.log("[sync-label] Evento insertado en shipping_events:", {
+            orderId,
+            providerEventId,
+            hasTracking: !!extractedTracking,
+            hasLabel: !!extractedLabel,
+          });
+        }
+      }
+    }
+
+    // Construir mensaje descriptivo
+    let message = "";
+    if (!hasChanges && !hasShipmentIdChange) {
+      message = "No hay cambios. La orden ya tiene los datos más recientes.";
+    } else if (hasTrackingChange && hasLabelChange) {
+      message = "Tracking y etiqueta actualizados exitosamente.";
+    } else if (hasTrackingChange) {
+      message = "Tracking actualizado exitosamente.";
+    } else if (hasLabelChange) {
+      message = "Etiqueta actualizada exitosamente.";
+    } else if (hasShipmentIdChange) {
+      message = "Shipment ID guardado.";
     } else {
-      // Si no hay cambios en tracking/label pero hay shipment_id, asegurar estado pendiente
-      if (shipmentId && !orderData.shipping_tracking_number && !orderData.shipping_label_url) {
-        updateData.shipping_status = "label_pending_tracking";
-      }
+      message = "Actualización completada.";
     }
 
-    await supabase.from("orders").update(updateData).eq("id", orderId);
-
-    if (process.env.NODE_ENV !== "production") {
-      console.log("[sync-label] Tracking/label actualizados:", {
-        orderId,
-        shipmentId,
-        trackingNumber: trackingNumber || "[pendiente]",
-        hasLabel: !!labelUrl,
-      });
-    }
-
-    // Construir diagnóstico sin PII
-    const diagnostic = {
-      has_shipment_id: !!shipmentId,
-      has_tracking: !!(trackingNumber || orderData.shipping_tracking_number),
-      has_label_url: !!(labelUrl || orderData.shipping_label_url),
-    };
+    const finalUpdated = !!(hasChanges || hasShipmentIdChange);
 
     return NextResponse.json({
       ok: true,
-      trackingNumber: trackingNumber || orderData.shipping_tracking_number || null,
-      labelUrl: labelUrl || orderData.shipping_label_url || null,
-      shipmentId,
-      updated: hasChanges || !shippingMeta.shipment_id, // También es "updated" si se guardó shipment_id por primera vez
-      diagnostic, // Incluir diagnóstico sin PII
+      trackingNumber: extractedTracking || orderData.shipping_tracking_number || null,
+      labelUrl: extractedLabel || orderData.shipping_label_url || null,
+      updated: finalUpdated,
+      message,
     } satisfies SyncLabelResponse);
   } catch (error) {
     if (process.env.NODE_ENV !== "production") {
