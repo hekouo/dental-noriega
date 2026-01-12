@@ -49,6 +49,13 @@ SKYDROPX_QUOTATIONS_BASE_URL=https://api-pro.skydropx.com
 #   2. ${SKYDROPX_BASE_URL}/v1/shipments (fallback si 404)
 SKYDROPX_BASE_URL=https://api-pro.skydropx.com
 
+# Shipments: URL base específica para obtener tracking/label (default: usa SKYDROPX_BASE_URL)
+# IMPORTANTE: Según documentación oficial de Skydropx (app.skydropx.com/es-MX/api-docs),
+# para obtener tracking_number y label_url desde shipments, usar app.skydropx.com.
+# OAuth token URL puede seguir siendo api-pro.skydropx.com, pero shipments debe ser app.skydropx.com
+# para que la respuesta incluya included[].attributes.tracking_number y included[].attributes.label_url.
+SKYDROPX_SHIPMENTS_BASE_URL=https://app.skydropx.com
+
 # Carta Porte (SAT) - REQUERIDO para crear shipments/labels en Skydropx PRO
 # consignment_note = código Carta Porte (SAT) del producto/servicio
 # package_type = código de tipo de empaque (SAT)

@@ -37,8 +37,17 @@ function getSkydropxConfig() {
   const quotationsBaseUrl = process.env.SKYDROPX_QUOTATIONS_BASE_URL || process.env.SKYDROPX_API_BASE_URL || "https://pro.skydropx.com";
   
   // URL base para otros endpoints de API (shipments, etc.)
-  // Skydropx docs indican usar pro.skydropx.com/api/v1 para shipments también
+  // IMPORTANTE: Para obtener tracking/label en producción, usar app.skydropx.com según docs oficiales
+  // OAuth token puede seguir siendo api-pro.skydropx.com, pero shipments debe ser app.skydropx.com
   const restBaseUrl = process.env.SKYDROPX_SHIPMENTS_BASE_URL || process.env.SKYDROPX_BASE_URL || process.env.SKYDROPX_API_BASE_URL || "https://pro.skydropx.com";
+  
+  // Log de configuración (solo en non-production o si está explícitamente configurado)
+  if (process.env.NODE_ENV !== "production" || process.env.SKYDROPX_SHIPMENTS_BASE_URL) {
+    console.log("[Skydropx Config] restBaseUrl (shipments):", {
+      restBaseUrl,
+      source: process.env.SKYDROPX_SHIPMENTS_BASE_URL ? "SKYDROPX_SHIPMENTS_BASE_URL" : process.env.SKYDROPX_BASE_URL ? "SKYDROPX_BASE_URL" : process.env.SKYDROPX_API_BASE_URL ? "SKYDROPX_API_BASE_URL" : "default (pro.skydropx.com)",
+    });
+  }
 
   if (!clientId || !clientSecret) {
     if (process.env.NODE_ENV !== "production") {
@@ -1221,7 +1230,40 @@ export async function getShipment(shipmentId: string): Promise<SkydropxShipmentR
             originalPath: pathsToTry[0],
           });
         }
-        return (await response.json()) as SkydropxShipmentResponse;
+        const responseData = (await response.json()) as SkydropxShipmentResponse;
+        
+        // Log diagnóstico cuando la respuesta no tiene estructura esperada (para debugging)
+        const anyResponse = responseData as any;
+        const included = Array.isArray(anyResponse.included) ? anyResponse.included : [];
+        const hasData = !!anyResponse.data;
+        const hasDataAttributes = !!anyResponse.data?.attributes;
+        const includedCount = included.length;
+        
+        // Verificar si tiene estructura esperada para tracking/label
+        const hasIncludedAttributes = included.some((item: any) => item.attributes && typeof item.attributes === "object");
+        const hasDataAttributesTracking = !!anyResponse.data?.attributes?.tracking_number || !!anyResponse.data?.attributes?.master_tracking_number;
+        
+        // Si no tiene estructura esperada, loguear para diagnóstico (siempre, pero sin PII)
+        if (!hasIncludedAttributes && !hasDataAttributesTracking && includedCount > 0) {
+          const sampleIncludedKeys = included.length > 0 && included[0] ? Object.keys(included[0]).slice(0, 10) : [];
+          const dataAttributesKeys = anyResponse.data?.attributes ? Object.keys(anyResponse.data.attributes).slice(0, 10) : [];
+          
+          console.warn("[Skydropx getShipment] Respuesta OK pero sin estructura esperada para tracking/label:", {
+            shipmentId: shipmentId.substring(0, 8) + "...", // Solo primeros 8 chars
+            baseUrl: config.restBaseUrl,
+            status: response.status,
+            includedCount,
+            hasData,
+            hasDataAttributes,
+            hasIncludedAttributes,
+            hasDataAttributesTracking,
+            sampleIncludedKeys: sampleIncludedKeys.length > 0 ? sampleIncludedKeys : undefined,
+            dataAttributesKeys: dataAttributesKeys.length > 0 ? dataAttributesKeys : undefined,
+            includedTypesSample: included.slice(0, 3).map((item: any) => item.type || "no-type").filter((t: string) => t !== "no-type"),
+          });
+        }
+        
+        return responseData;
       }
 
       // Si es 404 y hay más paths para intentar, continuar
