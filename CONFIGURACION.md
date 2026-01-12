@@ -188,7 +188,99 @@ ORDER BY occurred_at DESC;
 -- Verificar que el evento es idempotente (enviar mismo webhook 2 veces, solo debe haber 1 registro)
 ```
 
-#### 4. Validación de Guardrails
+#### 4. Test Manual: Webhook con shipping_shipment_id específico
+
+**Objetivo**: Verificar que el webhook puede hacer matching por `orders.shipping_shipment_id`.
+
+**Pre-requisitos**:
+1. Ejecutar SQL de `shipping_events` si no se ha ejecutado
+2. Tener una orden con `shipping_shipment_id` guardado (ej: después de `create-label`)
+
+**Pasos**:
+
+1. **Verificar orden en Supabase**:
+```sql
+-- En Supabase SQL Editor, buscar orden con shipping_shipment_id
+SELECT id, shipping_shipment_id, shipping_provider, shipping_tracking_number, shipping_label_url
+FROM orders
+WHERE shipping_shipment_id IS NOT NULL
+LIMIT 1;
+
+-- Copiar el shipping_shipment_id (ej: '59ca104a-3f52-4728-b8a7-1d3510045fa1')
+```
+
+2. **Enviar webhook con curl (PowerShell)**:
+```powershell
+# Reemplazar estos valores:
+$webhookSecret = "tu_secret_aqui"  # SKYDROPX_WEBHOOK_SECRET
+$webhookUrl = "http://localhost:3000/api/shipping/skydropx/webhook"
+$shipmentId = "59ca104a-3f52-4728-b8a7-1d3510045fa1"  # El shipping_shipment_id de la orden
+$orderId = "uuid_de_orden_en_supabase"  # Solo para referencia, no se usa en matching
+
+# Payload de ejemplo (formato JSON:API de Skydropx)
+$body = @{
+    data = @{
+        id = "event_test_$(Get-Date -Format 'yyyyMMddHHmmss')"
+        type = "shipment_event"
+        attributes = @{
+            status = "created"
+            tracking_number = "TEST_TRACK_$(Get-Date -Format 'HHmmss')"
+            label_url = "https://example.com/label-test.pdf"
+            updated_at = (Get-Date -Format "o")
+        }
+        relationships = @{
+            shipment = @{
+                data = @{
+                    id = $shipmentId
+                    type = "shipment"
+                }
+            }
+        }
+    }
+} | ConvertTo-Json -Depth 10
+
+# Enviar webhook
+$response = Invoke-RestMethod -Uri $webhookUrl -Method Post -Headers @{
+    "x-skydropx-secret" = $webhookSecret
+    "Content-Type" = "application/json"
+} -Body $body
+
+# Verificar respuesta (debe ser 200 con {received: true, message: "ok"})
+Write-Host "Respuesta del webhook:"
+$response | ConvertTo-Json
+```
+
+3. **Verificar que se insertó el evento**:
+```sql
+-- Ver el evento insertado
+SELECT id, order_id, provider, raw_status, mapped_status, tracking_number, occurred_at
+FROM shipping_events
+WHERE order_id = '<order_id>'  -- Usar el order_id de la orden
+ORDER BY occurred_at DESC
+LIMIT 5;
+```
+
+4. **Verificar que se actualizó la orden**:
+```sql
+-- Verificar que shipping_tracking_number y shipping_label_url se actualizaron
+SELECT id, shipping_shipment_id, shipping_tracking_number, shipping_label_url, shipping_status
+FROM orders
+WHERE id = '<order_id>';
+```
+
+**Validaciones esperadas**:
+- ✅ Respuesta 200 con `{received: true, message: "ok"}`
+- ✅ Se inserta un nuevo registro en `shipping_events`
+- ✅ Se actualiza `orders.shipping_tracking_number` con el tracking_number del webhook
+- ✅ Se actualiza `orders.shipping_label_url` con el label_url del webhook
+- ✅ Logs en consola muestran "Orden encontrada por shipping_shipment_id (columna)"
+
+**Troubleshooting**:
+- Si responde "No matching order": Revisar logs en consola para ver qué `shipmentId` se extrajo y qué estrategias de matching se intentaron
+- Si no se actualiza: Verificar que el `mappedStatus` sea válido (ej: "created" -> "label_created")
+- Si hay error 401: Verificar que `SKYDROPX_WEBHOOK_SECRET` coincida con el header `x-skydropx-secret`
+
+#### 5. Validación de Guardrails
 
 **Admin UI**:
 - ✅ Si `payment_status !== "paid"`: Botón "Crear guía" debe estar deshabilitado con callout claro
