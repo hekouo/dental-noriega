@@ -367,7 +367,6 @@ export async function POST(req: NextRequest) {
           }
         : {}),
     });
-
     // Determinar si hay cambios (solo tracking/label, NO null sobreescribe existentes)
     const hasTrackingChange = extractedTracking && extractedTracking.trim().length > 0 && extractedTracking !== orderData.shipping_tracking_number;
     const hasLabelChange = extractedLabel && extractedLabel.trim().length > 0 && extractedLabel !== orderData.shipping_label_url;
