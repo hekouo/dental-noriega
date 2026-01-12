@@ -39,51 +39,128 @@ type SyncLabelResponse =
     };
 
 /**
- * Extrae tracking_number y label_url desde included packages (JSON:API)
- * Prioriza el primer package con ambos campos no vacíos
+ * Extrae tracking_number y label_url desde respuesta JSON:API de Skydropx
+ * Soporta formato JSON:API con attributes y compatibilidad legacy
  */
 function extractTrackingAndLabelFromPackages(
   response: SkydropxShipmentResponse,
 ): { trackingNumber: string | null; labelUrl: string | null; strategy: string } {
   const anyResponse = response as any;
 
-  // Estrategia 1: Buscar en included packages (JSON:API) - PRIORITARIO
-  if (response.included && Array.isArray(response.included)) {
-    // Buscar el mejor candidato: package con tracking_number Y label_url no vacíos
-    const bestPackage = response.included.find((pkg: any) => {
-      const hasTracking = pkg.tracking_number && typeof pkg.tracking_number === "string" && pkg.tracking_number.trim().length > 0;
-      const hasLabel = pkg.label_url && typeof pkg.label_url === "string" && pkg.label_url.trim().length > 0;
-      return hasTracking && hasLabel;
-    });
-
-    if (bestPackage) {
+  // Estrategia 1: JSON:API - data.attributes.master_tracking_number (PRIORITARIO)
+  if (anyResponse.data?.attributes?.master_tracking_number && typeof anyResponse.data.attributes.master_tracking_number === "string") {
+    const tracking = anyResponse.data.attributes.master_tracking_number.trim();
+    if (tracking.length > 0) {
+      // Buscar label en included si hay tracking
+      let label: string | null = null;
+      let labelStrategy = "";
+      if (response.included && Array.isArray(response.included)) {
+        for (const item of response.included) {
+          const itemAny = item as any;
+          if (itemAny.attributes?.label_url && typeof itemAny.attributes.label_url === "string") {
+            label = itemAny.attributes.label_url.trim();
+            labelStrategy = "included.attributes.label_url";
+            break;
+          }
+          if (itemAny.attributes?.label_url_pdf && typeof itemAny.attributes.label_url_pdf === "string") {
+            label = itemAny.attributes.label_url_pdf.trim();
+            labelStrategy = "included.attributes.label_url_pdf";
+            break;
+          }
+        }
+      }
       return {
-        trackingNumber: bestPackage.tracking_number || null,
-        labelUrl: bestPackage.label_url || null,
-        strategy: "included_packages_best",
-      };
-    }
-
-    // Si no hay package con ambos, buscar el primero con tracking_number
-    const packageWithTracking = response.included.find((pkg: any) => {
-      return pkg.tracking_number && typeof pkg.tracking_number === "string" && pkg.tracking_number.trim().length > 0;
-    });
-
-    // Y el primero con label_url
-    const packageWithLabel = response.included.find((pkg: any) => {
-      return pkg.label_url && typeof pkg.label_url === "string" && pkg.label_url.trim().length > 0;
-    });
-
-    if (packageWithTracking || packageWithLabel) {
-      return {
-        trackingNumber: packageWithTracking?.tracking_number || null,
-        labelUrl: packageWithLabel?.label_url || null,
-        strategy: "included_packages_separate",
+        trackingNumber: tracking,
+        labelUrl: label,
+        strategy: label ? `data.attributes.master_tracking_number+${labelStrategy}` : "data.attributes.master_tracking_number",
       };
     }
   }
 
-  // Estrategia 2: Buscar en response directo
+  // Estrategia 2: JSON:API - data.attributes.tracking_number
+  if (anyResponse.data?.attributes?.tracking_number && typeof anyResponse.data.attributes.tracking_number === "string") {
+    const tracking = anyResponse.data.attributes.tracking_number.trim();
+    if (tracking.length > 0) {
+      let label: string | null = null;
+      let labelStrategy = "";
+      if (response.included && Array.isArray(response.included)) {
+        for (const item of response.included) {
+          const itemAny = item as any;
+          if (itemAny.attributes?.label_url && typeof itemAny.attributes.label_url === "string") {
+            label = itemAny.attributes.label_url.trim();
+            labelStrategy = "included.attributes.label_url";
+            break;
+          }
+        }
+      }
+      return {
+        trackingNumber: tracking,
+        labelUrl: label,
+        strategy: label ? `data.attributes.tracking_number+${labelStrategy}` : "data.attributes.tracking_number",
+      };
+    }
+  }
+
+  // Estrategia 3: JSON:API - included[].attributes (packages) - PRIORITARIO para packages
+  if (response.included && Array.isArray(response.included)) {
+    // Filtrar solo packages si tienen type
+    const packages = response.included.filter((item: any) => {
+      if (item.type === "packages") return true;
+      // Si no hay type, asumir que es package si tiene attributes con tracking/label
+      return item.attributes && (item.attributes.tracking_number || item.attributes.label_url);
+    });
+
+    // Buscar el mejor candidato: package con tracking_number Y label_url no vacíos
+    const bestPackage = packages.find((pkg: any) => {
+      const tracking = pkg.attributes?.tracking_number || pkg.tracking_number;
+      const label = pkg.attributes?.label_url || pkg.attributes?.label_url_pdf || pkg.label_url;
+      const hasTracking = tracking && typeof tracking === "string" && tracking.trim().length > 0;
+      const hasLabel = label && typeof label === "string" && label.trim().length > 0;
+      return hasTracking && hasLabel;
+    });
+
+    if (bestPackage) {
+      const pkgAny = bestPackage as any;
+      const tracking = (pkgAny.attributes?.tracking_number || pkgAny.tracking_number) as string | undefined;
+      const label = (pkgAny.attributes?.label_url || pkgAny.attributes?.label_url_pdf || pkgAny.label_url) as string | undefined;
+      return {
+        trackingNumber: tracking?.trim() || null,
+        labelUrl: label?.trim() || null,
+        strategy: pkgAny.attributes ? "included.attributes.tracking_number+included.attributes.label_url" : "included_packages_best",
+      };
+    }
+
+    // Si no hay package con ambos, buscar el primero con tracking_number
+    const packageWithTracking = packages.find((pkg: any) => {
+      const tracking = pkg.attributes?.tracking_number || pkg.tracking_number;
+      return tracking && typeof tracking === "string" && tracking.trim().length > 0;
+    });
+
+    // Y el primero con label_url
+    const packageWithLabel = packages.find((pkg: any) => {
+      const label = pkg.attributes?.label_url || pkg.attributes?.label_url_pdf || pkg.label_url;
+      return label && typeof label === "string" && label.trim().length > 0;
+    });
+
+    if (packageWithTracking || packageWithLabel) {
+      const tracking = packageWithTracking
+        ? (((packageWithTracking as any).attributes?.tracking_number || (packageWithTracking as any).tracking_number) as string | undefined)
+        : null;
+      const label = packageWithLabel
+        ? (((packageWithLabel as any).attributes?.label_url || (packageWithLabel as any).attributes?.label_url_pdf || (packageWithLabel as any).label_url) as string | undefined)
+        : null;
+      const strategy = (packageWithTracking as any)?.attributes || (packageWithLabel as any)?.attributes
+        ? "included.attributes.separate"
+        : "included_packages_separate";
+      return {
+        trackingNumber: tracking?.trim() || null,
+        labelUrl: label?.trim() || null,
+        strategy,
+      };
+    }
+  }
+
+  // Estrategia 4: Legacy - response directo (compatibilidad)
   const trackingNumber =
     response.master_tracking_number ||
     anyResponse.data?.master_tracking_number ||
@@ -103,11 +180,11 @@ function extractTrackingAndLabelFromPackages(
     return {
       trackingNumber: typeof trackingNumber === "string" ? trackingNumber.trim() : null,
       labelUrl: typeof labelUrl === "string" ? labelUrl.trim() : null,
-      strategy: "response_direct",
+      strategy: "legacy.direct",
     };
   }
 
-  // Estrategia 3: Buscar en response.shipment
+  // Estrategia 5: Legacy - response.shipment (compatibilidad)
   if (anyResponse.shipment) {
     const shipmentTracking =
       anyResponse.shipment.tracking_number ||
@@ -119,7 +196,7 @@ function extractTrackingAndLabelFromPackages(
       return {
         trackingNumber: typeof shipmentTracking === "string" ? shipmentTracking.trim() : null,
         labelUrl: typeof shipmentLabel === "string" ? shipmentLabel.trim() : null,
-        strategy: "response_shipment",
+        strategy: "legacy.shipment",
       };
     }
   }
@@ -249,7 +326,26 @@ export async function POST(req: NextRequest) {
       extractTrackingAndLabelFromPackages(shipmentResponse);
 
     // Logs de diagnóstico (sin PII)
-    const packagesCount = Array.isArray((shipmentResponse as any).included) ? (shipmentResponse as any).included.length : 0;
+    const anyResponse = shipmentResponse as any;
+    const included = Array.isArray(anyResponse.included) ? anyResponse.included : [];
+    
+    // Contar packages reales (con type === "packages" o con attributes)
+    const packagesCount = included.filter((item: any) => {
+      if (item.type === "packages") return true;
+      // Si no hay type, contar si tiene attributes (probablemente es un package)
+      return item.attributes && typeof item.attributes === "object";
+    }).length;
+
+    // Resumen de estructura para diagnóstico (solo non-production)
+    const hasData = !!anyResponse.data;
+    const hasDataAttributes = !!anyResponse.data?.attributes;
+    const includedCount = included.length;
+    const includedTypesSample = included
+      .slice(0, 3)
+      .map((item: any) => item.type || "no-type")
+      .filter((t: string) => t !== "no-type");
+    const includedHasAttributesCount = included.filter((item: any) => item.attributes && typeof item.attributes === "object").length;
+
     const foundTracking = !!extractedTracking;
     const foundLabel = !!extractedLabel;
 
@@ -259,8 +355,18 @@ export async function POST(req: NextRequest) {
       foundTracking,
       foundLabel,
       strategyUsed: extractionStrategy,
+      ...(process.env.NODE_ENV !== "production"
+        ? {
+            structure: {
+              hasData,
+              hasDataAttributes,
+              includedCount,
+              includedTypesSample: includedTypesSample.length > 0 ? includedTypesSample : undefined,
+              includedHasAttributesCount,
+            },
+          }
+        : {}),
     });
-
     // Determinar si hay cambios (solo tracking/label, NO null sobreescribe existentes)
     const hasTrackingChange = extractedTracking && extractedTracking.trim().length > 0 && extractedTracking !== orderData.shipping_tracking_number;
     const hasLabelChange = extractedLabel && extractedLabel.trim().length > 0 && extractedLabel !== orderData.shipping_label_url;
