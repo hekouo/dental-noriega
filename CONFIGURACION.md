@@ -164,6 +164,85 @@ FROM orders
 WHERE id = '<order_id>';
 ```
 
+#### 2.1. Test Manual: sync-label con order_id específico
+
+**Objetivo**: Verificar que el endpoint `sync-label` obtiene y guarda `tracking_number` y `label_url` desde Skydropx.
+
+**Pre-requisitos**:
+1. Tener una orden con `shipping_shipment_id` guardado (ej: después de `create-label`)
+2. La orden debe tener `shipping_tracking_number` y/o `shipping_label_url` en NULL inicialmente
+
+**Pasos**:
+
+1. **Verificar orden en Supabase**:
+```sql
+-- En Supabase SQL Editor, buscar orden con shipping_shipment_id pero sin tracking/label
+SELECT id, shipping_shipment_id, shipping_tracking_number, shipping_label_url, shipping_status
+FROM orders
+WHERE shipping_shipment_id IS NOT NULL
+  AND (shipping_tracking_number IS NULL OR shipping_label_url IS NULL)
+LIMIT 1;
+
+-- Copiar el order_id (ej: '64202a7c-dc77-4561-a65d-e907f75c781d')
+-- Copiar el shipping_shipment_id (ej: '01362d7d-eb4b-4298-9cbf-f8fcacab4314')
+```
+
+2. **Enviar request a sync-label (PowerShell)**:
+```powershell
+# Reemplazar estos valores:
+$orderId = "64202a7c-dc77-4561-a65d-e907f75c781d"  # El order_id de la orden
+$syncLabelUrl = "http://localhost:3000/api/admin/shipping/skydropx/sync-label"
+
+# Body del request
+$body = @{
+    orderId = $orderId
+} | ConvertTo-Json
+
+# Enviar request (requiere autenticación admin - usar cookies o token)
+$response = Invoke-RestMethod -Uri $syncLabelUrl -Method Post -Headers @{
+    "Content-Type" = "application/json"
+    # Nota: En producción, necesitarás agregar cookies de sesión o token de autenticación
+} -Body $body
+
+# Verificar respuesta
+Write-Host "Respuesta del sync-label:"
+$response | ConvertTo-Json -Depth 5
+```
+
+**NOTA**: En desarrollo, si usas el botón "Actualizar tracking" en la UI de admin, el request se hace automáticamente con las cookies de sesión.
+
+3. **Verificar que se actualizó la orden**:
+```sql
+-- Verificar que shipping_tracking_number y shipping_label_url se actualizaron
+SELECT id, shipping_shipment_id, shipping_tracking_number, shipping_label_url, shipping_status, updated_at
+FROM orders
+WHERE id = '64202a7c-dc77-4561-a65d-e907f75c781d';
+```
+
+4. **Verificar que se insertó el evento**:
+```sql
+-- Ver el evento insertado en shipping_events
+SELECT id, order_id, provider, provider_event_id, raw_status, mapped_status, tracking_number, label_url, occurred_at
+FROM shipping_events
+WHERE order_id = '64202a7c-dc77-4561-a65d-e907f75c781d'
+  AND provider_event_id LIKE 'sync-%'
+ORDER BY occurred_at DESC
+LIMIT 5;
+```
+
+**Validaciones esperadas**:
+- ✅ Respuesta 200 con `{ok: true, updated: true, message: "...", trackingNumber?: string, labelUrl?: string}`
+- ✅ La orden tiene `shipping_tracking_number` actualizado (si Skydropx lo tiene disponible)
+- ✅ La orden tiene `shipping_label_url` actualizado (si Skydropx lo tiene disponible)
+- ✅ Se inserta un nuevo registro en `shipping_events` con `provider_event_id` que empieza con `sync-`
+- ✅ Logs en consola muestran "Datos extraídos de Skydropx" con `packagesCount`, `foundTracking`, `foundLabel`, `strategyUsed`
+
+**Troubleshooting**:
+- Si responde `{ok: false, code: "missing_shipment_id"}`: Verificar que la orden tenga `shipping_shipment_id` guardado
+- Si responde `{ok: false, code: "skydropx_not_found"}`: Verificar que el `shipment_id` existe en Skydropx
+- Si responde `{ok: true, updated: false}`: Los datos ya están actualizados, no hay cambios nuevos
+- Si no se inserta evento: Verificar logs en consola para errores de inserción
+
 #### 3. Caso: Webhook actualiza timeline del cliente
 
 **Pasos**:

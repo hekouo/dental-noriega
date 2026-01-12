@@ -1,0 +1,33 @@
+## Descripción
+
+Arregla el problema de "No matching order" en el webhook de Skydropx cuando la orden SÍ tiene `orders.shipping_shipment_id` guardado.
+
+## Cambios
+
+- ✅ Agregados logs de diagnóstico (sin PII) para `shipmentId` y `trackingNumber` extraídos
+- ✅ Mejorado `resolveOrder` con estrategias de matching:
+  1. `shipping_shipment_id` (columna) - PRIORITARIO
+  2. `shipping_tracking_number` (columna) - FALLBACK
+  3. `metadata.shipping.shipment_id` - FALLBACK LEGACY (optimizado con filtro por provider)
+- ✅ Agregado count de resultados antes de devolver "No matching order"
+- ✅ Logs muestran qué estrategia de matching se usó
+- ✅ Verificado uso de Service Role (ya estaba correcto)
+- ✅ Documentado test manual en CONFIGURACION.md
+
+## Logs de diagnóstico
+
+Los logs ahora muestran:
+- `shipmentId` extraído del payload (sin PII completo si es muy largo)
+- `trackingNumber` extraído (primeros 8 caracteres para diagnóstico)
+- Estrategia de matching usada: `shipping_shipment_id_column`, `tracking_number_column`, o `metadata_legacy`
+- Count de resultados cuando no hay match
+
+## Test manual
+
+Ver sección "#### 4. Test Manual: Webhook con shipping_shipment_id específico" en CONFIGURACION.md para instrucciones completas de testing.
+
+## Validaciones
+
+- ✅ `pnpm lint` - Pasó
+- ✅ `pnpm typecheck` - Pasó
+- ✅ `pnpm build` - Pasó
