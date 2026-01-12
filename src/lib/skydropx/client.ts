@@ -24,7 +24,7 @@ let tokenCache: CachedToken | null = null;
  * Obtiene la configuración de Skydropx desde env vars
  * Usa OAuth exclusivamente
  */
-function getSkydropxConfig() {
+export function getSkydropxConfig() {
   const clientId = process.env.SKYDROPX_CLIENT_ID;
   const clientSecret = process.env.SKYDROPX_CLIENT_SECRET;
   
