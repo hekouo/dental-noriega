@@ -349,13 +349,16 @@ export async function POST(req: NextRequest) {
     const foundTracking = !!extractedTracking;
     const foundLabel = !!extractedLabel;
 
+    // Si strategyUsed === 'none', agregar logs de diagnóstico más detallados
+    const needsDebugLog = extractionStrategy === "none" && (includedCount > 0 || hasData);
+
     console.log("[sync-label] Datos extraídos de Skydropx:", {
       shipmentId: finalShipmentId,
       packagesCount,
       foundTracking,
       foundLabel,
       strategyUsed: extractionStrategy,
-      ...(process.env.NODE_ENV !== "production"
+      ...(process.env.NODE_ENV !== "production" || needsDebugLog
         ? {
             structure: {
               hasData,
@@ -363,6 +366,18 @@ export async function POST(req: NextRequest) {
               includedCount,
               includedTypesSample: includedTypesSample.length > 0 ? includedTypesSample : undefined,
               includedHasAttributesCount,
+              // Si strategyUsed === 'none', incluir más detalles para debugging
+              ...(needsDebugLog
+                ? {
+                    sampleIncludedKeys:
+                      included.length > 0 && included[0]
+                        ? Object.keys(included[0]).slice(0, 15).filter((k) => !["address", "phone", "email", "name"].some((pii) => k.toLowerCase().includes(pii)))
+                        : undefined,
+                    dataAttributesKeys: anyResponse.data?.attributes ? Object.keys(anyResponse.data.attributes).slice(0, 15) : undefined,
+                    includedFirstItemType: included[0]?.type || undefined,
+                    includedFirstItemHasAttributes: !!(included[0]?.attributes && typeof included[0].attributes === "object"),
+                  }
+                : {}),
             },
           }
         : {}),
