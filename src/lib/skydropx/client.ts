@@ -1171,6 +1171,11 @@ export async function createShipment(
 /**
  * Obtiene un shipment desde Skydropx por ID
  * Útil para polling/rehidratación cuando tracking/label no están disponibles inmediatamente
+ * 
+ * Hardening: Fallback solo de PATH (no de host):
+ * - Intenta primero: /api/v1/shipments/:id
+ * - Si 404, intenta: /v1/shipments/:id
+ * - NO cambia el host (debe ser api-pro.skydropx.com para OAuth)
  */
 export async function getShipment(shipmentId: string): Promise<SkydropxShipmentResponse> {
   const config = getSkydropxConfig();
@@ -1178,19 +1183,79 @@ export async function getShipment(shipmentId: string): Promise<SkydropxShipmentR
     throw new Error("Skydropx no está configurado");
   }
 
-  const path = `/api/v1/shipments/${shipmentId}`;
-  const fullUrl = `${config.restBaseUrl}${path}`;
+  // Intentar primero con /api/v1/shipments/:id, luego /v1/shipments/:id (solo path, no host)
+  const pathsToTry = [`/api/v1/shipments/${shipmentId}`, `/v1/shipments/${shipmentId}`];
+  let lastError: Error | null = null;
+  let lastResponse: Response | null = null;
+  let lastPath: string | null = null;
+  let fallbackUsed = false;
 
-  if (process.env.NODE_ENV !== "production") {
-    console.log("[Skydropx getShipment] Obteniendo shipment:", {
-      url: fullUrl,
-      shipmentId,
-    });
+  for (let i = 0; i < pathsToTry.length; i++) {
+    const path = pathsToTry[i];
+    const fullUrl = `${config.restBaseUrl}${path}`;
+    lastPath = path;
+
+    // Log seguro de URL (sin secretos)
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[Skydropx getShipment] Intentando obtener shipment:", {
+        shipmentId,
+        url: fullUrl,
+        baseUrl: config.restBaseUrl,
+        path,
+        attempt: i + 1,
+        fallbackUsed: i > 0,
+      });
+    }
+
+    try {
+      const response = await skydropxFetch(path, {
+        method: "GET",
+      });
+
+      if (response.ok) {
+        // Si usamos fallback, loguear
+        if (i > 0 && process.env.NODE_ENV !== "production") {
+          console.log("[Skydropx getShipment] Éxito con path de fallback:", {
+            shipmentId,
+            path,
+            originalPath: pathsToTry[0],
+          });
+        }
+        return (await response.json()) as SkydropxShipmentResponse;
+      }
+
+      // Si es 404 y hay más paths para intentar, continuar
+      if (response.status === 404 && i < pathsToTry.length - 1) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn(`[Skydropx getShipment] 404 en ${path}, intentando siguiente path...`);
+        }
+        lastResponse = response;
+        fallbackUsed = true;
+        continue;
+      }
+
+      // Para otros errores o si es el último intento, procesar el error
+      lastResponse = response;
+      break;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      if (i < pathsToTry.length - 1) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn(`[Skydropx getShipment] Error en ${path}, intentando siguiente path...`);
+        }
+        fallbackUsed = true;
+        continue;
+      }
+      throw error;
+    }
   }
 
-  const response = await skydropxFetch(path, {
-    method: "GET",
-  });
+  // Si llegamos aquí, todos los intentos fallaron
+  if (!lastResponse) {
+    throw lastError || new Error("Error al obtener shipment: No se pudo obtener respuesta de Skydropx");
+  }
+
+  const response = lastResponse;
 
   if (!response.ok) {
     const errorText = await response.text();
@@ -1209,7 +1274,9 @@ export async function getShipment(shipmentId: string): Promise<SkydropxShipmentR
       status: response.status,
       statusText: response.statusText,
       baseUrl: config.restBaseUrl,
-      path,
+      pathsAttempted: pathsToTry,
+      lastPath,
+      fallbackUsed,
       upstream: sanitizedUpstream,
       errorSnippet,
     };
