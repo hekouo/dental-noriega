@@ -184,57 +184,131 @@ function validateWebhookSecret(request: NextRequest): boolean {
 }
 
 /**
- * Resuelve la orden usando prioridad: shipping_shipment_id (prioridad) -> order_id -> tracking_number
+ * Resuelve la orden usando prioridad:
+ * 1. shipping_shipment_id (columna) - PRIORITARIO
+ * 2. tracking_number (columna) - FALLBACK
+ * 3. metadata.shipping.shipment_id - FALLBACK LEGACY
  */
 async function resolveOrder(
   supabase: ReturnType<typeof createClient<any, "public">>,
   shipmentId: string | null,
   trackingNumber: string | null,
 ): Promise<{ id: string; shipping_provider: string | null; shipping_tracking_number: string | null; shipping_shipment_id: string | null; shipping_label_url: string | null; metadata: Record<string, unknown> | null } | null> {
-  // Prioridad 1: shipping_shipment_id (matching confiable para webhooks)
+  // Prioridad 1: shipping_shipment_id (columna) - MATCHING PRIORITARIO
   if (shipmentId && shipmentId.trim().length > 0) {
-    const { data, error } = await supabase
+    const trimmedShipmentId = shipmentId.trim();
+    const { data, error, count } = await supabase
       .from("orders")
-      .select("id, shipping_provider, shipping_tracking_number, shipping_shipment_id, shipping_label_url, metadata")
-      .eq("shipping_shipment_id", shipmentId.trim())
+      .select("id, shipping_provider, shipping_tracking_number, shipping_shipment_id, shipping_label_url, metadata", { count: "exact" })
+      .eq("shipping_shipment_id", trimmedShipmentId)
       .maybeSingle();
 
     if (error) {
-      if (process.env.NODE_ENV !== "production") {
-        console.error("[skydropx/webhook] Error al buscar orden por shipping_shipment_id:", {
-          shipmentId,
-          error,
-        });
-      }
+      console.error("[skydropx/webhook] Error al buscar orden por shipping_shipment_id:", {
+        shipmentId: trimmedShipmentId,
+        errorCode: error.code,
+        errorMessage: error.message,
+      });
       return null;
     }
 
     if (data) {
+      console.log("[skydropx/webhook] Orden encontrada por shipping_shipment_id (columna):", {
+        orderId: data.id,
+        shipmentId: trimmedShipmentId,
+        strategy: "shipping_shipment_id_column",
+      });
       return data;
+    }
+
+    // Log diagnóstico: cuántas filas se encontraron con ese shipmentId
+    if (count !== null && count !== undefined) {
+      console.warn("[skydropx/webhook] Búsqueda por shipping_shipment_id no encontró match (count:", count, "):", {
+        shipmentId: trimmedShipmentId,
+        count,
+      });
     }
   }
 
-  // Prioridad 2: tracking_number (fallback)
+  // Prioridad 2: tracking_number (columna) - FALLBACK
   if (trackingNumber && trackingNumber.trim().length > 0) {
-    const { data, error } = await supabase
+    const trimmedTrackingNumber = trackingNumber.trim();
+    const { data, error, count } = await supabase
       .from("orders")
-      .select("id, shipping_provider, shipping_tracking_number, shipping_shipment_id, shipping_label_url, metadata")
-      .eq("shipping_tracking_number", trackingNumber.trim())
+      .select("id, shipping_provider, shipping_tracking_number, shipping_shipment_id, shipping_label_url, metadata", { count: "exact" })
+      .eq("shipping_tracking_number", trimmedTrackingNumber)
       .maybeSingle();
 
     if (error) {
-      if (process.env.NODE_ENV !== "production") {
-        console.error("[skydropx/webhook] Error al buscar orden por tracking_number:", {
-          trackingNumber,
-          error,
-        });
-      }
+      console.error("[skydropx/webhook] Error al buscar orden por tracking_number:", {
+        trackingNumber: trimmedTrackingNumber,
+        errorCode: error.code,
+        errorMessage: error.message,
+      });
       return null;
     }
 
     if (data) {
+      console.log("[skydropx/webhook] Orden encontrada por tracking_number (columna):", {
+        orderId: data.id,
+        trackingNumber: trimmedTrackingNumber,
+        strategy: "tracking_number_column",
+      });
       return data;
     }
+
+    // Log diagnóstico
+    if (count !== null && count !== undefined) {
+      console.warn("[skydropx/webhook] Búsqueda por tracking_number no encontró match (count:", count, "):", {
+        trackingNumber: trimmedTrackingNumber,
+        count,
+      });
+    }
+  }
+
+  // Prioridad 3: metadata.shipping.shipment_id - FALLBACK LEGACY (solo si no se encontró por columna)
+  // NOTA: Este fallback es menos eficiente (requiere filtrar JSON), pero es necesario para órdenes legacy
+  if (shipmentId && shipmentId.trim().length > 0) {
+    const trimmedShipmentId = shipmentId.trim();
+    // Limitar búsqueda a órdenes con shipping_provider = skydropx para mejorar performance
+    const { data: skydropxOrders, error } = await supabase
+      .from("orders")
+      .select("id, shipping_provider, shipping_tracking_number, shipping_shipment_id, shipping_label_url, metadata")
+      .eq("shipping_provider", "skydropx")
+      .not("metadata", "is", null)
+      .limit(1000); // Limitar resultados para evitar cargar demasiadas órdenes
+
+    if (error) {
+      console.error("[skydropx/webhook] Error al buscar órdenes para metadata fallback:", {
+        shipmentId: trimmedShipmentId,
+        errorCode: error.code,
+        errorMessage: error.message,
+      });
+      return null;
+    }
+
+    // Filtrar en memoria por metadata.shipping.shipment_id
+    const matchingOrder = skydropxOrders?.find((order) => {
+      if (!order.metadata || typeof order.metadata !== "object") return false;
+      const metadata = order.metadata as Record<string, unknown>;
+      const shipping = metadata.shipping as Record<string, unknown> | undefined;
+      const metaShipmentId = shipping?.shipment_id;
+      return typeof metaShipmentId === "string" && metaShipmentId.trim() === trimmedShipmentId;
+    });
+
+    if (matchingOrder) {
+      console.log("[skydropx/webhook] Orden encontrada por metadata.shipping.shipment_id (legacy):", {
+        orderId: matchingOrder.id,
+        shipmentId: trimmedShipmentId,
+        strategy: "metadata_legacy",
+      });
+      return matchingOrder;
+    }
+
+    console.warn("[skydropx/webhook] Fallback legacy no encontró match:", {
+      shipmentId: trimmedShipmentId,
+      ordersScanned: skydropxOrders?.length || 0,
+    });
   }
 
   return null;
@@ -292,12 +366,11 @@ export async function POST(req: NextRequest) {
     const order = await resolveOrder(supabase, shipmentId, trackingNumber);
 
     if (!order) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("[skydropx/webhook] Orden no encontrada con los identificadores proporcionados:", {
-          shipmentId,
-          trackingNumber,
-        });
-      }
+      console.warn("[skydropx/webhook] Orden no encontrada con los identificadores proporcionados:", {
+        shipmentId: shipmentId || "null",
+        trackingNumber: trackingNumber ? `${trackingNumber.substring(0, 8)}...` : "null",
+        strategiesUsed: shipmentId ? ["shipping_shipment_id_column", "metadata_legacy"] : [],
+      });
       return NextResponse.json({ received: true, message: "No matching order" });
     }
 

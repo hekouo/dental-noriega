@@ -1,0 +1,18 @@
+Resuelto conflicto con main preservando la funcionalidad del PR:
+
+**Preservado del PR:**
+- ✅ `ShippingPackageInfo` (readonly) para mostrar empaque de cotización
+- ✅ Sección "Paquete real para guía" (`ShippingPackageFinalClient`) editable e intacta
+- ✅ No se permite editar el empaque de cotización en admin
+
+**Preservado de main:**
+- ✅ Todos los cambios recientes de main relacionados con tracking/guards
+- ✅ Props y lógica de `CreateSkydropxLabelClient` / `CancelSkydropxLabelClient`
+- ✅ Selecciones de `shipping_shipment_id`, `shipping_tracking_number`, etc.
+
+**Validaciones:**
+- ✅ `pnpm lint` - Pasó
+- ✅ `pnpm typecheck` - Pasó
+- ✅ `pnpm build` - Pasó
+
+El conflicto era solo en el import (ShippingPackageInfo vs ShippingPackagePickerClient), resuelto conservando ShippingPackageInfo según el objetivo del PR.
