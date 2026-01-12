@@ -1,0 +1,47 @@
+## Descripción
+
+Agrega fallback de path a `getShipment()` para que pueda obtener shipments cuando Skydropx responde en `/v1/shipments/:id` en lugar de `/api/v1/shipments/:id`, igual que `createShipment()`.
+
+## Cambios
+
+- ✅ Implementa fallback de path en `getShipment()`:
+  - Intenta primero: `/api/v1/shipments/${shipmentId}`
+  - Si 404, intenta: `/v1/shipments/${shipmentId}`
+  - NO cambia el host (usa el mismo `restBaseUrl` que OAuth)
+- ✅ Logs de diagnóstico sin PII:
+  - `shipmentId`, `path`, `attempt`, `fallbackUsed` (boolean)
+  - Log cuando se usa path de fallback exitosamente
+- ✅ Manejo de errores mejorado:
+  - Incluye `pathsAttempted`, `lastPath`, `fallbackUsed` en `errorDetails`
+  - Usa `sanitizeSkydropxErrorBody` para sanitizar respuestas de error
+
+## Logs de diagnóstico
+
+Los logs ahora muestran:
+- `shipmentId` (sin PII)
+- `path` intentado
+- `attempt` (1 o 2)
+- `fallbackUsed` (true si se intentó el segundo path)
+- Log específico cuando se usa path de fallback exitosamente
+
+## Test manual
+
+Para probar con un order_id específico:
+1. Tener una orden con `orders.shipping_shipment_id` configurado
+2. Presionar botón "Actualizar tracking" en admin o llamar endpoint `sync-label`
+3. Verificar en logs (non-production) que:
+   - Si el primer path falla con 404, se intenta el segundo path
+   - Si ambos fallan, el error incluye `pathsAttempted` y `fallbackUsed`
+4. Verificar en Supabase que `orders.shipping_tracking_number` y `orders.shipping_label_url` se actualizan cuando Skydropx tiene los datos disponibles
+
+## Validaciones
+
+- ✅ `pnpm lint` - Pasó (solo warnings pre-existentes)
+- ✅ `pnpm typecheck` - Pasó
+- ✅ `pnpm build` - Pasó exitosamente
+
+## Notas
+
+- Solo cambia el path, NO el host (usa el mismo `restBaseUrl` configurado)
+- Mantiene compatibilidad con OAuth (`skydropxFetch` maneja la autenticación)
+- No requiere nuevas variables de entorno
