@@ -1,0 +1,38 @@
+## Descripción
+
+Mejora el endpoint `sync-label` para obtener y guardar `tracking_number` y `label_url` reales desde Skydropx cuando estos no llegan por webhook o tardan.
+
+## Cambios
+
+- ✅ Lee `shipping_shipment_id` de la columna (prioridad) y metadata (fallback)
+- ✅ Usa `getShipment` que ya utiliza OAuth client_credentials y el host correcto (pro.skydropx.com configurable via env)
+- ✅ Extrae `tracking_number` y `label_url` desde `included packages` (JSON:API) - estrategia mejorada
+- ✅ Actualiza `orders` sin sobreescribir con null
+- ✅ Actualiza `shipping_status` según disponibilidad de tracking/label
+- ✅ Inserta evento en `shipping_events` cuando hay cambios (idempotente con `provider_event_id` determinístico)
+- ✅ Logs de diagnóstico sin PII: `shipmentId`, `packagesCount`, `foundTracking`, `foundLabel`, `strategyUsed`
+- ✅ Respuesta JSON mejorada: `{ok: true, updated: boolean, trackingNumber?: string, labelUrl?: string, message: string}`
+
+## Logs de diagnóstico
+
+Los logs ahora muestran:
+- `shipmentId` extraído (de columna o metadata)
+- `packagesCount` (cantidad de packages en included[])
+- `foundTracking` y `foundLabel` (booleanos)
+- `strategyUsed` (estrategia de extracción usada: `included_packages_best`, `included_packages_separate`, `response_direct`, `response_shipment`, `none`)
+
+## Test manual
+
+Ver sección "#### 2.1. Test Manual: sync-label con order_id específico" en CONFIGURACION.md para instrucciones completas de testing.
+
+## Validaciones
+
+- ✅ `pnpm lint` - Pasó (solo warnings pre-existentes)
+- ✅ `pnpm typecheck` - Pasó
+- ✅ `pnpm build` - Pasó exitosamente
+
+## Prueba de aceptación
+
+Para probar con los datos reales proporcionados:
+1. Ejecutar sync-label para `order_id: 64202a7c-dc77-4561-a65d-e907f75c781d`
+2. Verificar en Supabase que `shipping_tracking_number` y `shipping_label_url` ya no están NULL cuando Skydropx tiene los datos disponibles
