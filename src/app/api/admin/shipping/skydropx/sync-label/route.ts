@@ -438,6 +438,22 @@ export async function POST(req: NextRequest) {
       const hasRealChanges = hasChanges || (updateData.shipping_shipment_id && !orderData.shipping_shipment_id);
       if (hasRealChanges) {
         await supabase.from("orders").update(updateData).eq("id", orderId);
+        
+        // Enviar email de envío generado si ahora hay tracking/label
+        if ((hasTrackingChange || hasLabelChange) && (extractedTracking || extractedLabel)) {
+          try {
+            const { sendShippingCreatedEmail } = await import("@/lib/email/orderEmails");
+            const emailResult = await sendShippingCreatedEmail(orderId);
+            if (!emailResult.ok) {
+              console.warn("[sync-label] Error al enviar email de envío generado:", emailResult.error);
+            } else if (emailResult.sent) {
+              console.log("[sync-label] Email de envío generado enviado:", orderId);
+            }
+          } catch (emailError) {
+            console.error("[sync-label] Error inesperado al enviar email:", emailError);
+            // No fallar si falla el email
+          }
+        }
       }
     }
 
