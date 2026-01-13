@@ -222,7 +222,7 @@ export async function POST(req: NextRequest) {
     
     // Construir metadata con información adicional
     const phone = orderData.phone || null;
-    const whatsappConfirmed = orderData.whatsappConfirmed || false;
+    const whatsappConfirmed = orderData.whatsappConfirmed ?? false;
     
     // Normalizar teléfono para WhatsApp si es válido
     const whatsappDigits10 = phone && isValidMx10(phone) ? phone : null;
