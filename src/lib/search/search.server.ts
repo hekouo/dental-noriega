@@ -22,7 +22,7 @@ export async function searchProductsServer(
   limit = 20,
   offset = 0,
 ): Promise<SearchResult[]> {
-  const supabase = createServerSupabase();
+  const supabase = await createServerSupabase();
 
   if (!query || query.trim().length === 0) {
     return [];

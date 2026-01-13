@@ -1,7 +1,7 @@
 // src/app/cuenta/perfil/page.tsx
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { createServerSupabase } from "@/lib/supabase/server-auth";
+import { getServerUser } from "@/lib/supabase/server-auth";
 import EmailVerificationBanner from "@/components/account/EmailVerificationBanner";
 import AccountInfoBanner from "@/components/account/AccountInfoBanner";
 import AccountSectionHeader from "@/components/account/AccountSectionHeader";
@@ -16,10 +16,7 @@ type PerfilPageProps = {
 export default async function PerfilPage({
   searchParams,
 }: PerfilPageProps) {
-  const supabase = createServerSupabase();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getServerUser();
 
   if (!user) {
     redirect("/cuenta"); // si no hay sesión, regresa al login

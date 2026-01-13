@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import { createServerSupabase } from "@/lib/supabase/server-auth";
+import { getServerUser } from "@/lib/supabase/server-auth";
 import AccountSectionHeader from "@/components/account/AccountSectionHeader";
 import DireccionesClient from "./DireccionesClient";
 
@@ -19,10 +19,7 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function DireccionesPage() {
-  const supabase = createServerSupabase();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getServerUser();
 
   const fullName =
     (user?.user_metadata &&

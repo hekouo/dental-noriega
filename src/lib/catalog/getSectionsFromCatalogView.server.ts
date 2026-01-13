@@ -13,7 +13,7 @@ export type SectionInfo = {
  * Útil como fallback cuando la tabla sections está vacía.
  */
 export async function getSectionsFromCatalogView(): Promise<SectionInfo[]> {
-  const supabase = createServerSupabase();
+  const supabase = await createServerSupabase();
 
   try {
     const { data, error } = await supabase
