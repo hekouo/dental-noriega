@@ -68,7 +68,7 @@ export const datosSchema = z.object({
       return normalizeToMx10(v);
     })
     .refine((v) => isValidMx10(v), { message: "Ingresa un teléfono de 10 dígitos" }),
-  whatsappConfirmed: z.preprocess((v) => v ?? false, z.boolean()),
+  whatsappConfirmed: z.boolean(),
   address: req("Este campo es obligatorio").refine((s) => s.length >= 5, {
     message: "La dirección debe tener al menos 5 caracteres",
   }),
