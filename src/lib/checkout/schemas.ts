@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalizeToMx10, isValidMx10 } from "@/lib/phone/mx";
 
 // Regex para validaciones MX
 // eslint-disable-next-line sonarjs/slow-regex -- patrón simple validación email
@@ -62,8 +63,12 @@ export const datosSchema = z.object({
   }),
   phone: z
     .string()
-    .transform((v) => v.replace(/\D/g, "")) // Solo números, permite espacios
-    .refine((v) => v.length === 10, { message: "Ingresa un teléfono de 10 dígitos" }),
+    .transform((v) => {
+      // Normalizar a 10 dígitos MX (limpia +52, espacios, etc.)
+      return normalizeToMx10(v);
+    })
+    .refine((v) => isValidMx10(v), { message: "Ingresa un teléfono de 10 dígitos" }),
+  whatsappConfirmed: z.boolean().optional().default(false),
   address: req("Este campo es obligatorio").refine((s) => s.length >= 5, {
     message: "La dirección debe tener al menos 5 caracteres",
   }),

@@ -10,6 +10,7 @@ interface OrderWhatsAppBlockProps {
   totalCents: number;
   customerName?: string | null;
   customerEmail?: string | null;
+  whatsappWaDigits?: string | null; // Número de WhatsApp del cliente (desde metadata.whatsapp_wa_digits)
   // Props adicionales para analytics
   orderId?: string;
   shortId?: string | null;
@@ -25,6 +26,7 @@ export function OrderWhatsAppBlock(props: OrderWhatsAppBlockProps) {
     totalCents,
     customerName,
     customerEmail,
+    whatsappWaDigits,
     orderId,
     shortId,
     paymentMethod,
@@ -38,6 +40,7 @@ export function OrderWhatsAppBlock(props: OrderWhatsAppBlockProps) {
     totalCents,
     customerName,
     customerEmail,
+    whatsappWaDigits,
   });
 
   if (!href) return null;

@@ -1,0 +1,39 @@
+## Descripción
+
+Arregla \
+Cancelar
+envío\ para que realmente cancele la guía en Skydropx vía API, no solo cambie el estado localmente en la DB.
+
+## Problema
+
+En admin, al presionar \Cancelar
+envío\, el estado cambiaba a \Envío
+cancelado\ en UI/DB, pero en Skydropx la guía seguía activa. El endpoint cancel-label estaba usando un endpoint incorrecto (/v1/cancel_label_requests) o no estaba llamando correctamente a la API de cancelación de Skydropx.
+
+## Cambios
+
+### 1. Endpoint correcto de Skydropx
+- ✅ Cambiado de /v1/cancel_label_requests a /api/v1/shipments/{shipment_id}/cancellations`n- ✅ Usa SKYDROPX_SHIPMENTS_BASE_URL (recomendado: https://app.skydropx.com)
+- ✅ Payload correcto: { \reason\: \Cancelado
+desde
+admin
+DDN\, \shipment_id\: \<shipmentId>\ }`n
+### 2. Obtención de shipmentId con prioridad
+- ✅ Prioridad 1: orders.shipping_shipment_id (columna dedicada)
+- ✅ Prioridad 2: orders.metadata.shipping.shipment_id (legacy fallback)
+
+### 3. Manejo de respuesta mejorado
+- ✅ **Solo marca como cancelado si Skydropx responde 2xx**: NO continúa con actualización local si falla
+- ✅ Si Skydropx responde error (400/401/403/404/422): NO marca como cancelado localmente, devuelve error descriptivo
+- ✅ Si Skydropx responde OK: actualiza estado, guarda metadata, inserta evento en shipping_events
+
+### 4. Logs seguros (sin PII)
+- ✅ shipmentId truncado, solo keys/flags, NO direcciones/teléfonos/emails/nombres
+
+### 5. Exportación de getSkydropxConfig()`n- ✅ Exportada para poder usarla en otros endpoints
+
+## Validaciones
+
+- ✅ pnpm lint - Pasó
+- ✅ pnpm typecheck - Pasó
+- ✅ pnpm build - Pasó exitosamente

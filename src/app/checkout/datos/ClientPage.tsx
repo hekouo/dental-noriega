@@ -58,6 +58,7 @@ function DatosPageContent() {
       cp: "",
       notes: undefined,
       aceptaAviso: false as unknown as true,
+      whatsappConfirmed: false,
     },
   });
 
@@ -913,19 +914,30 @@ function DatosPageContent() {
           >
             Teléfono *
           </label>
-          <input
-            id="phone"
-            type="tel"
-            inputMode="numeric"
-            {...register("phone")}
-            aria-invalid={errors.phone ? "true" : "false"}
-            aria-describedby={errors.phone ? "phone-error" : "phone-help"}
-            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
-              errors.phone ? "border-red-500" : "border-gray-300"
-            }`}
-            placeholder="5512345678"
-            maxLength={10}
-          />
+          <div className="flex items-center gap-2">
+            <div className="flex-shrink-0 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700 font-medium">
+              🇲🇽 +52
+            </div>
+            <input
+              id="phone"
+              type="tel"
+              inputMode="numeric"
+              {...register("phone", {
+                onChange: (e) => {
+                  // Solo permitir dígitos
+                  const value = e.target.value.replace(/\D/g, "");
+                  setValue("phone", value.slice(0, 10), { shouldValidate: true });
+                },
+              })}
+              aria-invalid={errors.phone ? "true" : "false"}
+              aria-describedby={errors.phone ? "phone-error" : "phone-help"}
+              className={`flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                errors.phone ? "border-red-500" : "border-gray-300"
+              }`}
+              placeholder="5512345678"
+              maxLength={10}
+            />
+          </div>
           <p id="phone-help" className="text-gray-500 text-xs mt-1">
             10 dígitos, solo números (sin espacios ni guiones)
           </p>
@@ -938,6 +950,20 @@ function DatosPageContent() {
               {errors.phone.message}
             </p>
           )}
+          
+          {/* Checkbox de confirmación WhatsApp */}
+          <div className="mt-3">
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                {...register("whatsappConfirmed")}
+                className="mt-0.5 h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+              />
+              <span className="text-sm text-gray-700">
+                Confirmo que este es mi número de WhatsApp
+              </span>
+            </label>
+          </div>
         </div>
 
         {/* Dirección */}
