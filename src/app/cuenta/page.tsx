@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { createServerSupabase } from "@/lib/supabase/server-auth";
+import { getServerUser } from "@/lib/supabase/server-auth";
 import { checkAdminAccess } from "@/lib/admin/access";
 import ClientPage from "./ClientPage";
 import DashboardClient from "./DashboardClient";
@@ -26,10 +26,7 @@ type PageProps = {
 };
 
 export default async function Page({ searchParams }: PageProps) {
-  const supabase = createServerSupabase();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getServerUser();
 
   const params = await searchParams;
 

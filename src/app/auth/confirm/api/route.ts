@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = createServerSupabase();
+    const supabase = await createServerSupabase();
 
     // verifyOtp con token_hash (patrón recomendado de Supabase)
     const { error } = await supabase.auth.verifyOtp({
