@@ -60,16 +60,45 @@ describe("orderEmailEvents", () => {
   });
 
   describe("markSent", () => {
-    const mockSupabase = {
-      from: vi.fn().mockReturnThis(),
-      select: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      single: vi.fn(),
-      update: vi.fn().mockReturnThis(),
+    let mockSupabase: {
+      from: ReturnType<typeof vi.fn>;
+      select: ReturnType<typeof vi.fn>;
+      eq: ReturnType<typeof vi.fn>;
+      single: ReturnType<typeof vi.fn>;
+      update: ReturnType<typeof vi.fn>;
     };
 
     beforeEach(() => {
-      vi.clearAllMocks();
+      // Crear mocks que retornan this para encadenar
+      const fromMock = vi.fn();
+      const selectMock = vi.fn();
+      const eqForSelectMock = vi.fn();
+      const singleMock = vi.fn();
+      const updateMock = vi.fn();
+      const eqForUpdateMock = vi.fn();
+
+      fromMock.mockReturnValue({
+        select: selectMock,
+        update: updateMock,
+      });
+      selectMock.mockReturnValue({
+        eq: eqForSelectMock,
+      });
+      eqForSelectMock.mockReturnValue({
+        single: singleMock,
+      });
+      updateMock.mockReturnValue({
+        eq: eqForUpdateMock,
+      });
+
+      mockSupabase = {
+        from: fromMock,
+        select: selectMock,
+        eq: eqForSelectMock,
+        single: singleMock,
+        update: updateMock,
+      };
+
       vi.mocked(createClient).mockReturnValue(mockSupabase as any);
       process.env.NEXT_PUBLIC_SUPABASE_URL = "https://test.supabase.co";
       process.env.SUPABASE_SERVICE_ROLE_KEY = "test-key";
@@ -102,24 +131,23 @@ describe("orderEmailEvents", () => {
         error: null,
       });
 
-      mockSupabase.eq.mockResolvedValue({
+      // Mock de la cadena update().eq()
+      const eqAfterUpdate = vi.fn().mockResolvedValue({
         error: null,
       });
+      mockSupabase.update.mockReturnValue({
+        eq: eqAfterUpdate,
+      } as any);
 
       const result = await markSent("test-order-id", "payment_confirmed_sent_at");
 
       expect(result).toBe(true);
-      expect(mockSupabase.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          metadata: expect.objectContaining({
-            other_field: "value",
-            contact_email: "test@example.com",
-            email_events: expect.objectContaining({
-              payment_confirmed_sent_at: expect.any(String),
-            }),
-          }),
-        }),
-      );
+      // Verificar que se llamó update con los datos correctos
+      expect(mockSupabase.update).toHaveBeenCalled();
+      const updateCall = mockSupabase.update.mock.calls[0][0];
+      expect(updateCall.metadata.other_field).toBe("value");
+      expect(updateCall.metadata.contact_email).toBe("test@example.com");
+      expect(updateCall.metadata.email_events.payment_confirmed_sent_at).toBeDefined();
     });
 
     it("debe preservar email_events existentes al agregar uno nuevo", async () => {
@@ -134,13 +162,19 @@ describe("orderEmailEvents", () => {
         error: null,
       });
 
-      mockSupabase.eq.mockResolvedValue({
+      // Mock de la cadena update().eq()
+      const eqAfterUpdate = vi.fn().mockResolvedValue({
         error: null,
       });
+      mockSupabase.update.mockReturnValue({
+        eq: eqAfterUpdate,
+      } as any);
 
       const result = await markSent("test-order-id", "payment_confirmed_sent_at");
 
       expect(result).toBe(true);
+      // Verificar que se llamó update
+      expect(mockSupabase.update).toHaveBeenCalled();
       const updateCall = mockSupabase.update.mock.calls[0][0];
       expect(updateCall.metadata.email_events.shipping_created_sent_at).toBe("2024-01-15T10:00:00Z");
       expect(updateCall.metadata.email_events.payment_confirmed_sent_at).toBeDefined();
@@ -152,9 +186,13 @@ describe("orderEmailEvents", () => {
         error: null,
       });
 
-      mockSupabase.eq.mockResolvedValue({
+      // Mock de la cadena update().eq() con error
+      const eqAfterUpdate = vi.fn().mockResolvedValue({
         error: { message: "Update failed" },
       });
+      mockSupabase.update.mockReturnValue({
+        eq: eqAfterUpdate,
+      } as any);
 
       const result = await markSent("test-order-id", "payment_confirmed_sent_at");
       expect(result).toBe(false);
