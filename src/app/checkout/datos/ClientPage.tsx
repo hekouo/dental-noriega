@@ -22,6 +22,7 @@ import { getSelectedItems } from "@/lib/checkout/selection";
 import type { AccountAddress } from "@/lib/supabase/addresses.server";
 import { isValidEmail } from "@/lib/validation/email";
 import { splitFullName, buildFullName } from "@/lib/utils/names";
+import AddressAutocompleteClient from "@/components/checkout/AddressAutocompleteClient";
 
 // eslint-disable-next-line sonarjs/cognitive-complexity -- Formulario largo pero estructurado, todos los campos son necesarios
 function DatosPageContent() {
@@ -59,6 +60,7 @@ function DatosPageContent() {
       notes: undefined,
       aceptaAviso: false as unknown as true,
       whatsappConfirmed: false,
+      shippingAddressConfirmed: false,
     },
   });
 
@@ -951,7 +953,7 @@ function DatosPageContent() {
             </p>
           )}
           
-          {/* Checkbox de confirmación WhatsApp */}
+          {/* Checkbox de confirmación WhatsApp (OBLIGATORIO) */}
           <div className="mt-3">
             <label className="flex items-start gap-2 cursor-pointer">
               <input
@@ -960,9 +962,14 @@ function DatosPageContent() {
                 className="mt-0.5 h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
               />
               <span className="text-sm text-gray-700">
-                Confirmo que este es mi número de WhatsApp
+                Confirmo que este es mi número de WhatsApp *
               </span>
             </label>
+            {errors.whatsappConfirmed && (
+              <p className="text-red-500 text-sm mt-1" role="alert">
+                {errors.whatsappConfirmed.message}
+              </p>
+            )}
           </div>
         </div>
 
@@ -978,20 +985,17 @@ function DatosPageContent() {
             >
               Calle y número *
             </label>
-            <textarea
-              id="address"
-              rows={3}
-              {...register("address")}
-              onBlur={() => handleBlur("address")}
-              aria-invalid={errors.address ? "true" : "false"}
-              aria-describedby={errors.address ? "address-error" : "address-help"}
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
-                errors.address ? "border-red-500" : "border-gray-300"
-              }`}
-              placeholder="Ej: Av. Insurgentes Sur 123, Int. 45"
+            <AddressAutocompleteClient
+              setValue={setValue}
+              register={register("address", {
+                onBlur: () => handleBlur("address"),
+              })}
+              errors={errors}
             />
             <p id="address-help" className="text-gray-500 text-xs mt-1">
-              Incluye número exterior e interior si aplica
+              {process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY
+                ? "Escribe tu dirección y selecciona una sugerencia de Google Maps"
+                : "Incluye número exterior e interior si aplica"}
             </p>
             {errors.address && (
               <p
@@ -1133,6 +1137,25 @@ function DatosPageContent() {
               </p>
             )}
           </div>
+        </div>
+
+        {/* Confirmación de dirección (OBLIGATORIO) */}
+        <div className="bg-gray-50 rounded-lg p-4">
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              {...register("shippingAddressConfirmed")}
+              className="mt-0.5 h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+            />
+            <span className="text-sm text-gray-700">
+              Confirmo que mi dirección es correcta *
+            </span>
+          </label>
+          {errors.shippingAddressConfirmed && (
+            <p className="text-red-500 text-sm mt-1 ml-6" role="alert">
+              {errors.shippingAddressConfirmed.message}
+            </p>
+          )}
         </div>
 
         {/* Notas opcionales */}
