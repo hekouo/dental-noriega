@@ -250,6 +250,22 @@ export async function updateShippingStatusAdmin(
       previousStatus: order.shipping_status,
     });
 
+    // Enviar email específico si el estado es "delivered"
+    if (newStatus === "delivered") {
+      try {
+        const { sendDeliveredEmail } = await import("@/lib/email/orderEmails");
+        const emailResult = await sendDeliveredEmail(orderId);
+        if (!emailResult.ok) {
+          console.warn("[updateShippingStatusAdmin] Error al enviar email de entregado:", emailResult.error);
+        } else if (emailResult.sent) {
+          console.log("[updateShippingStatusAdmin] Email de entregado enviado:", orderId);
+        }
+      } catch (emailError) {
+        console.error("[updateShippingStatusAdmin] Error inesperado al enviar email de entregado:", emailError);
+        // No fallar si falla el email
+      }
+    }
+
     // Revalidar rutas
     revalidatePath("/admin/pedidos");
     revalidatePath(`/admin/pedidos/${orderId}`);

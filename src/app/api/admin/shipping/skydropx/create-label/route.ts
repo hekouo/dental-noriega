@@ -685,6 +685,22 @@ export async function POST(req: NextRequest) {
       .eq("id", orderId)
       .is("shipping_tracking_number", null); // Solo actualizar si aún no tiene tracking (doble verificación)
 
+    // Enviar email de envío generado si se actualizó exitosamente y hay tracking/label
+    if (!updateError && (shipmentResult.trackingNumber || shipmentResult.labelUrl)) {
+      try {
+        const { sendShippingCreatedEmail } = await import("@/lib/email/orderEmails");
+        const emailResult = await sendShippingCreatedEmail(orderId);
+        if (!emailResult.ok) {
+          console.warn("[create-label] Error al enviar email de envío generado:", emailResult.error);
+        } else if (emailResult.sent) {
+          console.log("[create-label] Email de envío generado enviado:", orderId);
+        }
+      } catch (emailError) {
+        console.error("[create-label] Error inesperado al enviar email:", emailError);
+        // No fallar si falla el email
+      }
+    }
+
     if (updateError) {
       if (process.env.NODE_ENV !== "production") {
         console.error("[create-label] Error actualizando orden:", updateError);

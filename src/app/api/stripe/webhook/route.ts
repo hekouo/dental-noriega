@@ -402,6 +402,20 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ received: true }); // Responder 200 aunque falle para no reintentar
       }
 
+      // Enviar email de confirmación de pago (no bloquea si falla)
+      try {
+        const { sendPaymentConfirmedEmail } = await import("@/lib/email/orderEmails");
+        const emailResult = await sendPaymentConfirmedEmail(extractedOrderId);
+        if (!emailResult.ok) {
+          console.warn("[webhook] Error al enviar email de confirmación de pago:", emailResult.error);
+        } else if (emailResult.sent) {
+          console.log("[webhook] Email de confirmación de pago enviado:", extractedOrderId);
+        }
+      } catch (emailError) {
+        console.error("[webhook] Error inesperado al enviar email de confirmación:", emailError);
+        // No fallar el webhook si falla el email
+      }
+
       // Procesar puntos de lealtad (idempotente)
       try {
         const { processLoyaltyForOrder } = await import("@/lib/loyalty/processOrder.server");
