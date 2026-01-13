@@ -68,7 +68,12 @@ export const datosSchema = z.object({
       return normalizeToMx10(v);
     })
     .refine((v) => isValidMx10(v), { message: "Ingresa un teléfono de 10 dígitos" }),
-  whatsappConfirmed: z.boolean(),
+  whatsappConfirmed: z.literal(true, {
+    errorMap: () => ({ message: "Debes confirmar que este es tu número de WhatsApp para continuar" }),
+  }),
+  shippingAddressConfirmed: z.literal(true, {
+    errorMap: () => ({ message: "Debes confirmar que tu dirección es correcta para continuar" }),
+  }),
   address: req("Este campo es obligatorio").refine((s) => s.length >= 5, {
     message: "La dirección debe tener al menos 5 caracteres",
   }),

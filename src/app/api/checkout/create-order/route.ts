@@ -26,6 +26,7 @@ const CreateOrderRequestSchema = z.object({
   name: z.string().min(2).optional(),
   phone: z.string().optional(), // Teléfono del cliente
   whatsappConfirmed: z.boolean().optional().default(false), // Confirmación de WhatsApp
+  shippingAddressConfirmed: z.boolean().optional().default(false), // Confirmación de dirección
   // Aceptar los valores reales del frontend: pickup, standard, express
   // Mapear standard/express a "delivery" internamente para metadata
   shippingMethod: z.enum(["pickup", "standard", "express"]).optional(),
@@ -223,6 +224,7 @@ export async function POST(req: NextRequest) {
     // Construir metadata con información adicional
     const phone = orderData.phone || null;
     const whatsappConfirmed = orderData.whatsappConfirmed ?? false;
+    const shippingAddressConfirmed = orderData.shippingAddressConfirmed ?? false;
     
     // Normalizar teléfono para WhatsApp si es válido
     const whatsappDigits10 = phone && isValidMx10(phone) ? phone : null;
@@ -243,6 +245,8 @@ export async function POST(req: NextRequest) {
       whatsapp_e164: whatsappE164,
       whatsapp_wa_digits: whatsappWaDigits,
       whatsapp_confirmed: whatsappConfirmed,
+      // Confirmación de dirección
+      shipping_address_confirmed: shippingAddressConfirmed,
     };
 
     // Guardar dirección de envío en metadata.shipping_address (solo si no es pickup)

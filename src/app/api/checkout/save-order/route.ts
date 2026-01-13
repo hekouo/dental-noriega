@@ -27,6 +27,8 @@ const SaveOrderRequestSchema = z.object({
   payment_provider: z.string().default("stripe"),
   payment_id: z.string().optional(),
   metadata: z.record(z.unknown()).optional(),
+  whatsappConfirmed: z.boolean().optional().default(false),
+  shippingAddressConfirmed: z.boolean().optional().default(false),
 });
 
 // TODO: Refactor this function to reduce cognitive complexity. Rule temporarily disabled to keep CI passing.
@@ -231,6 +233,9 @@ export async function POST(req: NextRequest) {
       contact_city: metadataFromPayload.contact_city || null,
       contact_state: metadataFromPayload.contact_state || null,
       contact_cp: metadataFromPayload.contact_cp || null,
+      // Confirmaciones (preservar existentes o usar nuevos valores)
+      whatsapp_confirmed: metadataFromPayload.whatsapp_confirmed ?? orderData.whatsappConfirmed ?? false,
+      shipping_address_confirmed: metadataFromPayload.shipping_address_confirmed ?? orderData.shippingAddressConfirmed ?? false,
     };
 
     // Guardar dirección de envío en metadata.shipping_address (merge seguro, preservar si ya existe)
