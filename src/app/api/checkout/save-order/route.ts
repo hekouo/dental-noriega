@@ -4,7 +4,6 @@ import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { createActionSupabase } from "@/lib/supabase/server-actions";
 import { estimatePackageWeight } from "@/lib/shipping/estimatePackageWeight";
-import { toMxE164, toMxWhatsAppDigits, isValidMx10 } from "@/lib/phone/mx";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
