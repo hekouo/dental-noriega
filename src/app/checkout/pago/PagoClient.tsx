@@ -793,6 +793,7 @@ export default function PagoClient() {
         email: datos.email, // Email del checkout para la orden y Stripe
         name: datos.name, // Nombre para metadata
         phone: datos.phone || null, // Teléfono para metadata
+        whatsappConfirmed: datos.whatsappConfirmed || false, // Confirmación de WhatsApp
         shippingMethod: displayShippingMethod, // Método de envío (solo lectura)
         shippingCostCents, // Costo de envío en centavos
         paymentMethod: selectedPaymentMethodValue, // Método de pago seleccionado

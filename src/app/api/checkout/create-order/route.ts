@@ -3,6 +3,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { createClient } from "@supabase/supabase-js";
 import { createActionSupabase } from "@/lib/supabase/server-actions";
 import { z } from "zod";
+import { toMxE164, toMxWhatsAppDigits, isValidMx10 } from "@/lib/phone/mx";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -24,6 +25,7 @@ const CreateOrderRequestSchema = z.object({
   email: z.string().email().optional(),
   name: z.string().min(2).optional(),
   phone: z.string().optional(), // Teléfono del cliente
+  whatsappConfirmed: z.boolean().optional().default(false), // Confirmación de WhatsApp
   // Aceptar los valores reales del frontend: pickup, standard, express
   // Mapear standard/express a "delivery" internamente para metadata
   shippingMethod: z.enum(["pickup", "standard", "express"]).optional(),
@@ -220,6 +222,13 @@ export async function POST(req: NextRequest) {
     
     // Construir metadata con información adicional
     const phone = orderData.phone || null;
+    const whatsappConfirmed = orderData.whatsappConfirmed ?? false;
+    
+    // Normalizar teléfono para WhatsApp si es válido
+    const whatsappDigits10 = phone && isValidMx10(phone) ? phone : null;
+    const whatsappE164 = whatsappDigits10 ? toMxE164(whatsappDigits10) : null;
+    const whatsappWaDigits = whatsappDigits10 ? toMxWhatsAppDigits(whatsappDigits10) : null;
+    
     const metadata: Record<string, unknown> = {
       subtotal_cents: total_cents, // Por ahora subtotal = total (sin envío ni descuento aún)
       shipping_cost_cents: shippingCostCents, // Costo de envío en centavos
@@ -228,7 +237,12 @@ export async function POST(req: NextRequest) {
       contact_name: orderData.name || null,
       contact_email: orderData.email || null,
       contact_phone: phone || null,
-      whatsapp: phone || null, // Usar el mismo teléfono como WhatsApp por defecto
+      // Campos de WhatsApp normalizados
+      whatsapp_raw: phone || null,
+      whatsapp_digits10: whatsappDigits10,
+      whatsapp_e164: whatsappE164,
+      whatsapp_wa_digits: whatsappWaDigits,
+      whatsapp_confirmed: whatsappConfirmed,
     };
 
     // Guardar dirección de envío en metadata.shipping_address (solo si no es pickup)

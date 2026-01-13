@@ -36,6 +36,7 @@ interface BuildWhatsAppOrderUrlParams {
   totalCents: number;
   customerName?: string | null;
   customerEmail?: string | null;
+  whatsappWaDigits?: string | null; // Número de WhatsApp del cliente (desde metadata.whatsapp_wa_digits)
 }
 
 // Parámetros para contexto de ayuda en checkout (sin orden)
@@ -46,6 +47,7 @@ interface BuildWhatsAppCheckoutHelpUrlParams {
   itemsCount?: number;
   customerName?: string | null;
   customerEmail?: string | null;
+  whatsappWaDigits?: string | null; // Número de WhatsApp del cliente (desde metadata.whatsapp_wa_digits)
 }
 
 export function buildWhatsAppOrderUrl(

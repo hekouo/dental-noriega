@@ -1,0 +1,66 @@
+## Descripción
+
+Permite configurar `SKYDROPX_SHIPMENTS_BASE_URL` para forzar que `getShipment()` use `app.skydropx.com` en lugar de `api-pro.skydropx.com`, y agrega logs seguros (sin PII) cuando `sync-label` no encuentra tracking/label (`strategyUsed === "none"`).
+
+## Problema
+
+En producción, `sync-label` devuelve `{trackingNumber:null, labelUrl:null}` con `strategyUsed:'none'` aunque Skydropx ya tiene tracking disponible. La documentación oficial indica que para obtener `included[].attributes.tracking_number` y `included[].attributes.label_url`, se debe usar `app.skydropx.com` en lugar de `api-pro.skydropx.com`.
+
+## Cambios
+
+### 1. Configuración de `SKYDROPX_SHIPMENTS_BASE_URL` (`src/lib/skydropx/client.ts`)
+- ✅ `getSkydropxConfig()` ya prioriza `SKYDROPX_SHIPMENTS_BASE_URL` con fallback a otros env vars
+- ✅ Agregado log de configuración que muestra qué env var se está usando (solo en non-production o si está explícitamente configurado)
+
+### 2. Logs de diagnóstico en `getShipment()` (`src/lib/skydropx/client.ts`)
+- ✅ Cuando la respuesta es OK pero no tiene estructura esperada para tracking/label, se loguea:
+  - `baseUrl` usado
+  - `status` code
+  - `includedCount`
+  - `sampleIncludedKeys` (solo keys, filtradas: excluye keys que contengan "address", "phone", "email", "name")
+  - `dataAttributesKeys` (solo keys)
+  - `includedTypesSample` (tipos de included items)
+  - Flags: `hasData`, `hasDataAttributes`, `hasIncludedAttributes`, `hasDataAttributesTracking`
+
+### 3. Logs mejorados en `sync-label` (`src/app/api/admin/shipping/skydropx/sync-label/route.ts`)
+- ✅ Si `strategyUsed === 'none'` y hay datos en la respuesta, se incluyen logs de diagnóstico adicionales:
+  - `sampleIncludedKeys` (filtrado para evitar PII)
+  - `dataAttributesKeys`
+  - `includedFirstItemType`
+  - `includedFirstItemHasAttributes`
+- ✅ Estos logs aparecen en producción cuando `strategyUsed === 'none'` para debugging
+
+### 4. Documentación actualizada (`CONFIGURACION.md`)
+- ✅ Agregada sección para `SKYDROPX_SHIPMENTS_BASE_URL`:
+  - Valor recomendado: `https://app.skydropx.com`
+  - Nota: OAuth token URL puede seguir siendo `api-pro.skydropx.com`, pero shipments debe ser `app.skydropx.com` para obtener `included[].attributes.tracking_number` y `included[].attributes.label_url`
+
+## Seguridad
+
+- ✅ **NO se loguean valores sensibles**: Solo keys, flags y counts
+- ✅ **Filtrado de PII**: Se excluyen keys que contengan "address", "phone", "email", "name"
+- ✅ **ShipmentId truncado**: Solo primeros 8 caracteres en logs
+
+## Configuración requerida
+
+Para habilitar en producción, agregar en `.env.local` o variables de entorno:
+
+```env
+SKYDROPX_SHIPMENTS_BASE_URL=https://app.skydropx.com
+```
+
+## Test manual
+
+1. Configurar `SKYDROPX_SHIPMENTS_BASE_URL=https://app.skydropx.com`
+2. Probar con `shipmentId: 01362d7d-eb4b-4298-9cbf-f8fcacab4314`
+3. POST a `/api/admin/shipping/skydropx/sync-label`
+4. Verificar logs en Vercel/consola:
+   - `baseUrl` usado (debe ser `app.skydropx.com`)
+   - Estructura de respuesta si `strategyUsed === 'none'`
+   - Keys disponibles en `included[0]` y `data.attributes`
+
+## Validaciones
+
+- ✅ `pnpm lint` - Pasó
+- ✅ `pnpm typecheck` - Pasó
+- ✅ `pnpm build` - Pasó exitosamente
