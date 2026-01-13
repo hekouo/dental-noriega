@@ -950,7 +950,7 @@ export default function PedidosPage() {
                     totalCents={orderDetail.total_cents}
                     customerName={customerName}
                     customerEmail={customerEmail}
-                    whatsappWaDigits={orderDetail.metadata?.whatsapp_wa_digits as string | undefined}
+                    whatsappWaDigits={(orderDetail.metadata as Record<string, unknown>)?.whatsapp_wa_digits as string | undefined}
                     orderId={orderDetail.id}
                     shortId={orderDetail.shortId || null}
                     paymentMethod={orderDetail.payment_method || null}
