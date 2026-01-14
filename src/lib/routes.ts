@@ -12,4 +12,5 @@ export const ROUTES = {
   carrito: () => "/carrito",
   buscar: () => "/buscar",
   tienda: () => "/tienda",
+  quiz: () => "/quiz",
 };
