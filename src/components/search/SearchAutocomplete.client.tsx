@@ -8,6 +8,9 @@ import { ROUTES } from "@/lib/routes";
 import { formatMXN } from "@/lib/utils/money";
 import { trackSearchEvent } from "@/lib/telemetry/searchTelemetry";
 import SkeletonSearchItem from "@/components/skeletons/SkeletonSearchItem";
+import { useVoiceSearch } from "@/lib/hooks/useVoiceSearch";
+import { useToast } from "@/components/ui/ToastProvider.client";
+import { usePrefersReducedMotion } from "@/lib/hooks/usePrefersReducedMotion";
 
 type SuggestItem = {
   id: string;
@@ -44,8 +47,6 @@ export default function SearchAutocomplete({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const { showToast } = useToast();
-  const prefersReducedMotion = usePrefersReducedMotion();
   const { showToast } = useToast();
   const prefersReducedMotion = usePrefersReducedMotion();
 
