@@ -17,6 +17,9 @@ import { hasColorOptions, formatColorVariantDetail } from "@/lib/products/colors
 import Toast from "@/components/ui/Toast";
 import { useToast } from "@/components/ui/ToastProvider.client";
 import { ROUTES } from "@/lib/routes";
+import { getTapClass } from "@/lib/ui/microAnims";
+import { triggerHaptic } from "@/lib/ui/microAnims";
+import { usePrefersReducedMotion } from "@/lib/hooks/usePrefersReducedMotion";
 
 type Product = {
   id: string;
@@ -41,6 +44,8 @@ export default function ProductActions({ product }: Props) {
   const [toast, setToast] = useState<{ message: string; type: "error" | "success" } | null>(null);
   const { showToast } = useToast();
   const addToCart = useCartStore((s) => s.addToCart);
+  const prefersReducedMotion = usePrefersReducedMotion();
+  const microAnimsEnabled = process.env.NEXT_PUBLIC_MOBILE_MICRO_ANIMS === "true";
   const upsertSingleToCheckout = useCheckoutStore(
     (s) => s.upsertSingleToCheckout,
   );
@@ -150,13 +155,16 @@ export default function ProductActions({ product }: Props) {
     // Confeti al agregar al carrito
     void launchCartConfetti();
 
+    // Haptic feedback (solo si está habilitado)
+    triggerHaptic(10);
+
     // Mostrar toast de confirmación
     showToast({
       message: "Agregado al carrito",
       variant: "success",
       actionLabel: "Ver carrito",
       actionHref: ROUTES.carrito(),
-      durationMs: 1400,
+      durationMs: microAnimsEnabled ? 3000 : 1400, // Más tiempo si micro-anims está activo
     });
   }
 
@@ -383,7 +391,12 @@ export default function ProductActions({ product }: Props) {
             onClick={handleAddToCart}
             disabled={!canBuy}
             aria-label="Agregar al carrito"
-            className="w-full bg-primary-600 text-white px-6 py-3 rounded-md hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 font-semibold"
+            className={getTapClass({
+              kind: "button",
+              enabled: microAnimsEnabled,
+              reducedMotion: prefersReducedMotion,
+              className: "w-full bg-primary-600 text-white px-6 py-3 rounded-md hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 font-semibold",
+            })}
             title="Agregar al carrito"
           >
             Agregar al carrito
@@ -394,7 +407,12 @@ export default function ProductActions({ product }: Props) {
             onClick={handleBuyNow}
             disabled={!canBuy}
             aria-label="Comprar ahora"
-            className="w-full border-2 border-primary-600 text-primary-600 bg-white px-6 py-3 rounded-md hover:bg-primary-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 font-medium"
+            className={getTapClass({
+              kind: "button",
+              enabled: microAnimsEnabled,
+              reducedMotion: prefersReducedMotion,
+              className: "w-full border-2 border-primary-600 text-primary-600 bg-white px-6 py-3 rounded-md hover:bg-primary-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 font-medium",
+            })}
             title="Comprar ahora"
           >
             Comprar ahora

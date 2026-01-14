@@ -16,6 +16,9 @@ import { useToast } from "@/components/ui/ToastProvider.client";
 import { ROUTES } from "@/lib/routes";
 import { requiresSelections } from "@/components/product/usePdpAddToCartGuard";
 import { useRouter } from "next/navigation";
+import { getTapClass } from "@/lib/ui/microAnims";
+import { triggerHaptic } from "@/lib/ui/microAnims";
+import { usePrefersReducedMotion } from "@/lib/hooks/usePrefersReducedMotion";
 
 /**
  * Props unificadas para ProductCard
@@ -73,6 +76,8 @@ export default function ProductCard({
   const [qty, setQty] = useState(1);
   const [isAdding, setIsAdding] = useState(false);
   const busyRef = useRef(false);
+  const prefersReducedMotion = usePrefersReducedMotion();
+  const microAnimsEnabled = process.env.NEXT_PUBLIC_MOBILE_MICRO_ANIMS === "true";
   
   // Verificar si el producto requiere selecciones obligatorias
   const needsSelections = requiresSelections({
@@ -143,13 +148,16 @@ export default function ProductCard({
     // Confeti al agregar al carrito
     void launchCartConfetti();
 
+    // Haptic feedback (solo si está habilitado)
+    triggerHaptic(10);
+
     // Mostrar toast de confirmación
     showToast({
       message: "Agregado al carrito",
       variant: "success",
       actionLabel: "Ver carrito",
       actionHref: ROUTES.carrito(),
-      durationMs: 1400,
+      durationMs: microAnimsEnabled ? 3000 : 1400, // Más tiempo si micro-anims está activo
     });
 
     setTimeout(() => {
@@ -292,11 +300,16 @@ export default function ProductCard({
                     ? `Elegir opciones para ${title}`
                     : `Agregar ${title} al carrito`
                 }
-                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 transition-all duration-200 font-semibold shadow-md ${
-                  isAdding 
-                    ? "scale-95 bg-primary-700" 
-                    : "hover:scale-[1.02] active:scale-[0.98] hover:shadow-lg"
-                }`}
+                className={getTapClass({
+                  kind: "button",
+                  enabled: microAnimsEnabled,
+                  reducedMotion: prefersReducedMotion,
+                  className: `flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 transition-all duration-200 font-semibold shadow-md ${
+                    isAdding 
+                      ? "scale-95 bg-primary-700" 
+                      : microAnimsEnabled ? "" : "hover:scale-[1.02] active:scale-[0.98] hover:shadow-lg"
+                  }`,
+                })}
                 title={needsSelections ? "Elegir opciones" : "Agregar al carrito"}
               >
                 {needsSelections ? (

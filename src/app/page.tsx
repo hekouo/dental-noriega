@@ -13,6 +13,7 @@ import { HelpWidget } from "@/components/support/HelpWidget";
 import { TrustBanners } from "@/components/marketing/TrustBanners";
 import SectionExplorer from "@/components/catalog/SectionExplorer";
 import QuizCTA from "@/components/quiz/QuizCTA";
+import HeroCTAs from "@/components/home/HeroCTAs.client";
 
 // Lazy load componentes no críticos
 const Testimonials = dynamicImport(() => import("@/components/ui/Testimonials"), {
@@ -143,23 +144,7 @@ export default async function HomePage() {
           </p>
           
           {/* CTAs - más prominentes y con mejor spacing */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-6 sm:mb-8">
-            <Link
-              href={ROUTES.tienda()}
-              className={`${buttonBase} rounded-xl bg-white text-primary-600 hover:bg-gray-50 text-lg font-semibold px-10 py-4 transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-primary-600 shadow-lg hover:shadow-xl`}
-            >
-              <span>Ver tienda</span>
-            </Link>
-            <Link
-              href={getWhatsAppUrl("Hola, me interesa información sobre sus productos.") ?? "#"}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`${buttonBase} rounded-xl bg-primary-700/90 backdrop-blur-sm text-white hover:bg-primary-800 text-lg font-semibold px-10 py-4 transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-primary-500/50 focus:ring-offset-2 focus:ring-offset-primary-600 border border-white/20 shadow-lg hover:shadow-xl`}
-            >
-              <MessageCircle className="inline-block mr-2 w-5 h-5" aria-hidden="true" />
-              <span>Contactar por WhatsApp</span>
-            </Link>
-          </div>
+          <HeroCTAs />
           
           {/* Trust line - más sutil */}
           <p className="text-sm sm:text-base text-primary-200 max-w-2xl mx-auto">

@@ -1649,7 +1649,13 @@ export default function PagoClient() {
                 (selectedPaymentMethod === "card" && itemsForOrder.some((item) => item.price <= 0))
               }
             data-testid="btn-pagar-ahora"
-            className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 flex-1 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+            className={(() => {
+              const microAnimsEnabled = process.env.NEXT_PUBLIC_MOBILE_MICRO_ANIMS === "true";
+              const prefersReduced = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+              return microAnimsEnabled && !prefersReduced
+                ? "px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 flex-1 transition-all duration-150 active:scale-[0.98] active:opacity-90 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                : "px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 flex-1 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed";
+            })()}
           >
               {isCreatingOrder
                 ? "Creando orden..."
