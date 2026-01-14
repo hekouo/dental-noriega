@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
         // Buscar la orden
         const { data: order, error: orderError } = await supabase
           .from("orders")
-          .select("total")
+          .select("total, total_cents, shipping_price_cents")
           .eq("id", order_id)
           .single();
 
@@ -119,14 +119,19 @@ export async function POST(req: NextRequest) {
           );
         }
 
-        // Determinar amount desde orders.total (convertir a centavos)
-        amount = order.total ? Math.round(order.total * 100) : 0;
+        // Determinar amount desde orders.total_cents (preferido) o orders.total (fallback)
+        if (typeof order.total_cents === "number" && order.total_cents > 0) {
+          amount = order.total_cents;
+        } else {
+          amount = order.total ? Math.round(order.total * 100) : 0;
+        }
         
         // Log controlado para debugging
         if (debug) {
           console.info("[create-payment-intent] Orden encontrada en DB:", {
             order_id,
             total: order.total,
+            total_cents: order.total_cents,
             amount_from_db: amount,
           });
         }
@@ -159,7 +164,10 @@ export async function POST(req: NextRequest) {
             (sum, item) => sum + (item.qty || 0) * (item.price || 0),
             0,
           );
-          amount = Math.round(recomputedTotal * 100);
+          const shippingCents = typeof order.shipping_price_cents === "number"
+            ? order.shipping_price_cents
+            : 0;
+          amount = Math.round(recomputedTotal * 100) + shippingCents;
 
           // Log controlado para debugging
           if (debug) {
@@ -173,6 +181,7 @@ export async function POST(req: NextRequest) {
               })),
               recomputed_total_decimal: recomputedTotal,
               recomputed_total_cents: amount,
+              shipping_price_cents: order.shipping_price_cents,
             });
           }
 

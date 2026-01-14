@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { createActionSupabase } from "@/lib/supabase/server-actions";
 import { z } from "zod";
 import { toMxE164, toMxWhatsAppDigits, isValidMx10 } from "@/lib/phone/mx";
+import { estimatePackageWeight } from "@/lib/shipping/estimatePackageWeight";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -31,6 +32,9 @@ const CreateOrderRequestSchema = z.object({
   // Mapear standard/express a "delivery" internamente para metadata
   shippingMethod: z.enum(["pickup", "standard", "express"]).optional(),
   shippingCostCents: z.number().int().nonnegative().optional(), // Costo de envío en centavos
+  discountCents: z.number().int().nonnegative().optional(), // Descuento en centavos (cupón)
+  discountScope: z.enum(["subtotal", "shipping"]).optional(),
+  couponCode: z.string().optional().nullable(),
   // Método y estado de pago
   paymentMethod: z.enum(["card", "bank_transfer"]).optional(),
   paymentStatus: z.enum(["pending", "paid", "canceled"]).optional(),
@@ -139,8 +143,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Calcular total_cents
-    const total_cents = orderData.items.reduce(
+    // Calcular subtotal_cents
+    const subtotal_cents = orderData.items.reduce(
       (sum, item) => sum + item.qty * item.price_cents,
       0,
     );
@@ -154,13 +158,13 @@ export async function POST(req: NextRequest) {
           qty: i.qty,
           price_cents: i.price_cents,
         })),
-        total_cents,
+        subtotal_cents,
       });
     }
 
-    if (!total_cents || total_cents <= 0) {
-      console.warn("[create-order] Total inválido:", {
-        total_cents,
+    if (!subtotal_cents || subtotal_cents <= 0) {
+      console.warn("[create-order] Subtotal inválido:", {
+        subtotal_cents,
         items: orderData.items.map((i) => ({
           id: i.id,
           qty: i.qty,
@@ -168,9 +172,31 @@ export async function POST(req: NextRequest) {
         })),
       });
       return NextResponse.json(
-        { error: "Total de la orden inválido" },
+        { error: "Subtotal de la orden inválido" },
         { status: 422 },
       );
+    }
+
+    // Calcular total_cents coherente con checkout (incluye envío y descuentos)
+    const shippingCostCents = orderData.shippingCostCents ?? 0;
+    const discountCents = orderData.discountCents ?? 0;
+    const discountScope = orderData.discountScope ?? null;
+    const loyaltyDiscountCents =
+      orderData.loyalty && typeof orderData.loyalty.discountCents === "number"
+        ? Math.max(0, orderData.loyalty.discountCents)
+        : 0;
+
+    let total_cents = subtotal_cents + shippingCostCents;
+    if (discountCents > 0 && discountScope) {
+      if (discountScope === "subtotal") {
+        total_cents = subtotal_cents - discountCents + shippingCostCents;
+      } else if (discountScope === "shipping") {
+        total_cents =
+          subtotal_cents + Math.max(0, shippingCostCents - discountCents);
+      }
+    }
+    if (loyaltyDiscountCents > 0) {
+      total_cents = Math.max(0, total_cents - loyaltyDiscountCents);
     }
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -185,7 +211,7 @@ export async function POST(req: NextRequest) {
       
       return NextResponse.json({
         order_id: tempOrderId,
-        total_cents,
+        total_cents: total_cents,
         currency: "mxn",
       });
     }
@@ -218,9 +244,6 @@ export async function POST(req: NextRequest) {
     // Guardamos el valor original en metadata para referencia
     const shippingMethodForMetadata = orderData.shippingMethod || "pickup";
     
-    // Obtener costo de envío del payload o calcularlo (por defecto 0 para pickup)
-    const shippingCostCents = orderData.shippingCostCents ?? 0;
-    
     // Construir metadata con información adicional
     const phone = orderData.phone || null;
     const whatsappConfirmed = orderData.whatsappConfirmed ?? false;
@@ -232,9 +255,11 @@ export async function POST(req: NextRequest) {
     const whatsappWaDigits = whatsappDigits10 ? toMxWhatsAppDigits(whatsappDigits10) : null;
     
     const metadata: Record<string, unknown> = {
-      subtotal_cents: total_cents, // Por ahora subtotal = total (sin envío ni descuento aún)
+      subtotal_cents, // Subtotal real (sin envío ni descuentos)
       shipping_cost_cents: shippingCostCents, // Costo de envío en centavos
-      discount_cents: 0,
+      discount_cents: discountCents,
+      discount_scope: discountScope,
+      coupon_code: orderData.couponCode ?? null,
       shipping_method: shippingMethodForMetadata, // Guardar valor original: pickup, standard, express
       contact_name: orderData.name || null,
       contact_email: orderData.email || null,
@@ -262,6 +287,72 @@ export async function POST(req: NextRequest) {
         shippingMeta.address_validation = orderData.shipping.address_validation;
       }
       metadata.shipping = shippingMeta;
+    }
+
+    // Calcular paquete estimado desde productos (checkout) si aún no existe
+    if (!metadata.shipping_package_estimated && orderData.items.length > 0) {
+      const BASE_PACKAGE_WEIGHT_G = 1200; // caja + relleno + cinta
+      const defaultLengthCm = 20;
+      const defaultWidthCm = 20;
+      const defaultHeightCm = 10;
+      const productIds = orderData.items.map((item) => item.id).filter(Boolean);
+
+      if (productIds.length > 0) {
+        try {
+          const { data: products } = await supabase
+            .from("products")
+            .select("id, shipping_weight_g")
+            .in("id", productIds);
+
+          const productsMap = new Map<string, number | null>();
+          products?.forEach((p) => {
+            productsMap.set(p.id, p.shipping_weight_g);
+          });
+
+          const defaultItemWeightG = parseInt(
+            process.env.DEFAULT_ITEM_WEIGHT_G || "100",
+            10,
+          );
+
+          const estimated = await estimatePackageWeight(
+            orderData.items.map((item) => ({
+              product_id: item.id || null,
+              qty: item.qty,
+            })),
+            productsMap,
+            defaultItemWeightG,
+          );
+
+          const MIN_BILLABLE_WEIGHT_G = parseInt(
+            process.env.SKYDROPX_MIN_BILLABLE_WEIGHT_G || "1000",
+            10,
+          );
+          const estimatedWithBase = estimated.weight_g + BASE_PACKAGE_WEIGHT_G;
+          const finalWeightG = Math.max(estimatedWithBase, MIN_BILLABLE_WEIGHT_G);
+
+          const estimatedPackage = {
+            weight_g: finalWeightG,
+            length_cm: defaultLengthCm,
+            width_cm: defaultWidthCm,
+            height_cm: defaultHeightCm,
+            base_weight_g: BASE_PACKAGE_WEIGHT_G,
+            source: estimated.source,
+            fallback_used_count: estimated.fallback_used_count,
+            was_clamped: finalWeightG > estimatedWithBase,
+          };
+
+          metadata.shipping_package_estimated = estimatedPackage;
+          const currentShippingMeta = (metadata.shipping as Record<string, unknown>) || {};
+          metadata.shipping = {
+            ...currentShippingMeta,
+            estimated_package: estimatedPackage,
+          };
+        } catch (error) {
+          if (process.env.NODE_ENV !== "production") {
+            console.warn("[create-order] Error al calcular paquete estimado:", error);
+          }
+        }
+      }
     }
 
     // Validar y procesar datos de loyalty si están presentes
