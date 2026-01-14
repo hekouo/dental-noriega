@@ -54,14 +54,9 @@ export default function SearchAutocomplete({
   const { supported: voiceSupported, listening, start: startVoice, stop: stopVoice } = useVoiceSearch({
     onResult: (transcript: string) => {
       handleChange(transcript);
-      // Trigger search suggestions
+      // Trigger search suggestions (usa el mismo flujo que cuando tipeas)
       fetchSuggestions(transcript);
-      // Auto-submit si hay texto
-      if (transcript.trim()) {
-        setTimeout(() => {
-          navigateToSearch(transcript);
-        }, 300);
-      }
+      // No auto-submit: solo llenar input y mostrar sugerencias
     },
     onError: (errorCode: string) => {
       let message = "No se pudo iniciar la búsqueda por voz";
