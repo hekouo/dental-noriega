@@ -243,18 +243,11 @@ export default function ProductCard({
         })()}
 
         {/* Badge de envío gratis compacto */}
-        {price !== null && (() => {
-          const accentEnabled = process.env.NEXT_PUBLIC_ENABLE_ACCENT_UI === "true";
-          const shippingClasses = accentEnabled
-            ? "bg-mint-50 dark:bg-mint-900/20 text-mint-700 dark:text-mint-300 border border-mint-200 dark:border-mint-800"
-            : "bg-blue-50 text-blue-700 border border-blue-200";
-          
-          return (
-            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${shippingClasses}`}>
-              Envío gratis $2,000+
-            </span>
-          );
-        })()}
+        {price !== null && (
+          <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium bg-mint-50 dark:bg-mint-900/20 text-mint-700 dark:text-mint-300 border border-mint-200 dark:border-mint-800">
+            Envío gratis $2,000+
+          </span>
+        )}
 
         {/* Badge de puntos compacto */}
         {(() => {

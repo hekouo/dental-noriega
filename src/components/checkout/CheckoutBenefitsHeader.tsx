@@ -66,25 +66,15 @@ export default function CheckoutBenefitsHeader({
       <p className="font-medium text-slate-900">Tus beneficios con este pedido</p>
       <div className="flex flex-wrap gap-2">
         {/* Pill de envío gratis */}
-        {showShipping && (() => {
-          const accentEnabled = process.env.NEXT_PUBLIC_ENABLE_ACCENT_UI === "true";
-          const bgClass = accentEnabled 
-            ? "bg-mint-50 dark:bg-mint-900/20" 
-            : "bg-emerald-50 dark:bg-emerald-900/20";
-          const textClass = accentEnabled
-            ? "text-mint-700 dark:text-mint-300"
-            : "text-emerald-700 dark:text-emerald-300";
-          
-          return (
-            <span className={`inline-flex items-center gap-1 rounded-full ${bgClass} px-3 py-1 text-xs font-medium ${textClass}`}>
-              {reached ? (
-                <>Envío gratis activado ✅</>
-              ) : (
-                <>Te faltan {formatMXNFromCents(remainingCents)} para envío gratis</>
-              )}
-            </span>
-          );
-        })()}
+        {showShipping && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-mint-50 dark:bg-mint-900/20 px-3 py-1 text-xs font-medium text-mint-700 dark:text-mint-300">
+            {reached ? (
+              <>Envío gratis activado ✅</>
+            ) : (
+              <>Te faltan {formatMXNFromCents(remainingCents)} para envío gratis</>
+            )}
+          </span>
+        )}
 
         {/* Pill de puntos */}
         {showPoints && (

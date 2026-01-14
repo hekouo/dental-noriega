@@ -14,8 +14,6 @@ type BadgeItem = {
 };
 
 export default function TrustBadges() {
-  const accentEnabled = process.env.NEXT_PUBLIC_ENABLE_ACCENT_UI === "true";
-  
   const badges: BadgeItem[] = [
     {
       icon: <Truck size={18} />,
@@ -37,13 +35,8 @@ export default function TrustBadges() {
     },
   ];
 
-  // Determinar clases según flag de accent
+  // Aplicar accents: mint para soporte/envío, amber para puntos
   const getBadgeClasses = (index: number) => {
-    if (!accentEnabled) {
-      return "flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-white/10 backdrop-blur-sm rounded-full text-sm text-white border border-white/20 transition-all duration-200 hover:bg-white/20 hover:scale-105 active:scale-95";
-    }
-    
-    // Aplicar accents: mint para soporte/envío, amber para puntos
     const isMint = index === 0 || index === 1 || index === 3; // Envío, WhatsApp, Pago seguro
     const isAmber = index === 2; // Puntos
     

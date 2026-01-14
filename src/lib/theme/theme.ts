@@ -3,7 +3,7 @@
  * Maneja persistencia y aplicación de tema (light/dark/system)
  */
 
-export type Theme = "light" | "dark" | "system";
+export type Theme = "light" | "dark";
 
 export type ResolvedTheme = "light" | "dark";
 
@@ -16,8 +16,13 @@ export function getStoredTheme(): Theme | null {
   if (typeof window === "undefined") return null;
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored === "light" || stored === "dark" || stored === "system") {
+    if (stored === "light" || stored === "dark") {
       return stored;
+    }
+    // Si hay "system" guardado, migrar a "light" (opt-in)
+    if (stored === "system") {
+      setStoredTheme("light");
+      return "light";
     }
     return null;
   } catch {
@@ -53,12 +58,9 @@ export function getSystemTheme(): ResolvedTheme {
 
 /**
  * Resuelve un tema a "light" o "dark"
- * Si es "system", consulta prefers-color-scheme
+ * Ya no soporta "system" - siempre retorna el tema explícito
  */
 export function resolveTheme(theme: Theme): ResolvedTheme {
-  if (theme === "system") {
-    return getSystemTheme();
-  }
   return theme;
 }
 
@@ -78,9 +80,9 @@ export function applyTheme(resolved: ResolvedTheme): void {
 
 /**
  * Obtiene el tema inicial a usar
- * Prioridad: localStorage > system
+ * Default: "light" (opt-in para dark mode)
  */
 export function getInitialTheme(): Theme {
   const stored = getStoredTheme();
-  return stored ?? "system";
+  return stored ?? "light";
 }
