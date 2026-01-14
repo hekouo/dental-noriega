@@ -7,6 +7,7 @@ import { Search, Loader2, X } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
 import { formatMXN } from "@/lib/utils/money";
 import { trackSearchEvent } from "@/lib/telemetry/searchTelemetry";
+import SkeletonSearchItem from "@/components/skeletons/SkeletonSearchItem";
 
 type SuggestItem = {
   id: string;
@@ -305,10 +306,13 @@ export default function SearchAutocomplete({
           className="absolute z-50 w-full mt-2 bg-card border border-border rounded-2xl shadow-lg max-h-[400px] overflow-y-auto"
         >
           {isLoading ? (
-            <div className="p-4 text-center text-sm text-muted-foreground">
-              <Loader2 className="w-5 h-5 mx-auto mb-2 animate-spin text-primary-600 dark:text-primary-400" />
-              <span>Buscando…</span>
-            </div>
+            <ul className="py-2" role="status" aria-live="polite" aria-label="Cargando sugerencias">
+              {Array.from({ length: 5 }).map((_, index) => (
+                <li key={index}>
+                  <SkeletonSearchItem />
+                </li>
+              ))}
+            </ul>
           ) : (
             <ul className="py-2">
               {suggestions.map((item, index) => (
