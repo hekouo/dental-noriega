@@ -33,6 +33,7 @@ import {
 import Providers from "./providers";
 import { HeaderWithScrollEffect } from "@/components/header/HeaderWithScrollEffect";
 import { DarkModeToggle } from "@/components/header/DarkModeToggle";
+import ThemeToggle from "@/components/theme/ThemeToggle.client";
 const HeaderSearchBar = dynamic(
   () => import("@/components/header/HeaderSearchBar.client"),
   { ssr: false },
@@ -260,7 +261,11 @@ export default function RootLayout({
                 </Link>
 
                 {/* Dark mode toggle */}
-                <DarkModeToggle />
+                {process.env.NEXT_PUBLIC_ENABLE_THEME_TOGGLE === "true" ? (
+                  <ThemeToggle />
+                ) : (
+                  <DarkModeToggle />
+                )}
 
                 {/* Búsqueda móvil (botón) */}
                 <HeaderSearchMobile />

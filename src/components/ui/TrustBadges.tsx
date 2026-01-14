@@ -14,6 +14,8 @@ type BadgeItem = {
 };
 
 export default function TrustBadges() {
+  const accentEnabled = process.env.NEXT_PUBLIC_ENABLE_ACCENT_UI === "true";
+  
   const badges: BadgeItem[] = [
     {
       icon: <Truck size={18} />,
@@ -35,11 +37,31 @@ export default function TrustBadges() {
     },
   ];
 
+  // Determinar clases según flag de accent
+  const getBadgeClasses = (index: number) => {
+    if (!accentEnabled) {
+      return "flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-white/10 backdrop-blur-sm rounded-full text-sm text-white border border-white/20 transition-all duration-200 hover:bg-white/20 hover:scale-105 active:scale-95";
+    }
+    
+    // Aplicar accents: mint para soporte/envío, amber para puntos
+    const isMint = index === 0 || index === 1 || index === 3; // Envío, WhatsApp, Pago seguro
+    const isAmber = index === 2; // Puntos
+    
+    if (isMint) {
+      return "flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-mint-500/20 backdrop-blur-sm rounded-full text-sm text-white border border-mint-400/30 transition-all duration-200 hover:bg-mint-500/30 hover:scale-105 active:scale-95";
+    }
+    if (isAmber) {
+      return "flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-amber-500/20 backdrop-blur-sm rounded-full text-sm text-white border border-amber-400/30 transition-all duration-200 hover:bg-amber-500/30 hover:scale-105 active:scale-95";
+    }
+    
+    return "flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-white/10 backdrop-blur-sm rounded-full text-sm text-white border border-white/20 transition-all duration-200 hover:bg-white/20 hover:scale-105 active:scale-95";
+  };
+
   return (
     <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4">
       {badges.map((badge, index) => {
         const content = (
-          <div className="flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-white/10 backdrop-blur-sm rounded-full text-sm text-white border border-white/20 transition-all duration-200 hover:bg-white/20 hover:scale-105 active:scale-95">
+          <div className={getBadgeClasses(index)}>
             <span className="flex-shrink-0">{badge.icon}</span>
             <span className="font-medium whitespace-nowrap">{badge.label}</span>
           </div>
