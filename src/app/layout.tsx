@@ -74,6 +74,13 @@ const MobileBottomNav = dynamic(
   },
 );
 
+const EnhancedMobileBottomNav = dynamic(
+  () => import("@/components/mobile/EnhancedMobileBottomNav"),
+  {
+    ssr: false,
+  },
+);
+
 const inter = Inter({ subsets: ["latin"], display: "swap" });
 
 export const metadata: Metadata = {
@@ -287,7 +294,11 @@ export default function RootLayout({
         <AnalyticsGa4Bridge />
 
         {/* Mobile Bottom Navigation */}
-        <MobileBottomNav />
+        {process.env.NEXT_PUBLIC_NEW_MOBILE_NAV === "true" ? (
+          <EnhancedMobileBottomNav />
+        ) : (
+          <MobileBottomNav />
+        )}
 
         {/* Drawer global */}
         {/* ConsultarDrawer removido */}
