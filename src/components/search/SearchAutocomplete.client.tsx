@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Search, Loader2, X } from "lucide-react";
+import { Search, Loader2, X, Mic } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
 import { formatMXN } from "@/lib/utils/money";
 import { trackSearchEvent } from "@/lib/telemetry/searchTelemetry";
@@ -46,10 +46,12 @@ export default function SearchAutocomplete({
   const abortControllerRef = useRef<AbortController | null>(null);
   const { showToast } = useToast();
   const prefersReducedMotion = usePrefersReducedMotion();
+  const { showToast } = useToast();
+  const prefersReducedMotion = usePrefersReducedMotion();
 
   // Voice search
   const { supported: voiceSupported, listening, start: startVoice, stop: stopVoice } = useVoiceSearch({
-    onResult: (transcript) => {
+    onResult: (transcript: string) => {
       handleChange(transcript);
       // Trigger search suggestions
       fetchSuggestions(transcript);
@@ -60,7 +62,7 @@ export default function SearchAutocomplete({
         }, 300);
       }
     },
-    onError: (errorCode) => {
+    onError: (errorCode: string) => {
       let message = "No se pudo iniciar la búsqueda por voz";
       switch (errorCode) {
         case "not-allowed":
