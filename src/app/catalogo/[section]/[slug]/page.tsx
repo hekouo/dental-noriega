@@ -157,7 +157,7 @@ export default async function ProductDetailPage({ params }: Props) {
   });
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 overflow-x-hidden">
       {/* Structured Data: Breadcrumbs + Product */}
       <script
         type="application/ld+json"
@@ -533,8 +533,8 @@ export default async function ProductDetailPage({ params }: Props) {
           />
         )}
         
-        {/* Padding bottom para no tapar contenido con sticky CTA */}
-        <div className="md:hidden h-20" />
+        {/* Padding bottom para no tapar contenido con sticky CTA + safe area */}
+        <div className="md:hidden h-20" style={{ paddingBottom: "calc(5rem + env(safe-area-inset-bottom, 0px))" }} />
       </div>
     );
 }

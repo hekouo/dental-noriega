@@ -40,25 +40,25 @@ export default function ProductVariantSelectors({
   };
 
   return (
-    <div className="mt-4 space-y-4 border-t border-gray-200 pt-4">
-      <p className="text-sm font-medium text-gray-700">
+    <div className="mt-4 space-y-4 border-t border-gray-200 dark:border-gray-700 pt-4">
+      <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
         Selecciona las opciones requeridas:
       </p>
       {Object.entries(variantOptions).map(([key, option]) => (
         <div key={key}>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             {option.label}
-            {option.required && <span className="text-red-500 ml-1">*</span>}
+            {option.required && <span className="text-red-500 dark:text-red-400 ml-1">*</span>}
           </label>
           <select
             value={selections[key] || ""}
             onChange={(e) => handleSelectionChange(key, e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             required={option.required}
           >
-            <option value="">Selecciona {option.label.toLowerCase()}</option>
+            <option value="" className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">Selecciona {option.label.toLowerCase()}</option>
             {option.options.map((opt) => (
-              <option key={opt} value={opt}>
+              <option key={opt} value={opt} className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
                 {opt}
               </option>
             ))}
