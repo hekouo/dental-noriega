@@ -509,6 +509,9 @@ export default function PagoClient() {
         phone: datos.phone || null, // Teléfono para metadata
         shippingMethod: displayShippingMethod,
         shippingCostCents,
+        discountCents: discount && discountScope ? Math.round(discount * 100) : 0,
+        discountScope: discountScope || undefined,
+        couponCode: couponCode || undefined,
         paymentMethod: "bank_transfer",
         paymentStatus: "pending",
         // Dirección de envío (solo si no es pickup)
@@ -796,6 +799,9 @@ export default function PagoClient() {
         whatsappConfirmed: datos.whatsappConfirmed || false, // Confirmación de WhatsApp
         shippingMethod: displayShippingMethod, // Método de envío (solo lectura)
         shippingCostCents, // Costo de envío en centavos
+        discountCents: discount && discountScope ? Math.round(discount * 100) : 0,
+        discountScope: discountScope || undefined,
+        couponCode: couponCode || undefined,
         paymentMethod: selectedPaymentMethodValue, // Método de pago seleccionado
         paymentStatus: selectedPaymentStatusValue, // Estado de pago (pending para métodos manuales)
         // Dirección de envío (solo si no es pickup)

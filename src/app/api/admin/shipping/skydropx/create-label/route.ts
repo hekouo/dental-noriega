@@ -58,7 +58,11 @@ type CreateLabelResponse =
 
 /**
  * Extrae datos de dirección desde metadata de la orden
- * Prioridad: metadata.shipping_address > metadata.shipping.address > metadata.address
+ * Prioridad:
+ * 1) metadata.shipping_address_override
+ * 2) metadata.shipping_address
+ * 3) metadata.shipping.address
+ * 4) metadata.address
  */
 function extractAddressFromMetadata(metadata: unknown): {
   countryCode: string;
@@ -76,19 +80,23 @@ function extractAddressFromMetadata(metadata: unknown): {
 
   const meta = metadata as Record<string, unknown>;
 
-  // PRIORIDAD 1: metadata.shipping_address (nuevo formato estructurado)
+  // PRIORIDAD 1: metadata.shipping_address_override (override manual en admin)
   let addressData: Record<string, unknown> | null = null;
-  if (meta.shipping_address && typeof meta.shipping_address === "object") {
+  if (meta.shipping_address_override && typeof meta.shipping_address_override === "object") {
+    addressData = meta.shipping_address_override as Record<string, unknown>;
+  }
+  // PRIORIDAD 2: metadata.shipping_address (nuevo formato estructurado)
+  else if (meta.shipping_address && typeof meta.shipping_address === "object") {
     addressData = meta.shipping_address as Record<string, unknown>;
   }
-  // PRIORIDAD 2: metadata.shipping.address (compatibilidad)
+  // PRIORIDAD 3: metadata.shipping.address (compatibilidad)
   else if (meta.shipping && typeof meta.shipping === "object") {
     const shipping = meta.shipping as Record<string, unknown>;
     if (shipping.address && typeof shipping.address === "object") {
       addressData = shipping.address as Record<string, unknown>;
     }
   }
-  // PRIORIDAD 3: metadata.address (legacy)
+  // PRIORIDAD 4: metadata.address (legacy)
   else if (meta.address && typeof meta.address === "object") {
     addressData = meta.address as Record<string, unknown>;
   }
@@ -559,7 +567,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Obtener shipping_package_final (paquete real capturado por admin) - REQUERIDO para crear guía
+    // Obtener shipping_package_final (paquete real capturado por admin)
     const shippingPackageFinal = packageMetadata.shipping_package_final as
       | {
           weight_g?: number;
@@ -571,37 +579,72 @@ export async function POST(req: NextRequest) {
         }
       | undefined;
 
-    // Validar que existe shipping_package_final (paquete real)
+    // Obtener paquete estimado (checkout) como fallback
+    const shippingPackageEstimated =
+      (packageMetadata.shipping_package_estimated as
+        | {
+            weight_g?: number;
+            length_cm?: number;
+            width_cm?: number;
+            height_cm?: number;
+          }
+        | undefined) ||
+      ((packageShippingMeta.estimated_package as
+        | {
+            weight_g?: number;
+            length_cm?: number;
+            width_cm?: number;
+            height_cm?: number;
+          }
+        | undefined) ?? undefined);
+
+    const DEFAULT_PACKAGE = {
+      weight_g: 1200,
+      length_cm: 20,
+      width_cm: 20,
+      height_cm: 10,
+    };
+
+    const isValidDimension = (value: unknown): value is number =>
+      typeof value === "number" && value > 0;
+
+    let packageSource: "final" | "estimated" | "default" = "default";
+    let weightG = DEFAULT_PACKAGE.weight_g;
+    let lengthCm = DEFAULT_PACKAGE.length_cm;
+    let widthCm = DEFAULT_PACKAGE.width_cm;
+    let heightCm = DEFAULT_PACKAGE.height_cm;
+
     if (
-      !shippingPackageFinal ||
-      typeof shippingPackageFinal.weight_g !== "number" ||
-      typeof shippingPackageFinal.length_cm !== "number" ||
-      typeof shippingPackageFinal.width_cm !== "number" ||
-      typeof shippingPackageFinal.height_cm !== "number" ||
-      shippingPackageFinal.weight_g <= 0 ||
-      shippingPackageFinal.length_cm <= 0 ||
-      shippingPackageFinal.width_cm <= 0 ||
-      shippingPackageFinal.height_cm <= 0
+      shippingPackageFinal &&
+      isValidDimension(shippingPackageFinal.weight_g) &&
+      isValidDimension(shippingPackageFinal.length_cm) &&
+      isValidDimension(shippingPackageFinal.width_cm) &&
+      isValidDimension(shippingPackageFinal.height_cm)
     ) {
-      return NextResponse.json(
-        {
-          ok: false,
-          code: "missing_final_package",
-          message:
-            "Captura peso y medidas reales de la caja antes de crear guía. Ve a la sección 'Paquete real para guía'.",
-          details: {
-            missingFields: ["shipping_package_final"],
-          },
-        } satisfies CreateLabelResponse,
-        { status: 422 },
-      );
+      packageSource = "final";
+      weightG = shippingPackageFinal.weight_g;
+      lengthCm = shippingPackageFinal.length_cm;
+      widthCm = shippingPackageFinal.width_cm;
+      heightCm = shippingPackageFinal.height_cm;
+    } else if (
+      shippingPackageEstimated &&
+      isValidDimension(shippingPackageEstimated.weight_g)
+    ) {
+      packageSource = "estimated";
+      weightG = shippingPackageEstimated.weight_g;
+      lengthCm = isValidDimension(shippingPackageEstimated.length_cm)
+        ? shippingPackageEstimated.length_cm
+        : DEFAULT_PACKAGE.length_cm;
+      widthCm = isValidDimension(shippingPackageEstimated.width_cm)
+        ? shippingPackageEstimated.width_cm
+        : DEFAULT_PACKAGE.width_cm;
+      heightCm = isValidDimension(shippingPackageEstimated.height_cm)
+        ? shippingPackageEstimated.height_cm
+        : DEFAULT_PACKAGE.height_cm;
     }
 
-    // Usar shipping_package_final (paquete real) - convertir peso a kg
-    const weightKg = shippingPackageFinal.weight_g / 1000;
-    const lengthCm = shippingPackageFinal.length_cm;
-    const widthCm = shippingPackageFinal.width_cm;
-    const heightCm = shippingPackageFinal.height_cm;
+    // Convertir peso a kg
+    const weightKg = weightG / 1000;
 
     if (process.env.NODE_ENV !== "production") {
       console.log("[create-label] Creando envío:", {
@@ -611,6 +654,13 @@ export async function POST(req: NextRequest) {
         to: `${addressTo.city}, ${addressTo.postalCode}`,
         hasConsignmentNote: !!consignmentNote,
         hasPackageType: !!packageType,
+        package: {
+          source: packageSource,
+          weightKg,
+          lengthCm,
+          widthCm,
+          heightCm,
+        },
       });
     }
 

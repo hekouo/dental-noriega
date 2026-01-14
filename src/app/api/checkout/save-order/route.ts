@@ -268,6 +268,10 @@ export async function POST(req: NextRequest) {
     // Calcular peso estimado del paquete (solo si hay items con product_id)
     // Solo calcular si NO existe ya shipping_package_estimated (no sobreescribir)
     if (!metadataFromPayload.shipping_package_estimated && orderData.items.length > 0) {
+      const BASE_PACKAGE_WEIGHT_G = 1200; // caja + relleno + cinta
+      const defaultLengthCm = 20;
+      const defaultWidthCm = 20;
+      const defaultHeightCm = 10;
       const productIds = orderData.items
         .map((item) => item.productId)
         .filter((id): id is string => !!id);
@@ -304,13 +308,33 @@ export async function POST(req: NextRequest) {
             process.env.SKYDROPX_MIN_BILLABLE_WEIGHT_G || "1000",
             10,
           );
-          const finalWeightG = Math.max(estimated.weight_g, MIN_BILLABLE_WEIGHT_G);
+          const estimatedWithBase = estimated.weight_g + BASE_PACKAGE_WEIGHT_G;
+          const finalWeightG = Math.max(estimatedWithBase, MIN_BILLABLE_WEIGHT_G);
 
           metadata.shipping_package_estimated = {
             weight_g: finalWeightG,
+            length_cm: defaultLengthCm,
+            width_cm: defaultWidthCm,
+            height_cm: defaultHeightCm,
+            base_weight_g: BASE_PACKAGE_WEIGHT_G,
             source: estimated.source,
             fallback_used_count: estimated.fallback_used_count,
-            was_clamped: finalWeightG > estimated.weight_g,
+            was_clamped: finalWeightG > estimatedWithBase,
+          };
+
+          const currentShippingMeta = (metadata.shipping as Record<string, unknown>) || {};
+          metadata.shipping = {
+            ...currentShippingMeta,
+            estimated_package: {
+              weight_g: finalWeightG,
+              length_cm: defaultLengthCm,
+              width_cm: defaultWidthCm,
+              height_cm: defaultHeightCm,
+              base_weight_g: BASE_PACKAGE_WEIGHT_G,
+              source: estimated.source,
+              fallback_used_count: estimated.fallback_used_count,
+              was_clamped: finalWeightG > estimatedWithBase,
+            },
           };
         } catch (error) {
           // Si falla el cálculo, usar fallback pero no romper la orden
@@ -321,11 +345,31 @@ export async function POST(req: NextRequest) {
             process.env.SKYDROPX_MIN_BILLABLE_WEIGHT_G || "1000",
             10,
           );
+          const fallbackWeightG = Math.max(BASE_PACKAGE_WEIGHT_G, MIN_BILLABLE_WEIGHT_G);
           metadata.shipping_package_estimated = {
-            weight_g: MIN_BILLABLE_WEIGHT_G,
+            weight_g: fallbackWeightG,
+            length_cm: defaultLengthCm,
+            width_cm: defaultWidthCm,
+            height_cm: defaultHeightCm,
+            base_weight_g: BASE_PACKAGE_WEIGHT_G,
             source: "fallback",
             fallback_used_count: orderData.items.reduce((sum, item) => sum + item.qty, 0),
-            was_clamped: true,
+            was_clamped: fallbackWeightG > BASE_PACKAGE_WEIGHT_G,
+          };
+
+          const currentShippingMeta = (metadata.shipping as Record<string, unknown>) || {};
+          metadata.shipping = {
+            ...currentShippingMeta,
+            estimated_package: {
+              weight_g: fallbackWeightG,
+              length_cm: defaultLengthCm,
+              width_cm: defaultWidthCm,
+              height_cm: defaultHeightCm,
+              base_weight_g: BASE_PACKAGE_WEIGHT_G,
+              source: "fallback",
+              fallback_used_count: orderData.items.reduce((sum, item) => sum + item.qty, 0),
+              was_clamped: fallbackWeightG > BASE_PACKAGE_WEIGHT_G,
+            },
           };
         }
       }
