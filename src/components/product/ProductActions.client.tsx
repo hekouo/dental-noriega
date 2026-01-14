@@ -46,6 +46,8 @@ export default function ProductActions({ product }: Props) {
   );
   const router = useRouter();
   const busyRef = useRef(false);
+  const variantSelectorsRef = useRef<HTMLDivElement | null>(null);
+  const colorSelectorRef = useRef<HTMLDivElement | null>(null);
 
   // Lógica correcta: soldOut = !in_stock || !is_active
   const soldOut = !product.in_stock || !product.is_active;
@@ -71,6 +73,16 @@ export default function ProductActions({ product }: Props) {
           message = "Selecciona el sistema antes de agregar este producto a tu pedido.";
         }
         setToast({ message, type: "error" });
+        
+        // Scroll al selector de variantes
+        if (variantSelectorsRef.current) {
+          const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+          variantSelectorsRef.current.scrollIntoView({
+            behavior: prefersReduced ? "auto" : "smooth",
+            block: "center",
+          });
+        }
+        
         setTimeout(() => setToast(null), 4000);
         return;
       }
@@ -82,6 +94,16 @@ export default function ProductActions({ product }: Props) {
         message: "Selecciona un color antes de agregar este producto a tu pedido.",
         type: "error",
       });
+      
+      // Scroll al selector de color
+      if (colorSelectorRef.current) {
+        const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        colorSelectorRef.current.scrollIntoView({
+          behavior: prefersReduced ? "auto" : "smooth",
+          block: "center",
+        });
+      }
+      
       setTimeout(() => setToast(null), 4000);
       return;
     }
@@ -268,25 +290,61 @@ export default function ProductActions({ product }: Props) {
 
       {/* Selectores de variantes */}
       {needsVariants && (
-        <ProductVariantSelectors
-          productTitle={product.title}
-          onSelectionChange={setVariantDetail}
-        />
+        <div ref={variantSelectorsRef} className="pb-safe">
+          <ProductVariantSelectors
+            productTitle={product.title}
+            onSelectionChange={setVariantDetail}
+          />
+          {!variantDetail && (
+            <p
+              className="text-sm text-red-600 mt-2"
+              role="alert"
+              aria-live="polite"
+              id="variant-error-message"
+            >
+              {(() => {
+                const config = getVariantConfig(product.title);
+                if (config) {
+                  if (config.variantType === "arco-niti-redondo" || config.variantType === "arco-niti-rectangular") {
+                    return "Selecciona medida y arcada antes de agregar este arco a tu pedido.";
+                  } else if (config.variantType === "tubos-malla") {
+                    return "Selecciona la pieza antes de agregar este producto a tu pedido.";
+                  } else if (config.variantType === "brackets-carton") {
+                    return "Selecciona el sistema antes de agregar este producto a tu pedido.";
+                  }
+                }
+                return "Selecciona las opciones requeridas antes de agregar este producto a tu pedido.";
+              })()}
+            </p>
+          )}
+        </div>
       )}
 
       {/* Selector de color */}
       {needsColor && (
-        <ColorSelector
-          productSlug={product.product_slug}
-          productTitle={product.title}
-          value={selectedColor}
-          notes={colorNotes}
-          onChange={(color, notes) => {
-            setSelectedColor(color);
-            setColorNotes(notes);
-          }}
-          required={true}
-        />
+        <div ref={colorSelectorRef} className="pb-safe">
+          <ColorSelector
+            productSlug={product.product_slug}
+            productTitle={product.title}
+            value={selectedColor}
+            notes={colorNotes}
+            onChange={(color, notes) => {
+              setSelectedColor(color);
+              setColorNotes(notes);
+            }}
+            required={true}
+          />
+          {!selectedColor && (
+            <p
+              className="text-sm text-red-600 mt-2"
+              role="alert"
+              aria-live="polite"
+              id="color-error-message"
+            >
+              Selecciona un color antes de agregar este producto a tu pedido.
+            </p>
+          )}
+        </div>
       )}
 
       {/* Mostrar color seleccionado debajo del nombre */}

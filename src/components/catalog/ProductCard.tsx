@@ -14,6 +14,8 @@ import { trackAddToCart, trackWhatsappClick } from "@/lib/analytics/events";
 import { launchCartConfetti } from "@/lib/ui/confetti";
 import { useToast } from "@/components/ui/ToastProvider.client";
 import { ROUTES } from "@/lib/routes";
+import { requiresSelections } from "@/components/product/usePdpAddToCartGuard";
+import { useRouter } from "next/navigation";
 
 /**
  * Props unificadas para ProductCard
@@ -67,9 +69,16 @@ export default function ProductCard({
 }: ProductCardProps) {
   const addToCart = useCartStore((s) => s.addToCart);
   const { showToast } = useToast();
+  const router = useRouter();
   const [qty, setQty] = useState(1);
   const [isAdding, setIsAdding] = useState(false);
   const busyRef = useRef(false);
+  
+  // Verificar si el producto requiere selecciones obligatorias
+  const needsSelections = requiresSelections({
+    title,
+    product_slug,
+  });
 
   // Normalizar precio
   const priceCents = normalizePrice(price_cents);
@@ -93,9 +102,20 @@ export default function ProductCard({
     `Hola, me interesa el producto: ${title} (${product_slug}). ¿Lo tienes disponible?`,
   );
 
-  // Handler para agregar al carrito
+  // Handler para agregar al carrito o navegar al PDP si requiere selecciones
   const handleAddToCart = () => {
     if (!canPurchase || busyRef.current || !price) return;
+    
+    // Si requiere selecciones, navegar al PDP en lugar de agregar
+    if (needsSelections) {
+      showToast({
+        message: "Este producto requiere seleccionar opciones",
+        variant: "info",
+        durationMs: 2000,
+      });
+      router.push(href);
+      return;
+    }
     
     busyRef.current = true;
     setIsAdding(true);
@@ -253,36 +273,62 @@ export default function ProductCard({
                 compact={compact}
                 ariaLabel="Cantidad del producto"
               />
-              {/* CTA Primario: Agregar al carrito */}
+              {/* CTA Primario: Agregar al carrito o Elegir opciones */}
               <button
                 type="button"
                 onClick={handleAddToCart}
                 disabled={isAdding || !canPurchase}
                 aria-busy={isAdding}
-                aria-label={`Agregar ${title} al carrito`}
+                aria-label={
+                  needsSelections
+                    ? `Elegir opciones para ${title}`
+                    : `Agregar ${title} al carrito`
+                }
                 className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 transition-all duration-200 font-semibold shadow-md ${
                   isAdding 
                     ? "scale-95 bg-primary-700" 
                     : "hover:scale-[1.02] active:scale-[0.98] hover:shadow-lg"
                 }`}
-                title="Agregar al carrito"
+                title={needsSelections ? "Elegir opciones" : "Agregar al carrito"}
               >
-                <svg
-                  width={16}
-                  height={16}
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <circle cx={9} cy={21} r={1} />
-                  <circle cx={20} cy={21} r={1} />
-                  <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-                </svg>
-                <span>{isAdding ? "Agregado" : "Agregar"}</span>
+                {needsSelections ? (
+                  <>
+                    <svg
+                      width={16}
+                      height={16}
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M9 11l3 3L22 4" />
+                      <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                    </svg>
+                    <span>Elegir opciones</span>
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      width={16}
+                      height={16}
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <circle cx={9} cy={21} r={1} />
+                      <circle cx={20} cy={21} r={1} />
+                      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+                    </svg>
+                    <span>{isAdding ? "Agregado" : "Agregar"}</span>
+                  </>
+                )}
               </button>
             </div>
           </>
