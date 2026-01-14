@@ -135,7 +135,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#0ea5e9",
+  themeColor: "#2563eb", // primary-600 brand color
 };
 
 export default function RootLayout({
@@ -150,6 +150,10 @@ export default function RootLayout({
   return (
     <html lang="es" suppressHydrationWarning>
       <head>
+        {/* PWA Manifest (solo si está habilitado) */}
+        {process.env.NEXT_PUBLIC_ENABLE_PWA === "true" && (
+          <link rel="manifest" href="/manifest.webmanifest" />
+        )}
         <link
           rel="preconnect"
           href="https://lh3.googleusercontent.com"

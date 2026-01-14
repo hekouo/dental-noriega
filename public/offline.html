@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#2563eb">
+  <title>Sin conexión - Depósito Dental Noriega</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      color: #1e3a8a;
+    }
+    .container {
+      text-align: center;
+      max-width: 400px;
+      width: 100%;
+    }
+    .icon {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 1.5rem;
+      background: #2563eb;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 2.5rem;
+    }
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      color: #1e3a8a;
+    }
+    p {
+      font-size: 1rem;
+      color: #475569;
+      margin-bottom: 2rem;
+      line-height: 1.6;
+    }
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    button, a {
+      padding: 0.875rem 1.5rem;
+      border-radius: 0.5rem;
+      font-size: 1rem;
+      font-weight: 600;
+      text-decoration: none;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .btn-primary {
+      background: #2563eb;
+      color: white;
+    }
+    .btn-primary:hover {
+      background: #1d4ed8;
+      transform: translateY(-1px);
+    }
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+    .btn-secondary {
+      background: white;
+      color: #2563eb;
+      border: 2px solid #2563eb;
+    }
+    .btn-secondary:hover {
+      background: #eff6ff;
+    }
+    @media (prefers-color-scheme: dark) {
+      body {
+        background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+        color: #eff6ff;
+      }
+      h1 {
+        color: #eff6ff;
+      }
+      p {
+        color: #cbd5e1;
+      }
+      .btn-secondary {
+        background: #1e3a8a;
+        color: #eff6ff;
+        border-color: #3b82f6;
+      }
+      .btn-secondary:hover {
+        background: #1e40af;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">📡</div>
+    <h1>Sin conexión</h1>
+    <p>No hay conexión a internet. Verifica tu conexión e intenta de nuevo.</p>
+    <div class="actions">
+      <button class="btn-primary" onclick="window.location.reload()">
+        Reintentar
+      </button>
+      <a href="https://wa.me/5215512345678?text=Hola,%20necesito%20ayuda" class="btn-secondary" target="_blank" rel="noopener">
+        Contactar por WhatsApp
+      </a>
+    </div>
+  </div>
+</body>
+</html>
