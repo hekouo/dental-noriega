@@ -176,6 +176,11 @@ export default async function HomePage() {
         <TrustBanners />
       </div>
 
+      {/* Quiz CTA - Móvil arriba del fold */}
+      <div className="max-w-6xl mx-auto px-4 pb-4 md:hidden">
+        <QuizCTA />
+      </div>
+
       {/* Explorar por categorías */}
       <div className="max-w-6xl mx-auto px-4 py-8 sm:py-12">
         <SectionExplorer
