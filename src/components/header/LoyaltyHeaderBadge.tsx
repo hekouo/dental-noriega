@@ -103,23 +103,23 @@ export function LoyaltyHeaderBadge() {
   return (
     <Link
       href="/cuenta/puntos"
-      className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-3 py-1 border border-amber-200 hover:bg-amber-100 transition-colors"
+      className="inline-flex items-center gap-1 rounded-full bg-mint-50 dark:bg-mint-900/20 px-3 py-1 border border-mint-200 dark:border-mint-800 hover:bg-mint-100 dark:hover:bg-mint-900/30 transition-colors"
       title="Ver tus puntos y recompensas"
     >
       {/* Desktop: mostrar nivel y puntos */}
       <span className="hidden sm:inline-flex items-center gap-1">
         {levelNumber && (
-          <span className="text-xs font-semibold text-amber-800">
+          <span className="text-xs font-semibold text-mint-800 dark:text-mint-200">
             Nivel {levelNumber}
           </span>
         )}
-        <span className="text-xs text-amber-700">·</span>
-        <span className="text-xs text-amber-700">
+        <span className="text-xs text-mint-700 dark:text-mint-300">·</span>
+        <span className="text-xs text-mint-700 dark:text-mint-300">
           {summary.currentPoints.toLocaleString("es-MX")} pts
         </span>
       </span>
       {/* Mobile: solo puntos */}
-      <span className="sm:hidden text-xs text-amber-700">
+      <span className="sm:hidden text-xs text-mint-700 dark:text-mint-300">
         {summary.currentPoints.toLocaleString("es-MX")} pts
       </span>
     </Link>

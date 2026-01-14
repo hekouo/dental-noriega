@@ -8,7 +8,6 @@ import {
   resolveTheme,
   applyTheme,
   setStoredTheme,
-  getSystemTheme,
 } from "@/lib/theme/theme";
 
 type ThemeProviderProps = {
@@ -25,12 +24,18 @@ export default function ThemeProvider({
   children,
   enabled = false,
 }: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>("system");
+  const [theme, setTheme] = useState<Theme>("light");
   const [mounted, setMounted] = useState(false);
 
-  // Inicializar tema al mount
+  // Inicializar tema al mount (default: light)
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled) {
+      // Si no está habilitado, asegurar que siempre sea light
+      if (typeof document !== "undefined") {
+        document.documentElement.classList.remove("dark");
+      }
+      return;
+    }
     
     setMounted(true);
     const initial = getInitialTheme();
@@ -40,31 +45,6 @@ export default function ThemeProvider({
     const resolved = resolveTheme(initial);
     applyTheme(resolved);
   }, [enabled]);
-
-  // Escuchar cambios de prefers-color-scheme solo si theme es "system"
-  useEffect(() => {
-    if (!enabled || !mounted || theme !== "system") return;
-
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    
-    const handleChange = () => {
-      const resolved = resolveTheme("system");
-      applyTheme(resolved);
-    };
-
-    // Aplicar tema inicial
-    handleChange();
-
-    // Escuchar cambios
-    if (mediaQuery.addEventListener) {
-      mediaQuery.addEventListener("change", handleChange);
-      return () => mediaQuery.removeEventListener("change", handleChange);
-    } else {
-      // Fallback legacy
-      mediaQuery.addListener(handleChange);
-      return () => mediaQuery.removeListener(handleChange);
-    }
-  }, [enabled, mounted, theme]);
 
   // Aplicar tema cuando cambia
   useEffect(() => {
@@ -88,12 +68,16 @@ export default function ThemeProvider({
  */
 export function useTheme() {
   const enabled = process.env.NEXT_PUBLIC_ENABLE_THEME_TOGGLE === "true";
-  const [theme, setThemeState] = useState<Theme>("system");
+  const [theme, setThemeState] = useState<Theme>("light");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     if (!enabled) {
       setMounted(true);
+      // Asegurar que siempre sea light si no está habilitado
+      if (typeof document !== "undefined") {
+        document.documentElement.classList.remove("dark");
+      }
       return;
     }
     
