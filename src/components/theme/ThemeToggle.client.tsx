@@ -2,7 +2,6 @@
 
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "./ThemeProvider.client";
-import { usePrefersReducedMotion } from "@/lib/hooks/usePrefersReducedMotion";
 
 type ThemeToggleProps = {
   className?: string;
@@ -14,8 +13,7 @@ type ThemeToggleProps = {
  * Usa el theme engine propio (no next-themes)
  */
 export default function ThemeToggle({ className }: ThemeToggleProps) {
-  const { theme, setTheme, resolved, mounted } = useTheme();
-  const prefersReducedMotion = usePrefersReducedMotion();
+  const { setTheme, resolved, mounted } = useTheme();
 
   // No renderizar si no está montado (evitar hydration mismatch)
   if (!mounted) {
@@ -43,9 +41,7 @@ export default function ThemeToggle({ className }: ThemeToggleProps) {
     <button
       type="button"
       onClick={handleToggle}
-      className={`min-h-[44px] min-w-[44px] flex items-center justify-center p-2 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 ${
-        prefersReducedMotion ? "" : ""
-      } ${className ?? ""}`}
+      className={`min-h-[44px] min-w-[44px] flex items-center justify-center p-2 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 ${className ?? ""}`}
       aria-label={isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
     >
       {isDark ? (
