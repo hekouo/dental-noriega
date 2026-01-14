@@ -370,6 +370,18 @@ export default function SearchAutocomplete({
         )}
       </div>
 
+      {/* Quiz link - Solo si está habilitado */}
+      {process.env.NEXT_PUBLIC_ENABLE_QUIZ === "true" && (
+        <div className="mt-2 text-center">
+          <Link
+            href="/quiz"
+            className="text-sm text-muted-foreground hover:text-foreground underline transition-colors"
+          >
+            No sé qué buscar. Haz el quiz
+          </Link>
+        </div>
+      )}
+
       {/* Dropdown */}
       {isOpen && (suggestions.length > 0 || isLoading) && (
         <div
