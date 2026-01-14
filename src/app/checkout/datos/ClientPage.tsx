@@ -1596,7 +1596,13 @@ function DatosPageContent() {
             disabled={!isValid || isSubmitting}
             aria-disabled={!isValid || isSubmitting}
             data-testid="btn-continuar-pago"
-            className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex-1 font-semibold transition-colors"
+            className={(() => {
+              const microAnimsEnabled = process.env.NEXT_PUBLIC_MOBILE_MICRO_ANIMS === "true";
+              const prefersReduced = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+              return microAnimsEnabled && !prefersReduced
+                ? "px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex-1 font-semibold transition-all duration-150 active:scale-[0.98] active:opacity-90"
+                : "px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex-1 font-semibold transition-colors";
+            })()}
           >
             Continuar al pago →
           </button>

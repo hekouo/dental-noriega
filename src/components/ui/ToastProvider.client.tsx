@@ -117,10 +117,16 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             : "opacity-0 translate-y-4 pointer-events-none"
         } ${
           // Posición: bottom-center en móvil, bottom-right en desktop
-          "bottom-20 left-1/2 -translate-x-1/2 md:left-auto md:translate-x-0 md:bottom-6 md:right-6"
+          // Con micro-anims activo, ajustar más arriba para no tapar bottom nav
+          process.env.NEXT_PUBLIC_MOBILE_MICRO_ANIMS === "true"
+            ? "bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 md:left-auto md:translate-x-0 md:right-6"
+            : "bottom-20 left-1/2 -translate-x-1/2 md:left-auto md:translate-x-0 md:bottom-6 md:right-6"
         }`}
         style={{
-          paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 0.5rem)",
+          paddingBottom:
+            process.env.NEXT_PUBLIC_MOBILE_MICRO_ANIMS === "true"
+              ? "calc(env(safe-area-inset-bottom, 0px) + 1rem)"
+              : "calc(env(safe-area-inset-bottom, 0px) + 0.5rem)",
         }}
       >
         {toast.open && (
