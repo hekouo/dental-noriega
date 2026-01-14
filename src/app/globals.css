@@ -82,17 +82,15 @@
   --error: rgb(248, 113, 113); /* red-400 */
 }
 
-html,
-body {
-  height: 100%;
+html {
   overflow-x: hidden;
-  width: 100%;
 }
 
 body {
   background-color: var(--bg);
   margin: 0;
   padding: 0;
+  overflow-x: hidden;
 }
 
 * {
