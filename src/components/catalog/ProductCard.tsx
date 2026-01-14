@@ -227,32 +227,47 @@ export default function ProductCard({
       {/* Badges compactos: stock, envío gratis, puntos */}
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         {/* Estado de stock - Badge con acento de marca */}
-        {in_stock !== null && in_stock !== undefined && (
-          <span
-            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
-              in_stock
-                ? "bg-primary-50 text-primary-700 border border-primary-200"
-                : "bg-red-50 text-red-700 border border-red-200"
-            }`}
-          >
-            {in_stock ? "En stock" : "Agotado"}
-          </span>
-        )}
+        {in_stock !== null && in_stock !== undefined && (() => {
+          const accentEnabled = process.env.NEXT_PUBLIC_ENABLE_ACCENT_UI === "true";
+          const stockClasses = in_stock
+            ? accentEnabled
+              ? "bg-mint-50 dark:bg-mint-900/20 text-mint-700 dark:text-mint-300 border border-mint-200 dark:border-mint-800"
+              : "bg-primary-50 text-primary-700 border border-primary-200"
+            : "bg-red-50 text-red-700 border border-red-200";
+          
+          return (
+            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${stockClasses}`}>
+              {in_stock ? "En stock" : "Agotado"}
+            </span>
+          );
+        })()}
 
         {/* Badge de envío gratis compacto */}
-        {price !== null && (
-          <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium bg-blue-50 text-blue-700 border border-blue-200">
-            Envío gratis $2,000+
-          </span>
-        )}
+        {price !== null && (() => {
+          const accentEnabled = process.env.NEXT_PUBLIC_ENABLE_ACCENT_UI === "true";
+          const shippingClasses = accentEnabled
+            ? "bg-mint-50 dark:bg-mint-900/20 text-mint-700 dark:text-mint-300 border border-mint-200 dark:border-mint-800"
+            : "bg-blue-50 text-blue-700 border border-blue-200";
+          
+          return (
+            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${shippingClasses}`}>
+              Envío gratis $2,000+
+            </span>
+          );
+        })()}
 
         {/* Badge de puntos compacto */}
         {(() => {
           if (priceCents <= 0) return null;
           const points = estimatePointsForPriceCents(priceCents);
           if (points <= 0) return null;
+          const accentEnabled = process.env.NEXT_PUBLIC_ENABLE_ACCENT_UI === "true";
+          const pointsClasses = accentEnabled
+            ? "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
+            : "bg-amber-50 text-amber-700 border border-amber-200";
+          
           return (
-            <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
+            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${pointsClasses}`}>
               +{points.toLocaleString("es-MX")} pts
             </span>
           );
