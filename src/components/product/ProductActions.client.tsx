@@ -304,7 +304,7 @@ export default function ProductActions({ product }: Props) {
       )}
 
       {/* Controles de cantidad y botones */}
-      <div className="space-y-3">
+      <div className="space-y-3" data-sticky-atc-anchor>
         <div className="flex items-center gap-3">
           <label htmlFor="qty" className="text-sm font-medium text-gray-700">
             Cantidad:

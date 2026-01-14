@@ -8,6 +8,7 @@ import ProductGallery from "@/components/pdp/ProductGallery.client";
 import ProductActions from "@/components/product/ProductActions.client";
 import ProductViewTracker from "@/components/ProductViewTracker.client";
 import PdpStickyCTA from "@/components/pdp/PdpStickyCTA.client";
+import StickyAddToCartBar from "@/components/product/StickyAddToCartBar.client";
 import RecentlyViewedTracker from "@/components/catalog/RecentlyViewedTracker.client";
 import RecentlyViewed from "@/components/catalog/RecentlyViewed.client";
 import { ROUTES } from "@/lib/routes";
@@ -515,6 +516,22 @@ export default async function ProductDetailPage({ params }: Props) {
             in_stock: product.in_stock,
           }}
         />
+
+        {/* Sticky Add To Cart Bar (feature-flagged) */}
+        {process.env.NEXT_PUBLIC_STICKY_ATC === "true" && (
+          <StickyAddToCartBar
+            product={{
+              id: product.id,
+              title: product.title,
+              section: product.section,
+              product_slug: product.slug,
+              price_cents: Math.round(product.price * 100),
+              image_url: product.image_url ?? undefined,
+              in_stock: product.in_stock,
+              is_active: product.is_active,
+            }}
+          />
+        )}
         
         {/* Padding bottom para no tapar contenido con sticky CTA */}
         <div className="md:hidden h-20" />
