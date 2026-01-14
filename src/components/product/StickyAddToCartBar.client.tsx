@@ -7,6 +7,8 @@ import { useCartStore } from "@/lib/store/cartStore";
 import { mxnFromCents } from "@/lib/utils/currency";
 import { trackAddToCart } from "@/lib/analytics/events";
 import { launchCartConfetti } from "@/lib/ui/confetti";
+import { requiresSelections } from "./usePdpAddToCartGuard";
+import { useToast } from "@/components/ui/ToastProvider.client";
 
 type StickyAddToCartBarProps = {
   product: {
@@ -40,6 +42,13 @@ export default function StickyAddToCartBar({
   const anchorRef = useRef<HTMLElement | null>(null);
   const busyRef = useRef(false);
   const addToCart = useCartStore((s) => s.addToCart);
+  const { showToast } = useToast();
+  
+  // Verificar si el producto requiere selecciones obligatorias
+  const needsSelections = requiresSelections({
+    title: product.title,
+    product_slug: product.product_slug,
+  });
 
   // Obtener el anchor element usando querySelector
   useEffect(() => {
@@ -86,7 +95,33 @@ export default function StickyAddToCartBar({
     };
   }, [anchorSelector]);
 
-  // Misma lógica básica de add-to-cart (sin validaciones de variantes/colores - simplificado)
+  // Si requiere selecciones obligatorias, hacer scroll al anchor
+  function handleClick() {
+    if (needsSelections) {
+      // Scroll suave al bloque original donde están los selectores
+      const anchor = anchorRef.current;
+      if (anchor) {
+        const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        anchor.scrollIntoView({
+          behavior: prefersReduced ? "auto" : "smooth",
+          block: "center",
+        });
+        
+        // Mostrar mensaje
+        showToast({
+          message: "Selecciona las opciones requeridas para continuar",
+          variant: "error",
+          durationMs: 3000,
+        });
+      }
+      return;
+    }
+
+    // Si no requiere selecciones, agregar al carrito normalmente
+    handleAddToCart();
+  }
+
+  // Misma lógica básica de add-to-cart (solo para productos sin variantes/colores)
   function handleAddToCart() {
     const soldOut = !product.in_stock || !product.is_active;
     const canBuy = !soldOut;
@@ -136,11 +171,14 @@ export default function StickyAddToCartBar({
 
   const soldOut = !product.in_stock || !product.is_active;
   const canBuy = !soldOut;
+  const isDisabled = !canBuy || isAdding || needsSelections;
 
   return (
     <div
       className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-lg"
       style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
+      role="region"
+      aria-label="Agregar al carrito"
     >
       <div className="px-4 py-3 flex items-center gap-3">
         {/* Precio */}
@@ -158,22 +196,31 @@ export default function StickyAddToCartBar({
           onValueChange={setQty}
           min={1}
           max={99}
-          disabled={!canBuy || isAdding}
+          disabled={!canBuy || isAdding || needsSelections}
           className="flex-shrink-0"
         />
 
         {/* Botón agregar */}
         <button
           type="button"
-          onClick={handleAddToCart}
-          disabled={!canBuy || isAdding}
+          onClick={handleClick}
+          disabled={isDisabled}
+          aria-disabled={needsSelections ? "true" : isDisabled}
           aria-busy={isAdding}
-          aria-label={`Agregar ${product.title} al carrito`}
+          aria-label={
+            needsSelections
+              ? "Selecciona opciones para agregar al carrito"
+              : `Agregar ${product.title} al carrito`
+          }
           className={`flex-1 px-4 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold min-h-[44px] flex items-center justify-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 ${
             prefersReducedMotion ? "" : "active:scale-95"
           }`}
         >
-          {isAdding ? "Agregando..." : "Agregar al carrito"}
+          {isAdding
+            ? "Agregando..."
+            : needsSelections
+              ? "Selecciona opciones"
+              : "Agregar al carrito"}
         </button>
       </div>
     </div>
