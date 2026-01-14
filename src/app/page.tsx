@@ -12,6 +12,7 @@ import { getWhatsAppUrl } from "@/lib/whatsapp/config";
 import { HelpWidget } from "@/components/support/HelpWidget";
 import { TrustBanners } from "@/components/marketing/TrustBanners";
 import SectionExplorer from "@/components/catalog/SectionExplorer";
+import QuizCTA from "@/components/quiz/QuizCTA";
 
 // Lazy load componentes no críticos
 const Testimonials = dynamicImport(() => import("@/components/ui/Testimonials"), {
