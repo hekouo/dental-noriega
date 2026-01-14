@@ -104,8 +104,8 @@ async function DestacadosContent() {
 
 export default async function DestacadosPage() {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 py-8 sm:py-12">
+    <div className="bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 pt-20 sm:pt-24 pb-8 sm:pb-12">
         <SectionHeader
           title="Productos destacados"
           subtitle="Productos recomendados que suelen interesar a nuestros clientes"
