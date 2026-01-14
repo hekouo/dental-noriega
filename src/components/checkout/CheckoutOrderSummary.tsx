@@ -67,9 +67,9 @@ export default function CheckoutOrderSummary({
   }
 
   return (
-    <div className={`bg-white rounded-lg border border-gray-200 shadow-sm ${className}`}>
-      <div className="px-6 py-4 border-b border-gray-200">
-        <h2 className="text-lg font-semibold">Resumen del pedido</h2>
+    <div className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm ${className}`}>
+      <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Resumen del pedido</h2>
       </div>
 
       <div className="px-6 py-4 space-y-4">
@@ -93,24 +93,24 @@ export default function CheckoutOrderSummary({
                 className="flex items-start justify-between gap-4"
               >
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm text-gray-900 truncate">
+                  <p className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">
                     {item.title || "Producto sin nombre"}
                   </p>
                   {item.variant_detail && (
-                    <p className="text-xs text-gray-600 mt-1 italic">
+                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 italic">
                       {item.variant_detail}
                     </p>
                   )}
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     Cantidad: {qty}
                   </p>
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <p className="text-sm font-medium text-gray-900">
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                     {formatMXNFromCents(lineTotalCents)}
                   </p>
                   {qty > 1 && (
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
                       {formatMXNFromCents(priceCents)} c/u
                     </p>
                   )}
@@ -121,11 +121,11 @@ export default function CheckoutOrderSummary({
         </div>
 
         {/* Divider */}
-        <div className="border-t border-gray-200 pt-4 space-y-2">
+        <div className="border-t border-gray-200 dark:border-gray-700 pt-4 space-y-2">
           {/* Subtotal */}
           <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Subtotal:</span>
-            <span className="font-medium">{formatMXNFromCents(subtotalCents)}</span>
+            <span className="text-gray-600 dark:text-gray-400">Subtotal:</span>
+            <span className="font-medium text-gray-900 dark:text-gray-100">{formatMXNFromCents(subtotalCents)}</span>
           </div>
 
           {/* Descuento */}
@@ -143,23 +143,23 @@ export default function CheckoutOrderSummary({
           {/* Envío */}
           {shippingCents > 0 && (
             <div className="flex justify-between text-sm">
-              <span className="text-gray-600">
+              <span className="text-gray-600 dark:text-gray-400">
                 {formatShippingMethod(shippingMethod)}:
               </span>
-              <span className="font-medium">
+              <span className="font-medium text-gray-900 dark:text-gray-100">
                 {formatMXNFromCents(shippingCents)}
               </span>
             </div>
           )}
           {shippingCents === 0 && (
             <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Envío:</span>
-              <span className="font-medium">
+              <span className="text-gray-600 dark:text-gray-400">Envío:</span>
+              <span className="font-medium text-gray-900 dark:text-gray-100">
                 {formatMXNFromCents(0)}
                 {shippingMethod === "pickup" ? (
-                  <span className="text-gray-500 text-xs ml-1">(recoger en tienda)</span>
+                  <span className="text-gray-500 dark:text-gray-400 text-xs ml-1">(recoger en tienda)</span>
                 ) : subtotalCents >= FREE_SHIPPING_THRESHOLD_CENTS ? (
-                  <span className="text-green-600 text-xs ml-1">(promo envío gratis desde $2,000)</span>
+                  <span className="text-green-600 dark:text-green-400 text-xs ml-1">(promo envío gratis desde $2,000)</span>
                 ) : null}
               </span>
             </div>
@@ -173,9 +173,9 @@ export default function CheckoutOrderSummary({
           )}
 
           {/* Total */}
-          <div className="flex justify-between text-lg font-bold pt-2 border-t border-gray-200">
-            <span>Total:</span>
-            <span className="text-primary-600">
+          <div className="flex justify-between text-lg font-bold pt-2 border-t border-gray-200 dark:border-gray-700">
+            <span className="text-gray-900 dark:text-gray-100">Total:</span>
+            <span className="text-primary-600 dark:text-primary-400">
               {formatMXNFromCents(totalCents)}
             </span>
           </div>

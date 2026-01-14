@@ -85,6 +85,14 @@
 html,
 body {
   height: 100%;
+  overflow-x: hidden;
+  width: 100%;
+}
+
+body {
+  background-color: var(--bg);
+  margin: 0;
+  padding: 0;
 }
 
 * {

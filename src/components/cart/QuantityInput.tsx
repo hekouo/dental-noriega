@@ -65,14 +65,14 @@ export default function QuantityInput({
   };
 
   const inputClasses = compact
-    ? "w-10 text-center outline-none text-base"
-    : "w-10 text-center outline-none";
+    ? "w-10 text-center outline-none text-base bg-transparent text-gray-900 dark:text-gray-100"
+    : "w-10 text-center outline-none bg-transparent text-gray-900 dark:text-gray-100";
   const buttonClasses = compact
-    ? "h-9 w-6 text-base font-medium"
-    : "h-8 w-6 text-xl";
+    ? "h-9 w-6 text-base font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 disabled:text-gray-400 dark:disabled:text-gray-600"
+    : "h-8 w-6 text-xl text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 disabled:text-gray-400 dark:disabled:text-gray-600";
   const containerClasses = compact
-    ? "flex items-center rounded-lg border h-9 px-3"
-    : "flex items-center rounded-lg border px-2 py-1";
+    ? "flex items-center rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 h-9 px-3"
+    : "flex items-center rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-2 py-1";
 
   return (
     <div className={containerClasses}>

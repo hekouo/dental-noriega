@@ -194,7 +194,7 @@ export default function ProductCard({
 
   return (
     <div 
-      className="rounded-2xl border border-gray-200/80 p-3 flex flex-col bg-white shadow-sm hover:shadow-xl transition-all duration-300 ease-out hover:-translate-y-1 active:scale-[0.98] group"
+      className="rounded-2xl border border-gray-200 dark:border-gray-700 p-3 flex flex-col bg-white dark:bg-gray-800 shadow-sm hover:shadow-xl transition-all duration-300 ease-out hover:-translate-y-1 active:scale-[0.98] group"
       style={{
         animation: "fadeInUp 0.5s ease-out backwards",
         animationDelay: "var(--delay, 0ms)",
@@ -202,7 +202,7 @@ export default function ProductCard({
     >
       {/* Imagen con link a PDP - mejorado con zoom sutil */}
       <Link href={href} prefetch={false} className="block overflow-hidden rounded-lg">
-        <div className="relative w-full aspect-square bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg overflow-hidden group-hover:from-gray-100 group-hover:to-gray-200 transition-all duration-300">
+        <div className="relative w-full aspect-square bg-gradient-to-br from-gray-50 dark:from-gray-700 to-gray-100 dark:to-gray-800 rounded-lg overflow-hidden group-hover:from-gray-100 dark:group-hover:from-gray-600 group-hover:to-gray-200 dark:group-hover:to-gray-700 transition-all duration-300">
           <ImageWithFallback
             src={image_url}
             width={400}
@@ -217,19 +217,19 @@ export default function ProductCard({
       </Link>
 
       {/* Título con link a PDP */}
-      <h3 className="mt-2 text-sm font-semibold line-clamp-2 min-h-[2.5rem]">
+      <h3 className="mt-2 text-sm font-semibold line-clamp-2 min-h-[2.5rem] text-gray-900 dark:text-gray-100">
         <Link
           href={href}
           prefetch={false}
-          className="hover:text-primary-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 rounded"
+          className="hover:text-primary-600 dark:hover:text-primary-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 rounded text-gray-900 dark:text-gray-100"
         >
           {renderTitle()}
         </Link>
       </h3>
 
       {/* Precio - más destacado */}
-      <div className="mt-2 text-primary-600 font-bold text-lg">
-        {price !== null ? formatMXN(price) : <span className="text-gray-500 text-sm font-normal">Consultar precio</span>}
+      <div className="mt-2 text-primary-600 dark:text-primary-400 font-bold text-lg">
+        {price !== null ? formatMXN(price) : <span className="text-gray-500 dark:text-gray-400 text-sm font-normal">Consultar precio</span>}
       </div>
 
       {/* Badges compactos: stock, envío gratis, puntos */}

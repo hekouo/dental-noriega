@@ -122,9 +122,9 @@ export default async function HomePage() {
   const items = await getFeaturedItems();
 
   return (
-    <main className="min-h-screen">
+    <main className="min-h-screen overflow-x-hidden">
       {/* Hero Section - Premium 2025 */}
-      <section className="relative bg-gradient-to-br from-primary-600 via-primary-700 to-primary-800 text-white py-16 sm:py-24 md:py-32 px-4 overflow-hidden">
+      <section className="relative bg-gradient-to-br from-primary-600 via-primary-700 to-primary-800 text-white py-16 sm:py-24 md:py-32 px-4 overflow-hidden w-full -mx-4 md:mx-0">
         {/* Background decoration - más sutil y moderno */}
         <div className="absolute inset-0 bg-hero opacity-40" />
         <div className="absolute inset-0 bg-grid opacity-5" />

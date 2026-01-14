@@ -188,7 +188,7 @@ export default function RootLayout({
         )}
       </head>
       <body
-        className={`${inter.className} min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 flex flex-col`}
+        className={`${inter.className} min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 flex flex-col overflow-x-hidden`}
       >
         <Providers>
           {/* Structured Data: Organization + Website */}
@@ -280,7 +280,7 @@ export default function RootLayout({
             </nav>
           </HeaderWithScrollEffect>
 
-        <main className="max-w-6xl mx-auto p-4 flex-1 w-full pb-24 md:pb-safe">
+        <main className="max-w-6xl mx-auto p-4 flex-1 w-full pb-24 md:pb-safe overflow-x-hidden">
           {children}
           <FinalThanks />
         </main>

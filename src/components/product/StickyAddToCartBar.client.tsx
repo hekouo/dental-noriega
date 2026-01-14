@@ -191,14 +191,16 @@ export default function StickyAddToCartBar({
 
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-lg"
-      style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
+      className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-white dark:bg-gray-800 backdrop-blur-md border-t border-gray-200 dark:border-gray-700 shadow-lg"
+      style={{ 
+        paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))"
+      }}
       role="region"
       aria-label="Agregar al carrito"
     >
       <div className="px-4 py-3 flex items-center gap-3">
         {/* Precio */}
-        <div className="flex-shrink-0 text-lg font-bold text-primary-600">
+        <div className="flex-shrink-0 text-lg font-bold text-primary-600 dark:text-primary-400">
           {new Intl.NumberFormat("es-MX", {
             style: "currency",
             currency: "MXN",

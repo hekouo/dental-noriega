@@ -291,7 +291,7 @@ export default function ProductActions({ product }: Props) {
 
       {/* Badge de stock */}
       {soldOut && (
-        <div className="px-3 py-2 bg-red-100 text-red-800 rounded-lg text-sm font-medium">
+        <div className="px-3 py-2 bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800 rounded-lg text-sm font-medium">
           Agotado
         </div>
       )}
@@ -305,7 +305,7 @@ export default function ProductActions({ product }: Props) {
           />
           {!variantDetail && (
             <p
-              className="text-sm text-red-600 mt-2"
+              className="text-sm text-red-600 dark:text-red-400 mt-2"
               role="alert"
               aria-live="polite"
               id="variant-error-message"
@@ -344,7 +344,7 @@ export default function ProductActions({ product }: Props) {
           />
           {!selectedColor && (
             <p
-              className="text-sm text-red-600 mt-2"
+              className="text-sm text-red-600 dark:text-red-400 mt-2"
               role="alert"
               aria-live="polite"
               id="color-error-message"
@@ -357,13 +357,13 @@ export default function ProductActions({ product }: Props) {
 
       {/* Mostrar color seleccionado debajo del nombre */}
       {needsColor && selectedColor && (
-        <div className="text-sm text-gray-600">
+        <div className="text-sm text-gray-600 dark:text-gray-400">
           <span className="font-medium">Color:</span>{" "}
           {selectedColor}
           {colorNotes && (
             <>
               {" "}
-              <span className="text-gray-500">· Preferencia: {colorNotes}</span>
+              <span className="text-gray-500 dark:text-gray-500">· Preferencia: {colorNotes}</span>
             </>
           )}
         </div>
@@ -372,7 +372,7 @@ export default function ProductActions({ product }: Props) {
       {/* Controles de cantidad y botones */}
       <div className="space-y-3" data-sticky-atc-anchor>
         <div className="flex items-center gap-3">
-          <label htmlFor="qty" className="text-sm font-medium text-gray-700">
+          <label htmlFor="qty" className="text-sm font-medium text-gray-700 dark:text-gray-300">
             Cantidad:
           </label>
           <QuantityInput
@@ -407,12 +407,12 @@ export default function ProductActions({ product }: Props) {
             onClick={handleBuyNow}
             disabled={!canBuy}
             aria-label="Comprar ahora"
-            className={getTapClass({
-              kind: "button",
-              enabled: microAnimsEnabled,
-              reducedMotion: prefersReducedMotion,
-              className: "w-full border-2 border-primary-600 text-primary-600 bg-white px-6 py-3 rounded-md hover:bg-primary-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 font-medium",
-            })}
+              className={getTapClass({
+                kind: "button",
+                enabled: microAnimsEnabled,
+                reducedMotion: prefersReducedMotion,
+                className: "w-full border-2 border-primary-600 dark:border-primary-500 text-primary-600 dark:text-primary-400 bg-white dark:bg-gray-800 px-6 py-3 rounded-md hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 font-medium",
+              })}
             title="Comprar ahora"
           >
             Comprar ahora
@@ -450,29 +450,29 @@ export default function ProductActions({ product }: Props) {
           )}
         </div>
 
-        <div className="mt-4 rounded-xl border border-gray-200 bg-white/60 p-4 sm:p-5">
+        <div className="mt-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm p-4 sm:p-5">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div className="flex items-start gap-3">
-              <div className="mt-0.5 flex-shrink-0 rounded-full bg-blue-50 p-2 text-blue-600" aria-hidden="true">
+              <div className="mt-0.5 flex-shrink-0 rounded-full bg-blue-50 dark:bg-blue-900/30 p-2 text-blue-600 dark:text-blue-400" aria-hidden="true">
                 <Truck className="h-4 w-4" />
               </div>
-              <p className="text-xs sm:text-sm text-gray-700">
+              <p className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">
                 Envíos a todo México. En pedidos desde $2,000 MXN en productos, el envío es gratis.
               </p>
             </div>
             <div className="flex items-start gap-3">
-              <div className="mt-0.5 flex-shrink-0 rounded-full bg-green-50 p-2 text-green-600" aria-hidden="true">
+              <div className="mt-0.5 flex-shrink-0 rounded-full bg-green-50 dark:bg-green-900/30 p-2 text-green-600 dark:text-green-400" aria-hidden="true">
                 <MessageCircle className="h-4 w-4" />
               </div>
-              <p className="text-xs sm:text-sm text-gray-700">
+              <p className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">
                 Asesoría por WhatsApp antes y después de tu compra.
               </p>
             </div>
             <div className="flex items-start gap-3">
-              <div className="mt-0.5 flex-shrink-0 rounded-full bg-emerald-50 p-2 text-emerald-600" aria-hidden="true">
+              <div className="mt-0.5 flex-shrink-0 rounded-full bg-emerald-50 dark:bg-emerald-900/30 p-2 text-emerald-600 dark:text-emerald-400" aria-hidden="true">
                 <ShieldCheck className="h-4 w-4" />
               </div>
-              <p className="text-xs sm:text-sm text-gray-700">
+              <p className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">
                 Pagos seguros con tarjeta. Transferencia bancaria disponible.
               </p>
             </div>

@@ -1154,15 +1154,15 @@ export default function PagoClient() {
       )}
 
       {/* Resumen de envío compacto */}
-      <div className="bg-gray-50 rounded-lg p-4 mb-6">
+      <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 mb-6 border border-gray-200 dark:border-gray-700">
         <div className="flex items-start justify-between mb-3">
           <div>
-            <h2 className="font-semibold text-sm text-gray-700 mb-1">
+            <h2 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-1">
               Datos de envío
             </h2>
-            <div className="text-sm text-gray-600 space-y-1">
+            <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
               <p>
-                <strong>
+                <strong className="text-gray-900 dark:text-gray-100">
                   {datos.name} {datos.last_name}
                 </strong>
               </p>
@@ -1176,7 +1176,7 @@ export default function PagoClient() {
           </div>
           <Link
             href="/checkout/datos"
-            className="px-3 py-1 text-sm text-primary-600 hover:text-primary-700 underline"
+            className="px-3 py-1 text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-500 underline"
           >
             Editar datos
           </Link>
@@ -1190,14 +1190,14 @@ export default function PagoClient() {
       />
 
       {/* Método de envío (solo lectura) */}
-      <div className="bg-gray-50 rounded-lg p-4 mb-6">
+      <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 mb-6 border border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold text-sm text-gray-700">
+          <h2 className="font-semibold text-sm text-gray-700 dark:text-gray-300">
             Método de envío
           </h2>
           <Link
             href="/checkout/datos"
-            className="text-xs text-primary-600 hover:text-primary-700 underline"
+            className="text-xs text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-500 underline"
           >
             Cambiar
           </Link>
@@ -1205,50 +1205,50 @@ export default function PagoClient() {
         
         {selectedShippingOption ? (
           // Mostrar opción de Skydropx seleccionada
-          <div className="bg-white border border-gray-200 rounded-md p-4">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md p-4">
             <div className="flex items-start justify-between">
               <div className="flex-1">
-                <div className="font-medium text-gray-900">
+                <div className="font-medium text-gray-900 dark:text-gray-100">
                   {selectedShippingOption.label}
                 </div>
                 {selectedShippingOption.etaMinDays && selectedShippingOption.etaMaxDays && (
-                  <div className="text-sm text-gray-600 mt-1">
+                  <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                     Tiempo estimado: {selectedShippingOption.etaMinDays}-{selectedShippingOption.etaMaxDays} días
                   </div>
                 )}
                 {selectedShippingOption.provider === "skydropx" && (
-                  <div className="text-xs text-gray-500 mt-1">
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     Envío gestionado por Skydropx
                   </div>
                 )}
               </div>
-              <div className="font-semibold text-gray-900">
+              <div className="font-semibold text-gray-900 dark:text-gray-100">
                 {formatMXNMoney(selectedShippingOption.priceCents / 100)}
               </div>
             </div>
           </div>
         ) : displayShippingMethod === "pickup" ? (
           // Mostrar recoger en tienda
-          <div className="bg-white border border-gray-200 rounded-md p-4">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md p-4">
             <div className="flex items-center justify-between">
               <div className="flex-1">
-                <div className="font-medium text-gray-900">Recoger en tienda</div>
-                <div className="text-sm text-gray-600">Sucursal Tlalpan, Ciudad de México</div>
+                <div className="font-medium text-gray-900 dark:text-gray-100">Recoger en tienda</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">Sucursal Tlalpan, Ciudad de México</div>
               </div>
-              <div className="font-semibold text-gray-900">
+              <div className="font-semibold text-gray-900 dark:text-gray-100">
                 {formatMXNMoney(0)}
               </div>
             </div>
           </div>
         ) : (
           // Mostrar método manual (standard o express) como fallback
-          <div className="bg-white border border-gray-200 rounded-md p-4">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md p-4">
             <div className="flex items-center justify-between">
               <div className="flex-1">
-                <div className="font-medium text-gray-900">
+                <div className="font-medium text-gray-900 dark:text-gray-100">
                   {displayShippingMethod === "standard" ? "Envío estándar" : "Envío express"}
                 </div>
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-gray-600 dark:text-gray-400">
                   {shippingData.zone
                     ? `Zona ${shippingData.zone} • ${shippingData.kg.toFixed(1)} kg`
                     : displayShippingMethod === "standard" 
@@ -1256,7 +1256,7 @@ export default function PagoClient() {
                       : "Entrega rápida"}
                 </div>
               </div>
-              <div className="font-semibold text-gray-900">
+              <div className="font-semibold text-gray-900 dark:text-gray-100">
                 {formatMXNMoney(shippingData.prices[displayShippingMethod])}
               </div>
             </div>
@@ -1280,29 +1280,29 @@ export default function PagoClient() {
         const tierColor = tierColorClasses[tier.color] || tierColorClasses.slate;
         
         return (
-          <div className="bg-blue-50 rounded-lg p-4 mb-6 border border-blue-200">
+          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 mb-6 border border-blue-200 dark:border-blue-800">
             <div className="flex items-start justify-between mb-3">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <h2 className="font-semibold text-sm text-gray-700">
+                  <h2 className="font-semibold text-sm text-gray-700 dark:text-gray-300">
                     Tus puntos
                   </h2>
                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${tierColor.bg} ${tierColor.text}`}>
                     {tier.name}
                   </span>
                 </div>
-                <p className="text-sm text-gray-600">
-                  Tienes <strong>{pointsAvailable.toLocaleString()}</strong> puntos disponibles.
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Tienes <strong className="text-gray-900 dark:text-gray-100">{pointsAvailable.toLocaleString()}</strong> puntos disponibles.
                 </p>
               </div>
             </div>
             <div className="space-y-2">
               {canUseDiscount ? (
-                <p className="text-sm font-medium text-green-700 mb-2">
+                <p className="text-sm font-medium text-green-700 dark:text-green-400 mb-2">
                   Puedes usar tus puntos para obtener 5% de descuento en este pedido.
                 </p>
               ) : (
-                <p className="text-sm text-gray-600 mb-2">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
                   Cuando llegues a 1,000 puntos podrás activar 5% de descuento en un pedido.
                 </p>
               )}
@@ -1315,16 +1315,16 @@ export default function PagoClient() {
                   className="mt-1 mr-2"
                 />
                 <div className="flex-1">
-                  <span className="text-sm text-gray-700">
+                  <span className="text-sm text-gray-700 dark:text-gray-300">
                     Usar mis puntos para obtener {LOYALTY_DISCOUNT_PERCENT}% de descuento en este pedido
                   </span>
                   {!canUseDiscount && (
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                       Necesitas al menos {LOYALTY_MIN_POINTS_FOR_DISCOUNT.toLocaleString()} puntos para activar este beneficio.
                     </p>
                   )}
                   {loyaltyApplied && canUseDiscount && (
-                    <p className="text-xs text-green-600 mt-1">
+                    <p className="text-xs text-green-600 dark:text-green-400 mt-1">
                       Aplicaremos un {LOYALTY_DISCOUNT_PERCENT}% de descuento sobre el total del pedido usando tus puntos.
                     </p>
                   )}
@@ -1336,13 +1336,13 @@ export default function PagoClient() {
       })()}
 
       {/* Resumen de productos */}
-      <div className="bg-gray-50 rounded-lg p-4 mb-6">
-        <h2 className="font-semibold mb-2 text-sm text-gray-700">
+      <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 mb-6 border border-gray-200 dark:border-gray-700">
+        <h2 className="font-semibold mb-2 text-sm text-gray-700 dark:text-gray-300">
           Productos seleccionados:
         </h2>
         <ul className="space-y-1">
           {itemsForOrder.map((item) => (
-            <li key={item.id} className="flex justify-between text-sm">
+            <li key={item.id} className="flex justify-between text-sm text-gray-900 dark:text-gray-100">
               <span>{item.title}</span>
               <span>
                 {formatMXNMoney(item.price)} x{item.qty}
@@ -1350,13 +1350,13 @@ export default function PagoClient() {
             </li>
           ))}
         </ul>
-        <div className="mt-3 pt-3 border-t space-y-2">
+        <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 space-y-2">
           <div className="flex justify-between text-sm">
-            <span>Subtotal:</span>
-            <span>{formatMXNMoney(subtotal)}</span>
+            <span className="text-gray-600 dark:text-gray-400">Subtotal:</span>
+            <span className="text-gray-900 dark:text-gray-100 font-medium">{formatMXNMoney(subtotal)}</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span>
+            <span className="text-gray-600 dark:text-gray-400">
               {selectedShippingOption 
                 ? selectedShippingOption.label
                 : displayShippingMethod === "pickup"
@@ -1368,7 +1368,7 @@ export default function PagoClient() {
                       : "Envío"}
               :
             </span>
-            <span>
+            <span className="text-gray-900 dark:text-gray-100 font-medium">
               {displayShippingMethod === "pickup"
                 ? "$0.00"
                 : shippingCost > 0
@@ -1377,27 +1377,27 @@ export default function PagoClient() {
             </span>
           </div>
           {discount && discountScope && (
-            <div className="flex justify-between text-sm text-green-600">
+            <div className="flex justify-between text-sm text-green-600 dark:text-green-400">
               <span>Descuento {couponCode ? `(${couponCode})` : ""}:</span>
-              <span>-{formatMXNMoney(discount)}</span>
+              <span className="font-medium">-{formatMXNMoney(discount)}</span>
             </div>
           )}
           {loyaltyDiscountCents > 0 && (
-            <div className="flex justify-between text-sm text-green-600">
+            <div className="flex justify-between text-sm text-green-600 dark:text-green-400">
               <span>Descuento por puntos:</span>
-              <span>-{formatMXNMoney(loyaltyDiscountCents / 100)}</span>
+              <span className="font-medium">-{formatMXNMoney(loyaltyDiscountCents / 100)}</span>
             </div>
           )}
-          <div className="flex justify-between font-semibold pt-2 border-t text-base">
-            <span>Total a pagar:</span>
-            <span>{formatMXNMoney(total)}</span>
+          <div className="flex justify-between font-semibold pt-2 border-t border-gray-200 dark:border-gray-700 text-base">
+            <span className="text-gray-900 dark:text-gray-100">Total a pagar:</span>
+            <span className="text-primary-600 dark:text-primary-400">{formatMXNMoney(total)}</span>
           </div>
         </div>
       </div>
 
       {/* Código de descuento */}
-      <div className="bg-gray-50 rounded-lg p-4 mb-6">
-        <h2 className="font-semibold mb-3 text-sm text-gray-700">
+      <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 mb-6 border border-gray-200 dark:border-gray-700">
+        <h2 className="font-semibold mb-3 text-sm text-gray-700 dark:text-gray-300">
           Código de descuento
         </h2>
         <div className="flex gap-2">
@@ -1411,7 +1411,7 @@ export default function PagoClient() {
             onBlur={handleCouponBlur}
             onKeyDown={handleCouponKeyDown}
             placeholder="Ingresa tu código"
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
             disabled={!!couponCode}
             aria-label="Código de descuento"
             aria-describedby={
@@ -1431,7 +1431,7 @@ export default function PagoClient() {
                 setCouponInput("");
                 setCouponError(null);
               }}
-              className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 underline"
+              className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 underline"
             >
               Quitar
             </button>
@@ -1448,14 +1448,14 @@ export default function PagoClient() {
         {couponError && (
           <p
             id="coupon-error"
-            className="text-red-500 text-sm mt-2"
+            className="text-red-500 dark:text-red-400 text-sm mt-2"
             role="alert"
           >
             {couponError}
           </p>
         )}
         {couponCode && !couponError && (
-          <p id="coupon-success" className="text-green-600 text-sm mt-2">
+          <p id="coupon-success" className="text-green-600 dark:text-green-400 text-sm mt-2">
             ✓ Cupón {couponCode} aplicado
           </p>
         )}
@@ -1488,30 +1488,30 @@ export default function PagoClient() {
       {/* Stripe Payment Form si es tarjeta */}
       {selectedPaymentMethod === "card" && orderId ? (
         <div className="space-y-4">
-          <div className="bg-gray-50 rounded-lg p-4 mb-4">
-            <h2 className="font-semibold mb-2 text-sm text-gray-700">Resumen de pago</h2>
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 mb-4 border border-gray-200 dark:border-gray-700">
+            <h2 className="font-semibold mb-2 text-sm text-gray-700 dark:text-gray-300">Resumen de pago</h2>
             <div className="space-y-1 text-sm">
               <div className="flex justify-between">
-                <span>Subtotal:</span>
-                <span>{formatMXNMoney(subtotal)}</span>
+                <span className="text-gray-600 dark:text-gray-400">Subtotal:</span>
+                <span className="text-gray-900 dark:text-gray-100">{formatMXNMoney(subtotal)}</span>
               </div>
               <div className="flex justify-between">
-                <span>Envío:</span>
-                <span>
+                <span className="text-gray-600 dark:text-gray-400">Envío:</span>
+                <span className="text-gray-900 dark:text-gray-100">
                   {shippingCost > 0
                     ? formatMXNMoney(shippingCost)
                     : "$0.00 (envío gratis)"}
                 </span>
               </div>
               {discount && (
-                <div className="flex justify-between text-green-600">
+                <div className="flex justify-between text-green-600 dark:text-green-400">
                   <span>Descuento:</span>
                   <span>-{formatMXNMoney(discount)}</span>
                 </div>
               )}
-              <div className="flex justify-between font-semibold pt-2 border-t">
-                <span>Total:</span>
-                <span>{formatMXNMoney(total)}</span>
+              <div className="flex justify-between font-semibold pt-2 border-t border-gray-200 dark:border-gray-700">
+                <span className="text-gray-900 dark:text-gray-100">Total:</span>
+                <span className="text-primary-600 dark:text-primary-400">{formatMXNMoney(total)}</span>
               </div>
             </div>
           </div>
@@ -1543,46 +1543,46 @@ export default function PagoClient() {
         /* Formulario de pago tradicional */
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Tratamiento *
             </label>
             <select
               {...register("honorific", {
                 required: "El tratamiento es requerido",
               })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             >
-            <option value="Dr.">Dr.</option>
-            <option value="Dra.">Dra.</option>
+            <option value="Dr." className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">Dr.</option>
+            <option value="Dra." className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">Dra.</option>
           </select>
           {errors.honorific && (
-            <p className="text-red-500 text-sm mt-1">
+            <p className="text-red-500 dark:text-red-400 text-sm mt-1">
               {errors.honorific.message}
             </p>
           )}
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Método de pago *
           </label>
           <select
             {...register("paymentMethod", {
               required: "Selecciona un método de pago",
             })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           >
-            <option value="">Selecciona...</option>
-            <option value="card">Tarjeta de crédito/débito (Stripe)</option>
-            <option value="bank_transfer">Transferencia o depósito en efectivo</option>
+            <option value="" className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">Selecciona...</option>
+            <option value="card" className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">Tarjeta de crédito/débito (Stripe)</option>
+            <option value="bank_transfer" className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">Transferencia o depósito en efectivo</option>
           </select>
           {watch("paymentMethod") === "bank_transfer" && (
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
               Te daremos los datos bancarios para transferir o depositar en sucursal, Oxxo, 7-Eleven, etc. Tu pedido se confirma al registrar el pago.
             </p>
           )}
           {errors.paymentMethod && (
-            <p className="text-red-500 text-sm mt-1">
+            <p className="text-red-500 dark:text-red-400 text-sm mt-1">
               {errors.paymentMethod.message}
             </p>
           )}
@@ -1592,13 +1592,13 @@ export default function PagoClient() {
         {error && itemsForOrder.length > 0 && (
           <div className={`rounded-md border p-3 ${
             errorType === "fatal"
-              ? "border-red-200 bg-red-50"
-              : "border-yellow-200 bg-yellow-50"
+              ? "border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20"
+              : "border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20"
           }`}>
             <p className={`text-sm ${
               errorType === "fatal"
-                ? "text-red-800"
-                : "text-yellow-800"
+                ? "text-red-800 dark:text-red-300"
+                : "text-yellow-800 dark:text-yellow-300"
             }`} role="alert">
               {error}
             </p>
