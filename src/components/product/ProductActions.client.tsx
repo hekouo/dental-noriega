@@ -407,12 +407,12 @@ export default function ProductActions({ product }: Props) {
             onClick={handleBuyNow}
             disabled={!canBuy}
             aria-label="Comprar ahora"
-              className={getTapClass({
-                kind: "button",
-                enabled: microAnimsEnabled,
-                reducedMotion: prefersReducedMotion,
-                className: "w-full border-2 border-primary-600 dark:border-primary-500 text-primary-600 dark:text-primary-400 bg-white dark:bg-gray-800 px-6 py-3 rounded-md hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 font-medium",
-              })}
+            className={getTapClass({
+              kind: "button",
+              enabled: microAnimsEnabled,
+              reducedMotion: prefersReducedMotion,
+              className: "w-full border-2 border-primary-600 dark:border-primary-500 text-primary-600 dark:text-primary-400 bg-white dark:bg-gray-800 px-6 py-3 rounded-md hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 font-medium",
+            })}
             title="Comprar ahora"
           >
             Comprar ahora
