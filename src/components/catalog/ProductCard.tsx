@@ -261,8 +261,13 @@ export default function ProductCard({
           if (priceCents <= 0) return null;
           const points = estimatePointsForPriceCents(priceCents);
           if (points <= 0) return null;
+          const accentEnabled = process.env.NEXT_PUBLIC_ENABLE_ACCENT_UI === "true";
+          const pointsClasses = accentEnabled
+            ? "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
+            : "bg-amber-50 text-amber-700 border border-amber-200";
+          
           return (
-            <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
+            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${pointsClasses}`}>
               +{points.toLocaleString("es-MX")} pts
             </span>
           );
