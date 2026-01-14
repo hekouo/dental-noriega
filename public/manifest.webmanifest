@@ -1,0 +1,28 @@
+{
+  "name": "Depósito Dental Noriega",
+  "short_name": "DDN",
+  "description": "Insumos dentales de calidad para tu clínica. Envíos a todo México.",
+  "start_url": "/?source=pwa",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["shopping", "medical"],
+  "screenshots": [],
+  "shortcuts": []
+}
