@@ -107,12 +107,12 @@ async function FeaturedItemsSection() {
 export default async function TiendaPage() {
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="bg-gray-50">
       {/* Mini-hero con beneficios */}
       <div className="bg-gradient-to-br from-primary-600 via-primary-700 to-primary-800 text-white">
-        <div className="max-w-7xl mx-auto px-4 py-10 sm:py-16">
+        <div className="max-w-7xl mx-auto px-4 pt-20 sm:pt-24 pb-10 sm:pb-16">
           <div className="text-center mb-8">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-3">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-3 scroll-mt-20">
               Tienda
             </h1>
             <p className="text-base sm:text-lg text-primary-100 max-w-2xl mx-auto">

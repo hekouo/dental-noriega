@@ -188,7 +188,7 @@ export default function RootLayout({
         )}
       </head>
       <body
-        className={`${inter.className} min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 flex flex-col overflow-x-hidden`}
+        className={`${inter.className} min-h-dvh bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 flex flex-col overflow-x-hidden`}
       >
         <Providers>
           {/* Structured Data: Organization + Website */}

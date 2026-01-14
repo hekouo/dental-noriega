@@ -35,13 +35,13 @@ export default function SectionHeader({
       {showWatermark && <ToothWatermark />}
       <div className="relative flex items-start justify-between gap-4">
         <div className="flex-1">
-          <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-gray-900 mb-2 relative">
+          <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-gray-900 dark:text-gray-100 mb-2 relative scroll-mt-20">
             {title}
             {/* Acento de marca: línea decorativa */}
             <span className="absolute bottom-0 left-0 w-12 h-0.5 bg-primary-600 rounded-full" aria-hidden="true" />
           </h2>
           {subtitle && (
-            <p className="text-sm sm:text-base text-gray-600 max-w-2xl">
+            <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 max-w-2xl">
               {subtitle}
             </p>
           )}
