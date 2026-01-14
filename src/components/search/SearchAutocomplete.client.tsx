@@ -44,6 +44,47 @@ export default function SearchAutocomplete({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const { showToast } = useToast();
+  const prefersReducedMotion = usePrefersReducedMotion();
+
+  // Voice search
+  const { supported: voiceSupported, listening, start: startVoice, stop: stopVoice } = useVoiceSearch({
+    onResult: (transcript) => {
+      handleChange(transcript);
+      // Trigger search suggestions
+      fetchSuggestions(transcript);
+      // Auto-submit si hay texto
+      if (transcript.trim()) {
+        setTimeout(() => {
+          navigateToSearch(transcript);
+        }, 300);
+      }
+    },
+    onError: (errorCode) => {
+      let message = "No se pudo iniciar la búsqueda por voz";
+      switch (errorCode) {
+        case "not-allowed":
+          message = "Permite el micrófono para usar búsqueda por voz";
+          break;
+        case "no-speech":
+          message = "No se detectó voz, intenta otra vez";
+          break;
+        case "network":
+          message = "Error de red, intenta más tarde";
+          break;
+        case "service-not-allowed":
+          message = "El servicio de reconocimiento de voz no está disponible";
+          break;
+        default:
+          message = "Error al usar búsqueda por voz";
+      }
+      showToast({
+        message,
+        variant: "error",
+        durationMs: 3000,
+      });
+    },
+  });
 
   // Limpiar al desmontar
   useEffect(() => {
@@ -280,7 +321,31 @@ export default function SearchAutocomplete({
           }
           className={`w-full min-h-[44px] pl-10 pr-10 py-3 border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all ${inputClassName}`}
         />
-        {query && (
+        {/* Voice search button */}
+        {voiceSupported && (
+          <button
+            type="button"
+            onClick={() => {
+              if (listening) {
+                stopVoice();
+              } else {
+                startVoice();
+              }
+            }}
+            className={`absolute right-3 top-1/2 -translate-y-1/2 min-h-[44px] min-w-[44px] flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors p-2 rounded-lg hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 ${
+              listening ? "text-red-600 dark:text-red-400" : ""
+            }`}
+            aria-label={listening ? "Detener búsqueda por voz" : "Buscar por voz"}
+            aria-pressed={listening}
+          >
+            <Mic
+              size={18}
+              className={listening && !prefersReducedMotion ? "animate-pulse" : ""}
+              aria-hidden="true"
+            />
+          </button>
+        )}
+        {query && !voiceSupported && (
           <button
             type="button"
             onClick={handleClear}
@@ -290,8 +355,18 @@ export default function SearchAutocomplete({
             <X size={18} />
           </button>
         )}
+        {query && voiceSupported && (
+          <button
+            type="button"
+            onClick={handleClear}
+            className="absolute right-12 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1"
+            aria-label="Limpiar búsqueda"
+          >
+            <X size={18} />
+          </button>
+        )}
         {isLoading && query && (
-          <div className="absolute right-10 top-1/2 -translate-y-1/2">
+          <div className={`absolute ${voiceSupported ? "right-20" : "right-10"} top-1/2 -translate-y-1/2`}>
             <Loader2 className="w-5 h-5 text-primary-600 dark:text-primary-400 animate-spin" />
           </div>
         )}
