@@ -87,23 +87,31 @@ export default function ThemeProvider({
  * Hook para usar el tema (opcional, para componentes que necesiten el estado)
  */
 export function useTheme() {
+  const enabled = process.env.NEXT_PUBLIC_ENABLE_THEME_TOGGLE === "true";
   const [theme, setThemeState] = useState<Theme>("system");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    if (!enabled) {
+      setMounted(true);
+      return;
+    }
+    
     setMounted(true);
     const initial = getInitialTheme();
     setThemeState(initial);
-  }, []);
+  }, [enabled]);
 
   const setTheme = (newTheme: Theme) => {
+    if (!enabled) return;
+    
     setThemeState(newTheme);
     setStoredTheme(newTheme);
     const resolved = resolveTheme(newTheme);
     applyTheme(resolved);
   };
 
-  const resolved = mounted ? resolveTheme(theme) : "light";
+  const resolved = mounted && enabled ? resolveTheme(theme) : "light";
 
   return {
     theme,
