@@ -567,36 +567,28 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    type PackageData = {
+      weight_g?: number;
+      length_cm?: number;
+      width_cm?: number;
+      height_cm?: number;
+      mode?: string;
+      updated_at?: string;
+    };
+
     // Obtener shipping_package_final (paquete real capturado por admin)
-    const shippingPackageFinal = packageMetadata.shipping_package_final as
-      | {
-          weight_g?: number;
-          length_cm?: number;
-          width_cm?: number;
-          height_cm?: number;
-          mode?: string;
-          updated_at?: string;
-        }
-      | undefined;
+    // Prioridad: root -> shipping.package_final -> shipping.shipping_package_final
+    const shippingPackageFinal =
+      (packageMetadata.shipping_package_final as PackageData | undefined) ||
+      (packageShippingMeta.package_final as PackageData | undefined) ||
+      (packageShippingMeta.shipping_package_final as PackageData | undefined);
 
     // Obtener paquete estimado (checkout) como fallback
+    // Prioridad: root -> shipping.estimated_package -> shipping.shipping_package_estimated
     const shippingPackageEstimated =
-      (packageMetadata.shipping_package_estimated as
-        | {
-            weight_g?: number;
-            length_cm?: number;
-            width_cm?: number;
-            height_cm?: number;
-          }
-        | undefined) ||
-      ((packageShippingMeta.estimated_package as
-        | {
-            weight_g?: number;
-            length_cm?: number;
-            width_cm?: number;
-            height_cm?: number;
-          }
-        | undefined) ?? undefined);
+      (packageMetadata.shipping_package_estimated as PackageData | undefined) ||
+      (packageShippingMeta.estimated_package as PackageData | undefined) ||
+      (packageShippingMeta.shipping_package_estimated as PackageData | undefined);
 
     const DEFAULT_PACKAGE = {
       weight_g: 1200,
@@ -656,6 +648,7 @@ export async function POST(req: NextRequest) {
         hasPackageType: !!packageType,
         package: {
           source: packageSource,
+          weightG,
           weightKg,
           lengthCm,
           widthCm,
