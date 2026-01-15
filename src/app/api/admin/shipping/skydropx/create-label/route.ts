@@ -144,6 +144,41 @@ function extractAddressFromMetadata(metadata: unknown): {
 
 export async function POST(req: NextRequest) {
   try {
+    const extractTrackingAndLabel = (shipmentResponse: unknown) => {
+      const anyResponse = shipmentResponse as any;
+      const trackingNumber =
+        anyResponse?.master_tracking_number ||
+        anyResponse?.data?.master_tracking_number ||
+        anyResponse?.tracking_number ||
+        anyResponse?.data?.tracking_number ||
+        anyResponse?.tracking ||
+        (anyResponse?.included && Array.isArray(anyResponse.included)
+          ? anyResponse.included.find((pkg: any) => pkg?.tracking_number)?.tracking_number
+          : null) ||
+        anyResponse?.shipment?.tracking_number ||
+        anyResponse?.shipment?.master_tracking_number ||
+        null;
+
+      let labelUrl: string | null = null;
+      if (anyResponse?.included && Array.isArray(anyResponse.included)) {
+        const firstPackage = anyResponse.included.find((pkg: any) => pkg?.label_url);
+        if (firstPackage?.label_url) {
+          labelUrl = firstPackage.label_url;
+        }
+      }
+      if (!labelUrl) {
+        labelUrl =
+          anyResponse?.label_url ||
+          anyResponse?.data?.label_url ||
+          anyResponse?.label_url_pdf ||
+          anyResponse?.files?.label ||
+          anyResponse?.shipment?.label_url ||
+          null;
+      }
+
+      return { trackingNumber, labelUrl };
+    };
+
     // Verificar acceso admin
     const access = await checkAdminAccess();
     if (access.status !== "allowed") {
@@ -324,37 +359,8 @@ export async function POST(req: NextRequest) {
       try {
         const shipmentResponse = await getShipment(existingShipmentId);
         
-        // Extraer tracking y label usando las mismas funciones tolerantes
-        const anyResponse = shipmentResponse as any;
-        const trackingNumber =
-          shipmentResponse.master_tracking_number ||
-          shipmentResponse.data?.master_tracking_number ||
-          (shipmentResponse as any).tracking_number ||
-          (shipmentResponse.data as any)?.tracking_number ||
-          (shipmentResponse as any).tracking ||
-          (shipmentResponse.included && Array.isArray(shipmentResponse.included)
-            ? shipmentResponse.included.find((pkg: any) => (pkg as any).tracking_number)?.tracking_number
-            : null) ||
-          anyResponse.shipment?.tracking_number ||
-          anyResponse.shipment?.master_tracking_number ||
-          null;
-
-        let labelUrl: string | null = null;
-        if (shipmentResponse.included && Array.isArray(shipmentResponse.included)) {
-          const firstPackage = shipmentResponse.included.find((pkg: any) => pkg.label_url);
-          if (firstPackage?.label_url) {
-            labelUrl = firstPackage.label_url;
-          }
-        }
-        if (!labelUrl) {
-          labelUrl =
-            (shipmentResponse as any).label_url ||
-            (shipmentResponse.data as any)?.label_url ||
-            (shipmentResponse as any).label_url_pdf ||
-            anyResponse.files?.label ||
-            anyResponse.shipment?.label_url ||
-            null;
-        }
+        // Extraer tracking y label usando helper tolerante
+        const { trackingNumber, labelUrl } = extractTrackingAndLabel(shipmentResponse);
 
         // Si ahora tenemos tracking y label, actualizar la orden
         if (trackingNumber || labelUrl) {
@@ -695,36 +701,122 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Loggear payload real (sin PII) antes de enviar a Skydropx
-    if (process.env.NODE_ENV !== "production") {
-      console.log("[create-label] Payload shipment (sin PII):", {
-        rateId: order.shipping_rate_ext_id,
-        packageSource,
-        weightG,
-        weightKg,
-        lengthCm,
-        widthCm,
-        heightCm,
-        unit: "kg",
+    const createShipmentWithFinalPackage = async () => {
+      const weightKgRounded = Math.max(1, Math.ceil(weightG / 1000));
+      const payload = {
+        rate_id: order.shipping_rate_ext_id,
+        address_from: {
+          country_code: addressFrom.countryCode || "MX",
+          postal_code: addressFrom.postalCode,
+          state: addressFrom.state,
+          city: addressFrom.city,
+          street1: addressFrom.address1,
+          name: addressFrom.name,
+          phone: addressFrom.phone || null,
+          email: addressFrom.email || null,
+        },
+        address_to: {
+          country_code: addressTo.countryCode || "MX",
+          postal_code: addressTo.postalCode,
+          state: addressTo.state,
+          city: addressTo.city,
+          street1: addressTo.address1,
+          name: addressTo.name,
+          phone: addressTo.phone || null,
+          email: addressTo.email || null,
+        },
+        parcels: [
+          {
+            weight: weightKgRounded,
+            height: Math.max(1, Math.round(heightCm)),
+            width: Math.max(1, Math.round(widthCm)),
+            length: Math.max(1, Math.round(lengthCm)),
+            mass_unit: "KG",
+            distance_unit: "CM",
+            package_type: packageType,
+            consignment_note: consignmentNote,
+          },
+        ],
+        printing_format: "standard",
+      };
+
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[create-label] Payload rate/shipments (sin PII):", {
+          rateId: order.shipping_rate_ext_id,
+          packageSource,
+          weightG,
+          weightKgRounded,
+          lengthCm: payload.parcels[0].length,
+          widthCm: payload.parcels[0].width,
+          heightCm: payload.parcels[0].height,
+          unit: "kg",
+        });
+      }
+
+      const response = await skydropxFetch("/api/v1/rate/shipments", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
       });
-    }
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        let parsedBody: unknown = null;
+        try {
+          parsedBody = JSON.parse(errorText);
+        } catch {
+          parsedBody = null;
+        }
+        const error = new Error("Skydropx rechazó el envío con paquete final");
+        (error as Error & { statusCode?: number; details?: unknown }).statusCode = response.status;
+        (error as Error & { statusCode?: number; details?: unknown }).details = parsedBody;
+        throw error;
+      }
+
+      const created = (await response.json().catch(() => null)) as any;
+      const rawId = created?.id || created?.data?.id || created?.shipment?.id || null;
+      if (!rawId) {
+        throw new Error("No se recibió shipment_id de Skydropx (rate/shipments).");
+      }
+
+      let trackingNumber = extractTrackingAndLabel(created).trackingNumber;
+      let labelUrl = extractTrackingAndLabel(created).labelUrl;
+      if (!trackingNumber || !labelUrl) {
+        const shipmentDetails = await getShipment(rawId);
+        const parsed = extractTrackingAndLabel(shipmentDetails);
+        trackingNumber = parsed.trackingNumber;
+        labelUrl = parsed.labelUrl;
+      }
+
+      return {
+        rawId,
+        trackingNumber,
+        labelUrl,
+        pollingInfo: undefined,
+      };
+    };
 
     // Crear el shipment en Skydropx
-    const shipmentResult = await createShipmentFromRate({
-      rateExternalId: order.shipping_rate_ext_id, // NO sobreescribir, solo usar como input
-      addressFrom,
-      addressTo,
-      parcels: [
-        {
-          weight: weightKg,
-          height: heightCm,
-          width: widthCm,
-          length: lengthCm,
-        },
-      ],
-      consignmentNote: consignmentNote!, // Ya validado arriba
-      packageType: packageType!, // Ya validado arriba
-    });
+    const shipmentResult =
+      packageSource === "final"
+        ? await createShipmentWithFinalPackage()
+        : await createShipmentFromRate({
+            rateExternalId: order.shipping_rate_ext_id, // NO sobreescribir, solo usar como input
+            addressFrom,
+            addressTo,
+            parcels: [
+              {
+                weight: weightKg,
+                height: heightCm,
+                width: widthCm,
+                length: lengthCm,
+              },
+            ],
+            consignmentNote: consignmentNote!, // Ya validado arriba
+            packageType: packageType!, // Ya validado arriba
+          });
 
     if (process.env.NODE_ENV !== "production") {
       console.log("[create-label] Shipment creado:", {
