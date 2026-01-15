@@ -238,8 +238,48 @@ export async function POST(req: NextRequest) {
     const orderShippingMeta = (orderMetadata.shipping as Record<string, unknown>) || {};
     const existingShipmentId = (orderShippingMeta.shipment_id as string) || null;
 
+    const isValidPositiveNumber = (value: unknown): value is number =>
+      typeof value === "number" && value > 0;
+
+    const normalizePackageCandidate = (candidate: unknown) => {
+      if (!candidate || typeof candidate !== "object") return null;
+      const data = candidate as Record<string, unknown>;
+      const weight = data.weight_g;
+      const length = data.length_cm;
+      const width = data.width_cm;
+      const height = data.height_cm;
+      if (
+        isValidPositiveNumber(weight) &&
+        isValidPositiveNumber(length) &&
+        isValidPositiveNumber(width) &&
+        isValidPositiveNumber(height)
+      ) {
+        return {
+          weight_g: weight,
+          length_cm: length,
+          width_cm: width,
+          height_cm: height,
+        };
+      }
+      return null;
+    };
+
+    const finalPackageCandidate =
+      normalizePackageCandidate(orderMetadata.shipping_package_final) ||
+      normalizePackageCandidate(orderShippingMeta.package_final) ||
+      normalizePackageCandidate(orderShippingMeta.shipping_package_final);
+
+    const packageUsed = normalizePackageCandidate(orderShippingMeta.package_used);
+    const shouldForceRecreate =
+      !!finalPackageCandidate &&
+      (!packageUsed ||
+        packageUsed.weight_g !== finalPackageCandidate.weight_g ||
+        packageUsed.length_cm !== finalPackageCandidate.length_cm ||
+        packageUsed.width_cm !== finalPackageCandidate.width_cm ||
+        packageUsed.height_cm !== finalPackageCandidate.height_cm);
+
     // Si ya tiene tracking y label completos, retornar datos existentes
-    if (order.shipping_tracking_number && order.shipping_label_url) {
+    if (order.shipping_tracking_number && order.shipping_label_url && !shouldForceRecreate) {
       return NextResponse.json(
         {
           ok: true,
@@ -252,7 +292,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Si existe shipment_id pero no tiene tracking/label completo, intentar rehidratar
-    if (existingShipmentId) {
+    if (existingShipmentId && !shouldForceRecreate) {
       try {
         const shipmentResponse = await getShipment(existingShipmentId);
         
@@ -355,47 +395,49 @@ export async function POST(req: NextRequest) {
 
     // GUARD CONTRA RACE CONDITION: Intentar adquirir "lock" con UPDATE condicional
     // Solo actualizamos si NO tiene tracking_number (evita doble creación)
-    const { data: lockedOrder, error: lockError } = await supabase
-      .from("orders")
-      .select("id, shipping_tracking_number, shipping_label_url, metadata")
-      .eq("id", orderId)
-      .is("shipping_tracking_number", null)
-      .single();
-
-    // Si no se encontró (ya tiene tracking), otro request ya creó la guía
-    if (lockError || !lockedOrder) {
-      // Re-leer la orden para obtener datos actualizados
-      const { data: updatedOrder } = await supabase
+    if (!shouldForceRecreate) {
+      const { data: lockedOrder, error: lockError } = await supabase
         .from("orders")
-        .select("shipping_tracking_number, shipping_label_url, metadata")
+        .select("id, shipping_tracking_number, shipping_label_url, metadata")
         .eq("id", orderId)
+        .is("shipping_tracking_number", null)
         .single();
 
-      if (updatedOrder?.shipping_tracking_number && updatedOrder?.shipping_label_url) {
-        const metadata = (updatedOrder.metadata as Record<string, unknown>) || {};
-        const shippingMeta = (metadata.shipping as Record<string, unknown>) || {};
-        const shipmentId = (shippingMeta.shipment_id as string) || null;
+      // Si no se encontró (ya tiene tracking), otro request ya creó la guía
+      if (lockError || !lockedOrder) {
+        // Re-leer la orden para obtener datos actualizados
+        const { data: updatedOrder } = await supabase
+          .from("orders")
+          .select("shipping_tracking_number, shipping_label_url, metadata")
+          .eq("id", orderId)
+          .single();
 
+        if (updatedOrder?.shipping_tracking_number && updatedOrder?.shipping_label_url) {
+          const metadata = (updatedOrder.metadata as Record<string, unknown>) || {};
+          const shippingMeta = (metadata.shipping as Record<string, unknown>) || {};
+          const shipmentId = (shippingMeta.shipment_id as string) || null;
+
+          return NextResponse.json(
+            {
+              ok: true,
+              trackingNumber: updatedOrder.shipping_tracking_number,
+              labelUrl: updatedOrder.shipping_label_url,
+              shipmentId,
+            } satisfies CreateLabelResponse,
+            { status: 200 },
+          );
+        }
+
+        // Si aún no tiene tracking, puede ser un error de lock
         return NextResponse.json(
           {
-            ok: true,
-            trackingNumber: updatedOrder.shipping_tracking_number,
-            labelUrl: updatedOrder.shipping_label_url,
-            shipmentId,
+            ok: false,
+            code: "unknown_error",
+            message: "No se pudo adquirir el lock para crear la guía. Intenta de nuevo.",
           } satisfies CreateLabelResponse,
-          { status: 200 },
+          { status: 409 }, // Conflict
         );
       }
-
-      // Si aún no tiene tracking, puede ser un error de lock
-      return NextResponse.json(
-        {
-          ok: false,
-          code: "unknown_error",
-          message: "No se pudo adquirir el lock para crear la guía. Intenta de nuevo.",
-        } satisfies CreateLabelResponse,
-        { status: 409 }, // Conflict
-      );
     }
 
     // Validar precondiciones
@@ -641,6 +683,8 @@ export async function POST(req: NextRequest) {
     if (process.env.NODE_ENV !== "production") {
       console.log("[create-label] Creando envío:", {
         orderId,
+        forceRecreate: shouldForceRecreate,
+        previousShipmentId: existingShipmentId,
         rateId: order.shipping_rate_ext_id,
         from: `${addressFrom.city}, ${addressFrom.postalCode}`,
         to: `${addressTo.city}, ${addressTo.postalCode}`,
@@ -674,6 +718,17 @@ export async function POST(req: NextRequest) {
       packageType: packageType!, // Ya validado arriba
     });
 
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[create-label] Shipment creado:", {
+        orderId,
+        previousShipmentId: existingShipmentId,
+        newShipmentId: shipmentResult.rawId || null,
+        packageSource: packageSource,
+        weightG,
+        weightKg,
+      });
+    }
+
     // Merge seguro de metadata (NO sobreescribir completo)
     const finalMetadata = (order.metadata as Record<string, unknown>) || {};
     const finalShippingMeta = (finalMetadata.shipping as Record<string, unknown>) || {};
@@ -683,6 +738,13 @@ export async function POST(req: NextRequest) {
     const updatedShippingMeta = {
       ...finalShippingMeta, // Preservar datos existentes (cancel_request_id, cancel_status, etc.)
       shipment_id: shipmentResult.rawId || finalShippingMeta.shipment_id || null, // SIEMPRE guardar/actualizar shipment_id
+      package_used: {
+        weight_g: weightG,
+        length_cm: lengthCm,
+        width_cm: widthCm,
+        height_cm: heightCm,
+        source: packageSource,
+      },
     };
 
     const updatedMetadata = {
@@ -722,11 +784,16 @@ export async function POST(req: NextRequest) {
       updateData.shipping_label_url = shipmentResult.labelUrl;
     }
 
-    const { error: updateError } = await supabase
+    const updateQuery = supabase
       .from("orders")
       .update(updateData)
-      .eq("id", orderId)
-      .is("shipping_tracking_number", null); // Solo actualizar si aún no tiene tracking (doble verificación)
+      .eq("id", orderId);
+
+    if (!shouldForceRecreate) {
+      updateQuery.is("shipping_tracking_number", null); // Solo actualizar si aún no tiene tracking (doble verificación)
+    }
+
+    const { error: updateError } = await updateQuery;
 
     // Enviar email de envío generado si se actualizó exitosamente y hay tracking/label
     if (!updateError && (shipmentResult.trackingNumber || shipmentResult.labelUrl)) {
