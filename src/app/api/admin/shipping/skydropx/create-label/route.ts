@@ -3,7 +3,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
 import { checkAdminAccess } from "@/lib/admin/access";
-import { createShipmentFromRate, getShipment, skydropxFetch } from "@/lib/skydropx/client";
+import {
+  createQuotation,
+  createShipmentFromRate,
+  getShipment,
+  skydropxFetch,
+  type SkydropxQuotationRate,
+  type SkydropxQuotationPayload,
+} from "@/lib/skydropx/client";
 import { getSkydropxConfig } from "@/lib/shipping/skydropx.server";
 
 export const dynamic = "force-dynamic";
@@ -510,6 +517,8 @@ export async function POST(req: NextRequest) {
 
     // Obtener datos de dirección del destino
     const addressTo = extractAddressFromMetadata(order.metadata);
+    const destinationAddress2 =
+      (addressTo as { address2?: string | null } | null)?.address2 || null;
 
     if (!addressTo) {
       return NextResponse.json(
@@ -702,63 +711,163 @@ export async function POST(req: NextRequest) {
     }
 
     const createShipmentWithFinalPackage = async () => {
-      const weightKgRounded = Math.max(1, Math.ceil(weightG / 1000));
-      const payload = {
-        rate_id: order.shipping_rate_ext_id,
+      const weightKgPrecise = Math.max(1, Number((weightG / 1000).toFixed(2)));
+      const parcel = {
+        weight: weightKgPrecise,
+        height: Math.max(1, Math.round(heightCm)),
+        width: Math.max(1, Math.round(widthCm)),
+        length: Math.max(1, Math.round(lengthCm)),
+        distance_unit: "CM" as const,
+        mass_unit: "KG" as const,
+      };
+
+      const quotationPayload: SkydropxQuotationPayload = {
         address_from: {
-          country_code: addressFrom.countryCode || "MX",
-          postal_code: addressFrom.postalCode,
+          country: addressFrom.countryCode || "MX",
+          zip: addressFrom.postalCode,
           state: addressFrom.state,
           city: addressFrom.city,
-          street1: addressFrom.address1,
-          name: addressFrom.name,
-          phone: addressFrom.phone || null,
-          email: addressFrom.email || null,
+          address1: addressFrom.address1 || null,
+          address2: config.origin.areaLevel3 || undefined,
         },
         address_to: {
-          country_code: addressTo.countryCode || "MX",
-          postal_code: addressTo.postalCode,
+          country: addressTo.countryCode || "MX",
+          zip: addressTo.postalCode,
           state: addressTo.state,
           city: addressTo.city,
-          street1: addressTo.address1,
-          name: addressTo.name,
-          phone: addressTo.phone || null,
-          email: addressTo.email || null,
+          address1: addressTo.address1 || null,
+          address2: destinationAddress2 || undefined,
         },
-        parcels: [
-          {
-            weight: weightKgRounded,
-            height: Math.max(1, Math.round(heightCm)),
-            width: Math.max(1, Math.round(widthCm)),
-            length: Math.max(1, Math.round(lengthCm)),
-            mass_unit: "KG",
-            distance_unit: "CM",
-            package_type: packageType,
-            consignment_note: consignmentNote,
-          },
-        ],
-        printing_format: "standard",
+        parcels: [parcel],
+        order_id: orderId,
       };
 
       if (process.env.NODE_ENV !== "production") {
-        console.log("[create-label] Payload rate/shipments (sin PII):", {
-          rateId: order.shipping_rate_ext_id,
+        console.log("[create-label] Payload quotation (sin PII):", {
+          orderId,
           packageSource,
           weightG,
-          weightKgRounded,
-          lengthCm: payload.parcels[0].length,
-          widthCm: payload.parcels[0].width,
-          heightCm: payload.parcels[0].height,
-          unit: "kg",
+          weightKgPrecise,
+          lengthCm: parcel.length,
+          widthCm: parcel.width,
+          heightCm: parcel.height,
         });
       }
 
-      const response = await skydropxFetch("/api/v1/rate/shipments", {
+      const quotationResult = await createQuotation(quotationPayload);
+      if (!quotationResult.ok) {
+        const error = new Error("Skydropx rechazó la cotización con paquete final");
+        (error as Error & { code?: string; details?: unknown }).code = quotationResult.code;
+        (error as Error & { details?: unknown }).details = quotationResult.errors;
+        throw error;
+      }
+
+      const quotationId =
+        quotationResult.quotationId ||
+        quotationResult.data?.id ||
+        quotationResult.data?.quotation?.id ||
+        null;
+
+      const rates =
+        quotationResult.data?.data ||
+        quotationResult.data?.included ||
+        quotationResult.data?.quotation?.rates ||
+        [];
+
+      const shippingMeta = (packageMetadata.shipping as Record<string, unknown>) || {};
+      const selectedRateId = order.shipping_rate_ext_id;
+      let matchedRate: SkydropxQuotationRate | undefined =
+        rates.find((rate) => rate.id === selectedRateId) ||
+        undefined;
+
+      if (!matchedRate && shippingMeta.rate && typeof shippingMeta.rate === "object") {
+        const rateMeta = shippingMeta.rate as { provider?: string; service?: string };
+        matchedRate = rates.find(
+          (rate) =>
+            rate.provider_name === rateMeta.provider &&
+            rate.provider_service_name === rateMeta.service,
+        );
+      }
+
+      if (!quotationId || !matchedRate?.id) {
+        const error = new Error(
+          "No se pudo mapear la tarifa seleccionada en la cotización de Skydropx.",
+        );
+        (error as Error & { code?: string }).code = "rate_id_no_encontrado";
+        throw error;
+      }
+
+      const shipmentPayload = {
+        shipment: {
+          quotation: { id: quotationId },
+          rate_id: matchedRate.id,
+          address_from: {
+            country: addressFrom.countryCode || "MX",
+            country_code: addressFrom.countryCode || "MX",
+            zip: addressFrom.postalCode,
+            postal_code: addressFrom.postalCode,
+            city: addressFrom.city,
+            state: addressFrom.state,
+            province: addressFrom.state,
+            street1: addressFrom.address1,
+            address1: addressFrom.address1,
+            name: addressFrom.name,
+            company: "DDN",
+            reference: config.origin.reference || "Sin referencia",
+            phone: addressFrom.phone || null,
+            email: addressFrom.email || null,
+          },
+          address_to: {
+            country: addressTo.countryCode || "MX",
+            country_code: addressTo.countryCode || "MX",
+            zip: addressTo.postalCode,
+            postal_code: addressTo.postalCode,
+            city: addressTo.city,
+            state: addressTo.state,
+            province: addressTo.state,
+            street1: addressTo.address1,
+            address1: addressTo.address1,
+            name: addressTo.name,
+            company: "Particular",
+            reference: "Sin referencia",
+            phone: addressTo.phone || null,
+            email: addressTo.email || null,
+          },
+          packages: [
+            {
+              package_number: "1",
+              package_protected: false,
+              weight: weightKgPrecise,
+              height: parcel.height,
+              width: parcel.width,
+              length: parcel.length,
+              consignment_note: consignmentNote,
+              package_type: packageType,
+            },
+          ],
+          printing_format: "standard",
+        },
+      };
+
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[create-label] Payload shipments (sin PII):", {
+          quotationId,
+          rateId: matchedRate.id,
+          packageSource,
+          weightG,
+          weightKgPrecise,
+          lengthCm: parcel.length,
+          widthCm: parcel.width,
+          heightCm: parcel.height,
+        });
+      }
+
+      const response = await skydropxFetch("/api/v1/shipments", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(shipmentPayload),
       });
 
       if (!response.ok) {
@@ -770,19 +879,21 @@ export async function POST(req: NextRequest) {
           parsedBody = null;
         }
         const error = new Error("Skydropx rechazó el envío con paquete final");
-        (error as Error & { statusCode?: number; details?: unknown }).statusCode = response.status;
-        (error as Error & { statusCode?: number; details?: unknown }).details = parsedBody;
+        (error as Error & { statusCode?: number; details?: unknown }).statusCode =
+          response.status;
+        (error as Error & { details?: unknown }).details = parsedBody;
         throw error;
       }
 
       const created = (await response.json().catch(() => null)) as any;
       const rawId = created?.id || created?.data?.id || created?.shipment?.id || null;
       if (!rawId) {
-        throw new Error("No se recibió shipment_id de Skydropx (rate/shipments).");
+        throw new Error("No se recibió shipment_id de Skydropx.");
       }
 
-      let trackingNumber = extractTrackingAndLabel(created).trackingNumber;
-      let labelUrl = extractTrackingAndLabel(created).labelUrl;
+      const parsedCreated = extractTrackingAndLabel(created);
+      let trackingNumber = parsedCreated.trackingNumber;
+      let labelUrl = parsedCreated.labelUrl;
       if (!trackingNumber || !labelUrl) {
         const shipmentDetails = await getShipment(rawId);
         const parsed = extractTrackingAndLabel(shipmentDetails);
@@ -795,6 +906,8 @@ export async function POST(req: NextRequest) {
         trackingNumber,
         labelUrl,
         pollingInfo: undefined,
+        quotationId,
+        rateId: matchedRate.id,
       };
     };
 
@@ -906,7 +1019,7 @@ export async function POST(req: NextRequest) {
     
     // IMPORTANTE: SIEMPRE guardar shipment_id en metadata, incluso si tracking está pendiente
     // Esto permite cancelar el envío después aunque tracking no esté disponible inmediatamente
-    const updatedShippingMeta = {
+      const updatedShippingMeta = {
       ...finalShippingMeta, // Preservar datos existentes (cancel_request_id, cancel_status, etc.)
       shipment_id: shipmentResult.rawId || finalShippingMeta.shipment_id || null, // SIEMPRE guardar/actualizar shipment_id
       package_used: {
@@ -916,6 +1029,19 @@ export async function POST(req: NextRequest) {
         height_cm: heightCm,
         source: packageSource,
       },
+        shipment_payload_debug: {
+          quotation_id: (shipmentResult as { quotationId?: string }).quotationId || null,
+          rate_id: (shipmentResult as { rateId?: string }).rateId || order.shipping_rate_ext_id,
+          package_source: packageSource,
+          parcels: [
+            {
+              weight_kg: Math.max(1, Number((weightG / 1000).toFixed(2))),
+              length_cm: lengthCm,
+              width_cm: widthCm,
+              height_cm: heightCm,
+            },
+          ],
+        },
       ...(shipmentDebug ? { shipment_debug: shipmentDebug } : {}),
     };
 
