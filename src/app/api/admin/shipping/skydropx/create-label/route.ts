@@ -720,6 +720,7 @@ export async function POST(req: NextRequest) {
         distance_unit: "CM" as const,
         mass_unit: "KG" as const,
       };
+      const quotationReference = orderId ? `DDN-${orderId.slice(0, 8)}` : "DDN-unknown";
 
       const quotationPayload: SkydropxQuotationPayload = {
         address_from: {
@@ -739,12 +740,14 @@ export async function POST(req: NextRequest) {
           address2: destinationAddress2 || undefined,
         },
         parcels: [parcel],
-        order_id: orderId,
+        reference: quotationReference,
       };
 
       if (process.env.NODE_ENV !== "production") {
         console.log("[create-label] Payload quotation (sin PII):", {
-          orderId,
+          reference: quotationReference,
+          quotationKeys: Object.keys(quotationPayload),
+          hasOrderId: Boolean(quotationPayload.order_id),
           packageSource,
           weightG,
           weightKgPrecise,
@@ -757,7 +760,11 @@ export async function POST(req: NextRequest) {
       const quotationResult = await createQuotation(quotationPayload);
       if (!quotationResult.ok) {
         const error = new Error("Skydropx rechazó la cotización con paquete final");
-        (error as Error & { code?: string; details?: unknown }).code = quotationResult.code;
+        const isBadRequest = quotationResult.code === "invalid_params";
+        (error as Error & { code?: string; details?: unknown; statusCode?: number }).code = isBadRequest
+          ? "skydropx_bad_request"
+          : "skydropx_error";
+        (error as Error & { statusCode?: number }).statusCode = isBadRequest ? 400 : undefined;
         (error as Error & { details?: unknown }).details = quotationResult.errors;
         throw error;
       }
