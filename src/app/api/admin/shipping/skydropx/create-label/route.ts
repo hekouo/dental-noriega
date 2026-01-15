@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
 import { checkAdminAccess } from "@/lib/admin/access";
-import { createShipmentFromRate, getShipment } from "@/lib/skydropx/client";
+import { createShipmentFromRate, getShipment, skydropxFetch } from "@/lib/skydropx/client";
 import { getSkydropxConfig } from "@/lib/shipping/skydropx.server";
 
 export const dynamic = "force-dynamic";
@@ -262,6 +262,34 @@ export async function POST(req: NextRequest) {
         };
       }
       return null;
+    };
+
+    const normalizePackageForSkydropx = (metadata: Record<string, unknown>) => {
+      const shippingMeta = (metadata.shipping as Record<string, unknown>) || {};
+      const finalPackage =
+        normalizePackageCandidate(metadata.shipping_package_final) ||
+        normalizePackageCandidate(shippingMeta.package_final) ||
+        normalizePackageCandidate(shippingMeta.shipping_package_final);
+
+      const estimatedPackage =
+        normalizePackageCandidate(metadata.shipping_package_estimated) ||
+        normalizePackageCandidate(shippingMeta.estimated_package) ||
+        normalizePackageCandidate(shippingMeta.shipping_package_estimated);
+
+      const fallback = {
+        weight_g: 1200,
+        length_cm: 20,
+        width_cm: 20,
+        height_cm: 10,
+      };
+
+      if (finalPackage) {
+        return { source: "final" as const, ...finalPackage };
+      }
+      if (estimatedPackage) {
+        return { source: "estimated" as const, ...estimatedPackage };
+      }
+      return { source: "default" as const, ...fallback };
     };
 
     const finalPackageCandidate =
@@ -609,75 +637,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    type PackageData = {
-      weight_g?: number;
-      length_cm?: number;
-      width_cm?: number;
-      height_cm?: number;
-      mode?: string;
-      updated_at?: string;
-    };
-
-    // Obtener shipping_package_final (paquete real capturado por admin)
-    // Prioridad: root -> shipping.package_final -> shipping.shipping_package_final
-    const shippingPackageFinal =
-      (packageMetadata.shipping_package_final as PackageData | undefined) ||
-      (packageShippingMeta.package_final as PackageData | undefined) ||
-      (packageShippingMeta.shipping_package_final as PackageData | undefined);
-
-    // Obtener paquete estimado (checkout) como fallback
-    // Prioridad: root -> shipping.estimated_package -> shipping.shipping_package_estimated
-    const shippingPackageEstimated =
-      (packageMetadata.shipping_package_estimated as PackageData | undefined) ||
-      (packageShippingMeta.estimated_package as PackageData | undefined) ||
-      (packageShippingMeta.shipping_package_estimated as PackageData | undefined);
-
-    const DEFAULT_PACKAGE = {
-      weight_g: 1200,
-      length_cm: 20,
-      width_cm: 20,
-      height_cm: 10,
-    };
-
-    const isValidDimension = (value: unknown): value is number =>
-      typeof value === "number" && value > 0;
-
-    let packageSource: "final" | "estimated" | "default" = "default";
-    let weightG = DEFAULT_PACKAGE.weight_g;
-    let lengthCm = DEFAULT_PACKAGE.length_cm;
-    let widthCm = DEFAULT_PACKAGE.width_cm;
-    let heightCm = DEFAULT_PACKAGE.height_cm;
-
-    if (
-      shippingPackageFinal &&
-      isValidDimension(shippingPackageFinal.weight_g) &&
-      isValidDimension(shippingPackageFinal.length_cm) &&
-      isValidDimension(shippingPackageFinal.width_cm) &&
-      isValidDimension(shippingPackageFinal.height_cm)
-    ) {
-      packageSource = "final";
-      weightG = shippingPackageFinal.weight_g;
-      lengthCm = shippingPackageFinal.length_cm;
-      widthCm = shippingPackageFinal.width_cm;
-      heightCm = shippingPackageFinal.height_cm;
-    } else if (
-      shippingPackageEstimated &&
-      isValidDimension(shippingPackageEstimated.weight_g)
-    ) {
-      packageSource = "estimated";
-      weightG = shippingPackageEstimated.weight_g;
-      lengthCm = isValidDimension(shippingPackageEstimated.length_cm)
-        ? shippingPackageEstimated.length_cm
-        : DEFAULT_PACKAGE.length_cm;
-      widthCm = isValidDimension(shippingPackageEstimated.width_cm)
-        ? shippingPackageEstimated.width_cm
-        : DEFAULT_PACKAGE.width_cm;
-      heightCm = isValidDimension(shippingPackageEstimated.height_cm)
-        ? shippingPackageEstimated.height_cm
-        : DEFAULT_PACKAGE.height_cm;
-    }
-
-    // Convertir peso a kg
+    const normalizedPackage = normalizePackageForSkydropx(packageMetadata);
+    const packageSource = normalizedPackage.source;
+    const weightG = normalizedPackage.weight_g;
+    const lengthCm = normalizedPackage.length_cm;
+    const widthCm = normalizedPackage.width_cm;
+    const heightCm = normalizedPackage.height_cm;
     const weightKg = weightG / 1000;
 
     if (process.env.NODE_ENV !== "production") {
@@ -698,6 +663,49 @@ export async function POST(req: NextRequest) {
           widthCm,
           heightCm,
         },
+        payloadUnit: "kg",
+      });
+    }
+
+    // Si hay shipment previo y cambió el paquete final, cancelar antes de recrear
+    if (shouldForceRecreate && existingShipmentId) {
+      try {
+        const cancelPath = `/api/v1/shipments/${existingShipmentId}/cancellations`;
+        const cancelPayload = {
+          reason: "Paquete real actualizado en admin DDN",
+          shipment_id: existingShipmentId,
+        };
+        if (process.env.NODE_ENV !== "production") {
+          console.log("[create-label] Cancelando shipment previo:", {
+            shipmentId: existingShipmentId,
+            path: cancelPath,
+          });
+        }
+        await skydropxFetch(cancelPath, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(cancelPayload),
+        });
+      } catch (cancelError) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[create-label] No se pudo cancelar shipment previo:", cancelError);
+        }
+      }
+    }
+
+    // Loggear payload real (sin PII) antes de enviar a Skydropx
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[create-label] Payload shipment (sin PII):", {
+        rateId: order.shipping_rate_ext_id,
+        packageSource,
+        weightG,
+        weightKg,
+        lengthCm,
+        widthCm,
+        heightCm,
+        unit: "kg",
       });
     }
 
@@ -736,32 +744,58 @@ export async function POST(req: NextRequest) {
         const shipmentDetails = await getShipment(shipmentResult.rawId);
         const detailsAny = shipmentDetails as Record<string, any>;
         const included = Array.isArray(detailsAny?.included) ? detailsAny.included : [];
-        const firstPackage = included.find((pkg: any) => pkg?.weight || pkg?.weight_kg || pkg?.weight_g);
+        const dataAttributes = detailsAny?.data?.attributes || {};
+        const firstIncludedAttrs = included.find((pkg: any) => pkg?.attributes)?.attributes || {};
         const parcels = Array.isArray(detailsAny?.data?.parcels) ? detailsAny.data.parcels : [];
-        const firstParcel = parcels[0];
+        const firstParcel = parcels[0] || {};
+
+        const weight =
+          dataAttributes.weight ||
+          dataAttributes.declared_weight ||
+          firstIncludedAttrs.weight ||
+          firstIncludedAttrs.declared_weight ||
+          firstParcel.weight ||
+          null;
+        const weightUnit =
+          dataAttributes.mass_unit ||
+          dataAttributes.weight_unit ||
+          firstIncludedAttrs.mass_unit ||
+          firstIncludedAttrs.weight_unit ||
+          null;
+        const dimensions = {
+          length:
+            dataAttributes.length ||
+            firstIncludedAttrs.length ||
+            firstParcel.length ||
+            null,
+          width:
+            dataAttributes.width ||
+            firstIncludedAttrs.width ||
+            firstParcel.width ||
+            null,
+          height:
+            dataAttributes.height ||
+            firstIncludedAttrs.height ||
+            firstParcel.height ||
+            null,
+        };
+
+        const rawSample = {
+          data_keys: detailsAny?.data ? Object.keys(detailsAny.data).slice(0, 20) : [],
+          data_attributes_keys: dataAttributes ? Object.keys(dataAttributes).slice(0, 20) : [],
+          included_count: included.length,
+          included_keys_sample: included[0] ? Object.keys(included[0]).slice(0, 20) : [],
+          included_attributes_keys_sample: firstIncludedAttrs ? Object.keys(firstIncludedAttrs).slice(0, 20) : [],
+        };
 
         shipmentDebug = {
           shipment_id: shipmentResult.rawId,
-          carrier: detailsAny?.data?.carrier || detailsAny?.carrier || null,
-          service: detailsAny?.data?.service || detailsAny?.service || null,
-          weight: detailsAny?.data?.weight || detailsAny?.weight || firstPackage?.weight || firstParcel?.weight || null,
-          weight_unit:
-            detailsAny?.data?.mass_unit ||
-            detailsAny?.mass_unit ||
-            detailsAny?.data?.weight_unit ||
-            firstPackage?.mass_unit ||
-            firstParcel?.mass_unit ||
-            null,
-          declared_weight:
-            detailsAny?.data?.declared_weight ||
-            detailsAny?.declared_weight ||
-            detailsAny?.data?.declared_value ||
-            null,
-          dimensions: {
-            length: detailsAny?.data?.length || firstPackage?.length || firstParcel?.length || null,
-            width: detailsAny?.data?.width || firstPackage?.width || firstParcel?.width || null,
-            height: detailsAny?.data?.height || firstPackage?.height || firstParcel?.height || null,
-          },
+          carrier: dataAttributes.carrier || detailsAny?.data?.carrier || detailsAny?.carrier || null,
+          service: dataAttributes.service || detailsAny?.data?.service || detailsAny?.service || null,
+          weight,
+          weight_unit: weightUnit,
+          dimensions,
+          raw_sample: rawSample,
         };
 
         if (process.env.NODE_ENV !== "production") {
