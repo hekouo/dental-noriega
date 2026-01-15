@@ -402,6 +402,23 @@ export default async function AdminPedidoDetailPage({
                     >
                       Ver etiqueta PDF
                     </Link>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Nota: la etiqueta puede mostrar 1.0 KG aunque el peso declarado sea mayor.
+                    </p>
+                    {(() => {
+                      const metadata = (order.metadata as Record<string, unknown>) || {};
+                      const shippingMeta = (metadata.shipping as Record<string, unknown>) || {};
+                      const shipmentDebug = shippingMeta.shipment_debug as
+                        | { weight?: number | string | null; weight_unit?: string | null }
+                        | undefined;
+                      if (!shipmentDebug?.weight) return null;
+                      return (
+                        <p className="mt-1 text-xs text-gray-600">
+                          Peso declarado (shipment): {shipmentDebug.weight}
+                          {shipmentDebug.weight_unit ? ` ${shipmentDebug.weight_unit}` : ""}
+                        </p>
+                      );
+                    })()}
                   </div>
                 )}
               </div>

@@ -729,6 +729,51 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // Obtener detalles del shipment recién creado para debug (peso real en Skydropx)
+    let shipmentDebug: Record<string, unknown> | null = null;
+    if (shipmentResult.rawId) {
+      try {
+        const shipmentDetails = await getShipment(shipmentResult.rawId);
+        const detailsAny = shipmentDetails as Record<string, any>;
+        const included = Array.isArray(detailsAny?.included) ? detailsAny.included : [];
+        const firstPackage = included.find((pkg: any) => pkg?.weight || pkg?.weight_kg || pkg?.weight_g);
+        const parcels = Array.isArray(detailsAny?.data?.parcels) ? detailsAny.data.parcels : [];
+        const firstParcel = parcels[0];
+
+        shipmentDebug = {
+          shipment_id: shipmentResult.rawId,
+          carrier: detailsAny?.data?.carrier || detailsAny?.carrier || null,
+          service: detailsAny?.data?.service || detailsAny?.service || null,
+          weight: detailsAny?.data?.weight || detailsAny?.weight || firstPackage?.weight || firstParcel?.weight || null,
+          weight_unit:
+            detailsAny?.data?.mass_unit ||
+            detailsAny?.mass_unit ||
+            detailsAny?.data?.weight_unit ||
+            firstPackage?.mass_unit ||
+            firstParcel?.mass_unit ||
+            null,
+          declared_weight:
+            detailsAny?.data?.declared_weight ||
+            detailsAny?.declared_weight ||
+            detailsAny?.data?.declared_value ||
+            null,
+          dimensions: {
+            length: detailsAny?.data?.length || firstPackage?.length || firstParcel?.length || null,
+            width: detailsAny?.data?.width || firstPackage?.width || firstParcel?.width || null,
+            height: detailsAny?.data?.height || firstPackage?.height || firstParcel?.height || null,
+          },
+        };
+
+        if (process.env.NODE_ENV !== "production") {
+          console.log("[create-label] Shipment debug:", shipmentDebug);
+        }
+      } catch (debugError) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[create-label] No se pudo obtener detalles del shipment:", debugError);
+        }
+      }
+    }
+
     // Merge seguro de metadata (NO sobreescribir completo)
     const finalMetadata = (order.metadata as Record<string, unknown>) || {};
     const finalShippingMeta = (finalMetadata.shipping as Record<string, unknown>) || {};
@@ -745,6 +790,7 @@ export async function POST(req: NextRequest) {
         height_cm: heightCm,
         source: packageSource,
       },
+      ...(shipmentDebug ? { shipment_debug: shipmentDebug } : {}),
     };
 
     const updatedMetadata = {
