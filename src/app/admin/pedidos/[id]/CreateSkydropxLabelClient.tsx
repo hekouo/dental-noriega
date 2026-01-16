@@ -92,7 +92,7 @@ export default function CreateSkydropxLabelClient({
                     : data.code === "missing_final_package"
                       ? "Captura peso y medidas reales de la caja antes de crear guía. Ve a la sección 'Paquete real para guía'."
                     : data.code === "skydropx_no_rates"
-                      ? "Skydropx no devolvió tarifas para la cotización. Intenta de nuevo en unos segundos."
+                      ? "Skydropx aún no devolvió tarifas. Intenta de nuevo o usa “Recotizar envío”."
                       : data.code === "invalid_shipping_payload"
                         ? (() => {
                             const missing = Array.isArray(data.details?.missingFields) ? data.details.missingFields as string[] : [];
