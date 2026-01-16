@@ -851,6 +851,80 @@ export async function getQuotation(id: string): Promise<SkydropxQuotationRespons
   return (await response.json()) as SkydropxQuotationResponse;
 }
 
+export function extractQuotationRates(
+  quotation: SkydropxQuotationResponse | null | undefined,
+): SkydropxQuotationRate[] {
+  if (!quotation) return [];
+  const data = quotation.data;
+  const included = quotation.included;
+  const nestedRates = quotation.quotation?.rates;
+  if (Array.isArray(data) && data.length > 0) return data;
+  if (Array.isArray(included) && included.length > 0) return included;
+  if (Array.isArray(nestedRates) && nestedRates.length > 0) return nestedRates;
+  return [];
+}
+
+export async function waitForQuotationRates(
+  quotationId: string,
+  options?: { maxAttempts?: number; delayMs?: number },
+): Promise<{
+  quotation: SkydropxQuotationResponse | null;
+  rates: SkydropxQuotationRate[];
+  isCompleted: boolean;
+  attempts: number;
+  lastError: string | null;
+}> {
+  const maxAttempts = options?.maxAttempts ?? 8;
+  const delayMs = options?.delayMs ?? 700;
+  let attempts = 0;
+  let lastError: string | null = null;
+  let lastQuotation: SkydropxQuotationResponse | null = null;
+  let lastRates: SkydropxQuotationRate[] = [];
+  let lastIsCompleted = false;
+
+  while (attempts < maxAttempts) {
+    attempts += 1;
+    try {
+      const quotation = await getQuotation(quotationId);
+      const rates = extractQuotationRates(quotation);
+      const isCompleted = Boolean(
+        quotation.is_completed ?? quotation.quotation?.is_completed ?? false,
+      );
+      lastQuotation = quotation;
+      lastRates = rates;
+      lastIsCompleted = isCompleted;
+
+      if (rates.length > 0) {
+        return {
+          quotation,
+          rates,
+          isCompleted,
+          attempts,
+          lastError,
+        };
+      }
+
+      if (isCompleted && rates.length === 0) {
+        break;
+      }
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : "unknown_error";
+    }
+
+    if (attempts < maxAttempts) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+
+  return {
+    quotation: lastQuotation,
+    rates: lastRates,
+    isCompleted: lastIsCompleted,
+    attempts,
+    lastError,
+  };
+}
+
 /**
  * Tipos para envíos de Skydropx
  */

@@ -7,6 +7,8 @@ import {
   createQuotation,
   getShipment,
   skydropxFetch,
+  extractQuotationRates,
+  waitForQuotationRates,
   type SkydropxQuotationRate,
   type SkydropxQuotationPayload,
 } from "@/lib/skydropx/client";
@@ -795,37 +797,84 @@ export async function POST(req: NextRequest) {
       }
 
       const quotationResult = await createQuotation(quotationPayload);
-      if (!quotationResult.ok) {
-        const error = new Error("Skydropx rechazó la cotización con paquete final");
-        const isBadRequest = quotationResult.code === "invalid_params";
-        (error as Error & { code?: string; details?: unknown; statusCode?: number }).code = isBadRequest
-          ? "skydropx_bad_request"
-          : "skydropx_error";
-        (error as Error & { statusCode?: number }).statusCode = isBadRequest ? 400 : undefined;
-        (error as Error & { details?: unknown }).details = quotationResult.errors;
-        throw error;
-      }
-
-      const quotationId =
-        quotationResult.quotationId ||
-        quotationResult.data?.id ||
-        quotationResult.data?.quotation?.id ||
+      const quotationId: string | null =
+        quotationResult.ok
+          ? quotationResult.quotationId ||
+            quotationResult.data?.id ||
+            quotationResult.data?.quotation?.id ||
+            null
+          : quotationResult.quotationId || null;
+      let quotationSnapshot = quotationResult.ok ? quotationResult.data : null;
+      let rates = extractQuotationRates(quotationSnapshot);
+      let pollingInfo: { attempts: number; lastIsCompleted: boolean; lastError: string | null } | null =
         null;
 
-      const rates =
-        quotationResult.data?.data ||
-        quotationResult.data?.included ||
-        quotationResult.data?.quotation?.rates ||
-        [];
+      if (!quotationResult.ok) {
+        if (quotationResult.code === "quotation_pending" && quotationId) {
+          // Continuar con polling explícito para obtener rates
+          const waited = await waitForQuotationRates(quotationId, {
+            maxAttempts: 8,
+            delayMs: 700,
+          });
+          quotationSnapshot = waited.quotation;
+          rates = waited.rates;
+          pollingInfo = {
+            attempts: waited.attempts,
+            lastIsCompleted: waited.isCompleted,
+            lastError: waited.lastError,
+          };
+        } else {
+          const error = new Error("Skydropx rechazó la cotización con paquete final");
+          const isBadRequest = quotationResult.code === "invalid_params";
+          (error as Error & { code?: string; details?: unknown; statusCode?: number }).code = isBadRequest
+            ? "skydropx_bad_request"
+            : "skydropx_error";
+          (error as Error & { statusCode?: number }).statusCode = isBadRequest ? 400 : undefined;
+          (error as Error & { details?: unknown }).details = quotationResult.errors;
+          throw error;
+        }
+      }
+
+      if (quotationId && rates.length === 0) {
+        const waited = await waitForQuotationRates(quotationId, {
+          maxAttempts: 8,
+          delayMs: 700,
+        });
+        quotationSnapshot = waited.quotation;
+        rates = waited.rates;
+        pollingInfo = {
+          attempts: waited.attempts,
+          lastIsCompleted: waited.isCompleted,
+          lastError: waited.lastError,
+        };
+      }
+
+      if (process.env.NODE_ENV !== "production" && quotationId) {
+        const isCompleted = Boolean(
+          quotationSnapshot?.is_completed ?? quotationSnapshot?.quotation?.is_completed ?? false,
+        );
+        console.log("[create-label] Quotation polling:", {
+          quotation_id: quotationId,
+          attempts: pollingInfo?.attempts ?? 0,
+          is_completed: isCompleted,
+          rates_count: rates.length,
+        });
+      }
 
       const shippingMeta = (packageMetadata.shipping as Record<string, unknown>) || {};
       if (!quotationId || rates.length === 0) {
+        const lastIsCompleted = Boolean(
+          quotationSnapshot?.is_completed ?? quotationSnapshot?.quotation?.is_completed ?? false,
+        );
         const error = new Error("Skydropx no devolvió tarifas para la cotización.");
         (error as Error & { code?: string; statusCode?: number; details?: unknown }).code =
           "skydropx_no_rates";
         (error as Error & { statusCode?: number }).statusCode = 502;
         (error as Error & { details?: unknown }).details = {
           quotation_id: quotationId,
+          attempts: pollingInfo?.attempts ?? 0,
+          last_is_completed: lastIsCompleted,
+          last_error_detail: pollingInfo?.lastError ?? null,
           rates_count: rates.length,
         };
         throw error;
@@ -926,6 +975,24 @@ export async function POST(req: NextRequest) {
         orderRateId: order.shipping_rate_ext_id,
         orderRateMeta: rateMeta,
       });
+      if (!rateSelection.rateId) {
+        const sampleRateIds = rates
+          .map((rate) => getRateId(rate))
+          .filter((rateId): rateId is string => Boolean(rateId))
+          .slice(0, 3);
+        const error = new Error(
+          "No se pudo mapear la tarifa seleccionada en la cotización de Skydropx.",
+        );
+        (error as Error & { code?: string; details?: unknown }).code = "rate_id_no_encontrado";
+        (error as Error & { details?: unknown }).details = {
+          shipping_rate_ext_id: order.shipping_rate_ext_id || null,
+          expected_provider: rateMeta?.provider || null,
+          expected_service: rateMeta?.service || null,
+          rates_count: rates.length,
+          sample_rate_ids: sampleRateIds,
+        };
+        throw error;
+      }
       selectedRateForShipment = rateSelection;
 
       if (process.env.NODE_ENV !== "production") {
