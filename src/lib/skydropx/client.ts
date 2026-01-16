@@ -435,6 +435,35 @@ export async function createQuotation(
   const config = getSkydropxConfig();
   const fullUrl = config ? `${config.quotationsBaseUrl}/api/v1/quotations` : "unknown";
   
+  const normalizeState = (value?: string | null) => {
+    if (!value) return "";
+    const normalized = value.toLowerCase().trim();
+    if (normalized === "cdmx" || normalized === "ciudad de mexico" || normalized === "ciudad de méxico") {
+      return "CDMX";
+    }
+    if (normalized === "edomex" || normalized === "estado de mexico" || normalized === "estado de méxico") {
+      return "MEX";
+    }
+    return value.trim();
+  };
+
+  const normalizeCity = (value?: string | null) => {
+    if (!value) return "";
+    const normalized = value.toLowerCase().trim();
+    if (normalized === "cdmx" || normalized === "ciudad de mexico" || normalized === "ciudad de méxico") {
+      return "Ciudad de México";
+    }
+    return value.trim();
+  };
+
+  const fromState = normalizeState(payload.address_from.state || payload.address_from.province) || "CDMX";
+  const toState =
+    normalizeState(payload.address_to.state || payload.address_to.province) ||
+    normalizeState(payload.address_from.state || payload.address_from.province) ||
+    "CDMX";
+  const fromCity = normalizeCity(payload.address_from.city) || "";
+  const toCity = normalizeCity(payload.address_to.city) || "";
+
   // Construir el payload según la documentación oficial de Skydropx
   const trimmedOrderId = payload.order_id?.trim() || "";
   const trimmedReference = payload.reference?.trim() || "";
@@ -445,10 +474,8 @@ export async function createQuotation(
       address_from: {
         country_code: payload.address_from.country,
         postal_code: payload.address_from.zip,
-        area_level1: payload.address_from.state 
-          || payload.address_from.province 
-          || "Ciudad de México",
-        area_level2: payload.address_from.city || "",
+        area_level1: fromState,
+        area_level2: fromCity,
         // area_level3 = colonia/barrio (NO calle)
         // PRIORIDAD: address2 (colonia) > neighborhood > address1 (último recurso)
         area_level3: payload.address_from.address2
@@ -460,12 +487,8 @@ export async function createQuotation(
       address_to: {
         country_code: payload.address_to.country,
         postal_code: payload.address_to.zip,
-        area_level1: payload.address_to.state 
-          || payload.address_to.province 
-          || payload.address_from.state 
-          || payload.address_from.province 
-          || "Ciudad de México",
-        area_level2: payload.address_to.city || "",
+        area_level1: toState,
+        area_level2: toCity,
         // area_level3 = colonia/barrio (NO calle)
         // PRIORIDAD: address2 (colonia) > neighborhood > address1 (último recurso)
         area_level3: payload.address_to.address2
@@ -492,12 +515,26 @@ export async function createQuotation(
     quotationKeys: Object.keys(quotationBody.quotation),
     reference: trimmedReference || null,
     hasOrderId: Boolean(trimmedOrderId),
+    baseUrl: fullUrl,
+    origin: {
+      country_code: payload.address_from.country,
+      postal_code: payload.address_from.zip,
+      state: fromState,
+      city: fromCity,
+    },
+    destination: {
+      country_code: payload.address_to.country,
+      postal_code: payload.address_to.zip,
+      state: toState,
+      city: toCity,
+    },
     parcel: {
       length: Math.round(firstParcel.length),
       width: Math.round(firstParcel.width),
       height: Math.round(firstParcel.height),
       weight: Number(firstParcel.weight),
     },
+    declared_value: quotationBody.quotation.parcels?.[0]?.declared_value ?? null,
   };
 
   if (process.env.NODE_ENV !== "production") {

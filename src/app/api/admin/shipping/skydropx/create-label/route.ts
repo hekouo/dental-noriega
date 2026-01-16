@@ -866,6 +866,11 @@ export async function POST(req: NextRequest) {
         const lastIsCompleted = Boolean(
           quotationSnapshot?.is_completed ?? quotationSnapshot?.quotation?.is_completed ?? false,
         );
+        const errorDetail =
+          (quotationSnapshot as { data?: { attributes?: { error_detail?: string } } })?.data
+            ?.attributes?.error_detail ||
+          (quotationSnapshot as { error_detail?: string })?.error_detail ||
+          null;
         const error = new Error("Skydropx no devolvió tarifas para la cotización.");
         (error as Error & { code?: string; statusCode?: number; details?: unknown }).code =
           "skydropx_no_rates";
@@ -874,7 +879,7 @@ export async function POST(req: NextRequest) {
           quotation_id: quotationId,
           attempts: pollingInfo?.attempts ?? 0,
           last_is_completed: lastIsCompleted,
-          last_error_detail: pollingInfo?.lastError ?? null,
+          last_error_detail: pollingInfo?.lastError ?? errorDetail,
           rates_count: rates.length,
         };
         throw error;
