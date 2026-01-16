@@ -9,6 +9,7 @@ import {
   skydropxFetch,
   extractQuotationRates,
   waitForQuotationRates,
+  getSkydropxApiHosts,
   type SkydropxQuotationRate,
   type SkydropxQuotationPayload,
 } from "@/lib/skydropx/client";
@@ -796,25 +797,60 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      const quotationResult = await createQuotation(quotationPayload);
-      const quotationId: string | null =
-        quotationResult.ok
-          ? quotationResult.quotationId ||
-            quotationResult.data?.id ||
-            quotationResult.data?.quotation?.id ||
-            null
-          : quotationResult.quotationId || null;
-      let quotationSnapshot = quotationResult.ok ? quotationResult.data : null;
-      let rates = extractQuotationRates(quotationSnapshot);
-      let pollingInfo: { attempts: number; lastIsCompleted: boolean; lastError: string | null } | null =
-        null;
+      const hostConfig = getSkydropxApiHosts();
+      const primaryHost = hostConfig?.quotationsBaseUrl || "https://pro.skydropx.com";
+      const fallbackHost = hostConfig?.fallbackQuotationsBaseUrl || "https://pro.skydropx.com";
+      const shouldTryFallback = primaryHost !== fallbackHost;
 
-      if (!quotationResult.ok) {
-        if (quotationResult.code === "quotation_pending" && quotationId) {
-          // Continuar con polling explícito para obtener rates
+      const attemptQuotation = async (host: string, label: "primary" | "fallback") => {
+        const quotationResult = await createQuotation(quotationPayload, {
+          baseUrlOverride: host,
+          logLabel: label,
+        });
+        const quotationId: string | null =
+          quotationResult.ok
+            ? quotationResult.quotationId ||
+              quotationResult.data?.id ||
+              quotationResult.data?.quotation?.id ||
+              null
+            : quotationResult.quotationId || null;
+        let quotationSnapshot = quotationResult.ok ? quotationResult.data : null;
+        let rates = extractQuotationRates(quotationSnapshot);
+        let pollingInfo: { attempts: number; lastIsCompleted: boolean; lastError: string | null } | null =
+          null;
+
+        if (!quotationResult.ok) {
+          if (quotationResult.code === "quotation_pending" && quotationId) {
+            // Continuar con polling explícito para obtener rates
+            const waited = await waitForQuotationRates(quotationId, {
+              maxAttempts: 8,
+              delayMs: 700,
+              baseUrlOverride: host,
+            });
+            quotationSnapshot = waited.quotation;
+            rates = waited.rates;
+            pollingInfo = {
+              attempts: waited.attempts,
+              lastIsCompleted: waited.isCompleted,
+              lastError: waited.lastError,
+            };
+          } else {
+            const error = new Error("Skydropx rechazó la cotización con paquete final");
+            const isBadRequest = quotationResult.code === "invalid_params";
+            (error as Error & { code?: string; details?: unknown; statusCode?: number }).code = isBadRequest
+              ? "skydropx_bad_request"
+              : "skydropx_error";
+            (error as Error & { statusCode?: number }).statusCode = isBadRequest ? 400 : undefined;
+            (error as Error & { details?: unknown }).details = quotationResult.errors;
+            throw error;
+          }
+        }
+
+        if (quotationId && rates.length === 0) {
           const waited = await waitForQuotationRates(quotationId, {
             maxAttempts: 8,
             delayMs: 700,
+            baseUrlOverride: host,
           });
           quotationSnapshot = waited.quotation;
           rates = waited.rates;
@@ -823,43 +859,56 @@ export async function POST(req: NextRequest) {
             lastIsCompleted: waited.isCompleted,
             lastError: waited.lastError,
           };
-        } else {
-          const error = new Error("Skydropx rechazó la cotización con paquete final");
-          const isBadRequest = quotationResult.code === "invalid_params";
-          (error as Error & { code?: string; details?: unknown; statusCode?: number }).code = isBadRequest
-            ? "skydropx_bad_request"
-            : "skydropx_error";
-          (error as Error & { statusCode?: number }).statusCode = isBadRequest ? 400 : undefined;
-          (error as Error & { details?: unknown }).details = quotationResult.errors;
-          throw error;
         }
-      }
 
-      if (quotationId && rates.length === 0) {
-        const waited = await waitForQuotationRates(quotationId, {
-          maxAttempts: 8,
-          delayMs: 700,
-        });
-        quotationSnapshot = waited.quotation;
-        rates = waited.rates;
-        pollingInfo = {
-          attempts: waited.attempts,
-          lastIsCompleted: waited.isCompleted,
-          lastError: waited.lastError,
-        };
-      }
-
-      if (process.env.NODE_ENV !== "production" && quotationId) {
         const isCompleted = Boolean(
           quotationSnapshot?.is_completed ?? quotationSnapshot?.quotation?.is_completed ?? false,
         );
-        console.log("[create-label] Quotation polling:", {
-          quotation_id: quotationId,
-          attempts: pollingInfo?.attempts ?? 0,
-          is_completed: isCompleted,
-          rates_count: rates.length,
-        });
+
+        if (process.env.NODE_ENV !== "production") {
+          console.log("[create-label] Quotation polling:", {
+            quotation_id: quotationId,
+            host,
+            host_role: label,
+            attempts: pollingInfo?.attempts ?? 0,
+            is_completed: isCompleted,
+            rates_count: rates.length,
+          });
+        }
+
+        return {
+          quotationId,
+          quotationSnapshot,
+          rates,
+          pollingInfo,
+          isCompleted,
+          host,
+          hostRole: label,
+        };
+      };
+
+      const primaryAttempt = await attemptQuotation(primaryHost, "primary");
+      let activeAttempt = primaryAttempt;
+
+      if (primaryAttempt.isCompleted && primaryAttempt.rates.length === 0 && shouldTryFallback) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[create-label] No rates en host primario, intentando fallback", {
+            primary_host: primaryHost,
+            fallback_host: fallbackHost,
+            primary_quotation_id: primaryAttempt.quotationId,
+            attempts: primaryAttempt.pollingInfo?.attempts ?? 0,
+            is_completed: primaryAttempt.isCompleted,
+            rates_count: primaryAttempt.rates.length,
+          });
+        }
+        const fallbackAttempt = await attemptQuotation(fallbackHost, "fallback");
+        activeAttempt = fallbackAttempt.rates.length > 0 ? fallbackAttempt : fallbackAttempt;
       }
+
+      const quotationId = activeAttempt.quotationId;
+      const quotationSnapshot = activeAttempt.quotationSnapshot;
+      const rates = activeAttempt.rates;
+      const pollingInfo = activeAttempt.pollingInfo;
 
       const shippingMeta = (packageMetadata.shipping as Record<string, unknown>) || {};
       if (!quotationId || rates.length === 0) {
@@ -877,6 +926,11 @@ export async function POST(req: NextRequest) {
         (error as Error & { statusCode?: number }).statusCode = 502;
         (error as Error & { details?: unknown }).details = {
           quotation_id: quotationId,
+          host_used: activeAttempt.host,
+          host_role: activeAttempt.hostRole,
+          fallback_attempted: shouldTryFallback,
+          primary_host: primaryHost,
+          fallback_host: fallbackHost,
           attempts: pollingInfo?.attempts ?? 0,
           last_is_completed: lastIsCompleted,
           last_error_detail: pollingInfo?.lastError ?? errorDetail,

@@ -20,6 +20,59 @@ type CachedToken = {
 // Caché en memoria del token (por proceso)
 let tokenCache: CachedToken | null = null;
 
+const SKYDROPX_PRO_HOST = "https://pro.skydropx.com";
+const SKYDROPX_API_PRO_HOST = "https://api-pro.skydropx.com";
+
+const INVALID_PRO_HOST_HINTS = ["api-pro.skydropx.com", "api.skydropx.com"];
+
+function stripTrailingSlashes(value: string) {
+  return value.replace(/\/+$/, "");
+}
+
+function isInvalidProHost(value: string) {
+  const normalized = value.toLowerCase();
+  return INVALID_PRO_HOST_HINTS.some((hint) => normalized.includes(hint));
+}
+
+function normalizeProBaseUrl(
+  value: string | undefined,
+  fallback: string,
+  label: "quotations" | "auth",
+) {
+  if (!value) {
+    return stripTrailingSlashes(fallback);
+  }
+  if (isInvalidProHost(value)) {
+    console.warn(`[Skydropx Config] ${label} host inválido, usando fallback`, {
+      provided_host: value,
+      fallback_host: fallback,
+    });
+    return stripTrailingSlashes(fallback);
+  }
+  return stripTrailingSlashes(value);
+}
+
+function normalizeShipmentsBaseUrl(value: string | undefined, fallback: string) {
+  return stripTrailingSlashes(value || fallback);
+}
+
+export function getSkydropxApiHosts() {
+  const config = getSkydropxConfig();
+  if (!config) {
+    return null;
+  }
+  const fallbackQuotationsBaseUrl =
+    config.quotationsBaseUrl === SKYDROPX_PRO_HOST
+      ? SKYDROPX_API_PRO_HOST
+      : SKYDROPX_PRO_HOST;
+  return {
+    quotationsBaseUrl: config.quotationsBaseUrl,
+    authBaseUrl: config.authBaseUrl,
+    restBaseUrl: config.restBaseUrl,
+    fallbackQuotationsBaseUrl,
+  };
+}
+
 /**
  * Obtiene la configuración de Skydropx desde env vars
  * Usa OAuth exclusivamente
@@ -30,16 +83,29 @@ export function getSkydropxConfig() {
   
   // URL base para autenticación OAuth (para /api/v1/oauth/token)
   // Skydropx docs indican usar pro.skydropx.com para OAuth/quotations/shipments
-  const authBaseUrl = process.env.SKYDROPX_AUTH_BASE_URL || process.env.SKYDROPX_API_BASE_URL || "https://pro.skydropx.com";
+  const authBaseUrl = normalizeProBaseUrl(
+    process.env.SKYDROPX_AUTH_BASE_URL || process.env.SKYDROPX_API_BASE_URL,
+    SKYDROPX_PRO_HOST,
+    "auth",
+  );
   
   // URL base para cotizaciones (para /api/v1/quotations)
   // Skydropx docs indican usar pro.skydropx.com/api/v1
-  const quotationsBaseUrl = process.env.SKYDROPX_QUOTATIONS_BASE_URL || process.env.SKYDROPX_API_BASE_URL || "https://pro.skydropx.com";
+  const quotationsBaseUrl = normalizeProBaseUrl(
+    process.env.SKYDROPX_QUOTATIONS_BASE_URL || process.env.SKYDROPX_API_BASE_URL,
+    SKYDROPX_PRO_HOST,
+    "quotations",
+  );
   
   // URL base para otros endpoints de API (shipments, etc.)
   // IMPORTANTE: Para obtener tracking/label en producción, usar app.skydropx.com según docs oficiales
   // OAuth token puede seguir siendo api-pro.skydropx.com, pero shipments debe ser app.skydropx.com
-  const restBaseUrl = process.env.SKYDROPX_SHIPMENTS_BASE_URL || process.env.SKYDROPX_BASE_URL || process.env.SKYDROPX_API_BASE_URL || "https://pro.skydropx.com";
+  const restBaseUrl = normalizeShipmentsBaseUrl(
+    process.env.SKYDROPX_SHIPMENTS_BASE_URL ||
+      process.env.SKYDROPX_BASE_URL ||
+      process.env.SKYDROPX_API_BASE_URL,
+    SKYDROPX_API_PRO_HOST,
+  );
   
   // Log de configuración (solo en non-production o si está explícitamente configurado)
   if (process.env.NODE_ENV !== "production" || process.env.SKYDROPX_SHIPMENTS_BASE_URL) {
@@ -87,12 +153,24 @@ async function fetchAccessToken(): Promise<string | null> {
   // Construir lista de URLs a intentar
   const tokenUrls: string[] = [];
   
-  if (process.env.SKYDROPX_OAUTH_TOKEN_URL) {
+  const explicitTokenUrl = process.env.SKYDROPX_OAUTH_TOKEN_URL?.trim();
+  let shouldUseFallbackTokenUrls = false;
+  if (explicitTokenUrl) {
     // Si existe URL explícita, úsala primero
-    tokenUrls.push(process.env.SKYDROPX_OAUTH_TOKEN_URL);
-  } else {
+    if (isInvalidProHost(explicitTokenUrl)) {
+      console.warn("[Skydropx OAuth] SKYDROPX_OAUTH_TOKEN_URL inválida, usando authBaseUrl", {
+        provided_host: explicitTokenUrl,
+        fallback_host: config.authBaseUrl,
+      });
+      shouldUseFallbackTokenUrls = true;
+    } else {
+      tokenUrls.push(explicitTokenUrl);
+    }
+  }
+  
+  if (!explicitTokenUrl || shouldUseFallbackTokenUrls) {
     // Construir URLs desde authBaseUrl, limpiando slashes dobles
-    const baseUrl = config.authBaseUrl.replace(/\/$/, ""); // Quitar trailing slash
+    const baseUrl = stripTrailingSlashes(config.authBaseUrl);
     // Intentar primero con /api/v1/oauth/token, luego /oauth/token
     tokenUrls.push(`${baseUrl}/api/v1/oauth/token`);
     tokenUrls.push(`${baseUrl}/oauth/token`);
@@ -414,6 +492,11 @@ export type SkydropxQuotationResult =
   | { ok: true; data: SkydropxQuotationResponse; quotationId?: string; isCompleted?: boolean; pollingInfo?: { attempts: number; elapsedMs: number } }
   | { ok: false; code: "invalid_params" | "no_coverage" | "auth_error" | "network_error" | "unknown_error" | "quotation_pending"; message: string; errors?: unknown; quotationId?: string; isCompleted?: boolean; pollingInfo?: { attempts: number; elapsedMs: number } };
 
+type CreateQuotationOptions = {
+  baseUrlOverride?: string;
+  logLabel?: "primary" | "fallback";
+};
+
 /**
  * Crea una cotización de envío
  * 
@@ -423,6 +506,7 @@ export type SkydropxQuotationResult =
  */
 export async function createQuotation(
   payload: SkydropxQuotationPayload,
+  options?: CreateQuotationOptions,
 ): Promise<SkydropxQuotationResult> {
   // Transformar el payload interno al formato esperado por Skydropx
   const firstParcel = payload.parcels[0];
@@ -433,7 +517,8 @@ export async function createQuotation(
   // El endpoint de cotizaciones espera un objeto raíz "quotation" según la documentación oficial
   // URL: POST https://app.skydropx.com/api/v1/quotations
   const config = getSkydropxConfig();
-  const fullUrl = config ? `${config.quotationsBaseUrl}/api/v1/quotations` : "unknown";
+  const baseUrl = stripTrailingSlashes(options?.baseUrlOverride || config?.quotationsBaseUrl || SKYDROPX_PRO_HOST);
+  const fullUrl = `${baseUrl}/api/v1/quotations`;
   
   const normalizeState = (value?: string | null) => {
     if (!value) return "";
@@ -515,7 +600,8 @@ export async function createQuotation(
     quotationKeys: Object.keys(quotationBody.quotation),
     reference: trimmedReference || null,
     hasOrderId: Boolean(trimmedOrderId),
-    baseUrl: fullUrl,
+    baseUrl,
+    host_role: options?.logLabel || "primary",
     origin: {
       country_code: payload.address_from.country,
       postal_code: payload.address_from.zip,
@@ -725,7 +811,7 @@ export async function createQuotation(
   let lastResponse = postData;
   
   // Definir quotationsBaseUrl para usar en polling (misma que en POST)
-  const quotationsBaseUrlForPolling = process.env.SKYDROPX_QUOTATIONS_BASE_URL || process.env.SKYDROPX_API_BASE_URL || "https://pro.skydropx.com";
+  const quotationsBaseUrlForPolling = baseUrl;
   
   while (attempts < maxAttempts) {
     attempts++;
@@ -856,9 +942,17 @@ export async function createQuotation(
 /**
  * Obtiene una cotización por ID
  */
-export async function getQuotation(id: string): Promise<SkydropxQuotationResponse> {
+export async function getQuotation(
+  id: string,
+  options?: { baseUrlOverride?: string },
+): Promise<SkydropxQuotationResponse> {
   // Skydropx API usa /api/v1/quotations/{id} según docs
-  const quotationsBaseUrl = process.env.SKYDROPX_QUOTATIONS_BASE_URL || process.env.SKYDROPX_API_BASE_URL || "https://pro.skydropx.com";
+  const quotationsBaseUrl = stripTrailingSlashes(
+    options?.baseUrlOverride ||
+      process.env.SKYDROPX_QUOTATIONS_BASE_URL ||
+      process.env.SKYDROPX_API_BASE_URL ||
+      SKYDROPX_PRO_HOST,
+  );
   const accessToken = await getAccessToken();
   
   if (!accessToken) {
@@ -903,7 +997,7 @@ export function extractQuotationRates(
 
 export async function waitForQuotationRates(
   quotationId: string,
-  options?: { maxAttempts?: number; delayMs?: number },
+  options?: { maxAttempts?: number; delayMs?: number; baseUrlOverride?: string },
 ): Promise<{
   quotation: SkydropxQuotationResponse | null;
   rates: SkydropxQuotationRate[];
@@ -922,7 +1016,9 @@ export async function waitForQuotationRates(
   while (attempts < maxAttempts) {
     attempts += 1;
     try {
-      const quotation = await getQuotation(quotationId);
+      const quotation = await getQuotation(quotationId, {
+        baseUrlOverride: options?.baseUrlOverride,
+      });
       const rates = extractQuotationRates(quotation);
       const isCompleted = Boolean(
         quotation.is_completed ?? quotation.quotation?.is_completed ?? false,
