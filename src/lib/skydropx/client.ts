@@ -380,6 +380,7 @@ export type SkydropxQuotationPayload = {
     length: number; // en cm
   }>;
   order_id?: string; // Opcional, para el campo quotation.order_id
+  reference?: string; // Referencia externa del cliente (si aplica)
   declaredValue?: number; // Valor declarado del paquete
   cartValue?: number; // Valor del carrito (fallback para declared_value)
 };
@@ -435,9 +436,12 @@ export async function createQuotation(
   const fullUrl = config ? `${config.quotationsBaseUrl}/api/v1/quotations` : "unknown";
   
   // Construir el payload según la documentación oficial de Skydropx
+  const trimmedOrderId = payload.order_id?.trim() || "";
+  const trimmedReference = payload.reference?.trim() || "";
   const quotationBody = {
     quotation: {
-      order_id: payload.order_id || "ddn-web-checkout",
+      ...(trimmedOrderId ? { order_id: trimmedOrderId } : {}),
+      ...(trimmedReference ? { reference: trimmedReference } : {}),
       address_from: {
         country_code: payload.address_from.country,
         postal_code: payload.address_from.zip,
@@ -484,11 +488,23 @@ export async function createQuotation(
     },
   };
   
+  const safePayload = {
+    quotationKeys: Object.keys(quotationBody.quotation),
+    reference: trimmedReference || null,
+    hasOrderId: Boolean(trimmedOrderId),
+    parcel: {
+      length: Math.round(firstParcel.length),
+      width: Math.round(firstParcel.width),
+      height: Math.round(firstParcel.height),
+      weight: Number(firstParcel.weight),
+    },
+  };
+
   if (process.env.NODE_ENV !== "production") {
     console.log("[Skydropx createQuotation] Enviando cotización:", {
       url: fullUrl,
       method: "POST",
-      payload: quotationBody,
+      payload: safePayload,
     });
   }
   
@@ -554,7 +570,7 @@ export async function createQuotation(
           contentType,
           body: errorBody,
           errors,
-          payloadSent: quotationBody, // Log del payload que enviamos para debugging
+          payloadSent: safePayload, // Log sin PII
         });
       }
       
