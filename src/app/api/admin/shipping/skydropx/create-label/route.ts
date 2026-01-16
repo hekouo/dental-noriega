@@ -49,6 +49,7 @@ type CreateLabelResponse =
         | "skydropx_unauthorized"
         | "skydropx_bad_request"
         | "skydropx_unprocessable_entity"
+        | "skydropx_no_rates"
         | "invalid_shipping_payload"
         | "config_error"
         | "tracking_pending"
@@ -710,6 +711,59 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    type RateSelection = {
+      rate: SkydropxQuotationRate;
+      rateId: string;
+      provider: string | null;
+      service: string | null;
+      priceCents: number | null;
+      source: "exact" | "provider_service" | "fallback";
+      matchedBy: "id" | "provider_service" | "fallback";
+    };
+
+    const normalizeText = (value?: string | null) =>
+      value?.toLowerCase().replace(/\s+/g, " ").trim() || "";
+
+    const getRateId = (rate: SkydropxQuotationRate): string | null => {
+      const candidate =
+        rate.id ||
+        (rate as { external_id?: string }).external_id ||
+        (rate as { rate_id?: string }).rate_id ||
+        null;
+      return typeof candidate === "string" && candidate.trim() ? candidate.trim() : null;
+    };
+
+    const getRateProvider = (rate: SkydropxQuotationRate): string | null => {
+      const candidate =
+        rate.provider_name ||
+        rate.provider_display_name ||
+        (rate as { carrier?: string }).carrier ||
+        (rate as { carrier_name?: string }).carrier_name ||
+        null;
+      return typeof candidate === "string" && candidate.trim() ? candidate.trim() : null;
+    };
+
+    const getRateService = (rate: SkydropxQuotationRate): string | null => {
+      const candidate =
+        rate.provider_service_name ||
+        (rate as { service?: string }).service ||
+        (rate as { service_name?: string }).service_name ||
+        null;
+      return typeof candidate === "string" && candidate.trim() ? candidate.trim() : null;
+    };
+
+    const getRatePriceValue = (rate: SkydropxQuotationRate): number | null => {
+      const candidate =
+        rate.total ??
+        (rate as { amount?: number }).amount ??
+        (rate as { price?: number }).price ??
+        (rate as { price_total?: number }).price_total ??
+        null;
+      return typeof candidate === "number" && Number.isFinite(candidate) ? candidate : null;
+    };
+
+    let selectedRateForShipment: RateSelection | null = null;
+
     const createShipmentWithFinalPackage = async () => {
       const weightKgPrecise = Math.max(1, Number((weightG / 1000).toFixed(2)));
       const parcel = {
@@ -782,32 +836,130 @@ export async function POST(req: NextRequest) {
         [];
 
       const shippingMeta = (packageMetadata.shipping as Record<string, unknown>) || {};
-      const selectedRateId = order.shipping_rate_ext_id;
-      let matchedRate: SkydropxQuotationRate | undefined =
-        rates.find((rate) => rate.id === selectedRateId) ||
-        undefined;
-
-      if (!matchedRate && shippingMeta.rate && typeof shippingMeta.rate === "object") {
-        const rateMeta = shippingMeta.rate as { provider?: string; service?: string };
-        matchedRate = rates.find(
-          (rate) =>
-            rate.provider_name === rateMeta.provider &&
-            rate.provider_service_name === rateMeta.service,
-        );
+      if (!quotationId || rates.length === 0) {
+        const error = new Error("Skydropx no devolvió tarifas para la cotización.");
+        (error as Error & { code?: string; statusCode?: number; details?: unknown }).code =
+          "skydropx_no_rates";
+        (error as Error & { statusCode?: number }).statusCode = 502;
+        (error as Error & { details?: unknown }).details = {
+          quotation_id: quotationId,
+          rates_count: rates.length,
+        };
+        throw error;
       }
 
-      if (!quotationId || !matchedRate?.id) {
-        const error = new Error(
-          "No se pudo mapear la tarifa seleccionada en la cotización de Skydropx.",
-        );
-        (error as Error & { code?: string }).code = "rate_id_no_encontrado";
-        throw error;
+      const selectRateFromQuotation = ({
+        quotationRates,
+        orderRateId,
+        orderRateMeta,
+      }: {
+        quotationRates: SkydropxQuotationRate[];
+        orderRateId?: string | null;
+        orderRateMeta?: { provider?: string; service?: string; external_id?: string };
+      }): RateSelection => {
+        const rateCandidates = [
+          orderRateId?.trim() || null,
+          orderRateMeta?.external_id?.trim() || null,
+        ].filter(Boolean) as string[];
+
+        const exactMatch = rateCandidates.length
+          ? quotationRates.find((rate) => {
+              const rateId = getRateId(rate);
+              return rateId ? rateCandidates.includes(rateId) : false;
+            })
+          : undefined;
+
+        if (exactMatch) {
+          const rateId = getRateId(exactMatch) || exactMatch.id;
+          const provider = getRateProvider(exactMatch);
+          const service = getRateService(exactMatch);
+          const priceValue = getRatePriceValue(exactMatch);
+          return {
+            rate: exactMatch,
+            rateId,
+            provider,
+            service,
+            priceCents: priceValue ? Math.round(priceValue * 100) : null,
+            source: "exact",
+            matchedBy: "id",
+          };
+        }
+
+        const normalizedProvider = normalizeText(orderRateMeta?.provider);
+        const normalizedService = normalizeText(orderRateMeta?.service);
+        const providerServiceMatch =
+          normalizedProvider && normalizedService
+            ? quotationRates.find((rate) => {
+                const provider = normalizeText(getRateProvider(rate));
+                const service = normalizeText(getRateService(rate));
+                return provider === normalizedProvider && service === normalizedService;
+              })
+            : undefined;
+
+        if (providerServiceMatch) {
+          const rateId = getRateId(providerServiceMatch) || providerServiceMatch.id;
+          const provider = getRateProvider(providerServiceMatch);
+          const service = getRateService(providerServiceMatch);
+          const priceValue = getRatePriceValue(providerServiceMatch);
+          return {
+            rate: providerServiceMatch,
+            rateId,
+            provider,
+            service,
+            priceCents: priceValue ? Math.round(priceValue * 100) : null,
+            source: "provider_service",
+            matchedBy: "provider_service",
+          };
+        }
+
+        const ratesWithPrice = quotationRates
+          .map((rate) => ({ rate, price: getRatePriceValue(rate) }))
+          .filter((item) => typeof item.price === "number");
+        const fallbackRate =
+          ratesWithPrice.sort((a, b) => (a.price ?? 0) - (b.price ?? 0))[0]?.rate ||
+          quotationRates[0];
+        const fallbackRateId = getRateId(fallbackRate) || fallbackRate.id;
+        const fallbackProvider = getRateProvider(fallbackRate);
+        const fallbackService = getRateService(fallbackRate);
+        const fallbackPriceValue = getRatePriceValue(fallbackRate);
+        return {
+          rate: fallbackRate,
+          rateId: fallbackRateId,
+          provider: fallbackProvider,
+          service: fallbackService,
+          priceCents: fallbackPriceValue ? Math.round(fallbackPriceValue * 100) : null,
+          source: "fallback",
+          matchedBy: "fallback",
+        };
+      };
+
+      const rateMeta =
+        shippingMeta.rate && typeof shippingMeta.rate === "object"
+          ? (shippingMeta.rate as { provider?: string; service?: string; external_id?: string })
+          : undefined;
+
+      const rateSelection = selectRateFromQuotation({
+        quotationRates: rates,
+        orderRateId: order.shipping_rate_ext_id,
+        orderRateMeta: rateMeta,
+      });
+      selectedRateForShipment = rateSelection;
+
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[create-label] Rate selection:", {
+          quotation_id: quotationId,
+          rates_count: rates.length,
+          selected_rate_id: rateSelection.rateId,
+          select_source: rateSelection.source,
+          matched_by: rateSelection.matchedBy,
+          price_cents: rateSelection.priceCents,
+        });
       }
 
       const shipmentPayload = {
         shipment: {
           quotation: { id: quotationId },
-          rate_id: matchedRate.id,
+          rate_id: rateSelection.rateId,
           address_from: {
             country: addressFrom.countryCode || "MX",
             country_code: addressFrom.countryCode || "MX",
@@ -859,7 +1011,7 @@ export async function POST(req: NextRequest) {
       if (process.env.NODE_ENV !== "production") {
         console.log("[create-label] Payload shipments (sin PII):", {
           quotationId,
-          rateId: matchedRate.id,
+          rateId: rateSelection.rateId,
           packageSource,
           weightG,
           weightKgPrecise,
@@ -914,7 +1066,7 @@ export async function POST(req: NextRequest) {
         labelUrl,
         pollingInfo: undefined,
         quotationId,
-        rateId: matchedRate.id,
+        rateId: rateSelection.rateId,
       };
     };
 
@@ -1023,12 +1175,39 @@ export async function POST(req: NextRequest) {
     // Merge seguro de metadata (NO sobreescribir completo)
     const finalMetadata = (order.metadata as Record<string, unknown>) || {};
     const finalShippingMeta = (finalMetadata.shipping as Record<string, unknown>) || {};
+
+    if (!selectedRateForShipment) {
+      const error = new Error("No se encontró rate seleccionado para el envío.");
+      (error as Error & { code?: string; statusCode?: number }).code = "rate_id_no_encontrado";
+      (error as Error & { statusCode?: number }).statusCode = 500;
+      throw error;
+    }
+
+    const selectedRate = selectedRateForShipment as RateSelection;
     
     // IMPORTANTE: SIEMPRE guardar shipment_id en metadata, incluso si tracking está pendiente
     // Esto permite cancelar el envío después aunque tracking no esté disponible inmediatamente
-      const updatedShippingMeta = {
+    const existingRateMeta =
+      finalShippingMeta.rate && typeof finalShippingMeta.rate === "object"
+        ? (finalShippingMeta.rate as Record<string, unknown>)
+        : {};
+    const updatedRateMeta = {
+      ...existingRateMeta,
+      external_id: selectedRate.rateId,
+      provider: selectedRate.provider || existingRateMeta.provider || null,
+      service: selectedRate.service || existingRateMeta.service || null,
+    };
+    const updatedShippingMeta = {
       ...finalShippingMeta, // Preservar datos existentes (cancel_request_id, cancel_status, etc.)
       shipment_id: shipmentResult.rawId || finalShippingMeta.shipment_id || null, // SIEMPRE guardar/actualizar shipment_id
+      rate: updatedRateMeta,
+      rate_used: {
+        rate_id: selectedRate.rateId,
+        provider: selectedRate.provider,
+        service: selectedRate.service,
+        price_cents: selectedRate.priceCents,
+        source: selectedRate.source,
+      },
       package_used: {
         weight_g: weightG,
         length_cm: lengthCm,
@@ -1079,6 +1258,9 @@ export async function POST(req: NextRequest) {
     // Guardar shipment_id en columna dedicada para matching confiable en webhooks
     if (shipmentIdToSave) {
       updateData.shipping_shipment_id = shipmentIdToSave;
+    }
+    if (order.shipping_rate_ext_id !== selectedRate.rateId) {
+      updateData.shipping_rate_ext_id = selectedRate.rateId;
     }
 
     // Solo actualizar tracking/label si están disponibles (no null)
@@ -1242,6 +1424,7 @@ export async function POST(req: NextRequest) {
       errorCode === "skydropx_unauthorized" ||
       errorCode === "skydropx_bad_request" ||
       errorCode === "skydropx_unprocessable_entity" ||
+      errorCode === "skydropx_no_rates" ||
       statusCode === 422 ||
       statusCode === 400 ||
       statusCode === 401 ||
@@ -1255,6 +1438,8 @@ export async function POST(req: NextRequest) {
           ? "skydropx_unprocessable_entity"
           : statusCode === 400
             ? "skydropx_bad_request"
+            : statusCode === 502
+              ? "skydropx_no_rates"
             : statusCode === 404
               ? "skydropx_not_found"
               : statusCode === 401 || statusCode === 403
@@ -1269,6 +1454,8 @@ export async function POST(req: NextRequest) {
                         ? "skydropx_unprocessable_entity"
                         : errorCode === "skydropx_bad_request"
                           ? "skydropx_bad_request"
+                          : errorCode === "skydropx_no_rates"
+                            ? "skydropx_no_rates"
                           : "skydropx_error";
 
       // Si es 400, construir payloadHealth sin PII
