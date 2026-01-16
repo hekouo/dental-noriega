@@ -889,6 +889,7 @@ export async function POST(req: NextRequest) {
 
       const primaryAttempt = await attemptQuotation(primaryHost, "primary");
       let activeAttempt = primaryAttempt;
+      let fallbackAttempt: Awaited<ReturnType<typeof attemptQuotation>> | null = null;
 
       if (primaryAttempt.isCompleted && primaryAttempt.rates.length === 0 && shouldTryFallback) {
         if (process.env.NODE_ENV !== "production") {
@@ -901,8 +902,10 @@ export async function POST(req: NextRequest) {
             rates_count: primaryAttempt.rates.length,
           });
         }
-        const fallbackAttempt = await attemptQuotation(fallbackHost, "fallback");
-        activeAttempt = fallbackAttempt.rates.length > 0 ? fallbackAttempt : fallbackAttempt;
+        fallbackAttempt = await attemptQuotation(fallbackHost, "fallback");
+        if (fallbackAttempt.rates.length > 0) {
+          activeAttempt = fallbackAttempt;
+        }
       }
 
       const quotationId = activeAttempt.quotationId;
@@ -929,6 +932,9 @@ export async function POST(req: NextRequest) {
           host_used: activeAttempt.host,
           host_role: activeAttempt.hostRole,
           fallback_attempted: shouldTryFallback,
+          fallback_quotation_id: fallbackAttempt?.quotationId || null,
+          fallback_is_completed: fallbackAttempt?.isCompleted ?? null,
+          fallback_rates_count: fallbackAttempt?.rates.length ?? null,
           primary_host: primaryHost,
           fallback_host: fallbackHost,
           attempts: pollingInfo?.attempts ?? 0,
