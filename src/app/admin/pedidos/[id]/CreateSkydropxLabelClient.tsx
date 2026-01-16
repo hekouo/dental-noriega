@@ -7,7 +7,6 @@ type Props = {
   orderId: string;
   paymentStatus: string | null;
   shippingProvider: string | null;
-  shippingRateExtId: string | null;
   shippingStatus: string | null;
   currentTrackingNumber: string | null;
   currentLabelUrl: string | null;
@@ -19,7 +18,6 @@ export default function CreateSkydropxLabelClient({
   orderId,
   paymentStatus,
   shippingProvider,
-  shippingRateExtId,
   shippingStatus,
   currentTrackingNumber,
   currentLabelUrl,
@@ -52,8 +50,7 @@ export default function CreateSkydropxLabelClient({
   const canCreateLabel =
     !hasLabelEvidence &&
     paymentStatus === "paid" &&
-    (shippingProvider === "skydropx" || shippingProvider === "Skydropx") &&
-    shippingRateExtId;
+    (shippingProvider === "skydropx" || shippingProvider === "Skydropx");
 
   const handleCreateLabel = async () => {
     setIsLoading(true);
@@ -89,11 +86,13 @@ export default function CreateSkydropxLabelClient({
                 : data.code === "unsupported_provider"
                   ? "El proveedor de envío no es compatible."
                   : data.code === "missing_shipping_rate"
-                    ? "La orden no tiene un rate_id de Skydropx guardado."
+                    ? "No hay tarifa guardada. Intenta crear la guía de nuevo."
                   : data.code === "missing_address_data"
                     ? "No se encontraron datos de dirección en la orden."
                     : data.code === "missing_final_package"
                       ? "Captura peso y medidas reales de la caja antes de crear guía. Ve a la sección 'Paquete real para guía'."
+                    : data.code === "skydropx_no_rates"
+                      ? "Skydropx no devolvió tarifas para la cotización. Intenta de nuevo en unos segundos."
                       : data.code === "invalid_shipping_payload"
                         ? (() => {
                             const missing = Array.isArray(data.details?.missingFields) ? data.details.missingFields as string[] : [];

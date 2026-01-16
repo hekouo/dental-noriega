@@ -186,8 +186,9 @@ function validateWebhookSecret(request: NextRequest): boolean {
 /**
  * Resuelve la orden usando prioridad:
  * 1. shipping_shipment_id (columna) - PRIORITARIO
- * 2. tracking_number (columna) - FALLBACK
- * 3. metadata.shipping.shipment_id - FALLBACK LEGACY
+ * 2. metadata.shipping.shipment_id - FALLBACK
+ * 3. tracking_number (columna) - FALLBACK
+ * 4. metadata.shipping.tracking_number - FALLBACK LEGACY
  */
 async function resolveOrder(
   supabase: ReturnType<typeof createClient<any, "public">>,
@@ -230,43 +231,7 @@ async function resolveOrder(
     }
   }
 
-  // Prioridad 2: tracking_number (columna) - FALLBACK
-  if (trackingNumber && trackingNumber.trim().length > 0) {
-    const trimmedTrackingNumber = trackingNumber.trim();
-    const { data, error, count } = await supabase
-      .from("orders")
-      .select("id, shipping_provider, shipping_tracking_number, shipping_shipment_id, shipping_label_url, metadata", { count: "exact" })
-      .eq("shipping_tracking_number", trimmedTrackingNumber)
-      .maybeSingle();
-
-    if (error) {
-      console.error("[skydropx/webhook] Error al buscar orden por tracking_number:", {
-        trackingNumber: trimmedTrackingNumber,
-        errorCode: error.code,
-        errorMessage: error.message,
-      });
-      return null;
-    }
-
-    if (data) {
-      console.log("[skydropx/webhook] Orden encontrada por tracking_number (columna):", {
-        orderId: data.id,
-        trackingNumber: trimmedTrackingNumber,
-        strategy: "tracking_number_column",
-      });
-      return data;
-    }
-
-    // Log diagnóstico
-    if (count !== null && count !== undefined) {
-      console.warn("[skydropx/webhook] Búsqueda por tracking_number no encontró match (count:", count, "):", {
-        trackingNumber: trimmedTrackingNumber,
-        count,
-      });
-    }
-  }
-
-  // Prioridad 3: metadata.shipping.shipment_id - FALLBACK LEGACY (solo si no se encontró por columna)
+  // Prioridad 2: metadata.shipping.shipment_id - FALLBACK (solo si no se encontró por columna)
   // NOTA: Este fallback es menos eficiente (requiere filtrar JSON), pero es necesario para órdenes legacy
   if (shipmentId && shipmentId.trim().length > 0) {
     const trimmedShipmentId = shipmentId.trim();
@@ -307,6 +272,87 @@ async function resolveOrder(
 
     console.warn("[skydropx/webhook] Fallback legacy no encontró match:", {
       shipmentId: trimmedShipmentId,
+      ordersScanned: skydropxOrders?.length || 0,
+    });
+  }
+
+  // Prioridad 3: tracking_number (columna) - FALLBACK
+  if (trackingNumber && trackingNumber.trim().length > 0) {
+    const trimmedTrackingNumber = trackingNumber.trim();
+    const { data, error, count } = await supabase
+      .from("orders")
+      .select("id, shipping_provider, shipping_tracking_number, shipping_shipment_id, shipping_label_url, metadata", { count: "exact" })
+      .eq("shipping_tracking_number", trimmedTrackingNumber)
+      .maybeSingle();
+
+    if (error) {
+      console.error("[skydropx/webhook] Error al buscar orden por tracking_number:", {
+        trackingNumber: trimmedTrackingNumber,
+        errorCode: error.code,
+        errorMessage: error.message,
+      });
+      return null;
+    }
+
+    if (data) {
+      console.log("[skydropx/webhook] Orden encontrada por tracking_number (columna):", {
+        orderId: data.id,
+        trackingNumber: trimmedTrackingNumber,
+        strategy: "tracking_number_column",
+      });
+      return data;
+    }
+
+    // Log diagnóstico
+    if (count !== null && count !== undefined) {
+      console.warn("[skydropx/webhook] Búsqueda por tracking_number no encontró match (count:", count, "):", {
+        trackingNumber: trimmedTrackingNumber,
+        count,
+      });
+    }
+  }
+
+  // Prioridad 4: metadata.shipping.tracking_number - FALLBACK LEGACY
+  if (trackingNumber && trackingNumber.trim().length > 0) {
+    const trimmedTrackingNumber = trackingNumber.trim();
+    const { data: skydropxOrders, error } = await supabase
+      .from("orders")
+      .select("id, shipping_provider, shipping_tracking_number, shipping_shipment_id, shipping_label_url, metadata")
+      .eq("shipping_provider", "skydropx")
+      .not("metadata", "is", null)
+      .limit(1000);
+
+    if (error) {
+      console.error("[skydropx/webhook] Error al buscar órdenes para tracking legacy:", {
+        trackingNumber: trimmedTrackingNumber,
+        errorCode: error.code,
+        errorMessage: error.message,
+      });
+      return null;
+    }
+
+    const matchingOrder = skydropxOrders?.find((order) => {
+      if (!order.metadata || typeof order.metadata !== "object") return false;
+      const metadata = order.metadata as Record<string, unknown>;
+      const shipping = metadata.shipping as Record<string, unknown> | undefined;
+      const metaTrackingNumber = shipping?.tracking_number;
+      return (
+        typeof metaTrackingNumber === "string" &&
+        metaTrackingNumber.trim() === trimmedTrackingNumber
+      );
+    });
+
+    if (matchingOrder) {
+      console.log("[skydropx/webhook] Orden encontrada por metadata.shipping.tracking_number:", {
+        orderId: matchingOrder.id,
+        trackingNumber: trimmedTrackingNumber,
+        strategy: "metadata_tracking_number",
+      });
+      return matchingOrder;
+    }
+
+    console.warn("[skydropx/webhook] Fallback tracking legacy no encontró match:", {
+      trackingNumber: trimmedTrackingNumber,
       ordersScanned: skydropxOrders?.length || 0,
     });
   }
@@ -369,7 +415,9 @@ export async function POST(req: NextRequest) {
       console.warn("[skydropx/webhook] Orden no encontrada con los identificadores proporcionados:", {
         shipmentId: shipmentId || "null",
         trackingNumber: trackingNumber ? `${trackingNumber.substring(0, 8)}...` : "null",
-        strategiesUsed: shipmentId ? ["shipping_shipment_id_column", "metadata_legacy"] : [],
+        strategiesUsed: shipmentId
+          ? ["shipping_shipment_id_column", "metadata_shipping_shipment_id"]
+          : [],
       });
       return NextResponse.json({ received: true, message: "No matching order" });
     }

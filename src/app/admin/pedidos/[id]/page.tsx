@@ -459,8 +459,23 @@ export default async function AdminPedidoDetailPage({
 
               {shouldShowPackageFinal ? (
                 <div className="mb-4 pb-4 border-b border-gray-200">
-                  <h3 className="text-md font-semibold mb-2">Paquete real para guía</h3>
-                  <ShippingPackageFinalClient orderId={order.id} currentPackageFinal={currentPackageFinal} />
+                  <div className="mb-3">
+                    <h3 className="text-md font-semibold">Caja estándar</h3>
+                    <p className="text-sm text-gray-600">
+                      25 × 20 × 15 cm (se usa por defecto si no hay override).
+                    </p>
+                  </div>
+                  <details className="bg-gray-50 rounded-lg border border-gray-200 px-4 py-3">
+                    <summary className="cursor-pointer text-sm font-semibold text-gray-900">
+                      Editar paquete real (override)
+                    </summary>
+                    <div className="mt-3">
+                      <ShippingPackageFinalClient
+                        orderId={order.id}
+                        currentPackageFinal={currentPackageFinal}
+                      />
+                    </div>
+                  </details>
                 </div>
               ) : null}
 
@@ -524,7 +539,6 @@ export default async function AdminPedidoDetailPage({
                       orderId={order.id}
                       paymentStatus={order.payment_status}
                       shippingProvider={order.shipping_provider}
-                      shippingRateExtId={order.shipping_rate_ext_id}
                       shippingStatus={order.shipping_status}
                       currentTrackingNumber={order.shipping_tracking_number}
                       currentLabelUrl={order.shipping_label_url}

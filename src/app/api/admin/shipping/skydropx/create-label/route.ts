@@ -5,7 +5,6 @@ import { createClient } from "@supabase/supabase-js";
 import { checkAdminAccess } from "@/lib/admin/access";
 import {
   createQuotation,
-  createShipmentFromRate,
   getShipment,
   skydropxFetch,
   type SkydropxQuotationRate,
@@ -321,9 +320,9 @@ export async function POST(req: NextRequest) {
 
       const fallback = {
         weight_g: 1200,
-        length_cm: 20,
+        length_cm: 25,
         width_cm: 20,
-        height_cm: 10,
+        height_cm: 15,
       };
 
       if (finalPackage) {
@@ -505,17 +504,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!order.shipping_rate_ext_id) {
-      return NextResponse.json(
-        {
-          ok: false,
-          code: "missing_shipping_rate",
-          message: "La orden no tiene un rate_id de Skydropx guardado",
-        } satisfies CreateLabelResponse,
-        { status: 400 },
-      );
-    }
-
     // Obtener datos de dirección del destino
     const addressTo = extractAddressFromMetadata(order.metadata);
     const destinationAddress2 =
@@ -560,11 +548,6 @@ export async function POST(req: NextRequest) {
 
     // VALIDACIONES LOCALES 422 antes de llamar a Skydropx
     const missingFields: string[] = [];
-    
-    // Validar rate_id
-    if (!order.shipping_rate_ext_id || typeof order.shipping_rate_ext_id !== "string" || order.shipping_rate_ext_id.trim() === "") {
-      missingFields.push("rate_id");
-    }
     
     // Validar address_from required
     if (!addressFrom.address1 || addressFrom.address1.trim() === "") {
@@ -1071,24 +1054,7 @@ export async function POST(req: NextRequest) {
     };
 
     // Crear el shipment en Skydropx
-    const shipmentResult =
-      packageSource === "final"
-        ? await createShipmentWithFinalPackage()
-        : await createShipmentFromRate({
-            rateExternalId: order.shipping_rate_ext_id, // NO sobreescribir, solo usar como input
-            addressFrom,
-            addressTo,
-            parcels: [
-              {
-                weight: weightKg,
-                height: heightCm,
-                width: widthCm,
-                length: lengthCm,
-              },
-            ],
-            consignmentNote: consignmentNote!, // Ya validado arriba
-            packageType: packageType!, // Ya validado arriba
-          });
+    const shipmentResult = await createShipmentWithFinalPackage();
 
     if (process.env.NODE_ENV !== "production") {
       console.log("[create-label] Shipment creado:", {
@@ -1099,6 +1065,76 @@ export async function POST(req: NextRequest) {
         weightG,
         weightKg,
       });
+    }
+
+    // Persistir shipment_id y rate usados ANTES de cualquier paso adicional
+    try {
+      if (!selectedRateForShipment) {
+        throw new Error("Rate seleccionado no disponible para persistencia temprana.");
+      }
+      const selectedRate = selectedRateForShipment as RateSelection;
+      const earlyMetadata = (order.metadata as Record<string, unknown>) || {};
+      const earlyShippingMeta = (earlyMetadata.shipping as Record<string, unknown>) || {};
+      const earlyRateMeta =
+        earlyShippingMeta.rate && typeof earlyShippingMeta.rate === "object"
+          ? (earlyShippingMeta.rate as Record<string, unknown>)
+          : {};
+
+      const earlyUpdatedShippingMeta = {
+        ...earlyShippingMeta,
+        shipment_id: shipmentResult.rawId || earlyShippingMeta.shipment_id || null,
+        quotation_id: shipmentResult.quotationId || earlyShippingMeta.quotation_id || null,
+        rate_id: selectedRate.rateId,
+        rate: {
+          ...earlyRateMeta,
+          external_id: selectedRate.rateId,
+          provider: selectedRate.provider || earlyRateMeta.provider || null,
+          service: selectedRate.service || earlyRateMeta.service || null,
+        },
+        rate_used: {
+          rate_id: selectedRate.rateId,
+          provider: selectedRate.provider,
+          service: selectedRate.service,
+          price_cents: selectedRate.priceCents,
+          source: selectedRate.source,
+        },
+        package_used: {
+          weight_g: weightG,
+          length_cm: lengthCm,
+          width_cm: widthCm,
+          height_cm: heightCm,
+          source: packageSource,
+        },
+      };
+
+      const earlyUpdateData: Record<string, unknown> = {
+        metadata: {
+          ...earlyMetadata,
+          shipping: earlyUpdatedShippingMeta,
+        },
+        updated_at: new Date().toISOString(),
+      };
+
+      if (shipmentResult.rawId) {
+        earlyUpdateData.shipping_shipment_id = shipmentResult.rawId;
+      }
+      if (order.shipping_rate_ext_id !== selectedRate.rateId) {
+        earlyUpdateData.shipping_rate_ext_id = selectedRate.rateId;
+      }
+
+      await supabase.from("orders").update(earlyUpdateData).eq("id", orderId);
+
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[create-label] Persistencia temprana:", {
+          shipment_id: shipmentResult.rawId || null,
+          quotation_id: shipmentResult.quotationId || null,
+          rate_id: selectedRate.rateId,
+        });
+      }
+    } catch (earlyPersistError) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[create-label] No se pudo persistir shipment temprano:", earlyPersistError);
+      }
     }
 
     // Obtener detalles del shipment recién creado para debug (peso real en Skydropx)
@@ -1200,6 +1236,8 @@ export async function POST(req: NextRequest) {
     const updatedShippingMeta = {
       ...finalShippingMeta, // Preservar datos existentes (cancel_request_id, cancel_status, etc.)
       shipment_id: shipmentResult.rawId || finalShippingMeta.shipment_id || null, // SIEMPRE guardar/actualizar shipment_id
+      quotation_id: shipmentResult.quotationId || finalShippingMeta.quotation_id || null,
+      rate_id: selectedRate.rateId,
       rate: updatedRateMeta,
       rate_used: {
         rate_id: selectedRate.rateId,
@@ -1217,7 +1255,7 @@ export async function POST(req: NextRequest) {
       },
         shipment_payload_debug: {
           quotation_id: (shipmentResult as { quotationId?: string }).quotationId || null,
-          rate_id: (shipmentResult as { rateId?: string }).rateId || order.shipping_rate_ext_id,
+        rate_id: (shipmentResult as { rateId?: string }).rateId || selectedRate.rateId,
           package_source: packageSource,
           parcels: [
             {
