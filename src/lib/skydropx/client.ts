@@ -19,41 +19,126 @@ type CachedToken = {
 
 // Caché en memoria del token (por proceso)
 let tokenCache: CachedToken | null = null;
+let configCache: SkydropxConfig | null = null;
+const warnedKeys = new Set<string>();
+const loggedKeys = new Set<string>();
 
 const SKYDROPX_PRO_HOST = "https://pro.skydropx.com";
 const SKYDROPX_API_PRO_HOST = "https://api-pro.skydropx.com";
+const SKYDROPX_APP_HOST = "https://app.skydropx.com";
 
-const INVALID_PRO_HOST_HINTS = ["api-pro.skydropx.com", "api.skydropx.com"];
+const ALLOWED_PRO_HOSTS = ["pro.skydropx.com"];
+const ALLOWED_SHIPMENTS_HOSTS = ["api-pro.skydropx.com", "app.skydropx.com"];
+
+type SkydropxConfig = {
+  clientId: string;
+  clientSecret: string;
+  authBaseUrl: string;
+  quotationsBaseUrl: string;
+  restBaseUrl: string;
+  oauthTokenUrl: string;
+  sources: {
+    authBaseUrl: string;
+    quotationsBaseUrl: string;
+    restBaseUrl: string;
+    oauthTokenUrl: string;
+  };
+};
 
 function stripTrailingSlashes(value: string) {
   return value.replace(/\/+$/, "");
 }
 
-function isInvalidProHost(value: string) {
-  const normalized = value.toLowerCase();
-  return INVALID_PRO_HOST_HINTS.some((hint) => normalized.includes(hint));
+function normalizeBaseUrl(value: string) {
+  return stripTrailingSlashes(value.trim());
 }
 
-function normalizeProBaseUrl(
+function parseAndValidateUrl(
+  inputUrl: string,
+  allowedHosts: string[],
+): { ok: true; url: URL } | { ok: false; reason: string } {
+  try {
+    const url = new URL(inputUrl);
+    if (url.protocol !== "https:") {
+      return { ok: false, reason: "invalid_protocol" };
+    }
+    if (url.username || url.password) {
+      return { ok: false, reason: "credentials_not_allowed" };
+    }
+    const host = url.hostname.toLowerCase();
+    if (!allowedHosts.includes(host)) {
+      return { ok: false, reason: "host_not_allowed" };
+    }
+    return { ok: true, url };
+  } catch {
+    return { ok: false, reason: "invalid_url" };
+  }
+}
+
+function assertAllowedSkydropxUrl(
+  inputUrl: string,
+  allowedHosts: string[],
+  label: string,
+) {
+  const result = parseAndValidateUrl(inputUrl, allowedHosts);
+  if (!result.ok) {
+    const error = new Error(`Skydropx URL inválida para ${label}`);
+    (error as Error & { code?: string }).code = "skydropx_invalid_host";
+    throw error;
+  }
+  return result.url;
+}
+
+function normalizeAllowedBaseUrl(
   value: string | undefined,
   fallback: string,
-  label: "quotations" | "auth",
+  allowedHosts: string[],
 ) {
   if (!value) {
-    return stripTrailingSlashes(fallback);
+    const fallbackUrl = assertAllowedSkydropxUrl(fallback, allowedHosts, "fallback");
+    return {
+      url: fallbackUrl.origin,
+      invalidProvided: null as string | null,
+      ignoredPath: fallbackUrl.pathname && fallbackUrl.pathname !== "/" ? fallbackUrl.pathname : null,
+    };
   }
-  if (isInvalidProHost(value)) {
-    console.warn(`[Skydropx Config] ${label} host inválido, usando fallback`, {
-      provided_host: value,
-      fallback_host: fallback,
-    });
-    return stripTrailingSlashes(fallback);
+  const normalized = normalizeBaseUrl(value);
+  const validation = parseAndValidateUrl(normalized, allowedHosts);
+  if (!validation.ok) {
+    const fallbackUrl = assertAllowedSkydropxUrl(fallback, allowedHosts, "fallback");
+    return {
+      url: fallbackUrl.origin,
+      invalidProvided: normalized,
+      ignoredPath: fallbackUrl.pathname && fallbackUrl.pathname !== "/" ? fallbackUrl.pathname : null,
+    };
   }
-  return stripTrailingSlashes(value);
+  return {
+    url: validation.url.origin,
+    invalidProvided: null as string | null,
+    ignoredPath: validation.url.pathname && validation.url.pathname !== "/" ? validation.url.pathname : null,
+  };
 }
 
 function normalizeShipmentsBaseUrl(value: string | undefined, fallback: string) {
-  return stripTrailingSlashes(value || fallback);
+  const normalized = normalizeBaseUrl(value || fallback);
+  const validation = parseAndValidateUrl(normalized, ALLOWED_SHIPMENTS_HOSTS);
+  if (!validation.ok) {
+    const fallbackUrl = assertAllowedSkydropxUrl(fallback, ALLOWED_SHIPMENTS_HOSTS, "shipments");
+    return fallbackUrl.origin;
+  }
+  return validation.url.origin;
+}
+
+function warnOnce(key: string, message: string, payload?: Record<string, unknown>) {
+  if (warnedKeys.has(key)) return;
+  warnedKeys.add(key);
+  console.warn(message, payload);
+}
+
+function logOnce(key: string, message: string, payload?: Record<string, unknown>) {
+  if (loggedKeys.has(key)) return;
+  loggedKeys.add(key);
+  console.log(message, payload);
 }
 
 export function getSkydropxApiHosts() {
@@ -69,6 +154,8 @@ export function getSkydropxApiHosts() {
     quotationsBaseUrl: config.quotationsBaseUrl,
     authBaseUrl: config.authBaseUrl,
     restBaseUrl: config.restBaseUrl,
+    oauthTokenUrl: config.oauthTokenUrl,
+    sources: config.sources,
     fallbackQuotationsBaseUrl,
   };
 }
@@ -78,42 +165,125 @@ export function getSkydropxApiHosts() {
  * Usa OAuth exclusivamente
  */
 export function getSkydropxConfig() {
+  if (configCache) {
+    return configCache;
+  }
+
   const clientId = process.env.SKYDROPX_CLIENT_ID;
   const clientSecret = process.env.SKYDROPX_CLIENT_SECRET;
   
-  // URL base para autenticación OAuth (para /api/v1/oauth/token)
-  // Skydropx docs indican usar pro.skydropx.com para OAuth/quotations/shipments
-  const authBaseUrl = normalizeProBaseUrl(
-    process.env.SKYDROPX_AUTH_BASE_URL || process.env.SKYDROPX_API_BASE_URL,
+  const authBaseUrlRaw = process.env.SKYDROPX_AUTH_BASE_URL?.trim();
+  const quotationsBaseUrlRaw = process.env.SKYDROPX_QUOTATIONS_BASE_URL?.trim();
+  const legacyBaseUrlRaw =
+    (!authBaseUrlRaw && !quotationsBaseUrlRaw && process.env.SKYDROPX_BASE_URL?.trim())
+      ? process.env.SKYDROPX_BASE_URL?.trim()
+      : undefined;
+  const legacyApiBaseUrlRaw =
+    (!authBaseUrlRaw && !quotationsBaseUrlRaw && !legacyBaseUrlRaw && process.env.SKYDROPX_API_BASE_URL?.trim())
+      ? process.env.SKYDROPX_API_BASE_URL?.trim()
+      : undefined;
+
+  const authBaseUrlResolved = normalizeAllowedBaseUrl(
+    authBaseUrlRaw || legacyBaseUrlRaw || legacyApiBaseUrlRaw,
     SKYDROPX_PRO_HOST,
-    "auth",
+    ALLOWED_PRO_HOSTS,
   );
-  
-  // URL base para cotizaciones (para /api/v1/quotations)
-  // Skydropx docs indican usar pro.skydropx.com/api/v1
-  const quotationsBaseUrl = normalizeProBaseUrl(
-    process.env.SKYDROPX_QUOTATIONS_BASE_URL || process.env.SKYDROPX_API_BASE_URL,
+  const quotationsBaseUrlResolved = normalizeAllowedBaseUrl(
+    quotationsBaseUrlRaw || legacyBaseUrlRaw || legacyApiBaseUrlRaw,
     SKYDROPX_PRO_HOST,
-    "quotations",
+    ALLOWED_PRO_HOSTS,
   );
-  
-  // URL base para otros endpoints de API (shipments, etc.)
-  // IMPORTANTE: Para obtener tracking/label en producción, usar app.skydropx.com según docs oficiales
-  // OAuth token puede seguir siendo api-pro.skydropx.com, pero shipments debe ser app.skydropx.com
-  const restBaseUrl = normalizeShipmentsBaseUrl(
-    process.env.SKYDROPX_SHIPMENTS_BASE_URL ||
-      process.env.SKYDROPX_BASE_URL ||
-      process.env.SKYDROPX_API_BASE_URL,
-    SKYDROPX_API_PRO_HOST,
-  );
-  
-  // Log de configuración (solo en non-production o si está explícitamente configurado)
-  if (process.env.NODE_ENV !== "production" || process.env.SKYDROPX_SHIPMENTS_BASE_URL) {
-    console.log("[Skydropx Config] restBaseUrl (shipments):", {
-      restBaseUrl,
-      source: process.env.SKYDROPX_SHIPMENTS_BASE_URL ? "SKYDROPX_SHIPMENTS_BASE_URL" : process.env.SKYDROPX_BASE_URL ? "SKYDROPX_BASE_URL" : process.env.SKYDROPX_API_BASE_URL ? "SKYDROPX_API_BASE_URL" : "default (pro.skydropx.com)",
+
+  if (authBaseUrlResolved.invalidProvided) {
+    warnOnce("skydropx-auth-invalid-host", "[Skydropx Config] auth host inválido, usando fallback", {
+      provided_host: authBaseUrlResolved.invalidProvided,
+      fallback_host: SKYDROPX_PRO_HOST,
     });
   }
+  if (authBaseUrlResolved.ignoredPath) {
+    warnOnce("skydropx-auth-path-ignored", "[Skydropx Config] auth baseUrl con path ignorado", {
+      ignored_path: authBaseUrlResolved.ignoredPath,
+    });
+  }
+  if (quotationsBaseUrlResolved.invalidProvided) {
+    warnOnce("skydropx-quotations-invalid-host", "[Skydropx Config] quotations host inválido, usando fallback", {
+      provided_host: quotationsBaseUrlResolved.invalidProvided,
+      fallback_host: SKYDROPX_PRO_HOST,
+    });
+  }
+  if (quotationsBaseUrlResolved.ignoredPath) {
+    warnOnce("skydropx-quotations-path-ignored", "[Skydropx Config] quotations baseUrl con path ignorado", {
+      ignored_path: quotationsBaseUrlResolved.ignoredPath,
+    });
+  }
+
+  const authBaseUrlSource = authBaseUrlRaw
+    ? "SKYDROPX_AUTH_BASE_URL"
+    : legacyBaseUrlRaw
+      ? "legacy SKYDROPX_BASE_URL"
+      : legacyApiBaseUrlRaw
+        ? "legacy SKYDROPX_API_BASE_URL"
+        : "default";
+  const quotationsBaseUrlSource = quotationsBaseUrlRaw
+    ? "SKYDROPX_QUOTATIONS_BASE_URL"
+    : legacyBaseUrlRaw
+      ? "legacy SKYDROPX_BASE_URL"
+      : legacyApiBaseUrlRaw
+        ? "legacy SKYDROPX_API_BASE_URL"
+        : "default";
+
+  // URL base para otros endpoints de API (shipments, etc.)
+  const restBaseUrlRaw =
+    process.env.SKYDROPX_SHIPMENTS_BASE_URL?.trim() ||
+    process.env.SKYDROPX_BASE_URL?.trim() ||
+    process.env.SKYDROPX_API_BASE_URL?.trim();
+  const restBaseUrl = normalizeShipmentsBaseUrl(restBaseUrlRaw, SKYDROPX_API_PRO_HOST);
+  const restBaseUrlSource = process.env.SKYDROPX_SHIPMENTS_BASE_URL?.trim()
+    ? "SKYDROPX_SHIPMENTS_BASE_URL"
+    : process.env.SKYDROPX_BASE_URL?.trim()
+      ? "legacy SKYDROPX_BASE_URL"
+      : process.env.SKYDROPX_API_BASE_URL?.trim()
+        ? "legacy SKYDROPX_API_BASE_URL"
+        : "default";
+
+  const oauthTokenUrlRaw = process.env.SKYDROPX_OAUTH_TOKEN_URL?.trim();
+  const oauthTokenFallbackUrl = new URL("api/v1/oauth/token", `${authBaseUrlResolved.url}/`);
+  const oauthTokenUrlResolved = normalizeAllowedBaseUrl(
+    oauthTokenUrlRaw,
+    oauthTokenFallbackUrl.toString(),
+    ALLOWED_PRO_HOSTS,
+  );
+  if (oauthTokenUrlResolved.invalidProvided) {
+    warnOnce("skydropx-oauth-invalid-host", "[Skydropx Config] oauth token host inválido, usando authBaseUrl", {
+      provided_host: oauthTokenUrlResolved.invalidProvided,
+      fallback_host: authBaseUrlResolved.url,
+    });
+  }
+  if (oauthTokenUrlResolved.ignoredPath) {
+    warnOnce("skydropx-oauth-path-ignored", "[Skydropx Config] oauth token url con path ignorado", {
+      ignored_path: oauthTokenUrlResolved.ignoredPath,
+    });
+  }
+  const oauthTokenUrlSource = oauthTokenUrlRaw ? "SKYDROPX_OAUTH_TOKEN_URL" : "derived";
+
+  logOnce("skydropx-config", "[Skydropx Config] resolved base URLs:", {
+    auth: {
+      host: authBaseUrlResolved.url,
+      source: authBaseUrlSource,
+    },
+    quotations: {
+      host: quotationsBaseUrlResolved.url,
+      source: quotationsBaseUrlSource,
+    },
+    oauth: {
+      url: oauthTokenUrlResolved.url,
+      source: oauthTokenUrlSource,
+    },
+    shipments: {
+      host: restBaseUrl,
+      source: restBaseUrlSource,
+    },
+  });
 
   if (!clientId || !clientSecret) {
     if (process.env.NODE_ENV !== "production") {
@@ -124,13 +294,21 @@ export function getSkydropxConfig() {
     return null;
   }
 
-  return {
+  configCache = {
     clientId,
     clientSecret,
-    authBaseUrl, // Para endpoint de OAuth (api-pro)
-    quotationsBaseUrl, // Para endpoint de cotizaciones (app)
-    restBaseUrl, // Para otros endpoints de API
+    authBaseUrl: authBaseUrlResolved.url,
+    quotationsBaseUrl: quotationsBaseUrlResolved.url,
+    restBaseUrl,
+    oauthTokenUrl: oauthTokenUrlResolved.url,
+    sources: {
+      authBaseUrl: authBaseUrlSource,
+      quotationsBaseUrl: quotationsBaseUrlSource,
+      restBaseUrl: restBaseUrlSource,
+      oauthTokenUrl: oauthTokenUrlSource,
+    },
   };
+  return configCache;
 }
 
 /**
@@ -150,30 +328,12 @@ async function fetchAccessToken(): Promise<string | null> {
     return null;
   }
 
-  // Construir lista de URLs a intentar
   const tokenUrls: string[] = [];
-  
-  const explicitTokenUrl = process.env.SKYDROPX_OAUTH_TOKEN_URL?.trim();
-  let shouldUseFallbackTokenUrls = false;
-  if (explicitTokenUrl) {
-    // Si existe URL explícita, úsala primero
-    if (isInvalidProHost(explicitTokenUrl)) {
-      console.warn("[Skydropx OAuth] SKYDROPX_OAUTH_TOKEN_URL inválida, usando authBaseUrl", {
-        provided_host: explicitTokenUrl,
-        fallback_host: config.authBaseUrl,
-      });
-      shouldUseFallbackTokenUrls = true;
-    } else {
-      tokenUrls.push(explicitTokenUrl);
-    }
-  }
-  
-  if (!explicitTokenUrl || shouldUseFallbackTokenUrls) {
-    // Construir URLs desde authBaseUrl, limpiando slashes dobles
-    const baseUrl = stripTrailingSlashes(config.authBaseUrl);
-    // Intentar primero con /api/v1/oauth/token, luego /oauth/token
-    tokenUrls.push(`${baseUrl}/api/v1/oauth/token`);
-    tokenUrls.push(`${baseUrl}/oauth/token`);
+  const oauthUrl = assertAllowedSkydropxUrl(config.oauthTokenUrl, ALLOWED_PRO_HOSTS, "oauth");
+  tokenUrls.push(oauthUrl.toString());
+  const authBaseUrl = assertAllowedSkydropxUrl(config.authBaseUrl, ALLOWED_PRO_HOSTS, "auth");
+  if (oauthUrl.toString() === `${authBaseUrl.origin}/api/v1/oauth/token`) {
+    tokenUrls.push(new URL("oauth/token", `${authBaseUrl.origin}/`).toString());
   }
 
   // Usar application/x-www-form-urlencoded como especifica OAuth 2.0
@@ -365,8 +525,14 @@ export async function skydropxFetch(
     throw new Error("Skydropx no está configurado");
   }
 
-  // Construir URL completa usando restBaseUrl (API)
-  const url = `${config.restBaseUrl}${path.startsWith("/") ? path : `/${path}`}`;
+  if (/^https?:\/\//i.test(path)) {
+    const error = new Error("Skydropx path inválido (debe ser relativo)");
+    (error as Error & { code?: string }).code = "skydropx_invalid_host";
+    throw error;
+  }
+
+  const baseUrl = assertAllowedSkydropxUrl(config.restBaseUrl, ALLOWED_SHIPMENTS_HOSTS, "shipments");
+  const url = new URL(path.startsWith("/") ? path : `/${path}`, `${baseUrl.origin}/`).toString();
 
   // Log seguro de URL (sin secretos)
   if (process.env.NODE_ENV !== "production") {
@@ -375,8 +541,8 @@ export async function skydropxFetch(
       {
         method: options.method ?? "GET",
         path,
-        baseUrl: config.restBaseUrl,
-        fullUrl: url,
+        baseHost: baseUrl.host,
+        fullPath: new URL(url).pathname,
       },
     );
   }
@@ -517,8 +683,9 @@ export async function createQuotation(
   // El endpoint de cotizaciones espera un objeto raíz "quotation" según la documentación oficial
   // URL: POST https://app.skydropx.com/api/v1/quotations
   const config = getSkydropxConfig();
-  const baseUrl = stripTrailingSlashes(options?.baseUrlOverride || config?.quotationsBaseUrl || SKYDROPX_PRO_HOST);
-  const fullUrl = `${baseUrl}/api/v1/quotations`;
+  const baseUrl = normalizeBaseUrl(options?.baseUrlOverride || config?.quotationsBaseUrl || SKYDROPX_PRO_HOST);
+  const validatedBaseUrl = assertAllowedSkydropxUrl(baseUrl, ALLOWED_PRO_HOSTS, "quotations");
+  const fullUrl = new URL("api/v1/quotations", `${validatedBaseUrl.origin}/`).toString();
   
   const normalizeState = (value?: string | null) => {
     if (!value) return "";
@@ -600,7 +767,7 @@ export async function createQuotation(
     quotationKeys: Object.keys(quotationBody.quotation),
     reference: trimmedReference || null,
     hasOrderId: Boolean(trimmedOrderId),
-    baseUrl,
+    baseUrl: validatedBaseUrl.origin,
     host_role: options?.logLabel || "primary",
     origin: {
       country_code: payload.address_from.country,
@@ -625,7 +792,8 @@ export async function createQuotation(
 
   if (process.env.NODE_ENV !== "production") {
     console.log("[Skydropx createQuotation] Enviando cotización:", {
-      url: fullUrl,
+      host: validatedBaseUrl.host,
+      path: new URL(fullUrl).pathname,
       method: "POST",
       payload: safePayload,
     });
@@ -811,7 +979,7 @@ export async function createQuotation(
   let lastResponse = postData;
   
   // Definir quotationsBaseUrl para usar en polling (misma que en POST)
-  const quotationsBaseUrlForPolling = baseUrl;
+  const quotationsBaseUrlForPolling = validatedBaseUrl.origin;
   
   while (attempts < maxAttempts) {
     attempts++;
@@ -844,7 +1012,10 @@ export async function createQuotation(
     
     try {
       // GET /api/v1/quotations/{id}
-      const getUrl = `${quotationsBaseUrlForPolling}/api/v1/quotations/${quotationId}`;
+      const getUrl = new URL(
+        `api/v1/quotations/${quotationId}`,
+        `${quotationsBaseUrlForPolling}/`,
+      ).toString();
       const getResponse = await fetch(getUrl, {
         method: "GET",
         headers: {
@@ -947,11 +1118,16 @@ export async function getQuotation(
   options?: { baseUrlOverride?: string },
 ): Promise<SkydropxQuotationResponse> {
   // Skydropx API usa /api/v1/quotations/{id} según docs
-  const quotationsBaseUrl = stripTrailingSlashes(
+  const quotationsBaseUrl = normalizeBaseUrl(
     options?.baseUrlOverride ||
       process.env.SKYDROPX_QUOTATIONS_BASE_URL ||
       process.env.SKYDROPX_API_BASE_URL ||
       SKYDROPX_PRO_HOST,
+  );
+  const validatedBaseUrl = assertAllowedSkydropxUrl(
+    quotationsBaseUrl,
+    ALLOWED_PRO_HOSTS,
+    "quotations",
   );
   const accessToken = await getAccessToken();
   
@@ -959,13 +1135,16 @@ export async function getQuotation(
     throw new Error("No se pudo obtener token de acceso de Skydropx");
   }
   
-  const response = await fetch(`${quotationsBaseUrl}/api/v1/quotations/${id}`, {
+  const response = await fetch(
+    new URL(`api/v1/quotations/${id}`, `${validatedBaseUrl.origin}/`).toString(),
+    {
     method: "GET",
     headers: {
       "Accept": "application/json",
       "Authorization": `Bearer ${accessToken}`,
     },
-  });
+    },
+  );
 
   if (!response.ok) {
     const errorText = await response.text();
