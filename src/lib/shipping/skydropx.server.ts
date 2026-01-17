@@ -2,6 +2,7 @@ import "server-only";
 import {
   createQuotation,
   createShipment,
+  getSkydropxApiHosts,
   type SkydropxQuotationRate,
   type SkydropxShipmentPayload,
   type SkydropxShipmentResponse,
@@ -251,6 +252,7 @@ export async function getSkydropxRates(
     const quotationId = result.quotationId;
     const isCompleted = result.isCompleted ?? true; // Si no viene, asumir completada
     const pollingInfo = result.pollingInfo;
+    const hostUsed = getSkydropxApiHosts()?.quotationsBaseUrl || null;
 
     // Logging controlado: solo información esencial en desarrollo
     if (process.env.NODE_ENV !== "production") {
@@ -369,6 +371,7 @@ export async function getSkydropxRates(
             rates_count_raw: ratesCountRaw,
             rates_count_filtered: 0,
             rates_by_status: ratesByStatus,
+            host_used: hostUsed,
           },
         };
         return { rates: [], diagnostic: enhancedDiagnostic };
@@ -622,7 +625,19 @@ export async function getSkydropxRates(
 
     // Si se solicitó diagnóstico, devolverlo junto con rates (aunque rates no esté vacío)
     if (options?.diagnostic) {
-      return { rates: selectedRates, diagnostic };
+      const enhancedDiagnostic = {
+        ...diagnostic,
+        quotation: {
+          quotation_id: quotationId,
+          is_completed: isCompleted,
+          polling_attempts: pollingInfo?.attempts ?? 0,
+          polling_elapsed_ms: pollingInfo?.elapsedMs ?? 0,
+          rates_count_raw: ratesCountRaw,
+          rates_count_filtered: selectedRates.length,
+          host_used: hostUsed,
+        },
+      };
+      return { rates: selectedRates, diagnostic: enhancedDiagnostic };
     }
 
     return selectedRates;

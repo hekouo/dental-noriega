@@ -76,6 +76,15 @@ export type SkydropxRatesRequestDiagnostic = {
     destination: "normalized" | "raw";
     package: "provided" | "default";
   };
+  quotation?: {
+    quotation_id?: string | null;
+    is_completed?: boolean;
+    polling_attempts?: number;
+    polling_elapsed_ms?: number;
+    host_used?: string | null;
+    rates_count_raw?: number;
+    rates_count_filtered?: number;
+  };
 };
 
 /**
