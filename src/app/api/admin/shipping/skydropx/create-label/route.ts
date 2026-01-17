@@ -707,6 +707,22 @@ export async function POST(req: NextRequest) {
       matchedBy: "id" | "provider_service" | "fallback";
     };
 
+    type ShipmentResult = {
+      rawId: string | null;
+      trackingNumber: string | null;
+      labelUrl: string | null;
+      pollingInfo?: {
+        attempts: number;
+        elapsedMs: number;
+      };
+      quotationId?: string | null;
+      rateId?: string | null;
+    };
+
+    type ReuseAttempt =
+      | { ok: true; result: ShipmentResult }
+      | { ok: false; invalidQuotation: true };
+
     const normalizeText = (value?: string | null) =>
       value?.toLowerCase().replace(/\s+/g, " ").trim() || "";
 
@@ -750,7 +766,7 @@ export async function POST(req: NextRequest) {
 
     let selectedRateForShipment: RateSelection | null = null;
 
-    const createShipmentWithFinalPackage = async () => {
+    const createShipmentWithFinalPackage = async (): Promise<ShipmentResult> => {
       const weightKgPrecise = Math.max(1, Number((weightG / 1000).toFixed(2)));
       const parcel = {
         weight: weightKgPrecise,
@@ -761,6 +777,207 @@ export async function POST(req: NextRequest) {
         mass_unit: "KG" as const,
       };
       const quotationReference = orderId ? `DDN-${orderId.slice(0, 8)}` : "DDN-unknown";
+
+      const shippingMeta = (packageMetadata.shipping as Record<string, unknown>) || {};
+      const rateMeta =
+        shippingMeta.rate && typeof shippingMeta.rate === "object"
+          ? (shippingMeta.rate as { provider?: string; service?: string; external_id?: string })
+          : undefined;
+
+      const savedQuotationId =
+        typeof shippingMeta.quotation_id === "string" ? shippingMeta.quotation_id : null;
+      const savedQuotationHost =
+        typeof shippingMeta.quotation_host_used === "string"
+          ? shippingMeta.quotation_host_used
+          : null;
+      const savedRateId =
+        typeof order.shipping_rate_ext_id === "string" && order.shipping_rate_ext_id.trim()
+          ? order.shipping_rate_ext_id.trim()
+          : rateMeta?.external_id?.trim() || null;
+
+      const quotedPackage = normalizePackageCandidate(shippingMeta.quoted_package);
+      const quotedPackageMatches = quotedPackage
+        ? quotedPackage.weight_g === weightG &&
+          quotedPackage.length_cm === lengthCm &&
+          quotedPackage.width_cm === widthCm &&
+          quotedPackage.height_cm === heightCm
+        : true;
+
+      const canReuseQuotation = Boolean(savedQuotationId && savedRateId && quotedPackageMatches);
+
+      const buildShipmentPayload = (quotationId: string, rateId: string) => ({
+        shipment: {
+          quotation: { id: quotationId },
+          rate_id: rateId,
+          address_from: {
+            country: addressFrom.countryCode || "MX",
+            country_code: addressFrom.countryCode || "MX",
+            zip: addressFrom.postalCode,
+            postal_code: addressFrom.postalCode,
+            city: addressFrom.city,
+            state: addressFrom.state,
+            province: addressFrom.state,
+            street1: addressFrom.address1,
+            address1: addressFrom.address1,
+            name: addressFrom.name,
+            company: "DDN",
+            reference: config.origin.reference || "Sin referencia",
+            phone: addressFrom.phone || null,
+            email: addressFrom.email || null,
+          },
+          address_to: {
+            country: addressTo.countryCode || "MX",
+            country_code: addressTo.countryCode || "MX",
+            zip: addressTo.postalCode,
+            postal_code: addressTo.postalCode,
+            city: addressTo.city,
+            state: addressTo.state,
+            province: addressTo.state,
+            street1: addressTo.address1,
+            address1: addressTo.address1,
+            name: addressTo.name,
+            company: "Particular",
+            reference: "Sin referencia",
+            phone: addressTo.phone || null,
+            email: addressTo.email || null,
+          },
+          packages: [
+            {
+              package_number: "1",
+              package_protected: false,
+              weight: weightKgPrecise,
+              height: parcel.height,
+              width: parcel.width,
+              length: parcel.length,
+              consignment_note: consignmentNote,
+              package_type: packageType,
+            },
+          ],
+          printing_format: "standard",
+        },
+      });
+
+      const normalizeErrorText = (text: string) => text.toLowerCase().replace(/\s+/g, " ").trim();
+      const isInvalidQuotationError = (payload: unknown, status: number) => {
+        if (![400, 422].includes(status)) return false;
+        if (!payload || typeof payload !== "object") return false;
+        const message =
+          typeof (payload as { message?: string }).message === "string"
+            ? (payload as { message?: string }).message
+            : "";
+        const detail =
+          typeof (payload as { detail?: string }).detail === "string"
+            ? (payload as { detail?: string }).detail
+            : "";
+        const errorText = normalizeErrorText(`${message} ${detail}`);
+        return errorText.includes("quotation") || errorText.includes("cotización");
+      };
+
+      const tryCreateShipmentFromQuotation = async (
+        quotationId: string,
+        rateId: string,
+      ): Promise<ReuseAttempt> => {
+        const shipmentPayload = buildShipmentPayload(quotationId, rateId);
+        if (process.env.NODE_ENV !== "production") {
+          console.log("[create-label] Shipment usando quotation guardada:", {
+            quotation_id: quotationId,
+            quotation_host: savedQuotationHost || null,
+            rate_id: rateId,
+            package_source: packageSource,
+            weight_g: weightG,
+            weight_kg: weightKgPrecise,
+            length_cm: parcel.length,
+            width_cm: parcel.width,
+            height_cm: parcel.height,
+          });
+        }
+        const response = await skydropxFetch("/api/v1/shipments", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(shipmentPayload),
+        });
+        if (!response.ok) {
+          const errorText = await response.text();
+          let parsedBody: unknown = null;
+          try {
+            parsedBody = JSON.parse(errorText);
+          } catch {
+            parsedBody = null;
+          }
+          if (isInvalidQuotationError(parsedBody, response.status)) {
+            return { ok: false, invalidQuotation: true };
+          }
+          const error = new Error("Skydropx rechazó el envío con quotation guardada");
+          (error as Error & { statusCode?: number; details?: unknown }).statusCode = response.status;
+          (error as Error & { details?: unknown }).details = parsedBody;
+          throw error;
+        }
+        const created = (await response.json().catch(() => null)) as any;
+        const rawId = created?.id || created?.data?.id || created?.shipment?.id || null;
+        if (!rawId) {
+          throw new Error("No se recibió shipment_id de Skydropx.");
+        }
+        const parsedCreated = extractTrackingAndLabel(created);
+        let trackingNumber = parsedCreated.trackingNumber;
+        let labelUrl = parsedCreated.labelUrl;
+        if (!trackingNumber || !labelUrl) {
+          const shipmentDetails = await getShipment(rawId);
+          const parsed = extractTrackingAndLabel(shipmentDetails);
+          trackingNumber = parsed.trackingNumber;
+          labelUrl = parsed.labelUrl;
+        }
+        return {
+          ok: true as const,
+          result: {
+            rawId,
+            trackingNumber,
+            labelUrl,
+            pollingInfo: undefined,
+            quotationId,
+            rateId,
+          },
+        };
+      };
+
+      if (canReuseQuotation && savedQuotationId && savedRateId) {
+        if (process.env.NODE_ENV !== "production") {
+          console.log("[create-label] Reusando quotation guardada:", {
+            quotation_id: savedQuotationId,
+            quotation_host: savedQuotationHost || null,
+            rate_id: savedRateId,
+            quoted_package_match: quotedPackageMatches,
+          });
+        }
+        const reuseAttempt = await tryCreateShipmentFromQuotation(savedQuotationId, savedRateId);
+        if (reuseAttempt.ok) {
+          const priceCents =
+            typeof order.shipping_price_cents === "number" ? order.shipping_price_cents : null;
+          selectedRateForShipment = {
+            rate: { id: savedRateId } as SkydropxQuotationRate,
+            rateId: savedRateId,
+            provider: rateMeta?.provider || null,
+            service: rateMeta?.service || null,
+            priceCents,
+            source: "exact",
+            matchedBy: "id",
+          };
+          return reuseAttempt.result;
+        }
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[create-label] Quotation guardada inválida o expirada, recotizando.", {
+            quotation_id: savedQuotationId,
+            rate_id: savedRateId,
+          });
+        }
+      } else if (process.env.NODE_ENV !== "production" && savedQuotationId && savedRateId) {
+        console.log("[create-label] Quotation guardada ignorada por mismatch de paquete:", {
+          quotation_id: savedQuotationId,
+          rate_id: savedRateId,
+          quoted_package_match: quotedPackageMatches,
+        });
+      }
 
       const quotationPayload: SkydropxQuotationPayload = {
         address_from: {
@@ -913,7 +1130,6 @@ export async function POST(req: NextRequest) {
       const rates = activeAttempt.rates;
       const pollingInfo = activeAttempt.pollingInfo;
 
-      const shippingMeta = (packageMetadata.shipping as Record<string, unknown>) || {};
       if (!quotationId || rates.length === 0) {
         const lastIsCompleted = Boolean(
           quotationSnapshot?.is_completed ?? quotationSnapshot?.quotation?.is_completed ?? false,
@@ -1029,11 +1245,6 @@ export async function POST(req: NextRequest) {
           matchedBy: "fallback",
         };
       };
-
-      const rateMeta =
-        shippingMeta.rate && typeof shippingMeta.rate === "object"
-          ? (shippingMeta.rate as { provider?: string; service?: string; external_id?: string })
-          : undefined;
 
       const rateSelection = selectRateFromQuotation({
         quotationRates: rates,
