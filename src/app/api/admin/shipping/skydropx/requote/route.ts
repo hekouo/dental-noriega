@@ -4,6 +4,7 @@ import { checkAdminAccess } from "@/lib/admin/access";
 import { getOrderWithItemsAdmin } from "@/lib/supabase/orders.server";
 import { getSkydropxRates } from "@/lib/shipping/skydropx.server";
 import type { SkydropxRate } from "@/lib/shipping/skydropx.server";
+import { createClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
 
@@ -473,6 +474,7 @@ export async function POST(req: NextRequest) {
             min_billable_weight_g: diagnostic.pkg.min_billable_weight_g ?? 1000, // Mínimo billable usado
           },
           usedSources: diagnostic.usedSources,
+          quotation: diagnostic.quotation,
         }
       : null;
 
@@ -512,6 +514,13 @@ export async function POST(req: NextRequest) {
               origin: "config",
               destination: "normalized",
               package: hasPackageWarning ? "default" : "provided",
+            },
+            quotation: {
+              quotation_id: null,
+              host_used: null,
+              is_completed: true,
+              polling_attempts: 0,
+              polling_elapsed_ms: 0,
             },
           }
         : undefined;
@@ -560,6 +569,48 @@ export async function POST(req: NextRequest) {
     const quotationInfo = normalizedDiagnostic ? (normalizedDiagnostic as any).quotation : undefined;
     const isCompleted = quotationInfo?.is_completed ?? true; // Si no viene, asumir completada
     const shouldReturnEmptyReason = isEmpty && isCompleted;
+
+    // Persistir quotation_id, host y quoted_package para reutilizar en create-label (sin PII)
+    try {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (supabaseUrl && serviceRoleKey) {
+        const supabase = createClient(supabaseUrl, serviceRoleKey, {
+          auth: { autoRefreshToken: false, persistSession: false },
+        });
+        const metadataShipping = (orderMetadata.shipping as Record<string, unknown>) || {};
+        const quotationData = (finalDiagnostic?.quotation ||
+          normalizedDiagnostic?.quotation ||
+          {}) as {
+          quotation_id?: string | null;
+          host_used?: string | null;
+        };
+        const updatedShipping = {
+          ...metadataShipping,
+          quotation_id: quotationData.quotation_id || metadataShipping.quotation_id || null,
+          quotation_host_used: quotationData.host_used || metadataShipping.quotation_host_used || null,
+          quoted_package: {
+            weight_g: weightGrams,
+            length_cm: lengthCm,
+            width_cm: widthCm,
+            height_cm: heightCm,
+            source: hasPackageWarning ? "default" : "provided",
+          },
+        };
+        const updatedMetadata = {
+          ...orderMetadata,
+          shipping: updatedShipping,
+        };
+        await supabase
+          .from("orders")
+          .update({ metadata: updatedMetadata, updated_at: new Date().toISOString() })
+          .eq("id", orderId);
+      }
+    } catch (persistError) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[requote] No se pudo persistir quotation/quoted_package:", persistError);
+      }
+    }
     
     return NextResponse.json({
       ok: true,
