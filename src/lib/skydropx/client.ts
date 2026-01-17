@@ -596,6 +596,9 @@ export type SkydropxQuotationPayload = {
     country: string;
     zip: string;
     neighborhood?: string; // Para area_level3
+    area_level1?: string;
+    area_level2?: string;
+    area_level3?: string;
     name?: string;
     phone?: string | null;
     email?: string | null;
@@ -609,6 +612,9 @@ export type SkydropxQuotationPayload = {
     country: string;
     zip: string;
     neighborhood?: string; // Para area_level3
+    area_level1?: string;
+    area_level2?: string;
+    area_level3?: string;
     name?: string;
     phone?: string | null;
     email?: string | null;
@@ -708,13 +714,23 @@ export async function createQuotation(
     return value.trim();
   };
 
-  const fromState = normalizeState(payload.address_from.state || payload.address_from.province) || "CDMX";
+  const fromState =
+    payload.address_from.area_level1?.trim() ||
+    normalizeState(payload.address_from.state || payload.address_from.province) ||
+    "CDMX";
   const toState =
+    payload.address_to.area_level1?.trim() ||
     normalizeState(payload.address_to.state || payload.address_to.province) ||
     normalizeState(payload.address_from.state || payload.address_from.province) ||
     "CDMX";
-  const fromCity = normalizeCity(payload.address_from.city) || "";
-  const toCity = normalizeCity(payload.address_to.city) || "";
+  const fromCity =
+    payload.address_from.area_level2?.trim() ||
+    normalizeCity(payload.address_from.city) ||
+    "";
+  const toCity =
+    payload.address_to.area_level2?.trim() ||
+    normalizeCity(payload.address_to.city) ||
+    "";
 
   // Construir el payload según la documentación oficial de Skydropx
   const trimmedOrderId = payload.order_id?.trim() || "";
@@ -730,11 +746,13 @@ export async function createQuotation(
         area_level2: fromCity,
         // area_level3 = colonia/barrio (NO calle)
         // PRIORIDAD: address2 (colonia) > neighborhood > address1 (último recurso)
-        area_level3: payload.address_from.address2
-          || payload.address_from.neighborhood
-          || payload.address_from.address1
-          || payload.address_from.city
-          || "",
+        area_level3:
+          payload.address_from.area_level3?.trim() ||
+          payload.address_from.address2 ||
+          payload.address_from.neighborhood ||
+          payload.address_from.address1 ||
+          payload.address_from.city ||
+          "",
       },
       address_to: {
         country_code: payload.address_to.country,
@@ -743,11 +761,13 @@ export async function createQuotation(
         area_level2: toCity,
         // area_level3 = colonia/barrio (NO calle)
         // PRIORIDAD: address2 (colonia) > neighborhood > address1 (último recurso)
-        area_level3: payload.address_to.address2
-          || payload.address_to.neighborhood
-          || payload.address_to.address1
-          || payload.address_to.city
-          || "",
+        area_level3:
+          payload.address_to.area_level3?.trim() ||
+          payload.address_to.address2 ||
+          payload.address_to.neighborhood ||
+          payload.address_to.address1 ||
+          payload.address_to.city ||
+          "",
       },
       parcels: [
         {

@@ -33,6 +33,8 @@ export type SkydropxRatesRequestInput = {
     country?: string;
     address1?: string; // REQUERIDO: calle/dirección de destino
     address2?: string; // Opcional: segunda línea o referencia
+    neighborhood?: string; // Opcional: colonia/barrio
+    areaLevel2?: string; // Opcional: municipio/alcaldía
   };
   package: {
     weightGrams: number;
@@ -157,22 +159,38 @@ export function buildSkydropxRatesRequest(
   // DESTINO address1: REQUERIDO (si falta, debería fallar antes de llegar aquí)
   const destAddress1 = (input.destination.address1 || "").trim();
   const destAddress2 = input.destination.address2 ? input.destination.address2.trim() : undefined;
+  const destNeighborhoodRaw = input.destination.neighborhood
+    ? input.destination.neighborhood.trim()
+    : undefined;
+  const destAreaLevel2Raw = input.destination.areaLevel2
+    ? input.destination.areaLevel2.trim()
+    : undefined;
   
   // DESTINO: Construir area_level3 (colonia/barrio) para Skydropx
   // PRIORIDAD: address2 (colonia) > neighborhood > address1 (último recurso)
   // En metadata.shipping_address.address2 suele venir la colonia (ej: "NARCISO MENDOZA")
-  const destNeighborhood = destAddress2
-    ? destAddress2.substring(0, 45) // Prioridad 1: address2 (colonia)
-    : destAddress1
-      ? destAddress1.split(",")[0].substring(0, 45) // Prioridad 2: address1 (último recurso)
-      : undefined;
+  const destNeighborhood = destNeighborhoodRaw
+    ? destNeighborhoodRaw.substring(0, 45)
+    : destAddress2
+      ? destAddress2.substring(0, 45) // Prioridad 2: address2 (colonia)
+      : destAddress1
+        ? destAddress1.split(",")[0].substring(0, 45) // Prioridad 3: address1 (último recurso)
+        : undefined;
   
   // Determinar source de destination area_level3 para diagnóstico
-  const destAreaLevel3Source = destAddress2
+  const destAreaLevel3Source = destNeighborhoodRaw
     ? "address2"
-    : destAddress1
-      ? "address1"
-      : "none";
+    : destAddress2
+      ? "address2"
+      : destAddress1
+        ? "address1"
+        : "none";
+
+  const destAreaLevel2 =
+    destAreaLevel2Raw ||
+    normalizedDest.wasAlcaldia ||
+    normalizedDest.city ||
+    input.destination.city;
 
   // PAQUETE: Valores por defecto si no se proporcionan, con hardening (valores mínimos razonables)
   const rawWeightGrams = input.package.weightGrams || 1000;
@@ -200,6 +218,9 @@ export function buildSkydropxRatesRequest(
       // neighborhood = area_level3 (colonia/barrio) para Skydropx quotations
       // Prioridad: env var > alcaldía > address2 > address1
       neighborhood: originNeighborhood,
+      area_level1: normalizedOrigin.state,
+      area_level2: normalizedOrigin.wasAlcaldia || normalizedOrigin.city,
+      area_level3: originNeighborhood,
       name: config.origin.name,
       phone: config.origin.phone || null,
       email: config.origin.email || null,
@@ -216,6 +237,9 @@ export function buildSkydropxRatesRequest(
       // neighborhood = area_level3 (colonia/barrio) para Skydropx quotations
       // Prioridad: address2 (colonia) > address1 (último recurso)
       neighborhood: destNeighborhood,
+      area_level1: input.destination.state.trim(),
+      area_level2: destAreaLevel2,
+      area_level3: destNeighborhood,
       // address1 = calle (NO usar como area_level3)
       address1: destAddress1 ? destAddress1.substring(0, 45) : null,
       // address2 = colonia (usada como neighborhood/area_level3)

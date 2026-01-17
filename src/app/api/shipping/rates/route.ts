@@ -92,6 +92,9 @@ type RatesRequest = {
     state: string;
     city: string;
     country?: string;
+    neighborhood?: string;
+    colonia?: string;
+    address2?: string;
   };
   totalWeightGrams?: number;
   subtotalCents?: number; // Subtotal del carrito en centavos para aplicar promo de envío gratis
@@ -197,6 +200,13 @@ export async function POST(req: NextRequest) {
         { status: 200 },
       );
     }
+
+    const originalCity = address.city?.trim() || "";
+    const neighborhood =
+      address.neighborhood?.trim() ||
+      address.colonia?.trim() ||
+      address.address2?.trim() ||
+      "";
 
     // Normalizar dirección para Skydropx (especialmente CDMX)
     const normalizedAddress = normalizeMxAddress({
@@ -306,6 +316,8 @@ export async function POST(req: NextRequest) {
      * Helper para loggear payload shape completo (sanitizado, sin PII)
      */
     const logPayloadShape = (attempt: string, dest: { state: string; city: string; postalCode: string }) => {
+      const areaLevel2 = normalizedAddress.wasAlcaldia || originalCity || dest.city;
+      const areaLevel3 = neighborhood;
       const originPostalCode = process.env.SKYDROPX_ORIGIN_POSTAL_CODE || "[hidden]";
       console.log("[shipping/rates] Payload shape:", {
         attempt,
@@ -313,6 +325,9 @@ export async function POST(req: NextRequest) {
         state: dest.state,
         city: dest.city,
         country,
+        area_level1_present: Boolean(dest.state),
+        area_level2_present: Boolean(areaLevel2),
+        area_level3_present: Boolean(areaLevel3),
         totalWeightGrams: weightGrams,
         subtotalCents: finalSubtotalCents,
         parcels_count: 1,
@@ -338,6 +353,8 @@ export async function POST(req: NextRequest) {
             state: dest.state,
             city: dest.city,
             country: dest.country,
+            areaLevel2: normalizedAddress.wasAlcaldia || originalCity || dest.city,
+            neighborhood: neighborhood || undefined,
           },
           {
             weightGrams,

@@ -41,6 +41,8 @@ export type SkydropxDestination = {
   country?: string; // default "MX"
   address1?: string; // Opcional: calle/dirección de destino
   address2?: string; // Opcional: colonia/barrio (para area_level3 en Skydropx)
+  neighborhood?: string; // Opcional: colonia/barrio (prioritario si existe)
+  areaLevel2?: string; // Opcional: municipio/alcaldía
 };
 
 export type SkydropxPackageInput = {
@@ -188,6 +190,8 @@ export async function getSkydropxRates(
       country: destination.country,
       address1: destination.address1, // Pasar address1 (calle) si está disponible
       address2: destination.address2, // Pasar address2 (colonia) si está disponible para area_level3
+      neighborhood: destination.neighborhood,
+      areaLevel2: destination.areaLevel2,
     },
     package: {
       weightGrams: pkg.weightGrams || 1000,
