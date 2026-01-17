@@ -207,6 +207,8 @@ export async function getSkydropxRates(
   }
 
   try {
+    const apiHosts = getSkydropxApiHosts();
+    const quotationsHostUsed = apiHosts?.quotationsBaseUrl || "https://pro.skydropx.com";
     const result = await createQuotation(payload);
     
     // Si el resultado indica error controlado, manejar según el código
@@ -252,7 +254,13 @@ export async function getSkydropxRates(
     const quotationId = result.quotationId;
     const isCompleted = result.isCompleted ?? true; // Si no viene, asumir completada
     const pollingInfo = result.pollingInfo;
-    const hostUsed = getSkydropxApiHosts()?.quotationsBaseUrl || null;
+    const quotationDiagnostic = {
+      quotation_id: quotationId || null,
+      host_used: quotationsHostUsed,
+      is_completed: isCompleted,
+      polling_attempts: pollingInfo?.attempts ?? 0,
+      polling_elapsed_ms: pollingInfo?.elapsedMs ?? 0,
+    };
 
     // Logging controlado: solo información esencial en desarrollo
     if (process.env.NODE_ENV !== "production") {
@@ -364,14 +372,10 @@ export async function getSkydropxRates(
         const enhancedDiagnostic = {
           ...diagnostic,
           quotation: {
-            quotation_id: quotationId,
-            is_completed: isCompleted,
-            polling_attempts: pollingInfo?.attempts ?? 0,
-            polling_elapsed_ms: pollingInfo?.elapsedMs ?? 0,
+            ...quotationDiagnostic,
             rates_count_raw: ratesCountRaw,
             rates_count_filtered: 0,
             rates_by_status: ratesByStatus,
-            host_used: hostUsed,
           },
         };
         return { rates: [], diagnostic: enhancedDiagnostic };
@@ -625,19 +629,13 @@ export async function getSkydropxRates(
 
     // Si se solicitó diagnóstico, devolverlo junto con rates (aunque rates no esté vacío)
     if (options?.diagnostic) {
-      const enhancedDiagnostic = {
-        ...diagnostic,
-        quotation: {
-          quotation_id: quotationId,
-          is_completed: isCompleted,
-          polling_attempts: pollingInfo?.attempts ?? 0,
-          polling_elapsed_ms: pollingInfo?.elapsedMs ?? 0,
-          rates_count_raw: ratesCountRaw,
-          rates_count_filtered: selectedRates.length,
-          host_used: hostUsed,
+      return {
+        rates: selectedRates,
+        diagnostic: {
+          ...diagnostic,
+          quotation: quotationDiagnostic,
         },
       };
-      return { rates: selectedRates, diagnostic: enhancedDiagnostic };
     }
 
     return selectedRates;
@@ -684,7 +682,19 @@ export async function getSkydropxRates(
     }
     // Si se solicita diagnóstico, incluirlo
     if (options?.diagnostic) {
-      return { rates: [], diagnostic };
+      return {
+        rates: [],
+        diagnostic: {
+          ...diagnostic,
+          quotation: {
+            quotation_id: null,
+            host_used: getSkydropxApiHosts()?.quotationsBaseUrl || "https://pro.skydropx.com",
+            is_completed: false,
+            polling_attempts: 0,
+            polling_elapsed_ms: 0,
+          },
+        },
+      };
     }
     return [];
   }

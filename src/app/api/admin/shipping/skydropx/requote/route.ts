@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import "server-only";
 import { checkAdminAccess } from "@/lib/admin/access";
-import { createClient } from "@supabase/supabase-js";
 import { getOrderWithItemsAdmin } from "@/lib/supabase/orders.server";
 import { getSkydropxRates } from "@/lib/shipping/skydropx.server";
 import type { SkydropxRate } from "@/lib/shipping/skydropx.server";
+import { createClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
 
@@ -477,7 +477,6 @@ export async function POST(req: NextRequest) {
           quotation: diagnostic.quotation,
         }
       : null;
-    const quotationDiagnostic = normalizedDiagnostic?.quotation ?? null;
 
     // GARANTIZAR: Si rates está vacío, SIEMPRE devolver diagnostic (incluso si viene null, construir uno mínimo)
     const isEmpty = normalizedRates.length === 0;
@@ -516,7 +515,13 @@ export async function POST(req: NextRequest) {
               destination: "normalized",
               package: hasPackageWarning ? "default" : "provided",
             },
-            quotation: quotationDiagnostic,
+            quotation: {
+              quotation_id: null,
+              host_used: null,
+              is_completed: true,
+              polling_attempts: 0,
+              polling_elapsed_ms: 0,
+            },
           }
         : undefined;
 
@@ -554,61 +559,6 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Persistir quotation_id/host_used + quoted_package en metadata (si existe)
-    const quotationId = normalizedDiagnostic?.quotation?.quotation_id || null;
-    const quotationHostUsed = normalizedDiagnostic?.quotation?.host_used || null;
-
-    if (quotationId) {
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-      if (!supabaseUrl || !serviceRoleKey) {
-        return NextResponse.json(
-          {
-            ok: false,
-            code: "config_error",
-            message: "Configuración de Supabase incompleta.",
-          } satisfies RequoteResponse,
-          { status: 500 },
-        );
-      }
-      const supabase = createClient(supabaseUrl, serviceRoleKey, {
-        auth: { autoRefreshToken: false, persistSession: false },
-      });
-      const currentMetadata = (order.metadata as Record<string, unknown>) || {};
-      const currentShippingMeta = (currentMetadata.shipping as Record<string, unknown>) || {};
-      const updatedShippingMeta = {
-        ...currentShippingMeta,
-        quotation_id: quotationId,
-        quotation_host_used: quotationHostUsed,
-        quoted_package: {
-          weight_g: weightGrams,
-          length_cm: lengthCm,
-          width_cm: widthCm,
-          height_cm: heightCm,
-          source: hasPackageWarning ? "default" : "provided",
-        },
-      };
-      const updatedMetadata = {
-        ...currentMetadata,
-        shipping: updatedShippingMeta,
-      };
-      const { error: updateError } = await supabase
-        .from("orders")
-        .update({ metadata: updatedMetadata, updated_at: new Date().toISOString() })
-        .eq("id", orderId);
-      if (updateError) {
-        console.error("[requote] Error al persistir quotation:", updateError);
-        return NextResponse.json(
-          {
-            ok: false,
-            code: "update_failed",
-            message: "Error al actualizar la orden. Revisa los logs.",
-          } satisfies RequoteResponse,
-          { status: 500 },
-        );
-      }
-    }
-
     // Combinar warnings (empaque y peso)
     const packageWarning = hasPackageWarning
       ? "No se encontró empaque guardado, usando dimensiones por defecto. Selecciona un empaque antes de recotizar para obtener tarifas precisas."
@@ -619,6 +569,48 @@ export async function POST(req: NextRequest) {
     const quotationInfo = normalizedDiagnostic ? (normalizedDiagnostic as any).quotation : undefined;
     const isCompleted = quotationInfo?.is_completed ?? true; // Si no viene, asumir completada
     const shouldReturnEmptyReason = isEmpty && isCompleted;
+
+    // Persistir quotation_id, host y quoted_package para reutilizar en create-label (sin PII)
+    try {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (supabaseUrl && serviceRoleKey) {
+        const supabase = createClient(supabaseUrl, serviceRoleKey, {
+          auth: { autoRefreshToken: false, persistSession: false },
+        });
+        const metadataShipping = (orderMetadata.shipping as Record<string, unknown>) || {};
+        const quotationData = (finalDiagnostic?.quotation ||
+          normalizedDiagnostic?.quotation ||
+          {}) as {
+          quotation_id?: string | null;
+          host_used?: string | null;
+        };
+        const updatedShipping = {
+          ...metadataShipping,
+          quotation_id: quotationData.quotation_id || metadataShipping.quotation_id || null,
+          quotation_host_used: quotationData.host_used || metadataShipping.quotation_host_used || null,
+          quoted_package: {
+            weight_g: weightGrams,
+            length_cm: lengthCm,
+            width_cm: widthCm,
+            height_cm: heightCm,
+            source: hasPackageWarning ? "default" : "provided",
+          },
+        };
+        const updatedMetadata = {
+          ...orderMetadata,
+          shipping: updatedShipping,
+        };
+        await supabase
+          .from("orders")
+          .update({ metadata: updatedMetadata, updated_at: new Date().toISOString() })
+          .eq("id", orderId);
+      }
+    } catch (persistError) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[requote] No se pudo persistir quotation/quoted_package:", persistError);
+      }
+    }
     
     return NextResponse.json({
       ok: true,
