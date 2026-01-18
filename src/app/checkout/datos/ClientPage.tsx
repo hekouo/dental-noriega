@@ -452,6 +452,7 @@ function DatosPageContent() {
         originalPriceCents: opt.originalPriceCents,
         carrierCents: opt.carrierCents,
         packagingCents: opt.packagingCents,
+        marginCents: opt.marginCents,
         totalCents: opt.totalCents,
         includesPackagingFee: opt.includesPackagingFee,
         packageUsed: opt.packageUsed,

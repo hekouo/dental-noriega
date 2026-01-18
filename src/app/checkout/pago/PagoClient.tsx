@@ -540,6 +540,7 @@ export default function PagoClient() {
                       pricing: {
                         carrier_cents: selectedShippingOption.carrierCents ?? selectedShippingOption.priceCents,
                         packaging_cents: selectedShippingOption.packagingCents ?? 2000,
+                        margin_cents: selectedShippingOption.marginCents ?? 0,
                         total_cents: selectedShippingOption.totalCents ?? selectedShippingOption.priceCents,
                       },
                       package_used: selectedShippingOption.packageUsed ?? undefined,
@@ -836,6 +837,7 @@ export default function PagoClient() {
                       pricing: {
                         carrier_cents: selectedShippingOption.carrierCents ?? selectedShippingOption.priceCents,
                         packaging_cents: selectedShippingOption.packagingCents ?? 2000,
+                        margin_cents: selectedShippingOption.marginCents ?? 0,
                         total_cents: selectedShippingOption.totalCents ?? selectedShippingOption.priceCents,
                       },
                       package_used: selectedShippingOption.packageUsed ?? undefined,

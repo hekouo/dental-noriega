@@ -7,6 +7,7 @@ type NormalizedRate = {
   option_code?: string;
   carrier_cents: number;
   packaging_cents?: number;
+  margin_cents?: number;
   total_cents?: number;
   customer_total_cents?: number;
   eta_min_days: number | null;
@@ -17,6 +18,8 @@ type NormalizeMode = "checkout" | "admin";
 
 type NormalizeOptions = {
   packagingCents?: number;
+  marginPercent?: number;
+  marginCapCents?: number;
   mode: NormalizeMode;
 };
 
@@ -34,9 +37,15 @@ export function normalizeSkydropxRates(
   options: NormalizeOptions,
 ): NormalizedRate[] {
   const packagingCents = options.packagingCents ?? 0;
+  const marginPercent = options.marginPercent ?? 0;
+  const marginCapCents = options.marginCapCents ?? 0;
   const normalized = rawRates.map((rate) => {
     const carrierCents = rate.totalPriceCents;
     const { eta_min_days, eta_max_days } = normalizeEta(rate);
+    const marginCents =
+      marginPercent > 0
+        ? Math.min(Math.round(carrierCents * marginPercent), marginCapCents)
+        : 0;
     const base: NormalizedRate = {
       external_id: rate.externalRateId,
       provider: rate.provider,
@@ -48,10 +57,11 @@ export function normalizeSkydropxRates(
     };
 
     if (options.mode === "checkout") {
-      const total = carrierCents + packagingCents;
+      const total = carrierCents + packagingCents + marginCents;
       return {
         ...base,
         packaging_cents: packagingCents,
+        margin_cents: marginCents,
         total_cents: total,
       };
     }
@@ -59,7 +69,9 @@ export function normalizeSkydropxRates(
     return {
       ...base,
       packaging_cents: packagingCents || undefined,
-      customer_total_cents: packagingCents ? carrierCents + packagingCents : undefined,
+      margin_cents: marginCents || undefined,
+      customer_total_cents:
+        packagingCents || marginCents ? carrierCents + packagingCents + marginCents : undefined,
     };
   });
 

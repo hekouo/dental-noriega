@@ -72,6 +72,7 @@ export type UiShippingOption = {
   originalPriceCents?: number; // Precio original antes de aplicar promo (para mostrar "antes $XXX")
   carrierCents?: number;
   packagingCents?: number;
+  marginCents?: number;
   totalCents?: number;
   includesPackagingFee?: boolean;
   packageUsed?: {
@@ -120,32 +121,8 @@ type RatesRequest = {
   subtotalCents?: number; // Subtotal del carrito en centavos para aplicar promo de envío gratis
 };
 
-/**
- * Aplica margen configurable (handling fee + markup) a precio en centavos
- * Redondea a múltiplo de 100 (1 peso) para que se vea profesional
- */
-function applyShippingMargin(priceCents: number): number {
-  // Handling fee (fijo en centavos)
-  const handlingFeeCents = parseInt(process.env.SHIPPING_HANDLING_FEE_CENTS || "0", 10) || 0;
-  
-  // Markup (porcentaje, ej: 10 = 10%)
-  const markupPercent = parseFloat(process.env.SHIPPING_MARKUP_PERCENT || "0") || 0;
-  
-  // Aplicar markup primero
-  let finalPrice = priceCents;
-  if (markupPercent > 0) {
-    finalPrice = Math.round(priceCents * (1 + markupPercent / 100));
-  }
-  
-  // Aplicar handling fee
-  finalPrice += handlingFeeCents;
-  
-  // Redondear a múltiplo de 100 (1 peso)
-  finalPrice = Math.round(finalPrice / 100) * 100;
-  
-  // Asegurar mínimo 0
-  return Math.max(0, finalPrice);
-}
+const CHECKOUT_MARGIN_PERCENT = 0.05;
+const CHECKOUT_MARGIN_CAP_CENTS = 3000;
 
 /**
  * Valida que las variables de entorno de Skydropx estén presentes
@@ -656,6 +633,8 @@ export async function POST(req: NextRequest) {
 
       const normalizedRates = normalizeSkydropxRates(rates, {
         packagingCents: PACKAGING_FEE_CENTS,
+        marginPercent: CHECKOUT_MARGIN_PERCENT,
+        marginCapCents: CHECKOUT_MARGIN_CAP_CENTS,
         mode: "checkout",
       });
 
@@ -670,8 +649,8 @@ export async function POST(req: NextRequest) {
               ? ` (${rate.eta_min_days}+ días)`
               : "";
         const label = `${rate.service}${etaText}`;
-        const carrierCents = applyShippingMargin(rate.carrier_cents);
-        const totalWithPackaging = carrierCents + PACKAGING_FEE_CENTS;
+        const carrierCents = rate.carrier_cents;
+        const totalWithPackaging = rate.total_cents ?? carrierCents + PACKAGING_FEE_CENTS;
         const finalPriceCents = appliesFreeShipping ? 0 : totalWithPackaging;
 
         return {
@@ -685,6 +664,7 @@ export async function POST(req: NextRequest) {
           originalPriceCents: appliesFreeShipping ? totalWithPackaging : undefined,
           carrierCents,
           packagingCents: PACKAGING_FEE_CENTS,
+          marginCents: rate.margin_cents ?? 0,
           totalCents: totalWithPackaging,
           includesPackagingFee: true,
           packageUsed,

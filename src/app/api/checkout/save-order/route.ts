@@ -397,6 +397,7 @@ export async function POST(req: NextRequest) {
         pricing?: {
           carrier_cents?: number;
           packaging_cents?: number;
+          margin_cents?: number;
           total_cents?: number;
         };
         package_used?: {

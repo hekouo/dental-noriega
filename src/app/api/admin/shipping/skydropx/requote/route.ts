@@ -436,6 +436,8 @@ export async function POST(req: NextRequest) {
 
     const normalizedRates = normalizeSkydropxRates(rates, {
       packagingCents: 2000,
+      marginPercent: 0.05,
+      marginCapCents: 3000,
       mode: "admin",
     }).map((rate) => ({
       external_id: rate.external_id,
@@ -446,6 +448,7 @@ export async function POST(req: NextRequest) {
       eta_max_days: rate.eta_max_days,
       price_cents: rate.carrier_cents,
       carrier_cents: rate.carrier_cents,
+      margin_cents: rate.margin_cents ?? null,
       customer_total_cents: rate.customer_total_cents ?? null,
     }));
 

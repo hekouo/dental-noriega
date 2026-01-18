@@ -18,6 +18,7 @@ type Rate = {
   eta_max_days: number | null;
   price_cents: number;
   carrier_cents?: number;
+  margin_cents?: number | null;
   customer_total_cents?: number | null;
 };
 
@@ -140,6 +141,7 @@ export default function RequoteSkydropxRatesClient({
           etaMin: rate.eta_min_days,
           etaMax: rate.eta_max_days,
           optionCode: rate.option_code,
+          marginCents: rate.margin_cents ?? null,
           customerTotalCents: rate.customer_total_cents ?? null,
         }),
       });
