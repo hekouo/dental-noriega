@@ -47,6 +47,7 @@ export async function POST(req: NextRequest) {
       etaMin,
       etaMax,
       optionCode,
+      customerTotalCents,
     } = body;
 
     // Validaciones básicas
@@ -149,10 +150,17 @@ export async function POST(req: NextRequest) {
     };
 
     // Merge seguro de metadata
-    const updatedMetadata = {
+    const updatedMetadata: Record<string, unknown> = {
       ...currentMetadata,
       shipping: updatedShippingMeta,
     };
+    if (typeof customerTotalCents === "number") {
+      updatedMetadata.shipping_pricing = {
+        carrier_cents: priceCents,
+        packaging_cents: Math.max(0, customerTotalCents - priceCents),
+        total_cents: customerTotalCents,
+      };
+    }
 
     // Actualizar order
     const { error: updateError } = await supabase

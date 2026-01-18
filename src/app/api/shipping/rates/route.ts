@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSkydropxRates, type SkydropxRate } from "@/lib/shipping/skydropx.server";
+import { normalizeSkydropxRates } from "@/lib/shipping/normalizeSkydropxRates";
 import { FREE_SHIPPING_THRESHOLD_CENTS } from "@/lib/shipping/freeShipping";
 import { normalizeMxAddress, type NormalizedAddress } from "@/lib/shipping/normalizeAddress";
 import {
@@ -653,45 +654,42 @@ export async function POST(req: NextRequest) {
         source: productWeightGrams > 0 ? "calculated" : "default",
       };
 
-      // Mapear tarifas a formato UI
-      const options: UiShippingOption[] = rates
-        .map((rate, index) => {
-          // Generar código único basado en provider y service
-          const code = `skydropx_${rate.provider}_${index}`;
-          
-          // Generar label descriptivo (será reemplazado por normalizeRates)
-          const etaText =
-            rate.etaMinDays && rate.etaMaxDays
-              ? ` (${rate.etaMinDays}-${rate.etaMaxDays} días)`
-              : rate.etaMinDays
-                ? ` (${rate.etaMinDays}+ días)`
-                : "";
-          const label = `${rate.service}${etaText}`;
+      const normalizedRates = normalizeSkydropxRates(rates, {
+        packagingCents: PACKAGING_FEE_CENTS,
+        mode: "checkout",
+      });
 
-          // Aplicar margen configurable (handling fee + markup)
-          const priceWithMargin = applyShippingMargin(rate.totalPriceCents);
-          
-          const carrierCents = priceWithMargin;
-          const totalWithPackaging = carrierCents + PACKAGING_FEE_CENTS;
-          // Aplicar promo de envío gratis si aplica (después del margen)
-          const finalPriceCents = appliesFreeShipping ? 0 : totalWithPackaging;
+      const options: UiShippingOption[] = normalizedRates.map((rate, index) => {
+        // Generar código único basado en provider y service
+        const code = `skydropx_${rate.provider}_${index}`;
+        // Generar label descriptivo (será reemplazado por normalizeRates)
+        const etaText =
+          rate.eta_min_days && rate.eta_max_days
+            ? ` (${rate.eta_min_days}-${rate.eta_max_days} días)`
+            : rate.eta_min_days
+              ? ` (${rate.eta_min_days}+ días)`
+              : "";
+        const label = `${rate.service}${etaText}`;
+        const carrierCents = applyShippingMargin(rate.carrier_cents);
+        const totalWithPackaging = carrierCents + PACKAGING_FEE_CENTS;
+        const finalPriceCents = appliesFreeShipping ? 0 : totalWithPackaging;
 
-          return {
-            code,
-            label,
-            priceCents: finalPriceCents,
-            provider: "skydropx" as const,
-            etaMinDays: rate.etaMinDays,
-            etaMaxDays: rate.etaMaxDays,
-            externalRateId: rate.externalRateId,
-            originalPriceCents: appliesFreeShipping ? totalWithPackaging : undefined,
-            carrierCents,
-            packagingCents: PACKAGING_FEE_CENTS,
-            totalCents: totalWithPackaging,
-            includesPackagingFee: true,
-            packageUsed,
-          };
-        });
+        return {
+          code,
+          label,
+          priceCents: finalPriceCents,
+          provider: "skydropx" as const,
+          etaMinDays: rate.eta_min_days,
+          etaMaxDays: rate.eta_max_days,
+          externalRateId: rate.external_id,
+          originalPriceCents: appliesFreeShipping ? totalWithPackaging : undefined,
+          carrierCents,
+          packagingCents: PACKAGING_FEE_CENTS,
+          totalCents: totalWithPackaging,
+          includesPackagingFee: true,
+          packageUsed,
+        };
+      });
 
       // Normalizar, dedupe y ordenar de forma determinística
       // (normalizeShippingRates ya ordena por priceCents, etaMaxDays, carrier/service)

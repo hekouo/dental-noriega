@@ -17,6 +17,8 @@ type Rate = {
   eta_min_days: number | null;
   eta_max_days: number | null;
   price_cents: number;
+  carrier_cents?: number;
+  customer_total_cents?: number | null;
 };
 
 /**
@@ -134,10 +136,11 @@ export default function RequoteSkydropxRatesClient({
           rateExternalId: rate.external_id,
           service: rate.service,
           provider: rate.provider,
-          priceCents: rate.price_cents,
+          priceCents: rate.carrier_cents ?? rate.price_cents,
           etaMin: rate.eta_min_days,
           etaMax: rate.eta_max_days,
           optionCode: rate.option_code,
+          customerTotalCents: rate.customer_total_cents ?? null,
         }),
       });
 
@@ -264,7 +267,8 @@ export default function RequoteSkydropxRatesClient({
         <div className="space-y-3">
           <h4 className="text-sm font-semibold text-gray-900">Tarifas disponibles:</h4>
           {rates.map((rate) => {
-            const priceDiff = getPriceDifference(rate.price_cents);
+            const carrierCents = rate.carrier_cents ?? rate.price_cents;
+            const priceDiff = getPriceDifference(carrierCents);
             return (
               <div
                 key={rate.external_id}
@@ -289,10 +293,15 @@ export default function RequoteSkydropxRatesClient({
                     </div>
                     <div className="mt-1 text-sm text-gray-600">
                       <span className="font-semibold text-gray-900">
-                        {formatMXNFromCents(rate.price_cents)}
+                        {formatMXNFromCents(carrierCents)}
                       </span>
                       {" • "}
                       <span>ETA: {formatETA(rate.eta_min_days, rate.eta_max_days)}</span>
+                      {rate.customer_total_cents ? (
+                        <span className="ml-2 text-xs text-gray-500">
+                          Cliente pagó: {formatMXNFromCents(rate.customer_total_cents)}
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                 </div>

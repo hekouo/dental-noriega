@@ -3,6 +3,7 @@ import "server-only";
 import { checkAdminAccess } from "@/lib/admin/access";
 import { getOrderWithItemsAdmin } from "@/lib/supabase/orders.server";
 import { getSkydropxRates } from "@/lib/shipping/skydropx.server";
+import { normalizeSkydropxRates } from "@/lib/shipping/normalizeSkydropxRates";
 import type { SkydropxRate } from "@/lib/shipping/skydropx.server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -433,15 +434,19 @@ export async function POST(req: NextRequest) {
     const rates = Array.isArray(ratesResult) ? ratesResult : ratesResult.rates;
     const diagnostic = Array.isArray(ratesResult) ? undefined : ratesResult.diagnostic;
 
-    // Normalizar y devolver rates
-    const normalizedRates = rates.map((rate: SkydropxRate) => ({
-      external_id: rate.externalRateId,
+    const normalizedRates = normalizeSkydropxRates(rates, {
+      packagingCents: 2000,
+      mode: "admin",
+    }).map((rate) => ({
+      external_id: rate.external_id,
       provider: rate.provider,
       service: rate.service,
-      option_code: undefined, // SkydropxRate no incluye option_code por ahora
-      eta_min_days: rate.etaMinDays,
-      eta_max_days: rate.etaMaxDays,
-      price_cents: rate.totalPriceCents,
+      option_code: rate.option_code,
+      eta_min_days: rate.eta_min_days,
+      eta_max_days: rate.eta_max_days,
+      price_cents: rate.carrier_cents,
+      carrier_cents: rate.carrier_cents,
+      customer_total_cents: rate.customer_total_cents ?? null,
     }));
 
     // SIEMPRE construir diagnóstico normalizado (cuando se solicita, siempre debe estar disponible)
