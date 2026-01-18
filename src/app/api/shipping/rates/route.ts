@@ -201,13 +201,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const originalCity = address.city?.trim() || "";
-    const neighborhood =
-      address.neighborhood?.trim() ||
-      address.colonia?.trim() ||
-      address.address2?.trim() ||
-      "";
-
     // Normalizar dirección para Skydropx (especialmente CDMX)
     const normalizedAddress = normalizeMxAddress({
       state: address.state,
@@ -233,6 +226,15 @@ export async function POST(req: NextRequest) {
     const weightGrams = totalWeightGrams;
     const country = address.country || "MX";
     const finalSubtotalCents = subtotalCents; // Ya validado arriba, no necesita || 0
+    const originalCity = address.city?.trim() || "";
+    const neighborhood =
+      address.neighborhood?.trim() ||
+      address.colonia?.trim() ||
+      address.address2?.trim() ||
+      "";
+    const isGenericCDMXCity =
+      !originalCity ||
+      /^(ciudad de m[eé]xico|cdmx|df|distrito federal)$/i.test(originalCity);
 
     // Generar key de cache (usando dirección normalizada y valores validados)
     const cacheKey = generateCacheKey(
@@ -269,9 +271,27 @@ export async function POST(req: NextRequest) {
     }
 
     // Detectar si es CDMX para aplicar fallback chain
-    const isCDMX = normalizedAddress.state === "Ciudad de Mexico" || 
-                    normalizedAddress.state.toLowerCase().includes("ciudad de mexico") ||
-                    normalizedAddress.state.toLowerCase().includes("distrito federal");
+    const isCDMX =
+      normalizedAddress.state === "Ciudad de Mexico" ||
+      normalizedAddress.state.toLowerCase().includes("ciudad de mexico") ||
+      normalizedAddress.state.toLowerCase().includes("distrito federal");
+
+    if (isCDMX && isGenericCDMXCity) {
+      console.warn("[shipping/rates] missing_municipality (CDMX):", {
+        postalCode: normalizedAddress.postalCode,
+        state: normalizedAddress.state,
+        city: originalCity || "[empty]",
+        area_level1_present: true,
+        area_level2_present: false,
+        area_level3_present: Boolean(neighborhood),
+      });
+      return NextResponse.json({
+        ok: false,
+        reason: "missing_municipality",
+        error: "Selecciona tu alcaldía (ej. Tlalpan, Coyoacán).",
+        options: [],
+      });
+    }
 
     /**
      * Fallback chain para CDMX: prueba diferentes variaciones de state/city
@@ -328,6 +348,8 @@ export async function POST(req: NextRequest) {
         area_level1_present: Boolean(dest.state),
         area_level2_present: Boolean(areaLevel2),
         area_level3_present: Boolean(areaLevel3),
+        missing_municipality: isCDMX && isGenericCDMXCity,
+        missing_neighborhood: !areaLevel3,
         totalWeightGrams: weightGrams,
         subtotalCents: finalSubtotalCents,
         parcels_count: 1,

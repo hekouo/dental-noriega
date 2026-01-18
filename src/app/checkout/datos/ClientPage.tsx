@@ -283,6 +283,7 @@ function DatosPageContent() {
   const cpValue = watch("cp");
   const stateValue = watch("state");
   const cityValue = watch("city");
+  const neighborhoodValue = watch("neighborhood");
 
   // Función para obtener tarifas (reutilizable para "Reintentar")
   const fetchShippingRates = React.useCallback(async (signal?: AbortSignal) => {
@@ -337,20 +338,19 @@ function DatosPageContent() {
       }
 
       // SNAPSHOT: Normalizar dirección UNA VEZ y guardarla
-      let normalizedCity = cityValue.trim();
+      const normalizedCity = cityValue.trim();
       const normalizedState = stateValue.trim();
-      
-      // Si es CDMX, normalizar city a formato completo
-      const isCDMX = /^(ciudad de m[eé]xico|cdmx|df|distrito federal)$/i.test(normalizedState) ||
-                     /^(ciudad de m[eé]xico|cdmx|df|distrito federal)$/i.test(normalizedCity);
-      
-      if (isCDMX) {
-        // Si CP es 143xx (Tlalpan), usar "Tlalpan", sino "Ciudad de Mexico"
-        if (/^143\d{2}$/.test(cpValue)) {
-          normalizedCity = "Tlalpan";
-        } else {
-          normalizedCity = "Ciudad de Mexico";
-        }
+      const neighborhood = (neighborhoodValue || "").trim();
+      const isCDMX = /^(ciudad de m[eé]xico|cdmx|df|distrito federal)$/i.test(normalizedState);
+      const isGenericCDMXCity =
+        !normalizedCity ||
+        /^(ciudad de m[eé]xico|cdmx|df|distrito federal)$/i.test(normalizedCity);
+
+      if (isCDMX && isGenericCDMXCity) {
+        setRatesErrorCode("missing_municipality");
+        setRatesError("Selecciona tu alcaldía (ej. Tlalpan, Coyoacán).");
+        setLoadingRates(false);
+        return;
       }
 
       // Crear snapshot estable del payload
@@ -383,6 +383,7 @@ function DatosPageContent() {
             state: payloadSnapshot.state,
             city: payloadSnapshot.city,
             country: payloadSnapshot.country,
+            neighborhood: neighborhood || undefined,
           },
           totalWeightGrams: payloadSnapshot.totalWeightGrams,
           subtotalCents: payloadSnapshot.subtotalCents,
@@ -473,7 +474,9 @@ function DatosPageContent() {
           } else {
             setRatesErrorCode(null);
             setRatesError(
-              "No se pudo actualizar la cotización. Mostrando última cotización disponible."
+              data.reason === "missing_municipality"
+                ? "Selecciona tu alcaldía (ej. Tlalpan, Coyoacán)."
+                : "No se pudo actualizar la cotización. Mostrando última cotización disponible."
             );
           }
         } else {
@@ -498,7 +501,9 @@ function DatosPageContent() {
             // Sin cobertura (no_rates_from_skydropx o invalid_destination)
             setRatesErrorCode(null);
             setRatesError(
-              "Lo sentimos, no hay envíos disponibles para esta dirección. Intenta con otro código postal."
+              data.reason === "missing_municipality"
+                ? "Selecciona tu alcaldía (ej. Tlalpan, Coyoacán)."
+                : "Lo sentimos, no hay envíos disponibles para esta dirección. Intenta con otro código postal."
             );
           }
         }
@@ -1049,13 +1054,18 @@ function DatosPageContent() {
               htmlFor="city"
               className="block text-sm font-medium text-gray-700 mb-1"
             >
-              Ciudad *
+              {(/^(ciudad de m[eé]xico|cdmx|df|distrito federal)$/i.test(stateValue || ""))
+                ? "Alcaldía / Municipio *"
+                : "Ciudad *"}
             </label>
             <input
               id="city"
               type="text"
               {...register("city")}
               onBlur={() => handleBlur("city")}
+              placeholder={(/^(ciudad de m[eé]xico|cdmx|df|distrito federal)$/i.test(stateValue || ""))
+                ? "Ej. Tlalpan, Coyoacán"
+                : undefined}
               aria-invalid={errors.city ? "true" : "false"}
               aria-describedby={errors.city ? "city-error" : undefined}
               className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${

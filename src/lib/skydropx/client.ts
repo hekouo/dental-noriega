@@ -119,6 +119,26 @@ function normalizeAllowedBaseUrl(
   };
 }
 
+function normalizeAllowedFullUrl(
+  value: string | undefined,
+  fallback: string,
+  allowedHosts: string[],
+) {
+  const target = value ? normalizeBaseUrl(value) : normalizeBaseUrl(fallback);
+  const validation = parseAndValidateUrl(target, allowedHosts);
+  if (!validation.ok) {
+    const fallbackUrl = assertAllowedSkydropxUrl(fallback, allowedHosts, "fallback");
+    return {
+      url: fallbackUrl.toString(),
+      invalidProvided: value ? normalizeBaseUrl(value) : null,
+    };
+  }
+  return {
+    url: validation.url.toString(),
+    invalidProvided: null as string | null,
+  };
+}
+
 function normalizeShipmentsBaseUrl(value: string | undefined, fallback: string) {
   const normalized = normalizeBaseUrl(value || fallback);
   const validation = parseAndValidateUrl(normalized, ALLOWED_SHIPMENTS_HOSTS);
@@ -248,7 +268,7 @@ export function getSkydropxConfig() {
 
   const oauthTokenUrlRaw = process.env.SKYDROPX_OAUTH_TOKEN_URL?.trim();
   const oauthTokenFallbackUrl = new URL("api/v1/oauth/token", `${authBaseUrlResolved.url}/`);
-  const oauthTokenUrlResolved = normalizeAllowedBaseUrl(
+  const oauthTokenUrlResolved = normalizeAllowedFullUrl(
     oauthTokenUrlRaw,
     oauthTokenFallbackUrl.toString(),
     ALLOWED_PRO_HOSTS,
@@ -257,11 +277,6 @@ export function getSkydropxConfig() {
     warnOnce("skydropx-oauth-invalid-host", "[Skydropx Config] oauth token host inválido, usando authBaseUrl", {
       provided_host: oauthTokenUrlResolved.invalidProvided,
       fallback_host: authBaseUrlResolved.url,
-    });
-  }
-  if (oauthTokenUrlResolved.ignoredPath) {
-    warnOnce("skydropx-oauth-path-ignored", "[Skydropx Config] oauth token url con path ignorado", {
-      ignored_path: oauthTokenUrlResolved.ignoredPath,
     });
   }
   const oauthTokenUrlSource = oauthTokenUrlRaw ? "SKYDROPX_OAUTH_TOKEN_URL" : "derived";
