@@ -69,6 +69,17 @@ export type UiShippingOption = {
   etaMaxDays: number | null;
   externalRateId: string; // el rate id original
   originalPriceCents?: number; // Precio original antes de aplicar promo (para mostrar "antes $XXX")
+  carrierCents?: number;
+  packagingCents?: number;
+  totalCents?: number;
+  includesPackagingFee?: boolean;
+  packageUsed?: {
+    weight_g: number;
+    length_cm: number;
+    width_cm: number;
+    height_cm: number;
+    source: "default" | "calculated";
+  };
 };
 
 // Tipo extendido para respuesta con normalización
@@ -77,6 +88,14 @@ export type ShippingRatesResponse = {
   options: NormalizedShippingOption[]; // primaryOptions (compatibilidad)
   primaryOptions: NormalizedShippingOption[]; // Top 3 opciones
   allOptions: NormalizedShippingOption[]; // Todas las opciones normalizadas
+  includes_packaging_fee?: boolean;
+  package_used?: {
+    weight_g: number;
+    length_cm: number;
+    width_cm: number;
+    height_cm: number;
+    source: "default" | "calculated";
+  };
 } | {
   ok: false;
   reason: string;
@@ -223,7 +242,12 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const weightGrams = totalWeightGrams;
+    const BASE_PACKAGING_WEIGHT_G = 1200;
+    const BOX_LENGTH_CM = 25;
+    const BOX_WIDTH_CM = 20;
+    const BOX_HEIGHT_CM = 15;
+    const productWeightGrams = totalWeightGrams;
+    const weightGrams = Math.max(BASE_PACKAGING_WEIGHT_G + productWeightGrams, BASE_PACKAGING_WEIGHT_G);
     const country = address.country || "MX";
     const finalSubtotalCents = subtotalCents; // Ya validado arriba, no necesita || 0
     const originalCity = address.city?.trim() || "";
@@ -354,7 +378,7 @@ export async function POST(req: NextRequest) {
         subtotalCents: finalSubtotalCents,
         parcels_count: 1,
         weight_kg: (weightGrams / 1000).toFixed(2),
-        dims: "20x20x10 cm", // Fixed dimensions for now
+        dims: `${BOX_LENGTH_CM}x${BOX_WIDTH_CM}x${BOX_HEIGHT_CM} cm`,
         origin_postal_code: originPostalCode,
         cache_hit: false, // Will be set to true if cache hit
         cache_key_hash: keyHash,
@@ -369,7 +393,7 @@ export async function POST(req: NextRequest) {
       attempt: string,
       retryCount = 0,
     ): Promise<SkydropxRate[]> => {
-        const ratesResult = await getSkydropxRates(
+      const ratesResult = await getSkydropxRates(
           {
             postalCode: dest.postalCode,
             state: dest.state,
@@ -380,6 +404,9 @@ export async function POST(req: NextRequest) {
           },
           {
             weightGrams,
+          lengthCm: BOX_LENGTH_CM,
+          widthCm: BOX_WIDTH_CM,
+          heightCm: BOX_HEIGHT_CM,
           },
         );
 
@@ -617,6 +644,15 @@ export async function POST(req: NextRequest) {
       // Verificar si aplica envío gratis (subtotal >= $2,000 MXN)
       const appliesFreeShipping = subtotalCents !== undefined && subtotalCents >= FREE_SHIPPING_THRESHOLD_CENTS;
       
+      const PACKAGING_FEE_CENTS = 2000;
+      const packageUsed: UiShippingOption["packageUsed"] = {
+        weight_g: weightGrams,
+        length_cm: BOX_LENGTH_CM,
+        width_cm: BOX_WIDTH_CM,
+        height_cm: BOX_HEIGHT_CM,
+        source: productWeightGrams > 0 ? "calculated" : "default",
+      };
+
       // Mapear tarifas a formato UI
       const options: UiShippingOption[] = rates
         .map((rate, index) => {
@@ -635,8 +671,10 @@ export async function POST(req: NextRequest) {
           // Aplicar margen configurable (handling fee + markup)
           const priceWithMargin = applyShippingMargin(rate.totalPriceCents);
           
+          const carrierCents = priceWithMargin;
+          const totalWithPackaging = carrierCents + PACKAGING_FEE_CENTS;
           // Aplicar promo de envío gratis si aplica (después del margen)
-          const finalPriceCents = appliesFreeShipping ? 0 : priceWithMargin;
+          const finalPriceCents = appliesFreeShipping ? 0 : totalWithPackaging;
 
           return {
             code,
@@ -646,7 +684,12 @@ export async function POST(req: NextRequest) {
             etaMinDays: rate.etaMinDays,
             etaMaxDays: rate.etaMaxDays,
             externalRateId: rate.externalRateId,
-            originalPriceCents: appliesFreeShipping ? priceWithMargin : undefined,
+            originalPriceCents: appliesFreeShipping ? totalWithPackaging : undefined,
+            carrierCents,
+            packagingCents: PACKAGING_FEE_CENTS,
+            totalCents: totalWithPackaging,
+            includesPackagingFee: true,
+            packageUsed,
           };
         });
 
@@ -671,6 +714,8 @@ export async function POST(req: NextRequest) {
         options: primaryOptions, // Compatibilidad con frontend existente
         primaryOptions,
         allOptions,
+        includes_packaging_fee: true,
+        package_used: packageUsed,
       };
 
       // Guardar en cache DESPUÉS de normalizar/dedupe/ordenar
@@ -689,7 +734,7 @@ export async function POST(req: NextRequest) {
         subtotalCents: finalSubtotalCents,
         parcels_count: 1,
         weight_kg: (weightGrams / 1000).toFixed(2),
-        dims: "20x20x10 cm",
+        dims: `${BOX_LENGTH_CM}x${BOX_WIDTH_CM}x${BOX_HEIGHT_CM} cm`,
         cache_key_hash: keyHash,
         normalized_count: normalized.length,
         primary_count: primaryOptions.length,

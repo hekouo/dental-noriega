@@ -269,9 +269,9 @@ export async function POST(req: NextRequest) {
     // Solo calcular si NO existe ya shipping_package_estimated (no sobreescribir)
     if (!metadataFromPayload.shipping_package_estimated && orderData.items.length > 0) {
       const BASE_PACKAGE_WEIGHT_G = 1200; // caja + relleno + cinta
-      const defaultLengthCm = 20;
+      const defaultLengthCm = 25;
       const defaultWidthCm = 20;
-      const defaultHeightCm = 10;
+      const defaultHeightCm = 15;
       const productIds = orderData.items
         .map((item) => item.productId)
         .filter((id): id is string => !!id);
@@ -394,9 +394,31 @@ export async function POST(req: NextRequest) {
           eta_max_days?: number | null;
         };
         price_cents?: number;
+        pricing?: {
+          carrier_cents?: number;
+          packaging_cents?: number;
+          total_cents?: number;
+        };
+        package_used?: {
+          weight_g: number;
+          length_cm: number;
+          width_cm: number;
+          height_cm: number;
+          source?: string;
+        };
       };
       
       metadata.shipping = metadataFromPayload.shipping;
+      if (shippingData.pricing) {
+        metadata.shipping_pricing = shippingData.pricing;
+      }
+      if (shippingData.package_used) {
+        const currentShippingMeta = (metadata.shipping as Record<string, unknown>) || {};
+        metadata.shipping = {
+          ...currentShippingMeta,
+          package_used: shippingData.package_used,
+        };
+      }
       
       // Extraer campos para guardar en columnas
       shippingProvider = shippingData.provider || "skydropx";
@@ -404,7 +426,10 @@ export async function POST(req: NextRequest) {
       shippingRateExtId = shippingData.rate?.external_id || null;
       shippingEtaMinDays = shippingData.rate?.eta_min_days ?? null;
       shippingEtaMaxDays = shippingData.rate?.eta_max_days ?? null;
-      shippingPriceCents = shippingData.price_cents || null;
+      shippingPriceCents =
+        typeof shippingData.pricing?.total_cents === "number"
+          ? shippingData.pricing.total_cents
+          : shippingData.price_cents || null;
     } else if (shippingMethod === "pickup") {
       // Caso "Recoger en tienda"
       shippingProvider = "pickup";

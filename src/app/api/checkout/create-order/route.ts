@@ -55,6 +55,22 @@ const CreateOrderRequestSchema = z.object({
     provider: z.string(),
     option_code: z.string(),
     price_cents: z.number().int().nonnegative(),
+    pricing: z
+      .object({
+        carrier_cents: z.number().int().nonnegative(),
+        packaging_cents: z.number().int().nonnegative(),
+        total_cents: z.number().int().nonnegative(),
+      })
+      .optional(),
+    package_used: z
+      .object({
+        weight_g: z.number().int().positive(),
+        length_cm: z.number().int().positive(),
+        width_cm: z.number().int().positive(),
+        height_cm: z.number().int().positive(),
+        source: z.enum(["default", "calculated"]),
+      })
+      .optional(),
     rate: z.object({
       external_id: z.string(),
       provider: z.string(),
@@ -287,14 +303,24 @@ export async function POST(req: NextRequest) {
         shippingMeta.address_validation = orderData.shipping.address_validation;
       }
       metadata.shipping = shippingMeta;
+      if (orderData.shipping.pricing) {
+        metadata.shipping_pricing = orderData.shipping.pricing;
+      }
+      if (orderData.shipping.package_used) {
+        const shippingMetaWithPackage = (metadata.shipping as Record<string, unknown>) || {};
+        metadata.shipping = {
+          ...shippingMetaWithPackage,
+          package_used: orderData.shipping.package_used,
+        };
+      }
     }
 
     // Calcular paquete estimado desde productos (checkout) si aún no existe
     if (!metadata.shipping_package_estimated && orderData.items.length > 0) {
       const BASE_PACKAGE_WEIGHT_G = 1200; // caja + relleno + cinta
-      const defaultLengthCm = 20;
+      const defaultLengthCm = 25;
       const defaultWidthCm = 20;
-      const defaultHeightCm = 10;
+      const defaultHeightCm = 15;
       const productIds = orderData.items.map((item) => item.id).filter(Boolean);
 
       if (productIds.length > 0) {

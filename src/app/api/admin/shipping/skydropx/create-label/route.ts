@@ -315,6 +315,9 @@ export async function POST(req: NextRequest) {
         normalizePackageCandidate(metadata.shipping_package_final) ||
         normalizePackageCandidate(shippingMeta.package_final) ||
         normalizePackageCandidate(shippingMeta.shipping_package_final);
+      const packageUsed =
+        normalizePackageCandidate(shippingMeta.package_used) ||
+        normalizePackageCandidate((shippingMeta as { package_used?: unknown }).package_used);
 
       const estimatedPackage =
         normalizePackageCandidate(metadata.shipping_package_estimated) ||
@@ -330,6 +333,9 @@ export async function POST(req: NextRequest) {
 
       if (finalPackage) {
         return { source: "final" as const, ...finalPackage };
+      }
+      if (packageUsed) {
+        return { source: "package_used" as const, ...packageUsed };
       }
       if (estimatedPackage) {
         return { source: "estimated" as const, ...estimatedPackage };

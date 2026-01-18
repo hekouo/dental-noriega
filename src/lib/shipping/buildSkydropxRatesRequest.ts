@@ -193,10 +193,10 @@ export function buildSkydropxRatesRequest(
     input.destination.city;
 
   // PAQUETE: Valores por defecto si no se proporcionan, con hardening (valores mínimos razonables)
-  const rawWeightGrams = input.package.weightGrams || 1000;
-  const rawLengthCm = input.package.lengthCm || 20;
+  const rawWeightGrams = input.package.weightGrams || 1200;
+  const rawLengthCm = input.package.lengthCm || 25;
   const rawWidthCm = input.package.widthCm || 20;
-  const rawHeightCm = input.package.heightCm || 10;
+  const rawHeightCm = input.package.heightCm || 15;
 
   // Hardening: valores mínimos razonables para evitar payloads inválidos
   // Skydropx requiere/cobra mínimo 1kg (1000g) para cotizaciones y envíos

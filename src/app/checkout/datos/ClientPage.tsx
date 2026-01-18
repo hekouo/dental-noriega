@@ -450,6 +450,11 @@ function DatosPageContent() {
         etaMaxDays: opt.etaMaxDays,
         externalRateId: opt.externalRateId,
         originalPriceCents: opt.originalPriceCents,
+        carrierCents: opt.carrierCents,
+        packagingCents: opt.packagingCents,
+        totalCents: opt.totalCents,
+        includesPackagingFee: opt.includesPackagingFee,
+        packageUsed: opt.packageUsed,
       }));
 
       if (!isOk || primary.length === 0) {
