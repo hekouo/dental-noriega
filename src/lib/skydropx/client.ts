@@ -45,6 +45,11 @@ type SkydropxConfig = {
   };
 };
 
+function clampSkydropxReference(input: string) {
+  const normalized = input.replace(/\s+/g, " ").trim();
+  return normalized.slice(0, 30);
+}
+
 function stripTrailingSlashes(value: string) {
   return value.replace(/\/+$/, "");
 }
@@ -1889,6 +1894,7 @@ export async function createShipmentFromRate(input: {
     city: string;
     address1: string;
     name: string;
+    reference?: string;
     phone?: string | null;
     email?: string | null;
   };
@@ -1899,6 +1905,7 @@ export async function createShipmentFromRate(input: {
     city: string;
     address1: string;
     name: string;
+    reference?: string;
     phone?: string | null;
     email?: string | null;
   };
@@ -1926,6 +1933,17 @@ export async function createShipmentFromRate(input: {
 
   const fromPhone = sanitizeMxPhoneDigits(input.addressFrom.phone);
   const toPhone = sanitizeMxPhoneDigits(input.addressTo.phone);
+  const fromReference = clampSkydropxReference(input.addressFrom.reference || "Sin referencia");
+  const toReference = clampSkydropxReference(input.addressTo.reference || "Sin referencia");
+
+  if (process.env.NODE_ENV !== "production") {
+    console.log("[Skydropx createShipmentFromRate] Reference lengths (sin PII):", {
+      from_before: (input.addressFrom.reference || "Sin referencia").length,
+      from_after: fromReference.length,
+      to_before: (input.addressTo.reference || "Sin referencia").length,
+      to_after: toReference.length,
+    });
+  }
 
   // Construir payload PRO para crear shipment (wrapper { shipment: { ... } })
   const shipmentPayload: SkydropxShipmentPayload = {
@@ -1943,7 +1961,7 @@ export async function createShipmentFromRate(input: {
         address1: input.addressFrom.address1,
         name: input.addressFrom.name,
         company: "DDN",
-        reference: "Sin referencia",
+        reference: fromReference,
         phone: fromPhone,
         email: input.addressFrom.email || null,
       },
@@ -1959,7 +1977,7 @@ export async function createShipmentFromRate(input: {
         address1: input.addressTo.address1,
         name: input.addressTo.name,
         company: "Particular",
-        reference: "Sin referencia",
+        reference: toReference,
         phone: toPhone,
         email: input.addressTo.email || null,
       },

@@ -754,6 +754,11 @@ export async function POST(req: NextRequest) {
       return typeof candidate === "number" && Number.isFinite(candidate) ? candidate : null;
     };
 
+    const clampSkydropxReference = (input: string) => {
+      const normalized = input.replace(/\s+/g, " ").trim();
+      return normalized.slice(0, 30);
+    };
+
     let selectedRateForShipment: RateSelection | null = null;
     const shippingMeta = (packageMetadata.shipping as Record<string, unknown>) || {};
     const rateMeta =
@@ -801,6 +806,17 @@ export async function POST(req: NextRequest) {
         mass_unit: "KG" as const,
       };
       const quotationReference = orderId ? `DDN-${orderId.slice(0, 8)}` : "DDN-unknown";
+      const originReference = clampSkydropxReference(config.origin.reference || "Sin referencia");
+      const destinationReference = clampSkydropxReference("Sin referencia");
+
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[create-label] Reference lengths (sin PII):", {
+          origin_before: (config.origin.reference || "Sin referencia").length,
+          origin_after: originReference.length,
+          destination_before: "Sin referencia".length,
+          destination_after: destinationReference.length,
+        });
+      }
 
       if (process.env.NODE_ENV !== "production") {
         const hostConfig = getSkydropxApiHosts();
@@ -860,7 +876,7 @@ export async function POST(req: NextRequest) {
               address1: addressFrom.address1,
               name: addressFrom.name,
               company: "DDN",
-              reference: config.origin.reference || "Sin referencia",
+              reference: originReference,
               phone: addressFrom.phone || null,
               email: addressFrom.email || null,
             },
@@ -876,7 +892,7 @@ export async function POST(req: NextRequest) {
               address1: addressTo.address1,
               name: addressTo.name,
               company: "Particular",
-              reference: "Sin referencia",
+              reference: destinationReference,
               phone: addressTo.phone || null,
               email: addressTo.email || null,
             },
@@ -992,8 +1008,35 @@ export async function POST(req: NextRequest) {
       }
 
       const hostConfig = getSkydropxApiHosts();
-      const primaryHost = hostConfig?.quotationsBaseUrl || "https://pro.skydropx.com";
-      const fallbackHost = hostConfig?.fallbackQuotationsBaseUrl || "https://pro.skydropx.com";
+      const resolveQuotationHost = (host: string | undefined, source: string | undefined) => {
+        if (!host) return "https://pro.skydropx.com";
+        try {
+          const parsed = new URL(host);
+          if (parsed.hostname.toLowerCase() === "pro.skydropx.com") {
+            return parsed.origin;
+          }
+          if (process.env.NODE_ENV !== "production") {
+            console.warn("[create-label] Quotations host inválido, usando pro.skydropx.com", {
+              host: parsed.hostname,
+              source: source || "unknown",
+            });
+          }
+          return "https://pro.skydropx.com";
+        } catch {
+          if (process.env.NODE_ENV !== "production") {
+            console.warn("[create-label] Quotations host inválido (parse error), usando pro.skydropx.com", {
+              host: host,
+              source: source || "unknown",
+            });
+          }
+          return "https://pro.skydropx.com";
+        }
+      };
+      const primaryHost = resolveQuotationHost(
+        hostConfig?.quotationsBaseUrl,
+        hostConfig?.sources?.quotationsBaseUrl,
+      );
+      const fallbackHost = "https://pro.skydropx.com";
       const shouldTryFallback = primaryHost !== fallbackHost;
 
       const attemptQuotation = async (host: string, label: "primary" | "fallback") => {
@@ -1275,7 +1318,7 @@ export async function POST(req: NextRequest) {
             address1: addressFrom.address1,
             name: addressFrom.name,
             company: "DDN",
-            reference: config.origin.reference || "Sin referencia",
+            reference: originReference,
             phone: addressFrom.phone || null,
             email: addressFrom.email || null,
           },
@@ -1291,7 +1334,7 @@ export async function POST(req: NextRequest) {
             address1: addressTo.address1,
             name: addressTo.name,
             company: "Particular",
-            reference: "Sin referencia",
+            reference: destinationReference,
             phone: addressTo.phone || null,
             email: addressTo.email || null,
           },
