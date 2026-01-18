@@ -709,8 +709,11 @@ export async function POST(req: NextRequest) {
       provider: string | null;
       service: string | null;
       priceCents: number | null;
-      source: "exact" | "provider_service" | "fallback";
-      matchedBy: "id" | "provider_service" | "fallback";
+      etaMinDays: number | null;
+      etaMaxDays: number | null;
+      etaPolicy: "same_or_better" | "fallback_provider_service" | "fallback_cheapest" | "unknown";
+      source: "exact" | "provider_service" | "fallback" | "eta";
+      matchedBy: "id" | "provider_service" | "fallback" | "eta";
     };
 
     const normalizeText = (value?: string | null) =>
@@ -754,6 +757,40 @@ export async function POST(req: NextRequest) {
       return typeof candidate === "number" && Number.isFinite(candidate) ? candidate : null;
     };
 
+    const getRateEta = (
+      rate: SkydropxQuotationRate,
+    ): { etaMin: number | null; etaMax: number | null } => {
+      const etaMinCandidate =
+        (rate as { eta_min_days?: number }).eta_min_days ??
+        (rate as { min_days?: number }).min_days ??
+        (rate as { eta_min?: number }).eta_min ??
+        null;
+      const etaMaxCandidate =
+        (rate as { eta_max_days?: number }).eta_max_days ??
+        (rate as { max_days?: number }).max_days ??
+        (rate as { eta_max?: number }).eta_max ??
+        null;
+      const daysCandidate =
+        (rate as { days?: number }).days ??
+        (rate as { delivery_days?: number }).delivery_days ??
+        null;
+
+      if (typeof daysCandidate === "number" && Number.isFinite(daysCandidate)) {
+        return { etaMin: daysCandidate, etaMax: daysCandidate };
+      }
+
+      const etaMin =
+        typeof etaMinCandidate === "number" && Number.isFinite(etaMinCandidate)
+          ? etaMinCandidate
+          : null;
+      const etaMax =
+        typeof etaMaxCandidate === "number" && Number.isFinite(etaMaxCandidate)
+          ? etaMaxCandidate
+          : null;
+
+      return { etaMin, etaMax };
+    };
+
     const clampSkydropxReference = (input: string) => {
       const normalized = input.replace(/\s+/g, " ").trim();
       return normalized.slice(0, 30);
@@ -763,7 +800,13 @@ export async function POST(req: NextRequest) {
     const shippingMeta = (packageMetadata.shipping as Record<string, unknown>) || {};
     const rateMeta =
       shippingMeta.rate && typeof shippingMeta.rate === "object"
-        ? (shippingMeta.rate as { provider?: string; service?: string; external_id?: string })
+        ? (shippingMeta.rate as {
+            provider?: string;
+            service?: string;
+            external_id?: string;
+            eta_min_days?: number | null;
+            eta_max_days?: number | null;
+          })
         : undefined;
     const savedQuotationId =
       typeof shippingMeta.quotation_id === "string" && shippingMeta.quotation_id.trim()
@@ -962,6 +1005,9 @@ export async function POST(req: NextRequest) {
             provider: rateMeta?.provider || null,
             service: rateMeta?.service || null,
             priceCents: null,
+            etaMinDays: typeof rateMeta?.eta_min_days === "number" ? rateMeta.eta_min_days : null,
+            etaMaxDays: typeof rateMeta?.eta_max_days === "number" ? rateMeta.eta_max_days : null,
+            etaPolicy: "unknown",
             source: "exact",
             matchedBy: "id",
           };
@@ -1185,92 +1231,203 @@ export async function POST(req: NextRequest) {
         quotationRates,
         orderRateId,
         orderRateMeta,
+        customerEtaMax,
       }: {
         quotationRates: SkydropxQuotationRate[];
         orderRateId?: string | null;
-        orderRateMeta?: { provider?: string; service?: string; external_id?: string };
+        orderRateMeta?: {
+          provider?: string;
+          service?: string;
+          external_id?: string;
+          eta_min_days?: number | null;
+          eta_max_days?: number | null;
+        };
+        customerEtaMax?: number | null;
       }): RateSelection => {
         const rateCandidates = [
           orderRateId?.trim() || null,
           orderRateMeta?.external_id?.trim() || null,
         ].filter(Boolean) as string[];
 
+        const normalizedProvider = normalizeText(orderRateMeta?.provider);
+        const normalizedService = normalizeText(orderRateMeta?.service);
+
+        const rateEntries = quotationRates.map((rate) => {
+          const { etaMin, etaMax } = getRateEta(rate);
+          return {
+            rate,
+            rateId: getRateId(rate) || rate.id,
+            provider: getRateProvider(rate),
+            service: getRateService(rate),
+            priceValue: getRatePriceValue(rate),
+            etaMinDays: etaMin,
+            etaMaxDays: etaMax,
+          };
+        });
+
+        const pickCheapest = (entries: typeof rateEntries): (typeof rateEntries)[number] => {
+          const withPrice = entries.filter((entry) => typeof entry.priceValue === "number");
+          const sorted = withPrice.length > 0 ? withPrice : entries;
+          return (
+            sorted.sort((a, b) => {
+              const priceA = a.priceValue ?? Number.MAX_SAFE_INTEGER;
+              const priceB = b.priceValue ?? Number.MAX_SAFE_INTEGER;
+              if (priceA !== priceB) return priceA - priceB;
+              const etaA = a.etaMaxDays ?? Number.MAX_SAFE_INTEGER;
+              const etaB = b.etaMaxDays ?? Number.MAX_SAFE_INTEGER;
+              return etaA - etaB;
+            })[0] || entries[0]
+          );
+        };
+
+        if (typeof customerEtaMax === "number") {
+          const etaCandidates = rateEntries.filter(
+            (entry) => typeof entry.etaMaxDays === "number" && entry.etaMaxDays <= customerEtaMax,
+          );
+          if (etaCandidates.length > 0) {
+            const chosen = pickCheapest(etaCandidates);
+            return {
+              rate: chosen.rate,
+              rateId: chosen.rateId,
+              provider: chosen.provider,
+              service: chosen.service,
+              priceCents: chosen.priceValue ? Math.round(chosen.priceValue * 100) : null,
+              etaMinDays: chosen.etaMinDays,
+              etaMaxDays: chosen.etaMaxDays,
+              etaPolicy: "same_or_better",
+              source: "eta",
+              matchedBy: "eta",
+            };
+          }
+
+          const providerServiceMatch =
+            normalizedProvider && normalizedService
+              ? rateEntries.find((entry) => {
+                  const provider = normalizeText(entry.provider);
+                  const service = normalizeText(entry.service);
+                  return provider === normalizedProvider && service === normalizedService;
+                })
+              : undefined;
+
+          if (providerServiceMatch) {
+            return {
+              rate: providerServiceMatch.rate,
+              rateId: providerServiceMatch.rateId,
+              provider: providerServiceMatch.provider,
+              service: providerServiceMatch.service,
+              priceCents: providerServiceMatch.priceValue
+                ? Math.round(providerServiceMatch.priceValue * 100)
+                : null,
+              etaMinDays: providerServiceMatch.etaMinDays,
+              etaMaxDays: providerServiceMatch.etaMaxDays,
+              etaPolicy: "fallback_provider_service",
+              source: "provider_service",
+              matchedBy: "provider_service",
+            };
+          }
+
+          const fallback = pickCheapest(rateEntries);
+          return {
+            rate: fallback.rate,
+            rateId: fallback.rateId,
+            provider: fallback.provider,
+            service: fallback.service,
+            priceCents: fallback.priceValue ? Math.round(fallback.priceValue * 100) : null,
+            etaMinDays: fallback.etaMinDays,
+            etaMaxDays: fallback.etaMaxDays,
+            etaPolicy: "fallback_cheapest",
+            source: "fallback",
+            matchedBy: "fallback",
+          };
+        }
+
         const exactMatch = rateCandidates.length
-          ? quotationRates.find((rate) => {
-              const rateId = getRateId(rate);
-              return rateId ? rateCandidates.includes(rateId) : false;
-            })
+          ? rateEntries.find((entry) => entry.rateId && rateCandidates.includes(entry.rateId))
           : undefined;
 
         if (exactMatch) {
-          const rateId = getRateId(exactMatch) || exactMatch.id;
-          const provider = getRateProvider(exactMatch);
-          const service = getRateService(exactMatch);
-          const priceValue = getRatePriceValue(exactMatch);
           return {
-            rate: exactMatch,
-            rateId,
-            provider,
-            service,
-            priceCents: priceValue ? Math.round(priceValue * 100) : null,
+            rate: exactMatch.rate,
+            rateId: exactMatch.rateId,
+            provider: exactMatch.provider,
+            service: exactMatch.service,
+            priceCents: exactMatch.priceValue ? Math.round(exactMatch.priceValue * 100) : null,
+            etaMinDays: exactMatch.etaMinDays,
+            etaMaxDays: exactMatch.etaMaxDays,
+            etaPolicy: "unknown",
             source: "exact",
             matchedBy: "id",
           };
         }
 
-        const normalizedProvider = normalizeText(orderRateMeta?.provider);
-        const normalizedService = normalizeText(orderRateMeta?.service);
         const providerServiceMatch =
           normalizedProvider && normalizedService
-            ? quotationRates.find((rate) => {
-                const provider = normalizeText(getRateProvider(rate));
-                const service = normalizeText(getRateService(rate));
+            ? rateEntries.find((entry) => {
+                const provider = normalizeText(entry.provider);
+                const service = normalizeText(entry.service);
                 return provider === normalizedProvider && service === normalizedService;
               })
             : undefined;
 
         if (providerServiceMatch) {
-          const rateId = getRateId(providerServiceMatch) || providerServiceMatch.id;
-          const provider = getRateProvider(providerServiceMatch);
-          const service = getRateService(providerServiceMatch);
-          const priceValue = getRatePriceValue(providerServiceMatch);
           return {
-            rate: providerServiceMatch,
-            rateId,
-            provider,
-            service,
-            priceCents: priceValue ? Math.round(priceValue * 100) : null,
+            rate: providerServiceMatch.rate,
+            rateId: providerServiceMatch.rateId,
+            provider: providerServiceMatch.provider,
+            service: providerServiceMatch.service,
+            priceCents: providerServiceMatch.priceValue
+              ? Math.round(providerServiceMatch.priceValue * 100)
+              : null,
+            etaMinDays: providerServiceMatch.etaMinDays,
+            etaMaxDays: providerServiceMatch.etaMaxDays,
+            etaPolicy: "unknown",
             source: "provider_service",
             matchedBy: "provider_service",
           };
         }
 
-        const ratesWithPrice = quotationRates
-          .map((rate) => ({ rate, price: getRatePriceValue(rate) }))
-          .filter((item) => typeof item.price === "number");
-        const fallbackRate =
-          ratesWithPrice.sort((a, b) => (a.price ?? 0) - (b.price ?? 0))[0]?.rate ||
-          quotationRates[0];
-        const fallbackRateId = getRateId(fallbackRate) || fallbackRate.id;
-        const fallbackProvider = getRateProvider(fallbackRate);
-        const fallbackService = getRateService(fallbackRate);
-        const fallbackPriceValue = getRatePriceValue(fallbackRate);
+        const fallback = pickCheapest(rateEntries);
         return {
-          rate: fallbackRate,
-          rateId: fallbackRateId,
-          provider: fallbackProvider,
-          service: fallbackService,
-          priceCents: fallbackPriceValue ? Math.round(fallbackPriceValue * 100) : null,
+          rate: fallback.rate,
+          rateId: fallback.rateId,
+          provider: fallback.provider,
+          service: fallback.service,
+          priceCents: fallback.priceValue ? Math.round(fallback.priceValue * 100) : null,
+          etaMinDays: fallback.etaMinDays,
+          etaMaxDays: fallback.etaMaxDays,
+          etaPolicy: "unknown",
           source: "fallback",
           matchedBy: "fallback",
         };
       };
 
+      const customerEtaMax =
+        typeof order.shipping_eta_max_days === "number"
+          ? order.shipping_eta_max_days
+          : typeof rateMeta?.eta_max_days === "number"
+            ? rateMeta.eta_max_days
+            : null;
+
       const rateSelection = selectRateFromQuotation({
         quotationRates: rates,
         orderRateId: order.shipping_rate_ext_id,
         orderRateMeta: rateMeta,
+        customerEtaMax,
       });
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[create-label] Rate selection (eta-aware):", {
+          orderId,
+          quotation_id: quotationId,
+          rates_count: rates.length,
+          customer_eta_max_days: customerEtaMax,
+          selected_rate_id: rateSelection.rateId,
+          select_source: rateSelection.source,
+          matched_by: rateSelection.matchedBy,
+          eta_policy: rateSelection.etaPolicy,
+          selected_eta_max_days: rateSelection.etaMaxDays,
+          price_cents: rateSelection.priceCents,
+        });
+      }
       if (!rateSelection.rateId) {
         const sampleRateIds = rates
           .map((rate) => getRateId(rate))
@@ -1453,6 +1610,14 @@ export async function POST(req: NextRequest) {
           external_id: selectedRate.rateId,
           provider: selectedRate.provider || earlyRateMeta.provider || null,
           service: selectedRate.service || earlyRateMeta.service || null,
+          eta_min_days:
+            typeof selectedRate.etaMinDays === "number"
+              ? selectedRate.etaMinDays
+              : (earlyRateMeta.eta_min_days as number | null | undefined) ?? null,
+          eta_max_days:
+            typeof selectedRate.etaMaxDays === "number"
+              ? selectedRate.etaMaxDays
+              : (earlyRateMeta.eta_max_days as number | null | undefined) ?? null,
         },
         rate_used: {
           rate_id: selectedRate.rateId,
@@ -1460,6 +1625,12 @@ export async function POST(req: NextRequest) {
           service: selectedRate.service,
           price_cents: selectedRate.priceCents,
           source: selectedRate.source,
+          eta_min_days: selectedRate.etaMinDays,
+          eta_max_days: selectedRate.etaMaxDays,
+          eta_policy: selectedRate.etaPolicy,
+          eta_changed:
+            selectedRate.etaPolicy === "fallback_provider_service" ||
+            selectedRate.etaPolicy === "fallback_cheapest",
         },
         package_used: {
           weight_g: weightG,
@@ -1595,6 +1766,10 @@ export async function POST(req: NextRequest) {
       external_id: selectedRate.rateId,
       provider: selectedRate.provider || existingRateMeta.provider || null,
       service: selectedRate.service || existingRateMeta.service || null,
+      eta_min_days:
+        typeof selectedRate.etaMinDays === "number" ? selectedRate.etaMinDays : existingRateMeta.eta_min_days ?? null,
+      eta_max_days:
+        typeof selectedRate.etaMaxDays === "number" ? selectedRate.etaMaxDays : existingRateMeta.eta_max_days ?? null,
     };
     const updatedShippingMeta = {
       ...finalShippingMeta, // Preservar datos existentes (cancel_request_id, cancel_status, etc.)
@@ -1608,6 +1783,12 @@ export async function POST(req: NextRequest) {
         service: selectedRate.service,
         price_cents: selectedRate.priceCents,
         source: selectedRate.source,
+        eta_min_days: selectedRate.etaMinDays,
+        eta_max_days: selectedRate.etaMaxDays,
+        eta_policy: selectedRate.etaPolicy,
+        eta_changed:
+          selectedRate.etaPolicy === "fallback_provider_service" ||
+          selectedRate.etaPolicy === "fallback_cheapest",
       },
       package_used: {
         weight_g: weightG,

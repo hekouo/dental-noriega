@@ -59,6 +59,7 @@ const CreateOrderRequestSchema = z.object({
       .object({
         carrier_cents: z.number().int().nonnegative(),
         packaging_cents: z.number().int().nonnegative(),
+        margin_cents: z.number().int().nonnegative().optional(),
         total_cents: z.number().int().nonnegative(),
       })
       .optional(),

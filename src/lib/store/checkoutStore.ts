@@ -54,6 +54,7 @@ export type UiShippingOption = {
   originalPriceCents?: number; // Precio original antes de aplicar promo (para mostrar "antes $XXX")
   carrierCents?: number;
   packagingCents?: number;
+  marginCents?: number;
   totalCents?: number;
   includesPackagingFee?: boolean;
   packageUsed?: {

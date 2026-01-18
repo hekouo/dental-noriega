@@ -47,6 +47,7 @@ export async function POST(req: NextRequest) {
       etaMin,
       etaMax,
       optionCode,
+    marginCents,
       customerTotalCents,
     } = body;
 
@@ -154,11 +155,18 @@ export async function POST(req: NextRequest) {
       ...currentMetadata,
       shipping: updatedShippingMeta,
     };
-    if (typeof customerTotalCents === "number") {
+    if (typeof customerTotalCents === "number" || typeof marginCents === "number") {
+      const packagingCents = 2000;
+      const resolvedMarginCents = typeof marginCents === "number" ? marginCents : 0;
+      const resolvedTotalCents =
+        typeof customerTotalCents === "number"
+          ? customerTotalCents
+          : priceCents + packagingCents + resolvedMarginCents;
       updatedMetadata.shipping_pricing = {
         carrier_cents: priceCents,
-        packaging_cents: Math.max(0, customerTotalCents - priceCents),
-        total_cents: customerTotalCents,
+        packaging_cents: packagingCents,
+        margin_cents: resolvedMarginCents,
+        total_cents: resolvedTotalCents,
       };
     }
 
