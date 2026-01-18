@@ -537,6 +537,12 @@ export default function PagoClient() {
                       provider: "skydropx",
                       option_code: selectedShippingOption.code,
                       price_cents: selectedShippingOption.priceCents,
+                      pricing: {
+                        carrier_cents: selectedShippingOption.carrierCents ?? selectedShippingOption.priceCents,
+                        packaging_cents: selectedShippingOption.packagingCents ?? 2000,
+                        total_cents: selectedShippingOption.totalCents ?? selectedShippingOption.priceCents,
+                      },
+                      package_used: selectedShippingOption.packageUsed ?? undefined,
                       rate: {
                         external_id: selectedShippingOption.externalRateId,
                         provider: selectedShippingOption.provider,
@@ -827,6 +833,12 @@ export default function PagoClient() {
                       provider: "skydropx",
                       option_code: selectedShippingOption.code,
                       price_cents: selectedShippingOption.priceCents,
+                      pricing: {
+                        carrier_cents: selectedShippingOption.carrierCents ?? selectedShippingOption.priceCents,
+                        packaging_cents: selectedShippingOption.packagingCents ?? 2000,
+                        total_cents: selectedShippingOption.totalCents ?? selectedShippingOption.priceCents,
+                      },
+                      package_used: selectedShippingOption.packageUsed ?? undefined,
                       rate: {
                         external_id: selectedShippingOption.externalRateId,
                         provider: selectedShippingOption.provider,
