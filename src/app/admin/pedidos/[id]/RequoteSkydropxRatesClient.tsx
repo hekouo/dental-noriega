@@ -295,7 +295,7 @@ export default function RequoteSkydropxRatesClient({
                     </div>
                     <div className="mt-1 text-sm text-gray-600">
                       <span className="font-semibold text-gray-900">
-                        {formatMXNFromCents(carrierCents)}
+                        Carrier: {formatMXNFromCents(carrierCents)}
                       </span>
                       {" • "}
                       <span>ETA: {formatETA(rate.eta_min_days, rate.eta_max_days)}</span>
