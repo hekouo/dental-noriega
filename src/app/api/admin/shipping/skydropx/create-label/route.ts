@@ -29,6 +29,7 @@ type CreateLabelResponse =
       trackingNumber: string | null;
       labelUrl: string | null;
       shipmentId: string | null;
+      already_created?: boolean;
       trackingPending?: boolean;
       pollingInfo?: {
         attempts: number;
@@ -55,6 +56,7 @@ type CreateLabelResponse =
         | "skydropx_unprocessable_entity"
         | "skydropx_no_rates"
         | "invalid_shipping_payload"
+        | "label_creation_in_progress"
         | "config_error"
         | "tracking_pending"
         | "unknown_error";
@@ -71,6 +73,52 @@ type CreateLabelResponse =
 
 export async function POST(req: NextRequest) {
   try {
+    const resolveShippingPricing = (
+      existingPricing: Record<string, unknown> | null,
+      carrierCents: number | null,
+      etaMin: number | null,
+      etaMax: number | null,
+    ) => {
+      if (!existingPricing && typeof carrierCents !== "number") return null;
+
+      const packagingCents =
+        typeof existingPricing?.packaging_cents === "number" ? existingPricing.packaging_cents : 2000;
+      const baseCarrier =
+        typeof carrierCents === "number"
+          ? carrierCents
+          : typeof existingPricing?.carrier_cents === "number"
+            ? existingPricing.carrier_cents
+            : 0;
+      const existingTotal =
+        typeof existingPricing?.total_cents === "number"
+          ? existingPricing.total_cents
+          : typeof existingPricing?.customer_total_cents === "number"
+            ? existingPricing.customer_total_cents
+            : null;
+      const marginCents =
+        typeof existingTotal === "number"
+          ? Math.max(0, existingTotal - baseCarrier - packagingCents)
+          : typeof existingPricing?.margin_cents === "number"
+            ? existingPricing.margin_cents
+            : Math.min(Math.round(baseCarrier * 0.05), 3000);
+      const totalCents = typeof existingTotal === "number" ? existingTotal : baseCarrier + packagingCents + marginCents;
+
+      return {
+        carrier_cents: baseCarrier,
+        packaging_cents: packagingCents,
+        margin_cents: marginCents,
+        total_cents: totalCents,
+        customer_total_cents: totalCents,
+        customer_eta_min_days:
+          typeof existingPricing?.customer_eta_min_days === "number"
+            ? existingPricing.customer_eta_min_days
+            : etaMin,
+        customer_eta_max_days:
+          typeof existingPricing?.customer_eta_max_days === "number"
+            ? existingPricing.customer_eta_max_days
+            : etaMax,
+      };
+    };
     const extractTrackingAndLabel = (shipmentResponse: unknown) => {
       const anyResponse = shipmentResponse as any;
       const trackingNumber =
@@ -429,6 +477,71 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
     }
+
+    const hasLabel = Boolean(order.shipping_label_url || order.shipping_tracking_number);
+    const hasShipmentAndRate =
+      Boolean(existingShipmentId) && Boolean(order.shipping_rate_ext_id);
+    const labelCreation =
+      (orderShippingMeta.label_creation as { status?: string; started_at?: string | null }) || null;
+
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[create-label] Idempotency check:", {
+        orderId,
+        has_label: hasLabel,
+        has_tracking: Boolean(order.shipping_tracking_number),
+        has_pricing: Boolean(orderMetadata.shipping_pricing),
+        has_shipment: Boolean(existingShipmentId),
+        has_rate: Boolean(order.shipping_rate_ext_id),
+        label_creation_status: labelCreation?.status || null,
+      });
+    }
+
+    if (labelCreation?.status === "in_progress") {
+      return NextResponse.json(
+        {
+          ok: false,
+          code: "label_creation_in_progress",
+          message: "La creación de la guía está en progreso. Intenta de nuevo en unos momentos.",
+        } satisfies CreateLabelResponse,
+        { status: 409 },
+      );
+    }
+
+    if (hasLabel || hasShipmentAndRate) {
+      return NextResponse.json(
+        {
+          ok: true,
+          already_created: true,
+          trackingNumber: order.shipping_tracking_number || null,
+          labelUrl: order.shipping_label_url || null,
+          shipmentId: existingShipmentId,
+          trackingPending: !order.shipping_tracking_number || !order.shipping_label_url,
+        } satisfies CreateLabelResponse,
+        { status: 200 },
+      );
+    }
+
+    const labelCreationRequestId =
+      typeof crypto?.randomUUID === "function" ? crypto.randomUUID() : `req_${Date.now()}`;
+    const labelCreationPayload = {
+      status: "in_progress",
+      started_at: new Date().toISOString(),
+      finished_at: null,
+      request_id: labelCreationRequestId,
+    };
+    await supabase
+      .from("orders")
+      .update({
+        metadata: {
+          ...orderMetadata,
+          shipping: {
+            ...orderShippingMeta,
+            label_creation: labelCreationPayload,
+          },
+        },
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", orderId);
 
     // Obtener datos de dirección del destino desde metadata canónica
     const shippingAddressResult = getOrderShippingAddress(order, { requireName: true });
@@ -1745,9 +1858,30 @@ export async function POST(req: NextRequest) {
       ...(shipmentDebug ? { shipment_debug: shipmentDebug } : {}),
     };
 
+    const existingPricing = (finalMetadata.shipping_pricing as Record<string, unknown>) || null;
+    const resolvedPricing = resolveShippingPricing(
+      existingPricing,
+      typeof selectedRate.priceCents === "number" ? selectedRate.priceCents : null,
+      selectedRate.etaMinDays ?? null,
+      selectedRate.etaMaxDays ?? null,
+    );
+
     const updatedMetadata = {
       ...finalMetadata, // Preservar todos los campos existentes
-      shipping: updatedShippingMeta,
+      shipping_pricing: resolvedPricing ?? finalMetadata.shipping_pricing,
+      shipping: {
+        ...updatedShippingMeta,
+        price_cents:
+          typeof resolvedPricing?.total_cents === "number"
+            ? resolvedPricing.total_cents
+            : (updatedShippingMeta as { price_cents?: number }).price_cents ?? null,
+        label_creation: {
+          status: "finished",
+          started_at: labelCreationPayload.started_at,
+          finished_at: new Date().toISOString(),
+          request_id: labelCreationRequestId,
+        },
+      },
     };
 
     // Determinar shipping_status según disponibilidad de tracking/label
@@ -1768,6 +1902,10 @@ export async function POST(req: NextRequest) {
       shipping_status: shippingStatus,
       updated_at: new Date().toISOString(),
     };
+
+    if (resolvedPricing?.total_cents && typeof resolvedPricing.total_cents === "number") {
+      updateData.shipping_price_cents = resolvedPricing.total_cents;
+    }
 
     // Guardar shipment_id en columna dedicada para matching confiable en webhooks
     if (shipmentIdToSave) {
