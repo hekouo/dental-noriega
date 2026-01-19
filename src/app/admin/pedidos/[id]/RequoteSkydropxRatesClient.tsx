@@ -98,6 +98,8 @@ export default function RequoteSkydropxRatesClient({
               ? `${data.message}${data.reason ? ` (${data.reason})` : ""}${data.missingFields ? `. Campos faltantes: ${data.missingFields.join(", ")}` : ""}`
               : data.code === "order_not_found"
                 ? "La orden no existe."
+                : data.code === "missing_shipping_address"
+                  ? "Falta dirección en la orden."
                 : data.message || "Error al recotizar el envío.";
 
         setError(errorMessage);

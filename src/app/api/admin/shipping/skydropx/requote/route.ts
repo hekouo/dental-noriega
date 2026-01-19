@@ -5,6 +5,7 @@ import { getOrderWithItemsAdmin } from "@/lib/supabase/orders.server";
 import { getSkydropxRates } from "@/lib/shipping/skydropx.server";
 import { normalizeSkydropxRates } from "@/lib/shipping/normalizeSkydropxRates";
 import type { SkydropxRate } from "@/lib/shipping/skydropx.server";
+import { getOrderShippingAddress } from "@/lib/shipping/getOrderShippingAddress";
 import { createClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
@@ -69,132 +70,6 @@ type RequoteResponse =
       missingFields?: string[];
     };
 
-/**
- * Extrae dirección de destino desde metadata (mismo orden que create-label)
- * PRIORIDAD: shipping_address_override > shipping_address > shipping.address_validation.normalized_address > shipping.address > address
- * 
- * Fallbacks robustos para address1:
- * 1) shipping_address_override.address1
- * 2) shipping_address.address1
- * 3) shipping.address_validation.normalized_address.address1
- * 4) shipping.address.address1
- * 5) address.address1 (legacy)
- * 6) (último recurso) shipping_address.address2 (solo si address1 vacío)
- */
-function extractAddressFromMetadata(metadata: unknown): {
-  postalCode: string;
-  state: string;
-  city: string;
-  country: string;
-  address1: string;
-  address2?: string; // Colonia/barrio (para area_level3)
-} | null {
-  if (!metadata || typeof metadata !== "object") {
-    return null;
-  }
-
-  const meta = metadata as Record<string, unknown>;
-
-  // PRIORIDAD 1: metadata.shipping_address_override (override manual en admin)
-  let addressData: Record<string, unknown> | null = null;
-  if (meta.shipping_address_override && typeof meta.shipping_address_override === "object") {
-    addressData = meta.shipping_address_override as Record<string, unknown>;
-  }
-  // PRIORIDAD 2: metadata.shipping_address (nuevo formato estructurado)
-  else if (meta.shipping_address && typeof meta.shipping_address === "object") {
-    addressData = meta.shipping_address as Record<string, unknown>;
-  }
-  // PRIORIDAD 3: metadata.shipping.address_validation.normalized_address (dirección validada)
-  else if (meta.shipping && typeof meta.shipping === "object") {
-    const shipping = meta.shipping as Record<string, unknown>;
-    if (shipping.address_validation && typeof shipping.address_validation === "object") {
-      const addrValidation = shipping.address_validation as Record<string, unknown>;
-      if (addrValidation.normalized_address && typeof addrValidation.normalized_address === "object") {
-        addressData = addrValidation.normalized_address as Record<string, unknown>;
-      }
-    }
-    // PRIORIDAD 4: metadata.shipping.address (compatibilidad)
-    if (!addressData && shipping.address && typeof shipping.address === "object") {
-      addressData = shipping.address as Record<string, unknown>;
-    }
-  }
-  // PRIORIDAD 5: metadata.address (legacy)
-  if (!addressData && meta.address && typeof meta.address === "object") {
-    addressData = meta.address as Record<string, unknown>;
-  }
-
-  if (!addressData) {
-    return null;
-  }
-
-  // Extraer campos con múltiples variantes para compatibilidad
-  const postalCode = addressData.postal_code || addressData.cp || addressData.postalCode;
-  const state = addressData.state || addressData.estado;
-  const city = addressData.city || addressData.ciudad;
-  const country = addressData.country || addressData.country_code || "MX";
-
-  // Extraer address1 con fallbacks robustos (calle)
-  let address1: string = "";
-  if (typeof addressData.address1 === "string") {
-    address1 = addressData.address1;
-  } else if (typeof addressData.address === "string") {
-    address1 = addressData.address;
-  } else if (typeof addressData.direccion === "string") {
-    address1 = addressData.direccion;
-  }
-  
-  // Si address1 está vacío, intentar fallback a address2 (solo si shipping_address.address2 existe)
-  if (!address1 || address1.trim().length === 0) {
-    const shippingAddress = meta.shipping_address as Record<string, unknown> | undefined;
-    if (shippingAddress && typeof shippingAddress === "object") {
-      if (typeof shippingAddress.address2 === "string") {
-        address1 = shippingAddress.address2;
-      } else if (typeof shippingAddress.address_line2 === "string") {
-        address1 = shippingAddress.address_line2;
-      }
-    }
-  }
-  
-  // Extraer address2 (colonia/barrio) - usado para area_level3 en Skydropx
-  // PRIORIDAD: addressData.address2 > shipping_address.address2 > shipping_address.neighborhood
-  let address2: string | undefined = undefined;
-  if (typeof addressData.address2 === "string" && addressData.address2.trim().length > 0) {
-    address2 = addressData.address2.trim();
-  } else {
-    const shippingAddress = meta.shipping_address as Record<string, unknown> | undefined;
-    if (shippingAddress && typeof shippingAddress === "object") {
-      if (typeof shippingAddress.address2 === "string" && shippingAddress.address2.trim().length > 0) {
-        address2 = shippingAddress.address2.trim();
-      } else if (typeof shippingAddress.address_line2 === "string" && shippingAddress.address_line2.trim().length > 0) {
-        address2 = shippingAddress.address_line2.trim();
-      } else if (typeof shippingAddress.neighborhood === "string" && shippingAddress.neighborhood.trim().length > 0) {
-        address2 = shippingAddress.neighborhood.trim();
-      }
-    }
-  }
-
-  // Validar campos mínimos requeridos (ahora incluyendo address1)
-  if (
-    typeof postalCode === "string" &&
-    typeof state === "string" &&
-    typeof city === "string" &&
-    postalCode.length > 0 &&
-    state.length > 0 &&
-    city.length > 0
-  ) {
-    const trimmedAddress1 = address1.trim();
-    return {
-      postalCode,
-      state,
-      city,
-      country: typeof country === "string" ? country : "MX",
-      address1: trimmedAddress1,
-      address2: address2, // Colonia/barrio (para area_level3)
-    };
-  }
-
-  return null;
-}
 
 /**
  * POST /api/admin/shipping/skydropx/requote
@@ -271,34 +146,32 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Extraer dirección de destino desde metadata
-    const addressTo = extractAddressFromMetadata(order.metadata);
-    if (!addressTo) {
+    const shippingAddressResult = getOrderShippingAddress(order);
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[requote] Shipping address source:", {
+        has_shipping_address: Boolean(shippingAddressResult),
+        source_key_used: shippingAddressResult?.sourceKey || null,
+      });
+    }
+    if (!shippingAddressResult) {
       return NextResponse.json(
         {
           ok: false,
-          code: "requote_precondition_failed",
-          message: "No se encontraron datos de dirección en la orden.",
-          reason: "missing_address_data",
-          missingFields: ["postalCode", "state", "city"],
+          code: "missing_shipping_address",
+          message: "Falta dirección en la orden.",
         } satisfies RequoteResponse,
         { status: 400 },
       );
     }
 
-    // Guard: Si address1 está vacío después de todos los fallbacks, fallar con error claro
-    if (!addressTo.address1 || addressTo.address1.trim().length === 0) {
-      return NextResponse.json(
-        {
-          ok: false,
-          code: "requote_precondition_failed",
-          message: "No se encontró dirección (address1) en la orden. La dirección de destino requiere al menos una calle.",
-          reason: "missing_destination_street1",
-          missingFields: ["destination.address1"],
-        } satisfies RequoteResponse,
-        { status: 400 },
-      );
-    }
+    const addressTo = {
+      postalCode: shippingAddressResult.address.postalCode,
+      state: shippingAddressResult.address.state,
+      city: shippingAddressResult.address.city,
+      country: shippingAddressResult.address.country,
+      address1: shippingAddressResult.address.address1,
+      address2: shippingAddressResult.address.address2 ?? undefined,
+    };
 
     // Obtener package desde metadata.shipping_package o usar default
     const shippingPackage = orderMetadata.shipping_package as
