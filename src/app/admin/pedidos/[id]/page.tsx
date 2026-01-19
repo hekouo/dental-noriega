@@ -22,8 +22,10 @@ import NotifyShippingClient from "./NotifyShippingClient";
 import { normalizePhoneToE164Mx } from "@/lib/utils/phone";
 import EditShippingOverrideClient from "./EditShippingOverrideClient";
 import ShippingTrackingDisplay from "./ShippingTrackingDisplay";
+import { getOrderShippingAddress } from "@/lib/shipping/getOrderShippingAddress";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 type Props = {
   params: Promise<{
@@ -129,6 +131,8 @@ export default async function AdminPedidoDetailPage({
   const whatsappE164 = normalizePhoneToE164Mx(rawPhone);
   const contactName = rawMetadata?.contact_name ?? rawMetadata?.contactName ?? null;
   const orderShortId = order.id.slice(0, 8);
+
+  const shippingAddressResult = getOrderShippingAddress(order);
 
   // Extraer shipping_package_final para ShippingPackageFinalClient
   type ShippingPackageFinal = {
@@ -255,42 +259,34 @@ export default async function AdminPedidoDetailPage({
             </div>
 
             {/* Dirección de envío */}
-            {order.shipping && (
-              order.shipping.contact_address ||
-              order.shipping.contact_city ||
-              order.shipping.contact_state ||
-              order.shipping.contact_cp
-            ) && (
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <h3 className="text-md font-semibold mb-3">Dirección de Entrega</h3>
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <h3 className="text-md font-semibold mb-3">Dirección de Entrega</h3>
+              {shippingAddressResult ? (
                 <div className="space-y-2 text-sm">
-                  {order.shipping.contact_address && (
-                    <div>
-                      <p className="text-gray-600">Dirección</p>
-                      <p className="font-medium">{order.shipping.contact_address}</p>
-                    </div>
-                  )}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {order.shipping.contact_city && (
-                      <div>
-                        <p className="text-gray-600">Ciudad</p>
-                        <p className="font-medium">{order.shipping.contact_city}</p>
-                      </div>
-                    )}
-                    {order.shipping.contact_state && (
-                      <div>
-                        <p className="text-gray-600">Estado</p>
-                        <p className="font-medium">{order.shipping.contact_state}</p>
-                      </div>
-                    )}
-                    {order.shipping.contact_cp && (
-                      <div>
-                        <p className="text-gray-600">Código Postal</p>
-                        <p className="font-medium">{order.shipping.contact_cp}</p>
-                      </div>
-                    )}
+                  <div>
+                    <p className="text-gray-600">Dirección</p>
+                    <p className="font-medium">
+                      {shippingAddressResult.address.address1}
+                      {shippingAddressResult.address.address2
+                        ? `, ${shippingAddressResult.address.address2}`
+                        : ""}
+                    </p>
                   </div>
-                  {order.shipping.shipping_method && (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <p className="text-gray-600">Ciudad</p>
+                      <p className="font-medium">{shippingAddressResult.address.city}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-600">Estado</p>
+                      <p className="font-medium">{shippingAddressResult.address.state}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-600">Código Postal</p>
+                      <p className="font-medium">{shippingAddressResult.address.postalCode}</p>
+                    </div>
+                  </div>
+                  {order.shipping?.shipping_method && (
                     <div className="mt-2">
                       <p className="text-gray-600">Método de envío</p>
                       <p className="font-medium">
@@ -305,8 +301,10 @@ export default async function AdminPedidoDetailPage({
                     </div>
                   )}
                 </div>
-              </div>
-            )}
+              ) : (
+                <p className="text-sm text-gray-600">Falta dirección en la orden.</p>
+              )}
+            </div>
           </div>
         )}
 
