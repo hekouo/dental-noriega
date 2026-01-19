@@ -15,6 +15,7 @@ import {
 } from "@/lib/skydropx/client";
 import { getSkydropxConfig } from "@/lib/shipping/skydropx.server";
 import { getOrderShippingAddress } from "@/lib/shipping/getOrderShippingAddress";
+import { normalizeShippingPricing } from "@/lib/shipping/normalizeShippingPricing";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -80,35 +81,22 @@ export async function POST(req: NextRequest) {
       etaMax: number | null,
     ) => {
       if (!existingPricing && typeof carrierCents !== "number") return null;
-
-      const packagingCents =
-        typeof existingPricing?.packaging_cents === "number" ? existingPricing.packaging_cents : 2000;
-      const baseCarrier =
-        typeof carrierCents === "number"
-          ? carrierCents
-          : typeof existingPricing?.carrier_cents === "number"
-            ? existingPricing.carrier_cents
-            : 0;
-      const existingTotal =
-        typeof existingPricing?.total_cents === "number"
-          ? existingPricing.total_cents
-          : typeof existingPricing?.customer_total_cents === "number"
-            ? existingPricing.customer_total_cents
-            : null;
-      const marginCents =
-        typeof existingTotal === "number"
-          ? Math.max(0, existingTotal - baseCarrier - packagingCents)
-          : typeof existingPricing?.margin_cents === "number"
-            ? existingPricing.margin_cents
-            : Math.min(Math.round(baseCarrier * 0.05), 3000);
-      const totalCents = typeof existingTotal === "number" ? existingTotal : baseCarrier + packagingCents + marginCents;
-
-      return {
-        carrier_cents: baseCarrier,
-        packaging_cents: packagingCents,
-        margin_cents: marginCents,
-        total_cents: totalCents,
-        customer_total_cents: totalCents,
+      const pricingInput = {
+        carrier_cents:
+          typeof carrierCents === "number"
+            ? carrierCents
+            : typeof existingPricing?.carrier_cents === "number"
+              ? existingPricing.carrier_cents
+              : undefined,
+        packaging_cents:
+          typeof existingPricing?.packaging_cents === "number" ? existingPricing.packaging_cents : 2000,
+        margin_cents: typeof existingPricing?.margin_cents === "number" ? existingPricing.margin_cents : undefined,
+        total_cents:
+          typeof existingPricing?.total_cents === "number"
+            ? existingPricing.total_cents
+            : typeof existingPricing?.customer_total_cents === "number"
+              ? existingPricing.customer_total_cents
+              : undefined,
         customer_eta_min_days:
           typeof existingPricing?.customer_eta_min_days === "number"
             ? existingPricing.customer_eta_min_days
@@ -118,6 +106,7 @@ export async function POST(req: NextRequest) {
             ? existingPricing.customer_eta_max_days
             : etaMax,
       };
+      return normalizeShippingPricing(pricingInput);
     };
     const extractTrackingAndLabel = (shipmentResponse: unknown) => {
       const anyResponse = shipmentResponse as any;

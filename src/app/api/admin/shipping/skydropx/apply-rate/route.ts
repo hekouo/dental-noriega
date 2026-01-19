@@ -3,6 +3,7 @@ import "server-only";
 import { createClient } from "@supabase/supabase-js";
 import { checkAdminAccess } from "@/lib/admin/access";
 import { getOrderWithItemsAdmin } from "@/lib/supabase/orders.server";
+import { normalizeShippingPricing } from "@/lib/shipping/normalizeShippingPricing";
 
 export const dynamic = "force-dynamic";
 
@@ -156,46 +157,34 @@ export async function POST(req: NextRequest) {
       shipping: updatedShippingMeta,
     };
     const existingPricing = (currentMetadata.shipping_pricing as Record<string, unknown>) || null;
-    const packagingCents =
-      typeof existingPricing?.packaging_cents === "number" ? existingPricing.packaging_cents : 2000;
-    const existingTotal =
-      typeof existingPricing?.total_cents === "number"
-        ? existingPricing.total_cents
-        : typeof existingPricing?.customer_total_cents === "number"
-          ? existingPricing.customer_total_cents
-          : typeof customerTotalCents === "number"
-            ? customerTotalCents
-            : null;
-    const computedMargin =
-      typeof existingTotal === "number"
-        ? Math.max(0, existingTotal - priceCents - packagingCents)
-        : typeof marginCents === "number"
-          ? marginCents
-          : Math.min(Math.round(priceCents * 0.05), 3000);
-    const resolvedTotal = priceCents + packagingCents + computedMargin;
-    const totalCents = typeof existingTotal === "number" ? existingTotal : resolvedTotal;
-
-    updatedMetadata.shipping_pricing = {
+    const pricingInput = {
       carrier_cents: priceCents,
-      packaging_cents: packagingCents,
-      margin_cents: computedMargin,
-      total_cents: totalCents,
-      customer_total_cents: totalCents,
+      packaging_cents:
+        typeof existingPricing?.packaging_cents === "number" ? existingPricing.packaging_cents : 2000,
+      margin_cents:
+        typeof marginCents === "number"
+          ? marginCents
+          : typeof existingPricing?.margin_cents === "number"
+            ? existingPricing.margin_cents
+            : undefined,
+      total_cents:
+        typeof existingPricing?.total_cents === "number"
+          ? existingPricing.total_cents
+          : typeof existingPricing?.customer_total_cents === "number"
+            ? existingPricing.customer_total_cents
+            : typeof customerTotalCents === "number"
+              ? customerTotalCents
+              : undefined,
       customer_eta_min_days:
-        typeof existingPricing?.customer_eta_min_days === "number"
-          ? existingPricing.customer_eta_min_days
-          : typeof etaMin === "number"
-            ? etaMin
-            : null,
+        typeof existingPricing?.customer_eta_min_days === "number" ? existingPricing.customer_eta_min_days : etaMin,
       customer_eta_max_days:
-        typeof existingPricing?.customer_eta_max_days === "number"
-          ? existingPricing.customer_eta_max_days
-          : typeof etaMax === "number"
-            ? etaMax
-            : null,
+        typeof existingPricing?.customer_eta_max_days === "number" ? existingPricing.customer_eta_max_days : etaMax,
     };
-
-    updatedShippingMeta.price_cents = totalCents;
+    const normalizedPricing = normalizeShippingPricing(pricingInput);
+    if (normalizedPricing) {
+      updatedMetadata.shipping_pricing = normalizedPricing;
+      updatedShippingMeta.price_cents = normalizedPricing.total_cents;
+    }
 
     // Actualizar order
     const { error: updateError } = await supabase
@@ -204,7 +193,7 @@ export async function POST(req: NextRequest) {
         shipping_rate_ext_id: rateExternalId,
         shipping_provider: "skydropx",
         shipping_service_name: service,
-        shipping_price_cents: totalCents,
+        shipping_price_cents: normalizedPricing?.total_cents ?? priceCents,
         shipping_eta_min_days: typeof etaMin === "number" ? etaMin : null,
         shipping_eta_max_days: typeof etaMax === "number" ? etaMax : null,
         shipping_status: "rate_selected",
