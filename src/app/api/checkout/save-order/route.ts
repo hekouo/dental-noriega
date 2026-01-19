@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { createActionSupabase } from "@/lib/supabase/server-actions";
 import { estimatePackageWeight } from "@/lib/shipping/estimatePackageWeight";
+import { normalizeShippingPricing } from "@/lib/shipping/normalizeShippingPricing";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -411,7 +412,18 @@ export async function POST(req: NextRequest) {
       
       metadata.shipping = metadataFromPayload.shipping;
       if (shippingData.pricing) {
-        metadata.shipping_pricing = shippingData.pricing;
+        const normalizedPricing = normalizeShippingPricing(shippingData.pricing);
+        if (normalizedPricing) {
+          metadata.shipping_pricing = normalizedPricing;
+          if (metadata.shipping && typeof metadata.shipping === "object") {
+            const shippingMeta = metadata.shipping as Record<string, unknown>;
+            metadata.shipping = {
+              ...shippingMeta,
+              pricing: normalizedPricing,
+              price_cents: normalizedPricing.total_cents,
+            };
+          }
+        }
       }
       if (shippingData.package_used) {
         const currentShippingMeta = (metadata.shipping as Record<string, unknown>) || {};
