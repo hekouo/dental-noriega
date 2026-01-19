@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
       etaMin,
       etaMax,
       optionCode,
-    marginCents,
+      marginCents,
       customerTotalCents,
     } = body;
 
@@ -155,20 +155,47 @@ export async function POST(req: NextRequest) {
       ...currentMetadata,
       shipping: updatedShippingMeta,
     };
-    if (typeof customerTotalCents === "number" || typeof marginCents === "number") {
-      const packagingCents = 2000;
-      const resolvedMarginCents = typeof marginCents === "number" ? marginCents : 0;
-      const resolvedTotalCents =
-        typeof customerTotalCents === "number"
-          ? customerTotalCents
-          : priceCents + packagingCents + resolvedMarginCents;
-      updatedMetadata.shipping_pricing = {
-        carrier_cents: priceCents,
-        packaging_cents: packagingCents,
-        margin_cents: resolvedMarginCents,
-        total_cents: resolvedTotalCents,
-      };
-    }
+    const existingPricing = (currentMetadata.shipping_pricing as Record<string, unknown>) || null;
+    const packagingCents =
+      typeof existingPricing?.packaging_cents === "number" ? existingPricing.packaging_cents : 2000;
+    const existingTotal =
+      typeof existingPricing?.total_cents === "number"
+        ? existingPricing.total_cents
+        : typeof existingPricing?.customer_total_cents === "number"
+          ? existingPricing.customer_total_cents
+          : typeof customerTotalCents === "number"
+            ? customerTotalCents
+            : null;
+    const computedMargin =
+      typeof existingTotal === "number"
+        ? Math.max(0, existingTotal - priceCents - packagingCents)
+        : typeof marginCents === "number"
+          ? marginCents
+          : Math.min(Math.round(priceCents * 0.05), 3000);
+    const resolvedTotal = priceCents + packagingCents + computedMargin;
+    const totalCents = typeof existingTotal === "number" ? existingTotal : resolvedTotal;
+
+    updatedMetadata.shipping_pricing = {
+      carrier_cents: priceCents,
+      packaging_cents: packagingCents,
+      margin_cents: computedMargin,
+      total_cents: totalCents,
+      customer_total_cents: totalCents,
+      customer_eta_min_days:
+        typeof existingPricing?.customer_eta_min_days === "number"
+          ? existingPricing.customer_eta_min_days
+          : typeof etaMin === "number"
+            ? etaMin
+            : null,
+      customer_eta_max_days:
+        typeof existingPricing?.customer_eta_max_days === "number"
+          ? existingPricing.customer_eta_max_days
+          : typeof etaMax === "number"
+            ? etaMax
+            : null,
+    };
+
+    updatedShippingMeta.price_cents = totalCents;
 
     // Actualizar order
     const { error: updateError } = await supabase
@@ -177,7 +204,7 @@ export async function POST(req: NextRequest) {
         shipping_rate_ext_id: rateExternalId,
         shipping_provider: "skydropx",
         shipping_service_name: service,
-        shipping_price_cents: priceCents,
+        shipping_price_cents: totalCents,
         shipping_eta_min_days: typeof etaMin === "number" ? etaMin : null,
         shipping_eta_max_days: typeof etaMax === "number" ? etaMax : null,
         shipping_status: "rate_selected",

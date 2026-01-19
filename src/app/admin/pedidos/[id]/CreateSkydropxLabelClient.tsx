@@ -90,6 +90,8 @@ export default function CreateSkydropxLabelClient({
                   : data.code === "missing_address_data" ||
                       data.code === "missing_shipping_address"
                     ? "Falta dirección en la orden."
+            : data.code === "label_creation_in_progress"
+              ? "La creación de la guía está en progreso. Intenta de nuevo en unos momentos."
                     : data.code === "missing_final_package"
                       ? "Captura peso y medidas reales de la caja antes de crear guía. Ve a la sección 'Paquete real para guía'."
                     : data.code === "skydropx_no_rates" || data.statusCode === 502
@@ -323,7 +325,7 @@ export default function CreateSkydropxLabelClient({
                     className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2"
                   >
                     <Download className="w-4 h-4" />
-                    Descargar etiqueta (PDF)
+                    Reimprimir etiqueta
                   </a>
                   {needsSync && (
                     <button
