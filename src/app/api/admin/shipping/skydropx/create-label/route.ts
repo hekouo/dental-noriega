@@ -14,6 +14,7 @@ import {
   type SkydropxQuotationPayload,
 } from "@/lib/skydropx/client";
 import { getSkydropxConfig } from "@/lib/shipping/skydropx.server";
+import { getOrderShippingAddress } from "@/lib/shipping/getOrderShippingAddress";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -44,6 +45,7 @@ type CreateLabelResponse =
         | "unsupported_provider"
         | "missing_shipping_rate"
         | "missing_address_data"
+        | "missing_shipping_address"
         | "missing_final_package"
         | "skydropx_error"
         | "skydropx_not_found"
@@ -66,91 +68,6 @@ type CreateLabelResponse =
       };
     };
 
-/**
- * Extrae datos de dirección desde metadata de la orden
- * Prioridad:
- * 1) metadata.shipping_address_override
- * 2) metadata.shipping_address
- * 3) metadata.shipping.address
- * 4) metadata.address
- */
-function extractAddressFromMetadata(metadata: unknown): {
-  countryCode: string;
-  postalCode: string;
-  state: string;
-  city: string;
-  address1: string;
-  name: string;
-  phone?: string | null;
-  email?: string | null;
-} | null {
-  if (!metadata || typeof metadata !== "object") {
-    return null;
-  }
-
-  const meta = metadata as Record<string, unknown>;
-
-  // PRIORIDAD 1: metadata.shipping_address_override (override manual en admin)
-  let addressData: Record<string, unknown> | null = null;
-  if (meta.shipping_address_override && typeof meta.shipping_address_override === "object") {
-    addressData = meta.shipping_address_override as Record<string, unknown>;
-  }
-  // PRIORIDAD 2: metadata.shipping_address (nuevo formato estructurado)
-  else if (meta.shipping_address && typeof meta.shipping_address === "object") {
-    addressData = meta.shipping_address as Record<string, unknown>;
-  }
-  // PRIORIDAD 3: metadata.shipping.address (compatibilidad)
-  else if (meta.shipping && typeof meta.shipping === "object") {
-    const shipping = meta.shipping as Record<string, unknown>;
-    if (shipping.address && typeof shipping.address === "object") {
-      addressData = shipping.address as Record<string, unknown>;
-    }
-  }
-  // PRIORIDAD 4: metadata.address (legacy)
-  else if (meta.address && typeof meta.address === "object") {
-    addressData = meta.address as Record<string, unknown>;
-  }
-
-  if (!addressData) {
-    return null;
-  }
-
-  // Extraer campos con múltiples variantes para compatibilidad
-  const postalCode = addressData.postal_code || addressData.cp || addressData.postalCode;
-  const state = addressData.state || addressData.estado;
-  const city = addressData.city || addressData.ciudad;
-  const address1 = addressData.address1 || addressData.address || addressData.direccion;
-  const name = addressData.name || addressData.nombre || (meta.contact_name as string);
-  const phone = addressData.phone || addressData.telefono || (meta.contact_phone as string | null);
-  const email = addressData.email || (meta.contact_email as string | null);
-
-  // Validar campos mínimos requeridos
-  if (
-    typeof postalCode === "string" &&
-    typeof state === "string" &&
-    typeof city === "string" &&
-    typeof address1 === "string" &&
-    typeof name === "string" &&
-    postalCode.length > 0 &&
-    state.length > 0 &&
-    city.length > 0 &&
-    address1.length > 0 &&
-    name.length > 0
-  ) {
-    return {
-      countryCode: (addressData.countryCode || addressData.country || "MX") as string,
-      postalCode,
-      state,
-      city,
-      address1,
-      name,
-      phone: typeof phone === "string" ? phone : null,
-      email: typeof email === "string" ? email : null,
-    };
-  }
-
-  return null;
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -513,22 +430,37 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Obtener datos de dirección del destino
-    const addressTo = extractAddressFromMetadata(order.metadata);
-    const destinationAddress2 =
-      (addressTo as { address2?: string | null } | null)?.address2 || null;
-
-    if (!addressTo) {
+    // Obtener datos de dirección del destino desde metadata canónica
+    const shippingAddressResult = getOrderShippingAddress(order, { requireName: true });
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[create-label] Shipping address source:", {
+        has_shipping_address: Boolean(shippingAddressResult),
+        source_key_used: shippingAddressResult?.sourceKey || null,
+      });
+    }
+    if (!shippingAddressResult) {
       return NextResponse.json(
         {
           ok: false,
-          code: "missing_address_data",
-          message:
-            "No se encontraron datos de dirección en la orden. Asegúrate de que la orden tenga dirección de envío completa.",
+          code: "missing_shipping_address",
+          message: "Falta dirección en la orden.",
         } satisfies CreateLabelResponse,
         { status: 400 },
       );
     }
+
+    const addressTo = {
+      countryCode: shippingAddressResult.address.country,
+      postalCode: shippingAddressResult.address.postalCode,
+      state: shippingAddressResult.address.state,
+      city: shippingAddressResult.address.city,
+      address1: shippingAddressResult.address.address1,
+      name: shippingAddressResult.address.name ?? "Cliente",
+      phone: shippingAddressResult.address.phone ?? null,
+      email: shippingAddressResult.address.email ?? null,
+      address2: shippingAddressResult.address.address2 ?? null,
+    };
+    const destinationAddress2 = addressTo.address2 || null;
 
     // Obtener configuración de origen de Skydropx
     const config = getSkydropxConfig();
@@ -2061,7 +1993,19 @@ export async function POST(req: NextRequest) {
               
               if (tempOrder) {
                 const config = getSkydropxConfig();
-                const addressTo = extractAddressFromMetadata(tempOrder.metadata);
+                const shippingAddressResult = getOrderShippingAddress(tempOrder, {
+                  requireName: true,
+                });
+                const addressTo = shippingAddressResult
+                  ? {
+                      postalCode: shippingAddressResult.address.postalCode,
+                      state: shippingAddressResult.address.state,
+                      city: shippingAddressResult.address.city,
+                      address1: shippingAddressResult.address.address1,
+                      name: shippingAddressResult.address.name ?? "Cliente",
+                      phone: shippingAddressResult.address.phone ?? null,
+                    }
+                  : null;
                 const addressFrom = config
                   ? {
                       countryCode: config.origin.country,

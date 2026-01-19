@@ -87,8 +87,9 @@ export default function CreateSkydropxLabelClient({
                   ? "El proveedor de envío no es compatible."
                   : data.code === "missing_shipping_rate"
                     ? "No hay tarifa guardada. Intenta crear la guía de nuevo."
-                  : data.code === "missing_address_data"
-                    ? "No se encontraron datos de dirección en la orden."
+                  : data.code === "missing_address_data" ||
+                      data.code === "missing_shipping_address"
+                    ? "Falta dirección en la orden."
                     : data.code === "missing_final_package"
                       ? "Captura peso y medidas reales de la caja antes de crear guía. Ve a la sección 'Paquete real para guía'."
                     : data.code === "skydropx_no_rates" || data.statusCode === 502
@@ -152,7 +153,10 @@ export default function CreateSkydropxLabelClient({
 
         setError(errorMessage);
         // Si falta dirección, sugerir editar override
-        if (data.code === "missing_address_data" && typeof window !== "undefined") {
+        if (
+          (data.code === "missing_address_data" || data.code === "missing_shipping_address") &&
+          typeof window !== "undefined"
+        ) {
           // agregar un hash para ayudar a ubicar el editor
           window.location.hash = "#shipping-override";
         }
