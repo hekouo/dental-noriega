@@ -468,9 +468,11 @@ export async function POST(req: NextRequest) {
       shippingEtaMinDays = shippingData.rate?.eta_min_days ?? null;
       shippingEtaMaxDays = shippingData.rate?.eta_max_days ?? null;
       shippingPriceCents =
-        typeof shippingData.pricing?.total_cents === "number"
+        normalizedMeta.shippingPricing?.total_cents ??
+        (normalizedMeta.shippingMeta?.price_cents as number | null | undefined) ??
+        (typeof shippingData.pricing?.total_cents === "number"
           ? shippingData.pricing.total_cents
-          : shippingData.price_cents || null;
+          : shippingData.price_cents || null);
     } else if (shippingMethod === "pickup") {
       // Caso "Recoger en tienda"
       shippingProvider = "pickup";

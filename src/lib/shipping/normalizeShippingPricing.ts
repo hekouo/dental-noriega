@@ -70,7 +70,7 @@ export function normalizeShippingPricing(
     customer_total_cents: resolvedTotal,
     customer_eta_min_days: toNumber(input.customer_eta_min_days),
     customer_eta_max_days: toNumber(input.customer_eta_max_days),
-    corrected: corrected || input.corrected || false,
-    correction_reason: correctionReason ?? input.correction_reason,
+    corrected,
+    correction_reason: corrected ? correctionReason ?? input.correction_reason : undefined,
   };
 }
