@@ -298,6 +298,8 @@ export async function POST(req: NextRequest) {
       metadata.shipping_address = orderData.shippingAddress;
     }
 
+    let shippingPriceCents: number | null = null;
+
     // Incluir información de Skydropx si está presente
     if (orderData.shipping) {
       const shippingMeta: Record<string, unknown> = { ...orderData.shipping };
@@ -354,6 +356,10 @@ export async function POST(req: NextRequest) {
           package_used: orderData.shipping.package_used,
         };
       }
+      const priceFromMeta = normalizedMeta.shippingMeta?.price_cents;
+      shippingPriceCents =
+        normalizedMeta.shippingPricing?.total_cents ??
+        (typeof priceFromMeta === "number" ? priceFromMeta : shippingPriceCents);
     }
 
     // Calcular paquete estimado desde productos (checkout) si aún no existe
@@ -484,7 +490,6 @@ export async function POST(req: NextRequest) {
     let shippingRateExtId: string | null = null;
     let shippingEtaMinDays: number | null = null;
     let shippingEtaMaxDays: number | null = null;
-    let shippingPriceCents: number | null = null;
 
     if (orderData.shipping) {
       // Caso Skydropx

@@ -26,6 +26,8 @@ type NormalizeResult = {
   shippingPricing: NormalizedShippingPricing | null;
   shippingMeta: Record<string, unknown>;
   mismatchDetected: boolean;
+  corrected: boolean;
+  correctionReason?: string;
 };
 
 export function normalizeShippingMetadata(
@@ -36,37 +38,71 @@ export function normalizeShippingMetadata(
   const rootPricing = (metadata.shipping_pricing as Record<string, unknown>) || null;
   const nestedPricing = (shippingMeta.pricing as Record<string, unknown>) || null;
 
-  const basePricing = rootPricing ?? nestedPricing;
-  const normalizedPricing = normalizeShippingPricing(basePricing || undefined);
+  const hasRoot = Boolean(rootPricing);
+  const hasNested = Boolean(nestedPricing);
+  const mismatchDetected = hasRoot && hasNested && JSON.stringify(rootPricing) !== JSON.stringify(nestedPricing);
+  const canonicalPricingInput = hasRoot ? rootPricing : nestedPricing;
+  const canonicalPricing = canonicalPricingInput as Partial<NormalizedShippingPricing> | null;
+  const normalizedPricing = normalizeShippingPricing(canonicalPricingInput || undefined);
 
-  const mismatchDetected =
-    Boolean(rootPricing && nestedPricing) &&
-    JSON.stringify(rootPricing) !== JSON.stringify(nestedPricing);
+  const correctionHappened =
+    normalizedPricing != null &&
+    canonicalPricing != null &&
+    Boolean(
+      (typeof canonicalPricing.carrier_cents === "number" &&
+        canonicalPricing.carrier_cents !== normalizedPricing.carrier_cents) ||
+        (typeof canonicalPricing.packaging_cents === "number" &&
+          canonicalPricing.packaging_cents !== normalizedPricing.packaging_cents) ||
+        (typeof canonicalPricing.margin_cents === "number" &&
+          canonicalPricing.margin_cents !== normalizedPricing.margin_cents) ||
+        (typeof canonicalPricing.total_cents === "number" &&
+          canonicalPricing.total_cents !== normalizedPricing.total_cents),
+    );
 
   const nextShippingMeta: Record<string, unknown> = {
     ...shippingMeta,
   };
 
   if (normalizedPricing) {
-    nextShippingMeta.pricing = normalizedPricing;
+    nextShippingMeta.pricing = { ...normalizedPricing };
     nextShippingMeta.price_cents = normalizedPricing.total_cents;
+    metadata.shipping_cost_cents = normalizedPricing.total_cents;
   }
 
   const rateUsed = (shippingMeta.rate_used as ShippingRateUsed) || null;
-  if (rateUsed) {
+  const rateFromMeta = (shippingMeta.rate as ShippingRateUsed) || {};
+  if (rateUsed || rateFromMeta.external_rate_id || rateFromMeta.rate_id) {
     const carrier =
-      typeof rateUsed.carrier_cents === "number"
+      typeof rateUsed?.carrier_cents === "number"
         ? rateUsed.carrier_cents
-        : typeof rateUsed.price_cents === "number"
+        : typeof rateFromMeta.carrier_cents === "number"
+          ? rateFromMeta.carrier_cents
+          : typeof normalizedPricing?.carrier_cents === "number"
+            ? normalizedPricing.carrier_cents
+            : null;
+    const price =
+      typeof normalizedPricing?.total_cents === "number"
+        ? normalizedPricing.total_cents
+        : typeof rateUsed?.price_cents === "number"
           ? rateUsed.price_cents
-          : null;
-    const price = typeof rateUsed.price_cents === "number" ? rateUsed.price_cents : carrier;
+          : carrier;
     nextShippingMeta.rate_used = {
-      ...rateUsed,
+      ...(rateUsed || {}),
+      eta_min_days: rateUsed?.eta_min_days ?? rateFromMeta.eta_min_days ?? null,
+      eta_max_days: rateUsed?.eta_max_days ?? rateFromMeta.eta_max_days ?? null,
       carrier_cents: carrier,
       price_cents: price,
       external_rate_id:
-        rateUsed.external_rate_id || rateUsed.rate_id || (shippingMeta.rate_id as string) || null,
+        rateUsed?.external_rate_id ||
+        rateUsed?.rate_id ||
+        rateFromMeta.external_rate_id ||
+        rateFromMeta.rate_id ||
+        (shippingMeta.rate_id as string) ||
+        null,
+      selection_source: rateUsed?.selection_source ?? (context.source === "checkout" ? "checkout" : "admin"),
+      customer_total_cents: price ?? null,
+      provider: rateUsed?.provider ?? rateFromMeta.provider ?? null,
+      service: rateUsed?.service ?? rateFromMeta.service ?? null,
     };
   }
 
@@ -74,13 +110,15 @@ export function normalizeShippingMetadata(
     console.log("[shipping-metadata] normalize:", {
       orderId: context.orderId || null,
       source: context.source,
-      has_root_shipping_pricing: Boolean(rootPricing),
-      has_nested_shipping_pricing: Boolean(nestedPricing),
+      has_root_shipping_pricing: hasRoot,
+      has_nested_shipping_pricing: hasNested,
       mismatch_detected: mismatchDetected,
       total_cents: normalizedPricing?.total_cents ?? null,
       carrier_cents: normalizedPricing?.carrier_cents ?? null,
       packaging_cents: normalizedPricing?.packaging_cents ?? null,
       margin_cents: normalizedPricing?.margin_cents ?? null,
+      corrected: correctionHappened || normalizedPricing?.corrected || false,
+      correction_reason: normalizedPricing?.correction_reason || null,
     });
   }
 
@@ -88,5 +126,7 @@ export function normalizeShippingMetadata(
     shippingPricing: normalizedPricing,
     shippingMeta: nextShippingMeta,
     mismatchDetected,
+    corrected: correctionHappened || normalizedPricing?.corrected || false,
+    correctionReason: normalizedPricing?.correction_reason,
   };
 }
