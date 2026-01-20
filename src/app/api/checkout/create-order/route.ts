@@ -306,7 +306,12 @@ export async function POST(req: NextRequest) {
       }
       metadata.shipping = shippingMeta;
       if (orderData.shipping.pricing) {
-        const normalizedPricing = normalizeShippingPricing(orderData.shipping.pricing);
+        const pricingInput = {
+          ...orderData.shipping.pricing,
+          customer_eta_min_days: orderData.shipping.rate?.eta_min_days ?? null,
+          customer_eta_max_days: orderData.shipping.rate?.eta_max_days ?? null,
+        };
+        const normalizedPricing = normalizeShippingPricing(pricingInput);
         if (normalizedPricing) {
           metadata.shipping_pricing = normalizedPricing;
           if (metadata.shipping && typeof metadata.shipping === "object") {
@@ -318,6 +323,28 @@ export async function POST(req: NextRequest) {
             };
           }
         }
+      }
+      if (orderData.shipping.rate) {
+        const shippingMeta = (metadata.shipping as Record<string, unknown>) || {};
+        const carrierCents =
+          typeof orderData.shipping.pricing?.carrier_cents === "number"
+            ? orderData.shipping.pricing.carrier_cents
+            : typeof orderData.shipping.pricing?.total_cents === "number"
+              ? orderData.shipping.pricing.total_cents
+              : null;
+        metadata.shipping = {
+          ...shippingMeta,
+          rate_used: {
+            external_rate_id: orderData.shipping.rate.external_id,
+            provider: orderData.shipping.rate.provider,
+            service: orderData.shipping.rate.service,
+            eta_min_days: orderData.shipping.rate.eta_min_days ?? null,
+            eta_max_days: orderData.shipping.rate.eta_max_days ?? null,
+            carrier_cents: carrierCents,
+            selected_at: new Date().toISOString(),
+            selection_source: "checkout",
+          },
+        };
       }
       if (orderData.shipping.package_used) {
         const shippingMetaWithPackage = (metadata.shipping as Record<string, unknown>) || {};

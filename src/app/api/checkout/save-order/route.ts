@@ -412,7 +412,12 @@ export async function POST(req: NextRequest) {
       
       metadata.shipping = metadataFromPayload.shipping;
       if (shippingData.pricing) {
-        const normalizedPricing = normalizeShippingPricing(shippingData.pricing);
+        const pricingInput = {
+          ...shippingData.pricing,
+          customer_eta_min_days: shippingData.rate?.eta_min_days ?? null,
+          customer_eta_max_days: shippingData.rate?.eta_max_days ?? null,
+        };
+        const normalizedPricing = normalizeShippingPricing(pricingInput);
         if (normalizedPricing) {
           metadata.shipping_pricing = normalizedPricing;
           if (metadata.shipping && typeof metadata.shipping === "object") {
@@ -424,6 +429,28 @@ export async function POST(req: NextRequest) {
             };
           }
         }
+      }
+      if (shippingData.rate) {
+        const shippingMeta = (metadata.shipping as Record<string, unknown>) || {};
+        const carrierCents =
+          typeof shippingData.pricing?.carrier_cents === "number"
+            ? shippingData.pricing.carrier_cents
+            : typeof shippingData.pricing?.total_cents === "number"
+              ? shippingData.pricing.total_cents
+              : null;
+        metadata.shipping = {
+          ...shippingMeta,
+          rate_used: {
+            external_rate_id: shippingData.rate.external_id,
+            provider: shippingData.provider ?? "skydropx",
+            service: shippingData.rate.service,
+            eta_min_days: shippingData.rate.eta_min_days ?? null,
+            eta_max_days: shippingData.rate.eta_max_days ?? null,
+            carrier_cents: carrierCents,
+            selected_at: new Date().toISOString(),
+            selection_source: "checkout",
+          },
+        };
       }
       if (shippingData.package_used) {
         const currentShippingMeta = (metadata.shipping as Record<string, unknown>) || {};

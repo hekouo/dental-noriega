@@ -48,6 +48,7 @@ type CreateLabelResponse =
         | "missing_shipping_rate"
         | "missing_address_data"
         | "missing_shipping_address"
+        | "missing_selected_rate"
         | "missing_final_package"
         | "skydropx_error"
         | "skydropx_not_found"
@@ -73,6 +74,16 @@ type CreateLabelResponse =
 
 
 export async function POST(req: NextRequest) {
+  let labelCreationRequestId: string | null = null;
+  let labelCreationPayload: {
+    status: string;
+    started_at: string;
+    finished_at: string | null;
+    request_id: string;
+  } | null = null;
+  let supabaseClient: any = null;
+  let orderIdForError: string | null = null;
+  let orderForError: any = null;
   try {
     const resolveShippingPricing = (
       existingPricing: Record<string, unknown> | null,
@@ -81,22 +92,39 @@ export async function POST(req: NextRequest) {
       etaMax: number | null,
     ) => {
       if (!existingPricing && typeof carrierCents !== "number") return null;
+      const baseCarrier =
+        typeof carrierCents === "number"
+          ? carrierCents
+          : typeof existingPricing?.carrier_cents === "number"
+            ? existingPricing.carrier_cents
+            : null;
+      const packagingCents =
+        typeof existingPricing?.packaging_cents === "number" ? existingPricing.packaging_cents : 2000;
+      const totalFromExisting =
+        typeof existingPricing?.total_cents === "number"
+          ? existingPricing.total_cents
+          : typeof existingPricing?.customer_total_cents === "number"
+            ? existingPricing.customer_total_cents
+            : null;
+      const marginCents =
+        typeof totalFromExisting === "number" && typeof baseCarrier === "number"
+          ? Math.max(0, totalFromExisting - baseCarrier - packagingCents)
+          : typeof existingPricing?.margin_cents === "number"
+            ? existingPricing.margin_cents
+            : typeof baseCarrier === "number"
+              ? Math.min(Math.round(baseCarrier * 0.05), 3000)
+              : 0;
+      const totalCents =
+        typeof totalFromExisting === "number" && totalFromExisting >= 0 && typeof baseCarrier === "number"
+          ? totalFromExisting
+          : typeof baseCarrier === "number"
+            ? baseCarrier + packagingCents + marginCents
+            : null;
       const pricingInput = {
-        carrier_cents:
-          typeof carrierCents === "number"
-            ? carrierCents
-            : typeof existingPricing?.carrier_cents === "number"
-              ? existingPricing.carrier_cents
-              : undefined,
-        packaging_cents:
-          typeof existingPricing?.packaging_cents === "number" ? existingPricing.packaging_cents : 2000,
-        margin_cents: typeof existingPricing?.margin_cents === "number" ? existingPricing.margin_cents : undefined,
-        total_cents:
-          typeof existingPricing?.total_cents === "number"
-            ? existingPricing.total_cents
-            : typeof existingPricing?.customer_total_cents === "number"
-              ? existingPricing.customer_total_cents
-              : undefined,
+        carrier_cents: baseCarrier ?? undefined,
+        packaging_cents: packagingCents,
+        margin_cents: marginCents,
+        total_cents: totalCents ?? undefined,
         customer_eta_min_days:
           typeof existingPricing?.customer_eta_min_days === "number"
             ? existingPricing.customer_eta_min_days
@@ -210,6 +238,8 @@ export async function POST(req: NextRequest) {
     });
 
     // Cargar la orden
+    supabaseClient = supabase;
+    orderIdForError = orderId;
     const { data: orderData, error: orderError } = await supabase
       .from("orders")
       .select("*")
@@ -231,6 +261,7 @@ export async function POST(req: NextRequest) {
     }
     
     const order = orderData;
+    orderForError = order as Record<string, unknown>;
 
     // IDEMPOTENCIA: Verificar si ya existe shipment_id en metadata
     const orderMetadata = (order.metadata as Record<string, unknown>) || {};
@@ -472,6 +503,21 @@ export async function POST(req: NextRequest) {
       Boolean(existingShipmentId) && Boolean(order.shipping_rate_ext_id);
     const labelCreation =
       (orderShippingMeta.label_creation as { status?: string; started_at?: string | null }) || null;
+    const rateUsed = (orderShippingMeta.rate_used as Record<string, unknown>) || null;
+    const rateUsedExternalId =
+      (typeof rateUsed?.external_rate_id === "string" && rateUsed.external_rate_id.trim()) ||
+      (typeof rateUsed?.rate_id === "string" && rateUsed.rate_id.trim()) ||
+      null;
+    const nowTs = Date.now();
+    const startedAtTs =
+      typeof labelCreation?.started_at === "string"
+        ? Date.parse(labelCreation.started_at)
+        : NaN;
+    const LABEL_CREATION_TTL_MS = 5 * 60 * 1000;
+    const isLockActive =
+      labelCreation?.status === "in_progress" &&
+      Number.isFinite(startedAtTs) &&
+      nowTs - startedAtTs < LABEL_CREATION_TTL_MS;
 
     if (process.env.NODE_ENV !== "production") {
       console.log("[create-label] Idempotency check:", {
@@ -481,11 +527,12 @@ export async function POST(req: NextRequest) {
         has_pricing: Boolean(orderMetadata.shipping_pricing),
         has_shipment: Boolean(existingShipmentId),
         has_rate: Boolean(order.shipping_rate_ext_id),
+        has_selected_rate: Boolean(rateUsedExternalId),
         label_creation_status: labelCreation?.status || null,
       });
     }
 
-    if (labelCreation?.status === "in_progress") {
+    if (isLockActive) {
       return NextResponse.json(
         {
           ok: false,
@@ -510,9 +557,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const labelCreationRequestId =
+    if (!rateUsedExternalId) {
+      return NextResponse.json(
+        {
+          ok: false,
+          code: "missing_selected_rate",
+          message: "Primero recotiza y aplica una tarifa.",
+        } satisfies CreateLabelResponse,
+        { status: 400 },
+      );
+    }
+
+    labelCreationRequestId =
       typeof crypto?.randomUUID === "function" ? crypto.randomUUID() : `req_${Date.now()}`;
-    const labelCreationPayload = {
+    labelCreationPayload = {
       status: "in_progress",
       started_at: new Date().toISOString(),
       finished_at: null,
@@ -851,6 +909,7 @@ export async function POST(req: NextRequest) {
         ? shippingMeta.quotation_host_used.trim()
         : null;
     const savedRateId =
+      rateUsedExternalId ||
       (typeof order.shipping_rate_ext_id === "string" && order.shipping_rate_ext_id.trim()
         ? order.shipping_rate_ext_id.trim()
         : null) ||
@@ -1444,7 +1503,7 @@ export async function POST(req: NextRequest) {
 
       const rateSelection = selectRateFromQuotation({
         quotationRates: rates,
-        orderRateId: order.shipping_rate_ext_id,
+        orderRateId: savedRateId,
         orderRateMeta: rateMeta,
         customerEtaMax,
       });
@@ -1655,9 +1714,12 @@ export async function POST(req: NextRequest) {
         },
         rate_used: {
           rate_id: selectedRate.rateId,
+          external_rate_id: selectedRate.rateId,
           provider: selectedRate.provider,
           service: selectedRate.service,
           price_cents: selectedRate.priceCents,
+          carrier_cents: selectedRate.priceCents,
+          selection_source: "admin",
           source: selectedRate.source,
           eta_min_days: selectedRate.etaMinDays,
           eta_max_days: selectedRate.etaMaxDays,
@@ -1813,9 +1875,12 @@ export async function POST(req: NextRequest) {
       rate: updatedRateMeta,
       rate_used: {
         rate_id: selectedRate.rateId,
+        external_rate_id: selectedRate.rateId,
         provider: selectedRate.provider,
         service: selectedRate.service,
         price_cents: selectedRate.priceCents,
+        carrier_cents: selectedRate.priceCents,
+        selection_source: "admin",
         source: selectedRate.source,
         eta_min_days: selectedRate.etaMinDays,
         eta_max_days: selectedRate.etaMaxDays,
@@ -1864,12 +1929,16 @@ export async function POST(req: NextRequest) {
           typeof resolvedPricing?.total_cents === "number"
             ? resolvedPricing.total_cents
             : (updatedShippingMeta as { price_cents?: number }).price_cents ?? null,
-        label_creation: {
-          status: "finished",
-          started_at: labelCreationPayload.started_at,
-          finished_at: new Date().toISOString(),
-          request_id: labelCreationRequestId,
-        },
+        ...(labelCreationPayload
+          ? {
+              label_creation: {
+                status: "created",
+                started_at: labelCreationPayload.started_at,
+                finished_at: new Date().toISOString(),
+                request_id: labelCreationRequestId,
+              },
+            }
+          : {}),
       },
     };
 
@@ -2053,6 +2122,36 @@ export async function POST(req: NextRequest) {
     const errorCode = (error as Error & { code?: string }).code;
     const statusCode = (error as Error & { statusCode?: number }).statusCode;
     const errorDetails = (error as Error & { details?: unknown }).details;
+
+    try {
+      if (labelCreationPayload && labelCreationRequestId && supabaseClient && orderIdForError) {
+        const metadata = (orderForError?.metadata as Record<string, unknown>) || {};
+        const shippingMeta = (metadata.shipping as Record<string, unknown>) || {};
+        await supabaseClient
+          .from("orders")
+          .update({
+            metadata: {
+              ...metadata,
+              shipping: {
+                ...shippingMeta,
+                label_creation: {
+                  status: "failed",
+                  started_at: labelCreationPayload.started_at,
+                  finished_at: new Date().toISOString(),
+                  request_id: labelCreationRequestId,
+                  error_code: errorCode || "unknown_error",
+                },
+              },
+            },
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", orderIdForError);
+      }
+    } catch (updateError) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[create-label] No se pudo actualizar label_creation:", updateError);
+      }
+    }
 
     // Detectar errores específicos de Skydropx
     // Respetar err.code si ya viene seteado, pero mapear explícitamente por statusCode

@@ -174,11 +174,6 @@ export default function RequoteSkydropxRatesClient({
     }
   };
 
-  const getPriceDifference = (newPriceCents: number): number => {
-    if (!currentRatePriceCents) return newPriceCents;
-    return newPriceCents - currentRatePriceCents;
-  };
-
   const formatETA = (min: number | null, max: number | null): string => {
     if (min === null && max === null) return "No disponible";
     if (min === null) return `${max} días`;
@@ -272,7 +267,6 @@ export default function RequoteSkydropxRatesClient({
           <h4 className="text-sm font-semibold text-gray-900">Tarifas disponibles:</h4>
           {rates.map((rate) => {
             const carrierCents = rate.carrier_cents ?? rate.price_cents;
-            const priceDiff = getPriceDifference(carrierCents);
             return (
               <div
                 key={rate.external_id}
@@ -284,16 +278,6 @@ export default function RequoteSkydropxRatesClient({
                       <span className="text-sm font-medium text-gray-900">
                         {rate.provider} - {rate.service}
                       </span>
-                      {priceDiff > 0 && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
-                          +{formatMXNFromCents(priceDiff)}
-                        </span>
-                      )}
-                      {priceDiff < 0 && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                          {formatMXNFromCents(priceDiff)}
-                        </span>
-                      )}
                     </div>
                     <div className="mt-1 text-sm text-gray-600">
                       <span className="font-semibold text-gray-900">

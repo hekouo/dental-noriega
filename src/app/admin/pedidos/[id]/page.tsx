@@ -148,6 +148,14 @@ export default async function AdminPedidoDetailPage({
   const isSkydropx = order.shipping_provider === "skydropx" || order.shipping_provider === "Skydropx";
   const isNotPickup = (order.metadata as Record<string, unknown> | null)?.shipping_method !== "pickup";
   const shouldShowPackageFinal: boolean = isSkydropx && isNotPickup;
+  const shippingMeta = ((order.metadata as Record<string, unknown>)?.shipping as Record<string, unknown>) || {};
+  const rateUsed = (shippingMeta.rate_used as Record<string, unknown>) || {};
+  const hasSelectedRate =
+    typeof rateUsed.external_rate_id === "string"
+      ? rateUsed.external_rate_id.trim().length > 0
+      : typeof rateUsed.rate_id === "string"
+        ? rateUsed.rate_id.trim().length > 0
+        : false;
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -541,6 +549,7 @@ export default async function AdminPedidoDetailPage({
                       currentTrackingNumber={order.shipping_tracking_number}
                       currentLabelUrl={order.shipping_label_url}
                       hasShipmentId={hasShipmentId}
+                      hasSelectedRate={hasSelectedRate}
                     />
 
                     {/* Botón para cancelar envío si es Skydropx y tiene label creada */}
