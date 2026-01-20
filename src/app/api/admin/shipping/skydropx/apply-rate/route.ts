@@ -147,6 +147,16 @@ export async function POST(req: NextRequest) {
         eta_max_days: typeof etaMax === "number" ? etaMax : null,
         option_code: typeof optionCode === "string" ? optionCode : undefined,
       },
+      rate_used: {
+        external_rate_id: rateExternalId,
+        provider,
+        service,
+        eta_min_days: typeof etaMin === "number" ? etaMin : null,
+        eta_max_days: typeof etaMax === "number" ? etaMax : null,
+        carrier_cents: priceCents,
+        selected_at: now,
+        selection_source: "admin",
+      },
       quoted_at: now,
       price_cents: priceCents,
     };
@@ -157,24 +167,33 @@ export async function POST(req: NextRequest) {
       shipping: updatedShippingMeta,
     };
     const existingPricing = (currentMetadata.shipping_pricing as Record<string, unknown>) || null;
-    const pricingInput = {
-      carrier_cents: priceCents,
-      packaging_cents:
-        typeof existingPricing?.packaging_cents === "number" ? existingPricing.packaging_cents : 2000,
-      margin_cents:
-        typeof marginCents === "number"
+    const totalFromExisting =
+      typeof existingPricing?.total_cents === "number"
+        ? existingPricing.total_cents
+        : typeof existingPricing?.customer_total_cents === "number"
+          ? existingPricing.customer_total_cents
+          : typeof customerTotalCents === "number"
+            ? customerTotalCents
+            : undefined;
+    const packagingCents =
+      typeof existingPricing?.packaging_cents === "number" ? existingPricing.packaging_cents : 2000;
+    const computedMarginCents =
+      typeof totalFromExisting === "number"
+        ? Math.max(0, totalFromExisting - priceCents - packagingCents)
+        : typeof marginCents === "number"
           ? marginCents
           : typeof existingPricing?.margin_cents === "number"
             ? existingPricing.margin_cents
-            : undefined,
-      total_cents:
-        typeof existingPricing?.total_cents === "number"
-          ? existingPricing.total_cents
-          : typeof existingPricing?.customer_total_cents === "number"
-            ? existingPricing.customer_total_cents
-            : typeof customerTotalCents === "number"
-              ? customerTotalCents
-              : undefined,
+            : Math.min(Math.round(priceCents * 0.05), 3000);
+    const totalCents =
+      typeof totalFromExisting === "number"
+        ? totalFromExisting
+        : priceCents + packagingCents + computedMarginCents;
+    const pricingInput = {
+      carrier_cents: priceCents,
+      packaging_cents: packagingCents,
+      margin_cents: computedMarginCents,
+      total_cents: totalCents,
       customer_eta_min_days:
         typeof existingPricing?.customer_eta_min_days === "number" ? existingPricing.customer_eta_min_days : etaMin,
       customer_eta_max_days:

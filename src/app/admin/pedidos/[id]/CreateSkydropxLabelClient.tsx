@@ -11,6 +11,7 @@ type Props = {
   currentTrackingNumber: string | null;
   currentLabelUrl: string | null;
   hasShipmentId: boolean;
+  hasSelectedRate: boolean;
   onSuccess?: (data: { trackingNumber: string; labelUrl: string | null }) => void;
 };
 
@@ -22,6 +23,7 @@ export default function CreateSkydropxLabelClient({
   currentTrackingNumber,
   currentLabelUrl,
   hasShipmentId,
+  hasSelectedRate,
   onSuccess,
 }: Props) {
   const [isLoading, setIsLoading] = useState(false);
@@ -29,6 +31,7 @@ export default function CreateSkydropxLabelClient({
   const [error, setError] = useState<string | null>(null);
   const [trackingNumber, setTrackingNumber] = useState<string | null>(currentTrackingNumber);
   const [labelUrl, setLabelUrl] = useState<string | null>(currentLabelUrl);
+  const [cooldownUntil, setCooldownUntil] = useState<number | null>(null);
   
   // trackingPending solo debe ser true si REALMENTE hay evidencia de que se creó una guía:
   // - shippingStatus === "label_pending_tracking" (explícitamente marcado como pendiente)
@@ -50,7 +53,9 @@ export default function CreateSkydropxLabelClient({
   const canCreateLabel =
     !hasLabelEvidence &&
     paymentStatus === "paid" &&
-    (shippingProvider === "skydropx" || shippingProvider === "Skydropx");
+    (shippingProvider === "skydropx" || shippingProvider === "Skydropx") &&
+    hasSelectedRate &&
+    (!cooldownUntil || Date.now() >= cooldownUntil);
 
   const handleCreateLabel = async () => {
     setIsLoading(true);
@@ -76,6 +81,16 @@ export default function CreateSkydropxLabelClient({
           return;
         }
 
+        if (data.code === "label_creation_in_progress") {
+          const until = Date.now() + 15000;
+          setCooldownUntil(until);
+          setError("Creación en progreso, reintenta en unos segundos.");
+          setTimeout(() => {
+            setCooldownUntil(null);
+          }, 15000);
+          return;
+        }
+
         let errorMessage =
           data.code === "payment_not_paid"
             ? "La orden no está pagada. Solo se pueden crear guías para órdenes pagadas."
@@ -87,6 +102,8 @@ export default function CreateSkydropxLabelClient({
                   ? "El proveedor de envío no es compatible."
                   : data.code === "missing_shipping_rate"
                     ? "No hay tarifa guardada. Intenta crear la guía de nuevo."
+            : data.code === "missing_selected_rate"
+              ? "Primero recotiza y aplica una tarifa."
                   : data.code === "missing_address_data" ||
                       data.code === "missing_shipping_address"
                     ? "Falta dirección en la orden."
@@ -405,6 +422,33 @@ export default function CreateSkydropxLabelClient({
             disabled
             className="px-4 py-2 bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded-lg cursor-not-allowed font-medium"
             title="Solo se pueden crear guías para órdenes pagadas"
+          >
+            Crear guía en Skydropx
+          </button>
+        </div>
+      );
+    }
+
+    if (!hasSelectedRate) {
+      return (
+        <div className="mt-4 space-y-3">
+          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <Package className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5" />
+              <div className="flex-1">
+                <h4 className="text-sm font-semibold text-amber-900 dark:text-amber-100 mb-1">
+                  No se puede crear guía
+                </h4>
+                <p className="text-sm text-amber-700 dark:text-amber-300">
+                  Primero recotiza y aplica una tarifa.
+                </p>
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            disabled
+            className="px-4 py-2 bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded-lg cursor-not-allowed font-medium"
           >
             Crear guía en Skydropx
           </button>
