@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { checkAdminAccess } from "@/lib/admin/access";
 import { getOrderWithItemsAdmin } from "@/lib/supabase/orders.server";
 import { normalizeShippingPricing } from "@/lib/shipping/normalizeShippingPricing";
+import { normalizeShippingMetadata } from "@/lib/shipping/normalizeShippingMetadata";
 
 export const dynamic = "force-dynamic";
 
@@ -154,11 +155,13 @@ export async function POST(req: NextRequest) {
         eta_min_days: typeof etaMin === "number" ? etaMin : null,
         eta_max_days: typeof etaMax === "number" ? etaMax : null,
         carrier_cents: priceCents,
+        price_cents: priceCents,
         selected_at: now,
         selection_source: "admin",
       },
       quoted_at: now,
       price_cents: priceCents,
+      option_code: typeof optionCode === "string" ? optionCode : currentShippingMeta.option_code,
     };
 
     // Merge seguro de metadata
@@ -202,8 +205,16 @@ export async function POST(req: NextRequest) {
     const normalizedPricing = normalizeShippingPricing(pricingInput);
     if (normalizedPricing) {
       updatedMetadata.shipping_pricing = normalizedPricing;
-      updatedShippingMeta.price_cents = normalizedPricing.total_cents;
     }
+    const normalizedMeta = normalizeShippingMetadata(updatedMetadata, {
+      source: "apply-rate",
+      orderId,
+    });
+    if (normalizedMeta.shippingPricing) {
+      updatedMetadata.shipping_pricing = normalizedMeta.shippingPricing;
+    }
+    updatedMetadata.shipping = normalizedMeta.shippingMeta;
+    const finalTotal = normalizedMeta.shippingPricing?.total_cents ?? normalizedPricing?.total_cents;
 
     // Actualizar order
     const { error: updateError } = await supabase
@@ -212,7 +223,7 @@ export async function POST(req: NextRequest) {
         shipping_rate_ext_id: rateExternalId,
         shipping_provider: "skydropx",
         shipping_service_name: service,
-        shipping_price_cents: normalizedPricing?.total_cents ?? priceCents,
+        shipping_price_cents: finalTotal ?? priceCents,
         shipping_eta_min_days: typeof etaMin === "number" ? etaMin : null,
         shipping_eta_max_days: typeof etaMax === "number" ? etaMax : null,
         shipping_status: "rate_selected",

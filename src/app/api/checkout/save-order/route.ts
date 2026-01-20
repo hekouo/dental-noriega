@@ -5,6 +5,7 @@ import { z } from "zod";
 import { createActionSupabase } from "@/lib/supabase/server-actions";
 import { estimatePackageWeight } from "@/lib/shipping/estimatePackageWeight";
 import { normalizeShippingPricing } from "@/lib/shipping/normalizeShippingPricing";
+import { normalizeShippingMetadata } from "@/lib/shipping/normalizeShippingMetadata";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -420,14 +421,6 @@ export async function POST(req: NextRequest) {
         const normalizedPricing = normalizeShippingPricing(pricingInput);
         if (normalizedPricing) {
           metadata.shipping_pricing = normalizedPricing;
-          if (metadata.shipping && typeof metadata.shipping === "object") {
-            const shippingMeta = metadata.shipping as Record<string, unknown>;
-            metadata.shipping = {
-              ...shippingMeta,
-              pricing: normalizedPricing,
-              price_cents: normalizedPricing.total_cents,
-            };
-          }
         }
       }
       if (shippingData.rate) {
@@ -447,11 +440,19 @@ export async function POST(req: NextRequest) {
             eta_min_days: shippingData.rate.eta_min_days ?? null,
             eta_max_days: shippingData.rate.eta_max_days ?? null,
             carrier_cents: carrierCents,
+            price_cents: carrierCents,
             selected_at: new Date().toISOString(),
             selection_source: "checkout",
           },
         };
       }
+      const normalizedMeta = normalizeShippingMetadata(metadata, {
+        source: "checkout",
+      });
+      if (normalizedMeta.shippingPricing) {
+        metadata.shipping_pricing = normalizedMeta.shippingPricing;
+      }
+      metadata.shipping = normalizedMeta.shippingMeta;
       if (shippingData.package_used) {
         const currentShippingMeta = (metadata.shipping as Record<string, unknown>) || {};
         metadata.shipping = {
