@@ -16,6 +16,7 @@ import {
 import { getSkydropxConfig } from "@/lib/shipping/skydropx.server";
 import { getOrderShippingAddress } from "@/lib/shipping/getOrderShippingAddress";
 import { normalizeShippingPricing } from "@/lib/shipping/normalizeShippingPricing";
+import { normalizeShippingMetadata } from "@/lib/shipping/normalizeShippingMetadata";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -1717,12 +1718,11 @@ export async function POST(req: NextRequest) {
           external_rate_id: selectedRate.rateId,
           provider: selectedRate.provider,
           service: selectedRate.service,
-          price_cents: selectedRate.priceCents,
-          carrier_cents: selectedRate.priceCents,
-          selection_source: "admin",
-          source: selectedRate.source,
           eta_min_days: selectedRate.etaMinDays,
           eta_max_days: selectedRate.etaMaxDays,
+          carrier_cents: selectedRate.priceCents,
+          price_cents: selectedRate.priceCents,
+          selection_source: "admin",
           eta_policy: selectedRate.etaPolicy,
           eta_changed:
             selectedRate.etaPolicy === "fallback_provider_service" ||
@@ -1878,12 +1878,11 @@ export async function POST(req: NextRequest) {
         external_rate_id: selectedRate.rateId,
         provider: selectedRate.provider,
         service: selectedRate.service,
-        price_cents: selectedRate.priceCents,
-        carrier_cents: selectedRate.priceCents,
-        selection_source: "admin",
-        source: selectedRate.source,
         eta_min_days: selectedRate.etaMinDays,
         eta_max_days: selectedRate.etaMaxDays,
+        carrier_cents: selectedRate.priceCents,
+        price_cents: selectedRate.priceCents,
+        selection_source: "admin",
         eta_policy: selectedRate.etaPolicy,
         eta_changed:
           selectedRate.etaPolicy === "fallback_provider_service" ||
@@ -1920,7 +1919,7 @@ export async function POST(req: NextRequest) {
       selectedRate.etaMaxDays ?? null,
     );
 
-    const updatedMetadata = {
+    const updatedMetadata: Record<string, unknown> = {
       ...finalMetadata, // Preservar todos los campos existentes
       shipping_pricing: resolvedPricing ?? finalMetadata.shipping_pricing,
       shipping: {
@@ -1929,6 +1928,10 @@ export async function POST(req: NextRequest) {
           typeof resolvedPricing?.total_cents === "number"
             ? resolvedPricing.total_cents
             : (updatedShippingMeta as { price_cents?: number }).price_cents ?? null,
+        option_code:
+          (updatedShippingMeta.rate as { option_code?: string | null } | undefined)?.option_code ??
+          (updatedShippingMeta as { option_code?: string | null }).option_code ??
+          null,
         ...(labelCreationPayload
           ? {
               label_creation: {
@@ -1941,6 +1944,14 @@ export async function POST(req: NextRequest) {
           : {}),
       },
     };
+    const normalizedMeta = normalizeShippingMetadata(updatedMetadata, {
+      source: "create-label",
+      orderId,
+    });
+    if (normalizedMeta.shippingPricing) {
+      updatedMetadata.shipping_pricing = normalizedMeta.shippingPricing;
+    }
+    updatedMetadata.shipping = normalizedMeta.shippingMeta as Record<string, unknown>;
 
     // Determinar shipping_status según disponibilidad de tracking/label
     let shippingStatus: string;
