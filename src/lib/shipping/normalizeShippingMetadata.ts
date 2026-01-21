@@ -72,37 +72,43 @@ export function normalizeShippingMetadata(
   const rateUsed = (shippingMeta.rate_used as ShippingRateUsed) || null;
   const rateFromMeta = (shippingMeta.rate as ShippingRateUsed) || {};
   if (rateUsed || rateFromMeta.external_rate_id || rateFromMeta.rate_id) {
+    const carrierFromPricing = normalizedPricing?.carrier_cents;
     const carrier =
-      typeof rateUsed?.carrier_cents === "number"
-        ? rateUsed.carrier_cents
-        : typeof rateFromMeta.carrier_cents === "number"
-          ? rateFromMeta.carrier_cents
-          : typeof normalizedPricing?.carrier_cents === "number"
-            ? normalizedPricing.carrier_cents
-            : null;
+      typeof carrierFromPricing === "number"
+        ? carrierFromPricing
+        : typeof rateUsed?.carrier_cents === "number"
+          ? rateUsed.carrier_cents
+          : typeof rateFromMeta.carrier_cents === "number"
+            ? rateFromMeta.carrier_cents
+            : 0;
+    const totalFromPricing = normalizedPricing?.total_cents;
     const price =
-      typeof normalizedPricing?.total_cents === "number"
-        ? normalizedPricing.total_cents
+      typeof totalFromPricing === "number"
+        ? totalFromPricing
         : typeof rateUsed?.price_cents === "number"
           ? rateUsed.price_cents
           : carrier;
+    const externalRateId =
+      rateUsed?.external_rate_id ||
+      rateUsed?.rate_id ||
+      rateFromMeta.external_rate_id ||
+      rateFromMeta.rate_id ||
+      (shippingMeta.rate_id as string) ||
+      null;
+    const provider = rateUsed?.provider ?? rateFromMeta.provider ?? null;
+    const service = rateUsed?.service ?? rateFromMeta.service ?? null;
+
     nextShippingMeta.rate_used = {
       ...(rateUsed || {}),
       eta_min_days: rateUsed?.eta_min_days ?? rateFromMeta.eta_min_days ?? null,
       eta_max_days: rateUsed?.eta_max_days ?? rateFromMeta.eta_max_days ?? null,
       carrier_cents: carrier,
       price_cents: price,
-      external_rate_id:
-        rateUsed?.external_rate_id ||
-        rateUsed?.rate_id ||
-        rateFromMeta.external_rate_id ||
-        rateFromMeta.rate_id ||
-        (shippingMeta.rate_id as string) ||
-        null,
+      external_rate_id: externalRateId,
       selection_source: rateUsed?.selection_source ?? (context.source === "checkout" ? "checkout" : "admin"),
       customer_total_cents: price ?? null,
-      provider: rateUsed?.provider ?? rateFromMeta.provider ?? null,
-      service: rateUsed?.service ?? rateFromMeta.service ?? null,
+      provider,
+      service,
     };
 
     const rateUsedFinal = nextShippingMeta.rate_used as ShippingRateUsed;
@@ -152,11 +158,14 @@ export function normalizeShippingMetadata(
     });
   }
 
+  const correctedFlag = correctionHappened || normalizedPricing?.corrected || false;
+  const correctionReason = correctedFlag ? normalizedPricing?.correction_reason : undefined;
+
   return {
     shippingPricing: normalizedPricing,
     shippingMeta: nextShippingMeta,
     mismatchDetected,
-    corrected: correctionHappened || normalizedPricing?.corrected || false,
-    correctionReason: normalizedPricing?.correction_reason,
+    corrected: correctedFlag,
+    correctionReason,
   };
 }
