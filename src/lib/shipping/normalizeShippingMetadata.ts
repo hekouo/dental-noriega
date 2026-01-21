@@ -104,7 +104,33 @@ export function normalizeShippingMetadata(
       provider: rateUsed?.provider ?? rateFromMeta.provider ?? null,
       service: rateUsed?.service ?? rateFromMeta.service ?? null,
     };
+
+    const rateUsedFinal = nextShippingMeta.rate_used as ShippingRateUsed;
+    const derivedRateExternalId =
+      rateUsedFinal.external_rate_id ||
+      rateUsedFinal.rate_id ||
+      rateFromMeta.external_rate_id ||
+      rateFromMeta.rate_id ||
+      null;
+    const derivedProvider = rateUsedFinal.provider ?? null;
+    const derivedService = rateUsedFinal.service ?? null;
+    const derivedEtaMin = rateUsedFinal.eta_min_days ?? null;
+    const derivedEtaMax = rateUsedFinal.eta_max_days ?? null;
+    nextShippingMeta.rate = {
+      external_id: derivedRateExternalId,
+      provider: derivedProvider,
+      service: derivedService,
+      eta_min_days: derivedEtaMin,
+      eta_max_days: derivedEtaMax,
+    };
+    nextShippingMeta.rate_id = derivedRateExternalId;
+
+    const derivedOptionCode =
+      derivedProvider && derivedService ? `${derivedProvider}_${derivedService}` : null;
+    nextShippingMeta.option_code = derivedOptionCode;
   }
+
+  const rateUsedLog = nextShippingMeta.rate_used as ShippingRateUsed | undefined;
 
   if (context.source !== "checkout" && process.env.NODE_ENV !== "production") {
     console.log("[shipping-metadata] normalize:", {
@@ -119,6 +145,10 @@ export function normalizeShippingMetadata(
       margin_cents: normalizedPricing?.margin_cents ?? null,
       corrected: correctionHappened || normalizedPricing?.corrected || false,
       correction_reason: normalizedPricing?.correction_reason || null,
+      updated_option_code: (nextShippingMeta.option_code as string | null) ?? null,
+      derived_rate_external_id: (nextShippingMeta.rate_id as string | null) ?? null,
+      provider: rateUsedLog?.provider ?? null,
+      service: rateUsedLog?.service ?? null,
     });
   }
 
