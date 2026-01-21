@@ -1975,13 +1975,15 @@ export async function POST(req: NextRequest) {
       shippingStatus = "label_pending_tracking"; // Si no hay ninguno, está pendiente
     }
 
+    const nowIso = new Date().toISOString();
     // Actualizar la orden con tracking y label (si están disponibles)
     // IMPORTANTE: SIEMPRE guardar shipment_id en metadata Y columna shipping_shipment_id
     const shipmentIdToSave = shipmentResult.rawId || finalShippingMeta.shipment_id || null;
     const updateData: Record<string, unknown> = {
       metadata: updatedMetadata, // Merge seguro de metadata (incluye shipment_id SIEMPRE)
       shipping_status: shippingStatus,
-      updated_at: new Date().toISOString(),
+      shipping_status_updated_at: nowIso,
+      updated_at: nowIso,
     };
 
     if (resolvedPricing?.total_cents && typeof resolvedPricing.total_cents === "number") {

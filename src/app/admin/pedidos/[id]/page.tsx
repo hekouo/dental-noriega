@@ -389,42 +389,17 @@ export default async function AdminPedidoDetailPage({
                     {getShippingStatusLabel(order.shipping_status)}
                   </span>
                 </div>
-                {order.shipping_tracking_number && (
-                  <div>
-                    <p className="text-gray-600">Número de guía</p>
-                    <p className="font-medium font-mono">
-                      {order.shipping_tracking_number}
-                    </p>
-                  </div>
-                )}
-                {order.shipping_label_url && (
-                  <div>
-                    <p className="text-gray-600">Etiqueta PDF</p>
-                    <Link
-                      href={order.shipping_label_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary-600 hover:text-primary-700 underline"
-                    >
-                      Ver etiqueta PDF
-                    </Link>
-                    <p className="mt-1 text-xs text-gray-500">
-                      Nota: la etiqueta puede mostrar 1.0 KG aunque el peso declarado sea mayor.
-                    </p>
-                    {(() => {
-                      const metadata = (order.metadata as Record<string, unknown>) || {};
-                      const shippingMeta = (metadata.shipping as Record<string, unknown>) || {};
-                      const shipmentDebug = shippingMeta.shipment_debug as
-                        | { weight?: number | string | null; weight_unit?: string | null }
-                        | undefined;
-                      if (!shipmentDebug?.weight) return null;
-                      return (
-                        <p className="mt-1 text-xs text-gray-600">
-                          Peso declarado (shipment): {shipmentDebug.weight}
-                          {shipmentDebug.weight_unit ? ` ${shipmentDebug.weight_unit}` : ""}
-                        </p>
-                      );
-                    })()}
+                {(order.shipping_tracking_number || order.shipping_label_url) && (
+                  <div className="col-span-full">
+                    <ShippingTrackingDisplay
+                      trackingNumber={order.shipping_tracking_number}
+                      labelUrl={order.shipping_label_url}
+                      shippingStatus={order.shipping_status}
+                      provider={order.shipping_provider}
+                      service={order.shipping_service_name}
+                      etaMinDays={order.shipping_eta_min_days}
+                      etaMaxDays={order.shipping_eta_max_days}
+                    />
                   </div>
                 )}
               </div>

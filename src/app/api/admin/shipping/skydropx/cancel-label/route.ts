@@ -403,10 +403,12 @@ export async function POST(req: NextRequest) {
 
     // Actualizar la orden localmente: estado = "cancelled" (solo si Skydropx respondió OK)
     // Conservar tracking/label para referencia histórica, pero marcar como cancelado
+    const nowIso = new Date().toISOString();
     const updateData: Record<string, unknown> = {
       shipping_status: "cancelled", // Marcar como cancelado
+      shipping_status_updated_at: nowIso,
       metadata: updatedMetadata, // Merge seguro de metadata (incluye cancel_response_id, cancel_status)
-      updated_at: new Date().toISOString(),
+      updated_at: nowIso,
     };
 
     // Asegurar que shipping_shipment_id esté guardado en la columna si no estaba

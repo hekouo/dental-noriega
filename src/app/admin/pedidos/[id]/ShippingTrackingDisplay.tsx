@@ -1,11 +1,16 @@
 "use client";
 
-import { Package, ExternalLink, Download, AlertCircle } from "lucide-react";
+import { Package, ExternalLink, Download, AlertCircle, Copy } from "lucide-react";
+import { useState } from "react";
 
 type Props = {
   trackingNumber: string | null;
   labelUrl: string | null;
   shippingStatus: string | null;
+  provider?: string | null;
+  service?: string | null;
+  etaMinDays?: number | null;
+  etaMaxDays?: number | null;
 };
 
 /**
@@ -15,15 +20,38 @@ export default function ShippingTrackingDisplay({
   trackingNumber,
   labelUrl,
   shippingStatus,
+  provider,
+  service,
+  etaMinDays,
+  etaMaxDays,
 }: Props) {
   const normalizedStatus = shippingStatus?.toLowerCase() || "";
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    if (!trackingNumber) return;
+    try {
+      await navigator.clipboard.writeText(trackingNumber);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("[ShippingTrackingDisplay] No se pudo copiar tracking", err);
+    }
+  };
+
+  const etaLabel =
+    typeof etaMinDays === "number" && typeof etaMaxDays === "number"
+      ? `${etaMinDays}-${etaMaxDays} días`
+      : typeof etaMinDays === "number"
+        ? `${etaMinDays}+ días`
+        : null;
 
   return (
     <div className="space-y-3">
       {/* Tracking number */}
       {trackingNumber && (
         <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <div className="flex-1">
               <p className="text-sm font-medium text-blue-900 dark:text-blue-100 flex items-center gap-2">
                 <Package className="w-4 h-4" />
@@ -32,16 +60,30 @@ export default function ShippingTrackingDisplay({
               <p className="font-mono text-sm text-blue-700 dark:text-blue-300 mt-1">
                 {trackingNumber}
               </p>
+              <p className="text-xs text-blue-700/80 dark:text-blue-300/80 mt-1">
+                {provider || service ? `${provider ?? ""}${provider && service ? " • " : ""}${service ?? ""}` : null}
+                {etaLabel ? ` • ETA ${etaLabel}` : null}
+              </p>
             </div>
-            <a
-              href={`https://skydropx.com/tracking/${trackingNumber}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-700 dark:text-blue-300 bg-white dark:bg-gray-800 border border-blue-300 dark:border-blue-700 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
-            >
-              <ExternalLink className="w-4 h-4" />
-              Rastrear
-            </a>
+            <div className="flex flex-col items-end gap-2">
+              <a
+                href={`https://skydropx.com/tracking/${trackingNumber}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-700 dark:text-blue-300 bg-white dark:bg-gray-800 border border-blue-300 dark:border-blue-700 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
+              >
+                <ExternalLink className="w-4 h-4" />
+                Rastrear
+              </a>
+              <button
+                type="button"
+                onClick={handleCopy}
+                className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-blue-700 dark:text-blue-200 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+              >
+                <Copy className="w-4 h-4" />
+                {copied ? "Copiado" : "Copiar tracking"}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -66,7 +108,7 @@ export default function ShippingTrackingDisplay({
               className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors"
             >
               <Download className="w-4 h-4" />
-              Descargar etiqueta (PDF)
+              Abrir etiqueta (PDF)
             </a>
           </div>
         </div>

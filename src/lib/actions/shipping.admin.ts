@@ -148,9 +148,11 @@ export async function updateShippingStatusAdmin(
     const shouldNotify = order.shipping_status !== newStatus;
 
     // Preparar datos para actualización
+    const nowIso = new Date().toISOString();
     const updatePayload = {
       shipping_status: newStatus,
-      updated_at: new Date().toISOString(),
+      shipping_status_updated_at: nowIso,
+      updated_at: nowIso,
     };
 
     // Intentar enviar notificación (no bloquea si falla)
