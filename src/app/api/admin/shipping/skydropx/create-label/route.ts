@@ -2017,8 +2017,13 @@ export async function POST(req: NextRequest) {
 
     const { error: updateError } = await updateQuery;
 
-    // Enviar email de envío generado si se actualizó exitosamente y hay tracking/label
-    if (!updateError && (shipmentResult.trackingNumber || shipmentResult.labelUrl)) {
+    // Enviar email de envío generado solo si hay evidencia de guía (label_url) o estado label_created
+    if (
+      !updateError &&
+      (shipmentResult.labelUrl ||
+        shippingStatus === "label_created" ||
+        updatedMetadata.shipping_label_url)
+    ) {
       try {
         const { sendShippingCreatedEmail } = await import("@/lib/email/orderEmails");
         const emailResult = await sendShippingCreatedEmail(orderId);
