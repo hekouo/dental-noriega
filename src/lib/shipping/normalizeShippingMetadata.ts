@@ -30,6 +30,15 @@ type NormalizeResult = {
   correctionReason?: string;
 };
 
+const slugifyOptionCode = (provider: string | null, service: string | null): string | null => {
+  if (!provider || !service) return null;
+  return `${provider}_${service}`
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "_")
+    .replace(/[^a-z0-9_]/g, "");
+};
+
 export function normalizeShippingMetadata(
   metadata: Record<string, unknown>,
   context: NormalizeContext,
@@ -69,14 +78,20 @@ export function normalizeShippingMetadata(
     metadata.shipping_cost_cents = normalizedPricing.total_cents;
   }
 
-  const rateUsed = (shippingMeta.rate_used as ShippingRateUsed) || null;
+  const rateUsed = (shippingMeta.rate_used as ShippingRateUsed) || {};
   const rateFromMeta = (shippingMeta.rate as ShippingRateUsed) || {};
-  if (rateUsed || rateFromMeta.external_rate_id || rateFromMeta.rate_id) {
+  const shouldDeriveRate =
+    Boolean(rateUsed) ||
+    Boolean(rateFromMeta.external_rate_id) ||
+    Boolean(rateFromMeta.rate_id) ||
+    Boolean(normalizedPricing);
+
+  if (shouldDeriveRate) {
     const carrierFromPricing = normalizedPricing?.carrier_cents;
     const carrier =
       typeof carrierFromPricing === "number"
         ? carrierFromPricing
-        : typeof rateUsed?.carrier_cents === "number"
+        : typeof rateUsed.carrier_cents === "number"
           ? rateUsed.carrier_cents
           : typeof rateFromMeta.carrier_cents === "number"
             ? rateFromMeta.carrier_cents
@@ -85,28 +100,33 @@ export function normalizeShippingMetadata(
     const price =
       typeof totalFromPricing === "number"
         ? totalFromPricing
-        : typeof rateUsed?.price_cents === "number"
+        : typeof rateUsed.price_cents === "number"
           ? rateUsed.price_cents
           : carrier;
     const externalRateId =
-      rateUsed?.external_rate_id ||
-      rateUsed?.rate_id ||
+      rateUsed.external_rate_id ||
+      rateUsed.rate_id ||
       rateFromMeta.external_rate_id ||
       rateFromMeta.rate_id ||
       (shippingMeta.rate_id as string) ||
       null;
-    const provider = rateUsed?.provider ?? rateFromMeta.provider ?? null;
-    const service = rateUsed?.service ?? rateFromMeta.service ?? null;
+    const provider = rateUsed.provider ?? rateFromMeta.provider ?? null;
+    const service = rateUsed.service ?? rateFromMeta.service ?? null;
+    const etaMin = rateUsed.eta_min_days ?? rateFromMeta.eta_min_days ?? null;
+    const etaMax = rateUsed.eta_max_days ?? rateFromMeta.eta_max_days ?? null;
 
     nextShippingMeta.rate_used = {
       ...(rateUsed || {}),
-      eta_min_days: rateUsed?.eta_min_days ?? rateFromMeta.eta_min_days ?? null,
-      eta_max_days: rateUsed?.eta_max_days ?? rateFromMeta.eta_max_days ?? null,
+      eta_min_days: etaMin,
+      eta_max_days: etaMax,
       carrier_cents: carrier,
       price_cents: price,
       external_rate_id: externalRateId,
-      selection_source: rateUsed?.selection_source ?? (context.source === "checkout" ? "checkout" : "admin"),
-      customer_total_cents: price ?? null,
+      selection_source: rateUsed.selection_source ?? (context.source === "checkout" ? "checkout" : "admin"),
+      customer_total_cents:
+        typeof normalizedPricing?.customer_total_cents === "number"
+          ? normalizedPricing.customer_total_cents
+          : price ?? null,
       provider,
       service,
     };
@@ -131,9 +151,7 @@ export function normalizeShippingMetadata(
     };
     nextShippingMeta.rate_id = derivedRateExternalId;
 
-    const derivedOptionCode =
-      derivedProvider && derivedService ? `${derivedProvider}_${derivedService}` : null;
-    nextShippingMeta.option_code = derivedOptionCode;
+    nextShippingMeta.option_code = slugifyOptionCode(derivedProvider, derivedService);
   }
 
   const rateUsedLog = nextShippingMeta.rate_used as ShippingRateUsed | undefined;
