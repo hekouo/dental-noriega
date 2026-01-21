@@ -87,22 +87,31 @@ export function normalizeShippingMetadata(
     Boolean(normalizedPricing);
 
   if (shouldDeriveRate) {
-    const carrierFromPricing = normalizedPricing?.carrier_cents;
+    const carrierFromPricing =
+      typeof normalizedPricing?.carrier_cents === "number" ? normalizedPricing.carrier_cents : null;
+    const totalFromPricing =
+      typeof normalizedPricing?.total_cents === "number" ? normalizedPricing.total_cents : null;
+    const customerTotalFromPricing =
+      typeof normalizedPricing?.total_cents === "number"
+        ? normalizedPricing.total_cents
+        : typeof normalizedPricing?.customer_total_cents === "number"
+          ? normalizedPricing.customer_total_cents
+          : null;
+
     const carrier =
-      typeof carrierFromPricing === "number"
-        ? carrierFromPricing
-        : typeof rateUsed.carrier_cents === "number"
-          ? rateUsed.carrier_cents
-          : typeof rateFromMeta.carrier_cents === "number"
-            ? rateFromMeta.carrier_cents
-            : 0;
-    const totalFromPricing = normalizedPricing?.total_cents;
+      carrierFromPricing ??
+      (typeof rateUsed.carrier_cents === "number"
+        ? rateUsed.carrier_cents
+        : typeof rateFromMeta.carrier_cents === "number"
+          ? rateFromMeta.carrier_cents
+          : null);
     const price =
-      typeof totalFromPricing === "number"
-        ? totalFromPricing
-        : typeof rateUsed.price_cents === "number"
-          ? rateUsed.price_cents
-          : carrier;
+      totalFromPricing ??
+      (typeof rateUsed.price_cents === "number"
+        ? rateUsed.price_cents
+        : typeof rateFromMeta.price_cents === "number"
+          ? rateFromMeta.price_cents
+          : carrier);
     const externalRateId =
       rateUsed.external_rate_id ||
       rateUsed.rate_id ||
@@ -124,9 +133,10 @@ export function normalizeShippingMetadata(
       external_rate_id: externalRateId,
       selection_source: rateUsed.selection_source ?? (context.source === "checkout" ? "checkout" : "admin"),
       customer_total_cents:
-        typeof normalizedPricing?.customer_total_cents === "number"
-          ? normalizedPricing.customer_total_cents
-          : price ?? null,
+        customerTotalFromPricing ??
+        (typeof normalizedPricing?.customer_total_cents === "number" ? normalizedPricing.customer_total_cents : null) ??
+        price ??
+        null,
       provider,
       service,
     };
