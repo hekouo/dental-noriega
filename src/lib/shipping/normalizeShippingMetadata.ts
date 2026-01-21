@@ -122,7 +122,6 @@ export function normalizeShippingMetadata(
       carrier_cents: carrier,
       price_cents: price,
       external_rate_id: externalRateId,
-<<<<<<< HEAD
       selection_source: rateUsed.selection_source ?? (context.source === "checkout" ? "checkout" : "admin"),
       customer_total_cents:
         typeof normalizedPricing?.customer_total_cents === "number"
