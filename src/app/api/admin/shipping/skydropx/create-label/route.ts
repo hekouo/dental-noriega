@@ -1779,19 +1779,31 @@ export async function POST(req: NextRequest) {
         const parcels = Array.isArray(detailsAny?.data?.parcels) ? detailsAny.data.parcels : [];
         const firstParcel = parcels[0] || {};
 
-        const weight =
+        const weightRaw =
           dataAttributes.weight ||
           dataAttributes.declared_weight ||
           firstIncludedAttrs.weight ||
           firstIncludedAttrs.declared_weight ||
           firstParcel.weight ||
           null;
+        const weightParsed =
+          typeof weightRaw === "number"
+            ? weightRaw
+            : typeof weightRaw === "string"
+              ? parseFloat(weightRaw)
+              : null;
+        const packageUsedWeightKg = typeof weightG === "number" ? weightG / 1000 : null;
+        const resolvedWeightKg =
+          (typeof weightParsed === "number" && Number.isFinite(weightParsed) ? weightParsed : null) ??
+          (typeof packageUsedWeightKg === "number" ? packageUsedWeightKg : null) ??
+          null;
+
         const weightUnit =
           dataAttributes.mass_unit ||
           dataAttributes.weight_unit ||
           firstIncludedAttrs.mass_unit ||
           firstIncludedAttrs.weight_unit ||
-          null;
+          (resolvedWeightKg !== null ? "kg" : null);
         const dimensions = {
           length:
             dataAttributes.length ||
@@ -1822,7 +1834,7 @@ export async function POST(req: NextRequest) {
           shipment_id: shipmentResult.rawId,
           carrier: dataAttributes.carrier || detailsAny?.data?.carrier || detailsAny?.carrier || null,
           service: dataAttributes.service || detailsAny?.data?.service || detailsAny?.service || null,
-          weight,
+          weight: resolvedWeightKg,
           weight_unit: weightUnit,
           dimensions,
           raw_sample: rawSample,
@@ -1963,13 +1975,15 @@ export async function POST(req: NextRequest) {
       shippingStatus = "label_pending_tracking"; // Si no hay ninguno, está pendiente
     }
 
+    const nowIso = new Date().toISOString();
     // Actualizar la orden con tracking y label (si están disponibles)
     // IMPORTANTE: SIEMPRE guardar shipment_id en metadata Y columna shipping_shipment_id
     const shipmentIdToSave = shipmentResult.rawId || finalShippingMeta.shipment_id || null;
     const updateData: Record<string, unknown> = {
       metadata: updatedMetadata, // Merge seguro de metadata (incluye shipment_id SIEMPRE)
       shipping_status: shippingStatus,
-      updated_at: new Date().toISOString(),
+      shipping_status_updated_at: nowIso,
+      updated_at: nowIso,
     };
 
     if (resolvedPricing?.total_cents && typeof resolvedPricing.total_cents === "number") {
