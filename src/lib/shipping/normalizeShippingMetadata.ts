@@ -78,6 +78,7 @@ export function normalizeShippingMetadata(
     metadata.shipping_cost_cents = normalizedPricing.total_cents;
   }
 
+  const rateUsedBefore = (shippingMeta.rate_used as ShippingRateUsed) || null;
   const rateUsed = (shippingMeta.rate_used as ShippingRateUsed) || {};
   const rateFromMeta = (shippingMeta.rate as ShippingRateUsed) || {};
   const shouldDeriveRate =
@@ -165,6 +166,25 @@ export function normalizeShippingMetadata(
   }
 
   const rateUsedLog = nextShippingMeta.rate_used as ShippingRateUsed | undefined;
+  const hasPricing = Boolean(normalizedPricing);
+  const nullFieldsBefore = {
+    carrier: rateUsedBefore?.carrier_cents == null,
+    price: rateUsedBefore?.price_cents == null,
+    eta_min: rateUsedBefore?.eta_min_days == null,
+    eta_max: rateUsedBefore?.eta_max_days == null,
+    provider: rateUsedBefore?.provider == null,
+    service: rateUsedBefore?.service == null,
+    external: rateUsedBefore?.external_rate_id == null && rateUsedBefore?.rate_id == null,
+  };
+  const nullFieldsAfter = {
+    carrier: rateUsedLog?.carrier_cents == null,
+    price: rateUsedLog?.price_cents == null,
+    eta_min: rateUsedLog?.eta_min_days == null,
+    eta_max: rateUsedLog?.eta_max_days == null,
+    provider: rateUsedLog?.provider == null,
+    service: rateUsedLog?.service == null,
+    external: rateUsedLog?.external_rate_id == null && rateUsedLog?.rate_id == null,
+  };
 
   if (context.source !== "checkout" && process.env.NODE_ENV !== "production") {
     console.log("[shipping-metadata] normalize:", {
@@ -172,6 +192,7 @@ export function normalizeShippingMetadata(
       source: context.source,
       has_root_shipping_pricing: hasRoot,
       has_nested_shipping_pricing: hasNested,
+      has_pricing: hasPricing,
       mismatch_detected: mismatchDetected,
       total_cents: normalizedPricing?.total_cents ?? null,
       carrier_cents: normalizedPricing?.carrier_cents ?? null,
@@ -183,6 +204,8 @@ export function normalizeShippingMetadata(
       derived_rate_external_id: (nextShippingMeta.rate_id as string | null) ?? null,
       provider: rateUsedLog?.provider ?? null,
       service: rateUsedLog?.service ?? null,
+      rate_used_null_fields_before: nullFieldsBefore,
+      rate_used_null_fields_after: nullFieldsAfter,
     });
   }
 
