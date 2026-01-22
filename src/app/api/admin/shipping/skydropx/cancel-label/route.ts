@@ -4,6 +4,7 @@ import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
 import { checkAdminAccess } from "@/lib/admin/access";
 import { skydropxFetch, getSkydropxConfig } from "@/lib/skydropx/client";
+import { normalizeShippingMetadata } from "@/lib/shipping/normalizeShippingMetadata";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -396,10 +397,18 @@ export async function POST(req: NextRequest) {
       cancel_status: cancelStatus,
     };
 
-    const updatedMetadata = {
+    const updatedMetadata: Record<string, unknown> = {
       ...currentMetadata, // Preservar todos los campos existentes
       shipping: updatedShippingMeta,
     };
+    const normalizedMeta = normalizeShippingMetadata(updatedMetadata, {
+      source: "admin",
+      orderId,
+    });
+    if (normalizedMeta.shippingPricing) {
+      updatedMetadata.shipping_pricing = normalizedMeta.shippingPricing;
+    }
+    updatedMetadata.shipping = normalizedMeta.shippingMeta;
 
     // Actualizar la orden localmente: estado = "cancelled" (solo si Skydropx respondió OK)
     // Conservar tracking/label para referencia histórica, pero marcar como cancelado
