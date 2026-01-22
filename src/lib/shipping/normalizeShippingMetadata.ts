@@ -78,6 +78,7 @@ export function normalizeShippingMetadata(
     metadata.shipping_cost_cents = normalizedPricing.total_cents;
   }
 
+  const rateUsedBefore = (shippingMeta.rate_used as ShippingRateUsed) || null;
   const rateUsed = (shippingMeta.rate_used as ShippingRateUsed) || {};
   const rateFromMeta = (shippingMeta.rate as ShippingRateUsed) || {};
   const shouldDeriveRate =
@@ -87,22 +88,31 @@ export function normalizeShippingMetadata(
     Boolean(normalizedPricing);
 
   if (shouldDeriveRate) {
-    const carrierFromPricing = normalizedPricing?.carrier_cents;
+    const carrierFromPricing =
+      typeof normalizedPricing?.carrier_cents === "number" ? normalizedPricing.carrier_cents : null;
+    const totalFromPricing =
+      typeof normalizedPricing?.total_cents === "number" ? normalizedPricing.total_cents : null;
+    const customerTotalFromPricing =
+      typeof normalizedPricing?.total_cents === "number"
+        ? normalizedPricing.total_cents
+        : typeof normalizedPricing?.customer_total_cents === "number"
+          ? normalizedPricing.customer_total_cents
+          : null;
+
     const carrier =
-      typeof carrierFromPricing === "number"
-        ? carrierFromPricing
-        : typeof rateUsed.carrier_cents === "number"
-          ? rateUsed.carrier_cents
-          : typeof rateFromMeta.carrier_cents === "number"
-            ? rateFromMeta.carrier_cents
-            : 0;
-    const totalFromPricing = normalizedPricing?.total_cents;
+      carrierFromPricing ??
+      (typeof rateUsed.carrier_cents === "number"
+        ? rateUsed.carrier_cents
+        : typeof rateFromMeta.carrier_cents === "number"
+          ? rateFromMeta.carrier_cents
+          : null);
     const price =
-      typeof totalFromPricing === "number"
-        ? totalFromPricing
-        : typeof rateUsed.price_cents === "number"
-          ? rateUsed.price_cents
-          : carrier;
+      totalFromPricing ??
+      (typeof rateUsed.price_cents === "number"
+        ? rateUsed.price_cents
+        : typeof rateFromMeta.price_cents === "number"
+          ? rateFromMeta.price_cents
+          : carrier);
     const externalRateId =
       rateUsed.external_rate_id ||
       rateUsed.rate_id ||
@@ -124,9 +134,10 @@ export function normalizeShippingMetadata(
       external_rate_id: externalRateId,
       selection_source: rateUsed.selection_source ?? (context.source === "checkout" ? "checkout" : "admin"),
       customer_total_cents:
-        typeof normalizedPricing?.customer_total_cents === "number"
-          ? normalizedPricing.customer_total_cents
-          : price ?? null,
+        customerTotalFromPricing ??
+        (typeof normalizedPricing?.customer_total_cents === "number" ? normalizedPricing.customer_total_cents : null) ??
+        price ??
+        null,
       provider,
       service,
     };
@@ -155,6 +166,25 @@ export function normalizeShippingMetadata(
   }
 
   const rateUsedLog = nextShippingMeta.rate_used as ShippingRateUsed | undefined;
+  const hasPricing = Boolean(normalizedPricing);
+  const nullFieldsBefore = {
+    carrier: rateUsedBefore?.carrier_cents == null,
+    price: rateUsedBefore?.price_cents == null,
+    eta_min: rateUsedBefore?.eta_min_days == null,
+    eta_max: rateUsedBefore?.eta_max_days == null,
+    provider: rateUsedBefore?.provider == null,
+    service: rateUsedBefore?.service == null,
+    external: rateUsedBefore?.external_rate_id == null && rateUsedBefore?.rate_id == null,
+  };
+  const nullFieldsAfter = {
+    carrier: rateUsedLog?.carrier_cents == null,
+    price: rateUsedLog?.price_cents == null,
+    eta_min: rateUsedLog?.eta_min_days == null,
+    eta_max: rateUsedLog?.eta_max_days == null,
+    provider: rateUsedLog?.provider == null,
+    service: rateUsedLog?.service == null,
+    external: rateUsedLog?.external_rate_id == null && rateUsedLog?.rate_id == null,
+  };
 
   if (context.source !== "checkout" && process.env.NODE_ENV !== "production") {
     console.log("[shipping-metadata] normalize:", {
@@ -162,6 +192,7 @@ export function normalizeShippingMetadata(
       source: context.source,
       has_root_shipping_pricing: hasRoot,
       has_nested_shipping_pricing: hasNested,
+      has_pricing: hasPricing,
       mismatch_detected: mismatchDetected,
       total_cents: normalizedPricing?.total_cents ?? null,
       carrier_cents: normalizedPricing?.carrier_cents ?? null,
@@ -173,6 +204,8 @@ export function normalizeShippingMetadata(
       derived_rate_external_id: (nextShippingMeta.rate_id as string | null) ?? null,
       provider: rateUsedLog?.provider ?? null,
       service: rateUsedLog?.service ?? null,
+      rate_used_null_fields_before: nullFieldsBefore,
+      rate_used_null_fields_after: nullFieldsAfter,
     });
   }
 

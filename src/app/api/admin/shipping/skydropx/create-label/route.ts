@@ -1976,6 +1976,21 @@ export async function POST(req: NextRequest) {
     }
 
     const nowIso = new Date().toISOString();
+    // Persistir también en metadata la evidencia de estado/label/tracking
+    const metadataShipping = (updatedMetadata.shipping as Record<string, unknown>) || {};
+    updatedMetadata.shipping = {
+      ...metadataShipping,
+      shipping_status: shippingStatus,
+      shipping_status_updated_at: nowIso,
+      label_url:
+        shipmentResult.labelUrl ??
+        (metadataShipping as { label_url?: string | null }).label_url ??
+        null,
+      tracking_number:
+        shipmentResult.trackingNumber ??
+        (metadataShipping as { tracking_number?: string | null }).tracking_number ??
+        null,
+    };
     // Actualizar la orden con tracking y label (si están disponibles)
     // IMPORTANTE: SIEMPRE guardar shipment_id en metadata Y columna shipping_shipment_id
     const shipmentIdToSave = shipmentResult.rawId || finalShippingMeta.shipment_id || null;
@@ -2018,12 +2033,13 @@ export async function POST(req: NextRequest) {
     const { error: updateError } = await updateQuery;
 
     // Enviar email de envío generado solo si hay evidencia de guía (label_url) o estado label_created
-    if (
-      !updateError &&
-      (shipmentResult.labelUrl ||
-        shippingStatus === "label_created" ||
-        updatedMetadata.shipping_label_url)
-    ) {
+    const hasLabelUrlEvidence =
+      Boolean(shipmentResult.labelUrl) ||
+      Boolean(updateData.shipping_label_url) ||
+      Boolean((updatedMetadata.shipping as { label_url?: string | null }).label_url);
+    const hasShippingStatusCreated = shippingStatus === "label_created";
+
+    if (!updateError && (hasLabelUrlEvidence || hasShippingStatusCreated)) {
       try {
         const { sendShippingCreatedEmail } = await import("@/lib/email/orderEmails");
         const emailResult = await sendShippingCreatedEmail(orderId);
