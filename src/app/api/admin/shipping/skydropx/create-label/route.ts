@@ -2037,9 +2037,14 @@ export async function POST(req: NextRequest) {
       Boolean(shipmentResult.labelUrl) ||
       Boolean(updateData.shipping_label_url) ||
       Boolean((updatedMetadata.shipping as { label_url?: string | null }).label_url);
-    const hasShippingStatusCreated = shippingStatus === "label_created";
+    const labelCreationStatus =
+      (updatedMetadata.shipping as { label_creation?: { status?: string | null } } | undefined)?.label_creation
+        ?.status || null;
+    const hasLabelCreationCreated = labelCreationStatus === "created";
+    const hasShippingStatusEvidence =
+      shippingStatus === "label_created" || shippingStatus === "label_pending_tracking";
 
-    if (!updateError && (hasLabelUrlEvidence || hasShippingStatusCreated)) {
+    if (!updateError && (hasLabelUrlEvidence || hasLabelCreationCreated || hasShippingStatusEvidence)) {
       try {
         const { sendShippingCreatedEmail } = await import("@/lib/email/orderEmails");
         const emailResult = await sendShippingCreatedEmail(orderId);
