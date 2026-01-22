@@ -4,6 +4,7 @@ import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
 import { checkAdminAccess } from "@/lib/admin/access";
 import { getShipment, type SkydropxShipmentResponse } from "@/lib/skydropx/client";
+import { normalizeShippingMetadata } from "@/lib/shipping/normalizeShippingMetadata";
 import { isValidShippingStatus } from "@/lib/orders/statuses";
 
 export const dynamic = "force-dynamic";
@@ -388,35 +389,36 @@ export async function POST(req: NextRequest) {
     const hasShipmentIdChange = finalShipmentId && finalShipmentId !== orderData.shipping_shipment_id;
     const hasChanges = hasTrackingChange || hasLabelChange || hasShipmentIdChange;
 
-    // Actualizar metadata si shipmentId viene de metadata (para consistencia)
+    const nowIso = new Date().toISOString();
     const updateData: Record<string, unknown> = {
-      updated_at: new Date().toISOString(),
+      updated_at: nowIso,
     };
 
-    // Guardar shipment_id en columna dedicada (SIEMPRE si no está)
-    if (finalShipmentId && !orderData.shipping_shipment_id) {
-      updateData.shipping_shipment_id = finalShipmentId;
+    const metadata = (orderData.metadata as Record<string, unknown>) || {};
+    const shippingMeta = (metadata.shipping as Record<string, unknown>) || {};
+    const updatedShippingMeta: Record<string, unknown> = {
+      ...shippingMeta,
+    };
 
-      // También actualizar metadata.shipping.shipment_id por consistencia
-      const metadata = (orderData.metadata as Record<string, unknown>) || {};
-      const shippingMeta = (metadata.shipping as Record<string, unknown>) || {};
-      const updatedShippingMeta = {
-        ...shippingMeta,
-        shipment_id: finalShipmentId,
-      };
-      updateData.metadata = {
-        ...metadata,
-        shipping: updatedShippingMeta,
-      };
+    // Guardar shipment_id en columna dedicada (SIEMPRE si no está) y en metadata
+    if (finalShipmentId) {
+      if (!orderData.shipping_shipment_id) {
+        updateData.shipping_shipment_id = finalShipmentId;
+      }
+      updatedShippingMeta.shipment_id = finalShipmentId;
     }
 
     // Actualizar tracking/label solo si hay cambios Y el nuevo valor no es null/empty
     // NO sobreescribir valores existentes con null
     if (hasTrackingChange) {
-      updateData.shipping_tracking_number = extractedTracking!.trim();
+      const trackingTrimmed = extractedTracking!.trim();
+      updateData.shipping_tracking_number = trackingTrimmed;
+      updatedShippingMeta.tracking_number = trackingTrimmed;
     }
     if (hasLabelChange) {
-      updateData.shipping_label_url = extractedLabel!.trim();
+      const labelTrimmed = extractedLabel!.trim();
+      updateData.shipping_label_url = labelTrimmed;
+      updatedShippingMeta.label_url = labelTrimmed;
     }
 
     // Actualizar shipping_status según disponibilidad de tracking/label
@@ -431,28 +433,79 @@ export async function POST(req: NextRequest) {
       // Si hay shipment_id pero no tracking/label aún, mantener como pendiente
       updateData.shipping_status = "label_pending_tracking";
     }
+    if (updateData.shipping_status) {
+      updateData.shipping_status_updated_at = nowIso;
+      updatedShippingMeta.shipping_status = updateData.shipping_status;
+      updatedShippingMeta.shipping_status_updated_at = nowIso;
+    }
 
-    // Solo actualizar si hay cambios reales
-    if (Object.keys(updateData).length > 1 || hasChanges) {
-      // Si solo hay updated_at, no actualizar (evitar updates innecesarios)
-      const hasRealChanges = hasChanges || (updateData.shipping_shipment_id && !orderData.shipping_shipment_id);
-      if (hasRealChanges) {
-        await supabase.from("orders").update(updateData).eq("id", orderId);
-        
-        // Enviar email de envío generado si ahora hay tracking/label
-        if ((hasTrackingChange || hasLabelChange) && (extractedTracking || extractedLabel)) {
-          try {
-            const { sendShippingCreatedEmail } = await import("@/lib/email/orderEmails");
-            const emailResult = await sendShippingCreatedEmail(orderId);
-            if (!emailResult.ok) {
-              console.warn("[sync-label] Error al enviar email de envío generado:", emailResult.error);
-            } else if (emailResult.sent) {
-              console.log("[sync-label] Email de envío generado enviado:", orderId);
-            }
-          } catch (emailError) {
-            console.error("[sync-label] Error inesperado al enviar email:", emailError);
-            // No fallar si falla el email
+    // label_creation evidencia si ya hay tracking/label
+    if (finalTracking || finalLabel) {
+      const prevLabelCreation = (shippingMeta.label_creation as { status?: string | null; started_at?: string | null; finished_at?: string | null; request_id?: string | null }) || {};
+      updatedShippingMeta.label_creation = {
+        status: "created",
+        started_at: prevLabelCreation.started_at || prevLabelCreation.finished_at || nowIso,
+        finished_at: nowIso,
+        request_id: prevLabelCreation.request_id || null,
+      };
+    }
+
+    // Normalizar metadata con pricing/rate_used canónicos antes de persistir
+    const updatedMetadata: Record<string, unknown> = {
+      ...metadata,
+      shipping: updatedShippingMeta,
+    };
+    const normalizedMeta = normalizeShippingMetadata(updatedMetadata, {
+      source: "admin",
+      orderId,
+    });
+    updateData.metadata = {
+      ...updatedMetadata,
+      shipping: normalizedMeta.shippingMeta,
+      ...(normalizedMeta.shippingPricing ? { shipping_pricing: normalizedMeta.shippingPricing } : {}),
+    };
+
+    // Solo actualizar si hay cambios reales (columns o metadata)
+    const hasRealChanges =
+      hasChanges ||
+      updateData.shipping_shipment_id ||
+      hasTrackingChange ||
+      hasLabelChange ||
+      Boolean(updateData.shipping_status) ||
+      Boolean(normalizedMeta.mismatchDetected) ||
+      Boolean(normalizedMeta.corrected);
+
+    if (hasRealChanges) {
+      await supabase.from("orders").update(updateData).eq("id", orderId);
+
+      // Gate estricto: enviar email solo con evidencia real de guía
+      const hasLabelUrlEvidence =
+        Boolean(finalLabel) ||
+        Boolean(updateData.shipping_label_url) ||
+        Boolean((updateData.metadata as { shipping?: { label_url?: string | null } }).shipping?.label_url);
+      const labelCreationStatus =
+        ((updateData.metadata as { shipping?: { label_creation?: { status?: string | null } } }).shipping
+          ?.label_creation?.status as string | null) || null;
+      const hasLabelCreationCreated = labelCreationStatus === "created";
+      const finalShippingStatus =
+        (updateData.shipping_status as string | undefined) ||
+        ((updateData.metadata as { shipping?: { shipping_status?: string | null } }).shipping?.shipping_status as string | undefined) ||
+        null;
+      const hasShippingStatusEvidence =
+        finalShippingStatus === "label_created" || finalShippingStatus === "label_pending_tracking";
+
+      if (hasLabelUrlEvidence || hasLabelCreationCreated || hasShippingStatusEvidence) {
+        try {
+          const { sendShippingCreatedEmail } = await import("@/lib/email/orderEmails");
+          const emailResult = await sendShippingCreatedEmail(orderId);
+          if (!emailResult.ok) {
+            console.warn("[sync-label] Error al enviar email de envío generado:", emailResult.error);
+          } else if (emailResult.sent) {
+            console.log("[sync-label] Email de envío generado enviado:", orderId);
           }
+        } catch (emailError) {
+          console.error("[sync-label] Error inesperado al enviar email:", emailError);
+          // No fallar si falla el email
         }
       }
     }
