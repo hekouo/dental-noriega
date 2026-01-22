@@ -113,6 +113,9 @@ export function normalizeShippingMetadata(
         : typeof rateFromMeta.price_cents === "number"
           ? rateFromMeta.price_cents
           : carrier);
+    // Overwrite from canonical pricing when present (force)
+    const carrierForced = typeof normalizedPricing?.carrier_cents === "number" ? normalizedPricing.carrier_cents : carrier;
+    const priceForced = typeof normalizedPricing?.total_cents === "number" ? normalizedPricing.total_cents : price;
     const externalRateId =
       rateUsed.external_rate_id ||
       rateUsed.rate_id ||
@@ -129,15 +132,17 @@ export function normalizeShippingMetadata(
       ...(rateUsed || {}),
       eta_min_days: etaMin,
       eta_max_days: etaMax,
-      carrier_cents: carrier,
-      price_cents: price,
+      carrier_cents: carrierForced,
+      price_cents: priceForced,
       external_rate_id: externalRateId,
       selection_source: rateUsed.selection_source ?? (context.source === "checkout" ? "checkout" : "admin"),
       customer_total_cents:
-        customerTotalFromPricing ??
-        (typeof normalizedPricing?.customer_total_cents === "number" ? normalizedPricing.customer_total_cents : null) ??
-        price ??
-        null,
+        typeof normalizedPricing?.total_cents === "number"
+          ? normalizedPricing.total_cents
+          : customerTotalFromPricing ??
+            (typeof normalizedPricing?.customer_total_cents === "number" ? normalizedPricing.customer_total_cents : null) ??
+            priceForced ??
+            null,
       provider,
       service,
     };
