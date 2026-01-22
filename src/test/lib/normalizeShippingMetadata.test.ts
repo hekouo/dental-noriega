@@ -16,9 +16,9 @@ describe("normalizeShippingMetadata", () => {
           external_rate_id: "rate_123",
           provider: "skydropx",
           service: "express",
-          carrier_cents: null,
-          price_cents: null,
-          customer_total_cents: null,
+          carrier_cents: 1,
+          price_cents: 2,
+          customer_total_cents: 3,
         },
       },
     };
