@@ -1976,8 +1976,8 @@ export async function POST(req: NextRequest) {
     }
 
     const nowIso = new Date().toISOString();
-    // Persistir también en metadata la evidencia de estado/label/tracking
-    const metadataShipping = (updatedMetadata.shipping as Record<string, unknown>) || {};
+    // Agregar evidencia de estado/label/tracking al metadata normalizado
+    const metadataShipping = normalizedMeta.shippingMeta;
     updatedMetadata.shipping = {
       ...metadataShipping,
       shipping_status: shippingStatus,
@@ -1991,6 +1991,15 @@ export async function POST(req: NextRequest) {
         (metadataShipping as { tracking_number?: string | null }).tracking_number ??
         null,
     };
+    // Re-normalizar después de agregar evidencia para asegurar rate_used completo
+    const finalNormalizedMeta = normalizeShippingMetadata(updatedMetadata, {
+      source: "create-label",
+      orderId,
+    });
+    if (finalNormalizedMeta.shippingPricing) {
+      updatedMetadata.shipping_pricing = finalNormalizedMeta.shippingPricing;
+    }
+    updatedMetadata.shipping = finalNormalizedMeta.shippingMeta;
     // Actualizar la orden con tracking y label (si están disponibles)
     // IMPORTANTE: SIEMPRE guardar shipment_id en metadata Y columna shipping_shipment_id
     const shipmentIdToSave = shipmentResult.rawId || finalShippingMeta.shipment_id || null;

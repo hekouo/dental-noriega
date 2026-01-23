@@ -99,23 +99,23 @@ export function normalizeShippingMetadata(
           ? normalizedPricing.customer_total_cents
           : null;
 
-    const carrier =
-      carrierFromPricing ??
-      (typeof rateUsed.carrier_cents === "number"
-        ? rateUsed.carrier_cents
-        : typeof rateFromMeta.carrier_cents === "number"
-          ? rateFromMeta.carrier_cents
-          : null);
-    const price =
-      totalFromPricing ??
-      (typeof rateUsed.price_cents === "number"
-        ? rateUsed.price_cents
-        : typeof rateFromMeta.price_cents === "number"
-          ? rateFromMeta.price_cents
-          : carrier);
-    // Overwrite from canonical pricing when present (force)
-    const carrierForced = typeof normalizedPricing?.carrier_cents === "number" ? normalizedPricing.carrier_cents : carrier;
-    const priceForced = typeof normalizedPricing?.total_cents === "number" ? normalizedPricing.total_cents : price;
+    // FORCE OVERWRITE desde shipping_pricing cuando existe (incondicional)
+    const carrierForced =
+      typeof normalizedPricing?.carrier_cents === "number"
+        ? normalizedPricing.carrier_cents
+        : typeof rateUsed.carrier_cents === "number"
+          ? rateUsed.carrier_cents
+          : typeof rateFromMeta.carrier_cents === "number"
+            ? rateFromMeta.carrier_cents
+            : null;
+    const priceForced =
+      typeof normalizedPricing?.total_cents === "number"
+        ? normalizedPricing.total_cents
+        : typeof rateUsed.price_cents === "number"
+          ? rateUsed.price_cents
+          : typeof rateFromMeta.price_cents === "number"
+            ? rateFromMeta.price_cents
+            : carrierForced;
     const externalRateId =
       rateUsed.external_rate_id ||
       rateUsed.rate_id ||
@@ -128,23 +128,24 @@ export function normalizeShippingMetadata(
     const etaMin = rateUsed.eta_min_days ?? rateFromMeta.eta_min_days ?? null;
     const etaMax = rateUsed.eta_max_days ?? rateFromMeta.eta_max_days ?? null;
 
+    // Construir rate_used con overwrite forzado de pricing (los valores forzados van al final para sobrescribir cualquier null del spread)
     nextShippingMeta.rate_used = {
       ...(rateUsed || {}),
       eta_min_days: etaMin,
       eta_max_days: etaMax,
-      carrier_cents: carrierForced,
-      price_cents: priceForced,
       external_rate_id: externalRateId,
       selection_source: rateUsed.selection_source ?? (context.source === "checkout" ? "checkout" : "admin"),
+      provider,
+      service,
+      // FORCE OVERWRITE: estos valores siempre sobrescriben, incluso si rateUsed tenía nulls
+      carrier_cents: carrierForced,
+      price_cents: priceForced,
       customer_total_cents:
         typeof normalizedPricing?.total_cents === "number"
           ? normalizedPricing.total_cents
-          : customerTotalFromPricing ??
-            (typeof normalizedPricing?.customer_total_cents === "number" ? normalizedPricing.customer_total_cents : null) ??
-            priceForced ??
-            null,
-      provider,
-      service,
+          : typeof normalizedPricing?.customer_total_cents === "number"
+            ? normalizedPricing.customer_total_cents
+            : priceForced ?? null,
     };
 
     const rateUsedFinal = nextShippingMeta.rate_used as ShippingRateUsed;
