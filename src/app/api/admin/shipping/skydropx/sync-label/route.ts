@@ -280,7 +280,7 @@ export async function POST(req: NextRequest) {
     // Cargar la orden
     const { data: orderData, error: orderError } = await supabase
       .from("orders")
-      .select("id, shipping_shipment_id, shipping_tracking_number, shipping_label_url, shipping_status, shipping_provider, metadata")
+      .select("id, shipping_shipment_id, shipping_tracking_number, shipping_label_url, shipping_status, shipping_status_updated_at, shipping_provider, metadata")
       .eq("id", orderId)
       .single();
 
@@ -408,40 +408,59 @@ export async function POST(req: NextRequest) {
       updatedShippingMeta.shipment_id = finalShipmentId;
     }
 
+    // Espejar columnas -> metadata (siempre, no solo cuando hay cambios)
+    const finalTracking = hasTrackingChange
+      ? extractedTracking!.trim()
+      : orderData.shipping_tracking_number || (shippingMeta.tracking_number as string | null) || null;
+    const finalLabel = hasLabelChange
+      ? extractedLabel!.trim()
+      : orderData.shipping_label_url || (shippingMeta.label_url as string | null) || null;
+
     // Actualizar tracking/label solo si hay cambios Y el nuevo valor no es null/empty
     // NO sobreescribir valores existentes con null
     if (hasTrackingChange) {
-      const trackingTrimmed = extractedTracking!.trim();
-      updateData.shipping_tracking_number = trackingTrimmed;
-      updatedShippingMeta.tracking_number = trackingTrimmed;
+      updateData.shipping_tracking_number = finalTracking;
     }
     if (hasLabelChange) {
-      const labelTrimmed = extractedLabel!.trim();
-      updateData.shipping_label_url = labelTrimmed;
-      updatedShippingMeta.label_url = labelTrimmed;
+      updateData.shipping_label_url = finalLabel;
+    }
+    // Espejar columnas a metadata siempre (incluso si no hay cambios)
+    if (finalTracking) {
+      updatedShippingMeta.tracking_number = finalTracking;
+    }
+    if (finalLabel) {
+      updatedShippingMeta.label_url = finalLabel;
     }
 
-    // Actualizar shipping_status según disponibilidad de tracking/label
-    const finalTracking = extractedTracking || orderData.shipping_tracking_number;
-    const finalLabel = extractedLabel || orderData.shipping_label_url;
-
+    // Actualizar shipping_status según disponibilidad de tracking/label/columns
+    const statusFromColumns = (orderData as { shipping_status?: string | null }).shipping_status || null;
+    let nextStatus: string | null = statusFromColumns || null;
     if (finalTracking && finalLabel) {
-      updateData.shipping_status = "label_created";
-    } else if (finalTracking || finalLabel) {
-      updateData.shipping_status = "label_pending_tracking";
-    } else if (finalShipmentId && !orderData.shipping_tracking_number && !orderData.shipping_label_url) {
-      // Si hay shipment_id pero no tracking/label aún, mantener como pendiente
-      updateData.shipping_status = "label_pending_tracking";
+      nextStatus = "label_created";
+    } else if (finalTracking || finalLabel || finalShipmentId) {
+      nextStatus = "label_pending_tracking";
     }
-    if (updateData.shipping_status) {
-      updateData.shipping_status_updated_at = nowIso;
-      updatedShippingMeta.shipping_status = updateData.shipping_status;
-      updatedShippingMeta.shipping_status_updated_at = nowIso;
+    if (nextStatus) {
+      const statusChanged = nextStatus !== orderData.shipping_status;
+      const statusUpdatedAtFromColumns = (orderData as { shipping_status_updated_at?: string | null }).shipping_status_updated_at || null;
+      if (statusChanged) {
+        updateData.shipping_status = nextStatus;
+        updateData.shipping_status_updated_at = nowIso;
+      }
+      // Espejar status a metadata siempre (desde columnas o nuevo)
+      updatedShippingMeta.shipping_status = nextStatus;
+      updatedShippingMeta.shipping_status_updated_at =
+        updateData.shipping_status_updated_at || statusUpdatedAtFromColumns || nowIso;
     }
 
-    // label_creation evidencia si ya hay tracking/label
-    if (finalTracking || finalLabel) {
-      const prevLabelCreation = (shippingMeta.label_creation as { status?: string | null; started_at?: string | null; finished_at?: string | null; request_id?: string | null }) || {};
+    // label_creation evidencia si ya hay tracking/label/status
+    if (finalTracking || finalLabel || nextStatus === "label_created" || nextStatus === "label_pending_tracking") {
+      const prevLabelCreation = (shippingMeta.label_creation as {
+        status?: string | null;
+        started_at?: string | null;
+        finished_at?: string | null;
+        request_id?: string | null;
+      }) || {};
       updatedShippingMeta.label_creation = {
         status: "created",
         started_at: prevLabelCreation.started_at || prevLabelCreation.finished_at || nowIso,
@@ -465,6 +484,14 @@ export async function POST(req: NextRequest) {
       ...(normalizedMeta.shippingPricing ? { shipping_pricing: normalizedMeta.shippingPricing } : {}),
     };
 
+    // Detectar si metadata difiere de columnas (necesita sync)
+    const metadataBeforeShipping = (orderData.metadata as { shipping?: Record<string, unknown> } | null)?.shipping || {};
+    const metadataDiffersFromColumns =
+      (finalTracking && metadataBeforeShipping?.tracking_number !== finalTracking) ||
+      (finalLabel && metadataBeforeShipping?.label_url !== finalLabel) ||
+      (nextStatus && metadataBeforeShipping?.shipping_status !== nextStatus) ||
+      (finalShipmentId && metadataBeforeShipping?.shipment_id !== finalShipmentId);
+
     // Solo actualizar si hay cambios reales (columns o metadata)
     const hasRealChanges =
       hasChanges ||
@@ -473,7 +500,8 @@ export async function POST(req: NextRequest) {
       hasLabelChange ||
       Boolean(updateData.shipping_status) ||
       Boolean(normalizedMeta.mismatchDetected) ||
-      Boolean(normalizedMeta.corrected);
+      Boolean(normalizedMeta.corrected) ||
+      metadataDiffersFromColumns;
 
     if (hasRealChanges) {
       await supabase.from("orders").update(updateData).eq("id", orderId);
