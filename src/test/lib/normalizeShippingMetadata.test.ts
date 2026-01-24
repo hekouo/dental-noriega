@@ -63,4 +63,62 @@ describe("normalizeShippingMetadata", () => {
     expect(rateUsed.price_cents).toBe(20270);
     expect(rateUsed.customer_total_cents).toBe(20270);
   });
+
+  it("garantiza que rate_used nunca queda con nulls cuando shipping_pricing existe (caso merge)", () => {
+    // Simula un caso donde un endpoint hace merge después de normalizar
+    const metadata = {
+      shipping_pricing: {
+        carrier_cents: 14964,
+        packaging_cents: 2000,
+        margin_cents: 3306,
+        total_cents: 20270,
+      },
+      shipping: {
+        rate_used: {
+          external_rate_id: "rate_789",
+          provider: "skydropx",
+          service: "express",
+          carrier_cents: null, // null explícito
+          price_cents: null, // null explícito
+          customer_total_cents: null, // null explícito
+        },
+        // Simula que otro campo se agregó después
+        tracking_number: "TRACK123",
+      },
+    };
+
+    // Primera normalización
+    const result1 = normalizeShippingMetadata(metadata, {
+      source: "admin",
+    });
+
+    // Simula un merge incorrecto (bug que queremos prevenir)
+    const badMerge = {
+      ...metadata,
+      shipping: {
+        ...metadata.shipping,
+        ...result1.shippingMeta,
+        // Bug: reintroduce rate_used con nulls
+        rate_used: {
+          ...metadata.shipping.rate_used,
+          tracking_number: "TRACK123", // campo adicional
+        },
+      },
+    };
+
+    // Re-normalizar después del merge (esto es lo que debe hacer cada endpoint)
+    const result2 = normalizeShippingMetadata(badMerge, {
+      source: "admin",
+    });
+
+    const rateUsed = result2.shippingMeta.rate_used as Record<string, unknown>;
+    // Debe forzar overwrite incluso después del merge incorrecto
+    expect(rateUsed.carrier_cents).toBe(14964);
+    expect(rateUsed.price_cents).toBe(20270);
+    expect(rateUsed.customer_total_cents).toBe(20270);
+    // No debe quedar null nunca
+    expect(rateUsed.carrier_cents).not.toBeNull();
+    expect(rateUsed.price_cents).not.toBeNull();
+    expect(rateUsed.customer_total_cents).not.toBeNull();
+  });
 });

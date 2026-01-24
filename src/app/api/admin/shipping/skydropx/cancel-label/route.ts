@@ -4,7 +4,7 @@ import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
 import { checkAdminAccess } from "@/lib/admin/access";
 import { skydropxFetch, getSkydropxConfig } from "@/lib/skydropx/client";
-import { normalizeShippingMetadata } from "@/lib/shipping/normalizeShippingMetadata";
+import { normalizeShippingMetadata, addShippingMetadataDebug } from "@/lib/shipping/normalizeShippingMetadata";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -405,10 +405,13 @@ export async function POST(req: NextRequest) {
       source: "admin",
       orderId,
     });
-    if (normalizedMeta.shippingPricing) {
-      updatedMetadata.shipping_pricing = normalizedMeta.shippingPricing;
-    }
-    updatedMetadata.shipping = normalizedMeta.shippingMeta;
+    
+    // Usar SOLO el resultado normalizado (nunca mezclar con updatedMetadata)
+    const finalMetadata: Record<string, unknown> = {
+      ...updatedMetadata,
+      shipping: addShippingMetadataDebug(normalizedMeta.shippingMeta, "cancel-label"),
+      ...(normalizedMeta.shippingPricing ? { shipping_pricing: normalizedMeta.shippingPricing } : {}),
+    };
 
     // Actualizar la orden localmente: estado = "cancelled" (solo si Skydropx respondió OK)
     // Conservar tracking/label para referencia histórica, pero marcar como cancelado
@@ -416,7 +419,7 @@ export async function POST(req: NextRequest) {
     const updateData: Record<string, unknown> = {
       shipping_status: "cancelled", // Marcar como cancelado
       shipping_status_updated_at: nowIso,
-      metadata: updatedMetadata, // Merge seguro de metadata (incluye cancel_response_id, cancel_status)
+      metadata: finalMetadata, // Usar SOLO resultado normalizado
       updated_at: nowIso,
     };
 

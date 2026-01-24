@@ -215,3 +215,25 @@ export function normalizeShippingMetadata(
     correctionReason,
   };
 }
+
+/**
+ * Agrega debug metadata para rastrear quién escribió metadata.shipping (solo server-side admin)
+ */
+export function addShippingMetadataDebug(
+  shippingMeta: Record<string, unknown>,
+  route: string,
+): Record<string, unknown> {
+  // Solo agregar debug en server-side (no en cliente)
+  if (typeof process !== "undefined" && process.env) {
+    return {
+      ...shippingMeta,
+      _last_write: {
+        route,
+        at: new Date().toISOString(),
+        // SHA del commit actual si está disponible (opcional, no crítico)
+        sha: process.env.VERCEL_GIT_COMMIT_SHA?.substring(0, 7) || "unknown",
+      },
+    };
+  }
+  return shippingMeta;
+}
