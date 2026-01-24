@@ -15,6 +15,317 @@ type Props = {
   onSuccess?: (data: { trackingNumber: string; labelUrl: string | null }) => void;
 };
 
+// Helper para obtener mensaje de error desde código de respuesta
+function getErrorMessage(data: {
+  code?: string;
+  message?: string;
+  statusCode?: number;
+  details?: {
+    missingFields?: unknown;
+    upstream?: Record<string, unknown>;
+    payloadHealth?: Record<string, boolean | number>;
+  };
+}): string {
+  const code = data.code;
+  if (!code) {
+    return data.message || "Error desconocido al crear la guía.";
+  }
+
+  // Errores simples con mensaje directo
+  const simpleErrors: Record<string, string> = {
+    payment_not_paid: "La orden no está pagada. Solo se pueden crear guías para órdenes pagadas.",
+    unauthorized: "No tienes permisos para realizar esta acción.",
+    order_not_found: "La orden no existe.",
+    unsupported_provider: "El proveedor de envío no es compatible.",
+    missing_shipping_rate: "No hay tarifa guardada. Intenta crear la guía de nuevo.",
+    missing_selected_rate: "Primero recotiza y aplica una tarifa.",
+    missing_final_package: "Captura peso y medidas reales de la caja antes de crear guía. Ve a la sección 'Paquete real para guía'.",
+    skydropx_error: "Error al crear la guía en Skydropx. Revisa los logs.",
+    label_creation_in_progress: "La creación de la guía está en progreso. Intenta de nuevo en unos momentos.",
+  };
+
+  if (simpleErrors[code]) {
+    return simpleErrors[code];
+  }
+
+  // Errores de dirección
+  if (code === "missing_address_data" || code === "missing_shipping_address") {
+    return "Falta dirección en la orden.";
+  }
+
+  // Errores de Skydropx sin tarifas
+  if (code === "skydropx_no_rates" || data.statusCode === 502) {
+    return "Skydropx todavía no devolvió tarifas. Intenta Recotizar y vuelve a Crear guía.";
+  }
+
+  // Errores de payload inválido
+  if (code === "invalid_shipping_payload") {
+    const missing = Array.isArray(data.details?.missingFields) ? (data.details.missingFields as string[]) : [];
+    const hasConsignmentNote = missing.some((f) => f.includes("consignment_note"));
+    const hasPackageType = missing.some((f) => f.includes("package_type"));
+    if (hasConsignmentNote || hasPackageType) {
+      return "Faltan códigos Carta Porte: consignment_note y package_type. Configura env vars (SKYDROPX_DEFAULT_CONSIGNMENT_NOTE, SKYDROPX_DEFAULT_PACKAGE_TYPE) o guarda en metadata.shipping.";
+    }
+    return `Faltan campos requeridos: ${missing.join(", ")}`;
+  }
+
+  // Errores de bad request
+  if (code === "skydropx_bad_request") {
+    let message = "Skydropx rechazó el payload. Revisa ORIGIN_* env vars y campos requeridos. Ver detalles abajo.";
+    if (data.details?.payloadHealth) {
+      const ph = data.details.payloadHealth as Record<string, boolean | number>;
+      const missing = Object.entries(ph)
+        .filter(([k, v]) => k.startsWith("has") && v === false)
+        .map(([k]) => k.replace("has", "").replace(/([A-Z])/g, " $1").trim());
+      if (missing.length > 0) {
+        message += `\n\nCampos faltantes detectados: ${missing.join(", ")}`;
+      }
+    }
+    return message;
+  }
+
+  // Errores de unprocessable entity
+  if (code === "skydropx_unprocessable_entity") {
+    const upstream = data.details?.upstream as Record<string, unknown> | undefined;
+    const errors = upstream?.errors as Array<{ field?: string | null; message?: string }> | undefined;
+    const hasConsignmentNote = errors?.some((e) => e.field?.includes("consignment_note") || e.message?.includes("consignment_note"));
+    const hasPackageType = errors?.some((e) => e.field?.includes("package_type") || e.message?.includes("package_type"));
+    if (hasConsignmentNote || hasPackageType) {
+      return "Faltan códigos Carta Porte: consignment_note y package_type. Configura env vars (SKYDROPX_DEFAULT_CONSIGNMENT_NOTE, SKYDROPX_DEFAULT_PACKAGE_TYPE) o guarda en metadata.shipping.";
+    }
+    return "Skydropx rechazó el envío por errores de validación. Ver lista de errores abajo.";
+  }
+
+  return data.message || "Error desconocido al crear la guía.";
+}
+
+// Helper para formatear errores de validación de Skydropx
+function formatSkydropxValidationErrors(data: {
+  code?: string;
+  details?: { upstream?: Record<string, unknown> };
+}): string {
+  if ((data.code === "skydropx_unprocessable_entity" || data.code === "skydropx_bad_request") && data.details?.upstream?.errors) {
+    const errors = data.details.upstream.errors as Array<{ field?: string | null; message?: string }>;
+    if (Array.isArray(errors) && errors.length > 0) {
+      let errorList = "\n\nErrores de validación:\n";
+      errors.forEach((err, idx) => {
+        const field = err.field ? `[${err.field}]` : "";
+        const msg = err.message || "Error desconocido";
+        errorList += `${idx + 1}. ${field} ${msg}\n`;
+      });
+      return errorList;
+    }
+  } else if (data.code === "skydropx_unprocessable_entity" || data.code === "skydropx_bad_request") {
+    const upstream = data.details?.upstream as Record<string, unknown> | undefined;
+    if (upstream?.keys && Array.isArray(upstream.keys) && upstream.keys.includes("errors")) {
+      return "\n\nNota: Skydropx devolvió errores, pero no se pudo parsear el formato. Ver logs para detalles.";
+    }
+  }
+  return "";
+}
+
+// Subcomponente para botón de sincronización
+function SyncButton({
+  onClick,
+  disabled,
+  isLoading,
+}: {
+  onClick: () => void;
+  disabled: boolean;
+  isLoading: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2"
+    >
+      {isLoading ? (
+        <>
+          <Loader2 className="w-4 h-4 animate-spin" />
+          Sincronizando...
+        </>
+      ) : (
+        <>
+          <RefreshCw className="w-4 h-4" />
+          Sincronizar
+        </>
+      )}
+    </button>
+  );
+}
+
+// Subcomponente para mostrar error
+function ErrorDisplay({ error }: { error: string | null }) {
+  if (!error) return null;
+  return (
+    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+      <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+    </div>
+  );
+}
+
+// Subcomponente para estado de tracking pendiente
+function TrackingPendingView({
+  onSync,
+  isSyncing,
+  error,
+}: {
+  onSync: () => void;
+  isSyncing: boolean;
+  error: string | null;
+}) {
+  return (
+    <div className="mt-4 space-y-3">
+      <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-4">
+        <div className="flex items-start gap-3">
+          <Package className="w-5 h-5 text-orange-600 dark:text-orange-400 mt-0.5" />
+          <div className="flex-1">
+            <h4 className="text-sm font-semibold text-orange-900 dark:text-orange-100 mb-1">
+              Guía creada en Skydropx
+            </h4>
+            <p className="text-sm text-orange-700 dark:text-orange-300 mb-3">
+              El tracking/label aún no está disponible. Skydropx está procesando el envío. Reintenta en unos momentos.
+            </p>
+            <button
+              type="button"
+              onClick={onSync}
+              disabled={isSyncing}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
+            >
+              {isSyncing ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Sincronizando...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="w-4 h-4" />
+                  Actualizar tracking
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+      <ErrorDisplay error={error} />
+    </div>
+  );
+}
+
+// Subcomponente para mostrar label creada
+function LabelCreatedView({
+  trackingNumber,
+  labelUrl,
+  hasLabelCreated,
+  needsSync,
+  onSync,
+  isSyncing,
+  error,
+}: {
+  trackingNumber: string | null;
+  labelUrl: string | null;
+  hasLabelCreated: boolean;
+  needsSync: boolean;
+  onSync: () => void;
+  isSyncing: boolean;
+  error: string | null;
+}) {
+  return (
+    <div className="mt-4 space-y-3">
+      <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+        <div className="flex items-start gap-3">
+          <Package className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5" />
+          <div className="flex-1">
+            <h4 className="text-sm font-semibold text-green-900 dark:text-green-100 mb-1">
+              {hasLabelCreated ? "Etiqueta creada" : "Guía creada"}
+            </h4>
+            {trackingNumber && (
+              <p className="text-sm text-green-700 dark:text-green-300 mb-2">
+                Número de rastreo: <span className="font-mono font-medium">{trackingNumber}</span>
+              </p>
+            )}
+            {labelUrl ? (
+              <div className="flex gap-2 mt-3 flex-wrap">
+                <a
+                  href={labelUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2"
+                >
+                  <Download className="w-4 h-4" />
+                  Reimprimir etiqueta
+                </a>
+                {needsSync && (
+                  <button
+                    type="button"
+                    onClick={onSync}
+                    disabled={isSyncing}
+                    className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-green-700 dark:text-green-300 bg-white dark:bg-gray-800 border border-green-300 dark:border-green-700 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/30 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2"
+                  >
+                    {isSyncing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Sincronizando...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="w-4 h-4" />
+                        Sincronizar
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+            ) : needsSync ? (
+              <div className="flex gap-2 mt-3">
+                <SyncButton onClick={onSync} disabled={isSyncing} isLoading={isSyncing} />
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </div>
+      <ErrorDisplay error={error} />
+    </div>
+  );
+}
+
+// Subcomponente para mostrar que no se puede crear guía
+function CannotCreateLabelView({
+  reason,
+}: {
+  reason: "not_paid" | "no_rate";
+}) {
+  const message = reason === "not_paid" 
+    ? "No se puede crear guía hasta que el pedido esté marcado como pagado."
+    : "Primero recotiza y aplica una tarifa.";
+
+  return (
+    <div className="mt-4 space-y-3">
+      <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+        <div className="flex items-start gap-3">
+          <Package className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5" />
+          <div className="flex-1">
+            <h4 className="text-sm font-semibold text-amber-900 dark:text-amber-100 mb-1">
+              No se puede crear guía
+            </h4>
+            <p className="text-sm text-amber-700 dark:text-amber-300">{message}</p>
+          </div>
+        </div>
+      </div>
+      <button
+        type="button"
+        disabled
+        className="px-4 py-2 bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded-lg cursor-not-allowed font-medium"
+        title={reason === "not_paid" ? "Solo se pueden crear guías para órdenes pagadas" : undefined}
+      >
+        Crear guía en Skydropx
+      </button>
+    </div>
+  );
+}
+
 export default function CreateSkydropxLabelClient({
   orderId,
   paymentStatus,
@@ -41,10 +352,11 @@ export default function CreateSkydropxLabelClient({
   );
 
   // Verificar si ya tiene label creada (requiere evidencia real: tracking O label_url O shipment_id)
-  const hasLabelCreated =
+  const hasLabelCreated = Boolean(
     (shippingStatus === "label_created" && currentLabelUrl) ||
     (currentTrackingNumber && currentLabelUrl) ||
-    (hasShipmentId && (currentTrackingNumber || currentLabelUrl));
+    (hasShipmentId && (currentTrackingNumber || currentLabelUrl))
+  );
 
   // Verificar si realmente hay una guía creada (evidencia: shipment_id O tracking O label)
   const hasLabelEvidence = hasShipmentId || currentTrackingNumber || currentLabelUrl;
@@ -91,85 +403,8 @@ export default function CreateSkydropxLabelClient({
           return;
         }
 
-        let errorMessage =
-          data.code === "payment_not_paid"
-            ? "La orden no está pagada. Solo se pueden crear guías para órdenes pagadas."
-            : data.code === "unauthorized"
-              ? "No tienes permisos para realizar esta acción."
-              : data.code === "order_not_found"
-                ? "La orden no existe."
-                : data.code === "unsupported_provider"
-                  ? "El proveedor de envío no es compatible."
-                  : data.code === "missing_shipping_rate"
-                    ? "No hay tarifa guardada. Intenta crear la guía de nuevo."
-            : data.code === "missing_selected_rate"
-              ? "Primero recotiza y aplica una tarifa."
-                  : data.code === "missing_address_data" ||
-                      data.code === "missing_shipping_address"
-                    ? "Falta dirección en la orden."
-            : data.code === "label_creation_in_progress"
-              ? "La creación de la guía está en progreso. Intenta de nuevo en unos momentos."
-                    : data.code === "missing_final_package"
-                      ? "Captura peso y medidas reales de la caja antes de crear guía. Ve a la sección 'Paquete real para guía'."
-                    : data.code === "skydropx_no_rates" || data.statusCode === 502
-                      ? "Skydropx todavía no devolvió tarifas. Intenta Recotizar y vuelve a Crear guía."
-                      : data.code === "invalid_shipping_payload"
-                        ? (() => {
-                            const missing = Array.isArray(data.details?.missingFields) ? data.details.missingFields as string[] : [];
-                            const hasConsignmentNote = missing.some((f) => f.includes("consignment_note"));
-                            const hasPackageType = missing.some((f) => f.includes("package_type"));
-                            if (hasConsignmentNote || hasPackageType) {
-                              return "Faltan códigos Carta Porte: consignment_note y package_type. Configura env vars (SKYDROPX_DEFAULT_CONSIGNMENT_NOTE, SKYDROPX_DEFAULT_PACKAGE_TYPE) o guarda en metadata.shipping.";
-                            }
-                            return `Faltan campos requeridos: ${missing.join(", ")}`;
-                          })()
-                        : data.code === "skydropx_bad_request"
-                          ? "Skydropx rechazó el payload. Revisa ORIGIN_* env vars y campos requeridos. Ver detalles abajo."
-                          : data.code === "skydropx_unprocessable_entity"
-                            ? (() => {
-                                const upstream = data.details?.upstream as Record<string, unknown> | undefined;
-                                const errors = upstream?.errors as Array<{ field?: string | null; message?: string }> | undefined;
-                                const hasConsignmentNote = errors?.some((e) => e.field?.includes("consignment_note") || e.message?.includes("consignment_note"));
-                                const hasPackageType = errors?.some((e) => e.field?.includes("package_type") || e.message?.includes("package_type"));
-                                if (hasConsignmentNote || hasPackageType) {
-                                  return "Faltan códigos Carta Porte: consignment_note y package_type. Configura env vars (SKYDROPX_DEFAULT_CONSIGNMENT_NOTE, SKYDROPX_DEFAULT_PACKAGE_TYPE) o guarda en metadata.shipping.";
-                                }
-                                return "Skydropx rechazó el envío por errores de validación. Ver lista de errores abajo.";
-                              })()
-                            : data.code === "skydropx_error"
-                              ? "Error al crear la guía en Skydropx. Revisa los logs."
-                              : data.message || "Error desconocido al crear la guía.";
-
-        // Si hay errores de Skydropx (422/400), mostrar lista
-        if ((data.code === "skydropx_unprocessable_entity" || data.code === "skydropx_bad_request") && data.details?.upstream?.errors) {
-          const errors = data.details.upstream.errors as Array<{ field?: string | null; message?: string }>;
-          if (Array.isArray(errors) && errors.length > 0) {
-            errorMessage += "\n\nErrores de validación:\n";
-            errors.forEach((err, idx) => {
-              const field = err.field ? `[${err.field}]` : "";
-              const msg = err.message || "Error desconocido";
-              errorMessage += `${idx + 1}. ${field} ${msg}\n`;
-            });
-          }
-        } else if (data.code === "skydropx_unprocessable_entity" || data.code === "skydropx_bad_request") {
-          // Si no hay errors pero sí keys, avisar que no se pudo parsear
-          const upstream = data.details?.upstream as Record<string, unknown> | undefined;
-          if (upstream?.keys && Array.isArray(upstream.keys) && upstream.keys.includes("errors")) {
-            errorMessage += "\n\nNota: Skydropx devolvió errores, pero no se pudo parsear el formato. Ver logs para detalles.";
-          }
-        }
-
-        // Si hay payloadHealth (400), agregarlo al mensaje
-        if (data.code === "skydropx_bad_request" && data.details?.payloadHealth) {
-          const ph = data.details.payloadHealth as Record<string, boolean | number>;
-          const missing = Object.entries(ph)
-            .filter(([k, v]) => k.startsWith("has") && v === false)
-            .map(([k]) => k.replace("has", "").replace(/([A-Z])/g, " $1").trim());
-          if (missing.length > 0) {
-            errorMessage += `\n\nCampos faltantes detectados: ${missing.join(", ")}`;
-          }
-        }
-
+        let errorMessage = getErrorMessage(data);
+        errorMessage += formatSkydropxValidationErrors(data);
         setError(errorMessage);
         // Si falta dirección, sugerir editar override
         if (
@@ -227,16 +462,17 @@ export default function CreateSkydropxLabelClient({
       const data = await response.json();
 
       if (!data.ok) {
-        const errorMessage =
-          data.code === "missing_shipment_id"
-            ? "La orden no tiene shipment_id guardado. Crea la guía primero."
-            : data.code === "skydropx_not_found"
-              ? "No se encontró el envío en Skydropx."
-              : data.code === "skydropx_unauthorized"
-                ? "Error de autenticación con Skydropx."
-                : data.message || "Error desconocido al sincronizar tracking.";
-
-        setError(errorMessage);
+        let syncErrorMessage = "Error desconocido al sincronizar tracking.";
+        if (data.code === "missing_shipment_id") {
+          syncErrorMessage = "La orden no tiene shipment_id guardado. Crea la guía primero.";
+        } else if (data.code === "skydropx_not_found") {
+          syncErrorMessage = "No se encontró el envío en Skydropx.";
+        } else if (data.code === "skydropx_unauthorized") {
+          syncErrorMessage = "Error de autenticación con Skydropx.";
+        } else if (data.message) {
+          syncErrorMessage = data.message;
+        }
+        setError(syncErrorMessage);
         return;
       }
 
@@ -271,189 +507,36 @@ export default function CreateSkydropxLabelClient({
   // Si tracking está pendiente Y hay evidencia de guía creada (shipment_id), mostrar mensaje y botón de sincronización
   // IMPORTANTE: Solo mostrar si REALMENTE hay shipment_id (evidencia de que se creó la guía)
   if (trackingPending && hasShipmentId && !trackingNumber && !labelUrl) {
-    return (
-      <div className="mt-4 space-y-3">
-        <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-4">
-          <div className="flex items-start gap-3">
-            <Package className="w-5 h-5 text-orange-600 dark:text-orange-400 mt-0.5" />
-            <div className="flex-1">
-              <h4 className="text-sm font-semibold text-orange-900 dark:text-orange-100 mb-1">
-                Guía creada en Skydropx
-              </h4>
-              <p className="text-sm text-orange-700 dark:text-orange-300 mb-3">
-                El tracking/label aún no está disponible. Skydropx está procesando el envío. Reintenta en unos momentos.
-              </p>
-              <button
-                type="button"
-                onClick={handleSyncTracking}
-                disabled={isSyncing}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
-              >
-                {isSyncing ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Sincronizando...
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw className="w-4 h-4" />
-                    Actualizar tracking
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-        {error && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
-            <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
-          </div>
-        )}
-      </div>
-    );
+    return <TrackingPendingView onSync={handleSyncTracking} isSyncing={isSyncing} error={error} />;
   }
 
   // Si ya tiene tracking O label O shipment_id (evidencia de guía creada), mostrar información
   if (trackingNumber || labelUrl || hasLabelCreated || hasShipmentId) {
     const displayTracking = trackingNumber || currentTrackingNumber;
     const displayLabelUrl = labelUrl || currentLabelUrl;
-    const needsSync = hasShipmentId && !displayTracking && !displayLabelUrl;
+    const needsSync = Boolean(hasShipmentId && !displayTracking && !displayLabelUrl);
 
     return (
-      <div className="mt-4 space-y-3">
-        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
-          <div className="flex items-start gap-3">
-            <Package className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5" />
-            <div className="flex-1">
-              <h4 className="text-sm font-semibold text-green-900 dark:text-green-100 mb-1">
-                {hasLabelCreated ? "Etiqueta creada" : "Guía creada"}
-              </h4>
-              {displayTracking && (
-                <p className="text-sm text-green-700 dark:text-green-300 mb-2">
-                  Número de rastreo: <span className="font-mono font-medium">{displayTracking}</span>
-                </p>
-              )}
-              {displayLabelUrl ? (
-                <div className="flex gap-2 mt-3 flex-wrap">
-                  <a
-                    href={displayLabelUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2"
-                  >
-                    <Download className="w-4 h-4" />
-                    Reimprimir etiqueta
-                  </a>
-                  {needsSync && (
-                    <button
-                      type="button"
-                      onClick={handleSyncTracking}
-                      disabled={isSyncing}
-                      className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-green-700 dark:text-green-300 bg-white dark:bg-gray-800 border border-green-300 dark:border-green-700 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/30 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2"
-                    >
-                      {isSyncing ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          Sincronizando...
-                        </>
-                      ) : (
-                        <>
-                          <RefreshCw className="w-4 h-4" />
-                          Sincronizar
-                        </>
-                      )}
-                    </button>
-                  )}
-                </div>
-              ) : needsSync ? (
-                <div className="flex gap-2 mt-3">
-                  <button
-                    type="button"
-                    onClick={handleSyncTracking}
-                    disabled={isSyncing}
-                    className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2"
-                  >
-                    {isSyncing ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Sincronizando...
-                      </>
-                    ) : (
-                      <>
-                        <RefreshCw className="w-4 h-4" />
-                        Sincronizar
-                      </>
-                    )}
-                  </button>
-                </div>
-              ) : null}
-            </div>
-          </div>
-        </div>
-        {error && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
-            <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
-          </div>
-        )}
-      </div>
+      <LabelCreatedView
+        trackingNumber={displayTracking}
+        labelUrl={displayLabelUrl}
+        hasLabelCreated={hasLabelCreated}
+        needsSync={needsSync}
+        onSync={handleSyncTracking}
+        isSyncing={isSyncing}
+        error={error}
+      />
     );
   }
 
   // Si no puede crear guía, mostrar mensaje o botón deshabilitado
   if (!canCreateLabel) {
     if (paymentStatus !== "paid") {
-      return (
-        <div className="mt-4 space-y-3">
-          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
-            <div className="flex items-start gap-3">
-              <Package className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5" />
-              <div className="flex-1">
-                <h4 className="text-sm font-semibold text-amber-900 dark:text-amber-100 mb-1">
-                  No se puede crear guía
-                </h4>
-                <p className="text-sm text-amber-700 dark:text-amber-300">
-                  No se puede crear guía hasta que el pedido esté marcado como pagado.
-                </p>
-              </div>
-            </div>
-          </div>
-          <button
-            type="button"
-            disabled
-            className="px-4 py-2 bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded-lg cursor-not-allowed font-medium"
-            title="Solo se pueden crear guías para órdenes pagadas"
-          >
-            Crear guía en Skydropx
-          </button>
-        </div>
-      );
+      return <CannotCreateLabelView reason="not_paid" />;
     }
 
     if (!hasSelectedRate) {
-      return (
-        <div className="mt-4 space-y-3">
-          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
-            <div className="flex items-start gap-3">
-              <Package className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5" />
-              <div className="flex-1">
-                <h4 className="text-sm font-semibold text-amber-900 dark:text-amber-100 mb-1">
-                  No se puede crear guía
-                </h4>
-                <p className="text-sm text-amber-700 dark:text-amber-300">
-                  Primero recotiza y aplica una tarifa.
-                </p>
-              </div>
-            </div>
-          </div>
-          <button
-            type="button"
-            disabled
-            className="px-4 py-2 bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded-lg cursor-not-allowed font-medium"
-          >
-            Crear guía en Skydropx
-          </button>
-        </div>
-      );
+      return <CannotCreateLabelView reason="no_rate" />;
     }
 
     return null;
@@ -479,12 +562,7 @@ export default function CreateSkydropxLabelClient({
           </>
         )}
       </button>
-
-      {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
-          <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
-        </div>
-      )}
+      <ErrorDisplay error={error} />
     </div>
   );
 }

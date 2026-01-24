@@ -88,17 +88,6 @@ export function normalizeShippingMetadata(
     Boolean(normalizedPricing);
 
   if (shouldDeriveRate) {
-    const carrierFromPricing =
-      typeof normalizedPricing?.carrier_cents === "number" ? normalizedPricing.carrier_cents : null;
-    const totalFromPricing =
-      typeof normalizedPricing?.total_cents === "number" ? normalizedPricing.total_cents : null;
-    const customerTotalFromPricing =
-      typeof normalizedPricing?.total_cents === "number"
-        ? normalizedPricing.total_cents
-        : typeof normalizedPricing?.customer_total_cents === "number"
-          ? normalizedPricing.customer_total_cents
-          : null;
-
     // FORCE OVERWRITE desde shipping_pricing cuando existe (incondicional)
     const carrierForced =
       typeof normalizedPricing?.carrier_cents === "number"
