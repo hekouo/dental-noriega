@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { normalizeShippingStatus, isValidShippingStatus } from "@/lib/orders/statuses";
+import { normalizeShippingMetadata } from "@/lib/shipping/normalizeShippingMetadata";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -558,7 +559,16 @@ export async function POST(req: NextRequest) {
             ...currentMetadata,
             shipping: updatedShippingMeta,
           };
-          updateData.metadata = updatedMetadata;
+          // Normalizar metadata antes de persistir para asegurar rate_used completo
+          const normalizedMeta = normalizeShippingMetadata(updatedMetadata, {
+            source: "admin",
+            orderId: order.id,
+          });
+          updateData.metadata = {
+            ...updatedMetadata,
+            shipping: normalizedMeta.shippingMeta,
+            ...(normalizedMeta.shippingPricing ? { shipping_pricing: normalizedMeta.shippingPricing } : {}),
+          };
         }
       }
 

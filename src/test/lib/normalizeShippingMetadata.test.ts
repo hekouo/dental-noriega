@@ -32,4 +32,35 @@ describe("normalizeShippingMetadata", () => {
     expect(rateUsed.price_cents).toBe(12500);
     expect(rateUsed.customer_total_cents).toBe(12500);
   });
+
+  it("sobrescribe rate_used desde shipping_pricing incluso si venía con valores incorrectos", () => {
+    const metadata = {
+      shipping_pricing: {
+        carrier_cents: 14964,
+        packaging_cents: 2000,
+        margin_cents: 3306,
+        total_cents: 20270,
+      },
+      shipping: {
+        rate_used: {
+          external_rate_id: "rate_456",
+          provider: "skydropx",
+          service: "standard",
+          carrier_cents: 5000, // valor incorrecto
+          price_cents: 8000, // valor incorrecto
+          customer_total_cents: 9000, // valor incorrecto
+        },
+      },
+    };
+
+    const result = normalizeShippingMetadata(metadata, {
+      source: "admin",
+    });
+
+    const rateUsed = result.shippingMeta.rate_used as Record<string, unknown>;
+    // Debe sobrescribir con valores de shipping_pricing (overwrite forzado)
+    expect(rateUsed.carrier_cents).toBe(14964);
+    expect(rateUsed.price_cents).toBe(20270);
+    expect(rateUsed.customer_total_cents).toBe(20270);
+  });
 });

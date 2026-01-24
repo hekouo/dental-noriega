@@ -6,6 +6,7 @@ import { getSkydropxRates } from "@/lib/shipping/skydropx.server";
 import { normalizeSkydropxRates } from "@/lib/shipping/normalizeSkydropxRates";
 import type { SkydropxRate } from "@/lib/shipping/skydropx.server";
 import { getOrderShippingAddress } from "@/lib/shipping/getOrderShippingAddress";
+import { normalizeShippingMetadata } from "@/lib/shipping/normalizeShippingMetadata";
 import { createClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
@@ -482,9 +483,19 @@ export async function POST(req: NextRequest) {
           ...orderMetadata,
           shipping: updatedShipping,
         };
+        // Normalizar metadata antes de persistir para asegurar rate_used completo
+        const normalizedMeta = normalizeShippingMetadata(updatedMetadata, {
+          source: "admin",
+          orderId,
+        });
+        const finalMetadata: Record<string, unknown> = {
+          ...updatedMetadata,
+          shipping: normalizedMeta.shippingMeta,
+          ...(normalizedMeta.shippingPricing ? { shipping_pricing: normalizedMeta.shippingPricing } : {}),
+        };
         await supabase
           .from("orders")
-          .update({ metadata: updatedMetadata, updated_at: new Date().toISOString() })
+          .update({ metadata: finalMetadata, updated_at: new Date().toISOString() })
           .eq("id", orderId);
       }
     } catch (persistError) {
