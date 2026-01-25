@@ -240,8 +240,31 @@ export async function POST(req: NextRequest) {
     }
     const finalTotal = normalized.shippingPricing?.total_cents ?? normalizedPricing?.total_cents;
 
-    // Actualizar order
-    const { error: updateError } = await supabase
+    // INSTRUMENTACIÓN PRE-WRITE: Loggear exactamente qué se va a persistir
+    const preWriteLog = {
+      orderId,
+      canonicalPricing: finalPricing
+        ? {
+            total_cents: finalPricing.total_cents ?? null,
+            carrier_cents: finalPricing.carrier_cents ?? null,
+            customer_total_cents:
+              (finalPricing as { customer_total_cents?: number | null }).customer_total_cents ?? null,
+          }
+        : null,
+      rateUsedPreWrite: finalRateUsed
+        ? {
+            price_cents: finalRateUsed.price_cents ?? null,
+            carrier_cents: finalRateUsed.carrier_cents ?? null,
+            customer_total_cents:
+              (finalRateUsed as { customer_total_cents?: number | null }).customer_total_cents ?? null,
+          }
+        : null,
+      lastWrite: (finalShippingMeta._last_write as Record<string, unknown>) || null,
+    };
+    console.log("[apply-rate] PRE-WRITE:", JSON.stringify(preWriteLog, null, 2));
+
+    // Actualizar order con return=representation para obtener metadata POST-WRITE
+    const { data: updatedOrder, error: updateError } = await supabase
       .from("orders")
       .update({
         shipping_rate_ext_id: rateExternalId,
@@ -254,7 +277,9 @@ export async function POST(req: NextRequest) {
         metadata: finalMetadata,
         updated_at: now,
       })
-      .eq("id", orderId);
+      .eq("id", orderId)
+      .select("id, metadata")
+      .single();
 
     if (updateError) {
       console.error("[apply-rate] Error al actualizar orden:", updateError);
@@ -266,6 +291,77 @@ export async function POST(req: NextRequest) {
         } satisfies ApplyRateResponse,
         { status: 500 },
       );
+    }
+
+    // INSTRUMENTACIÓN POST-WRITE: Loggear exactamente qué devolvió Supabase
+    const postWriteMetadata = (updatedOrder?.metadata as Record<string, unknown>) || {};
+    const postWriteShipping = (postWriteMetadata.shipping as Record<string, unknown>) || {};
+    const postWriteRateUsed = (postWriteShipping.rate_used as {
+      price_cents?: number | null;
+      carrier_cents?: number | null;
+      customer_total_cents?: number | null;
+    }) || {};
+    const postWritePricing = (postWriteMetadata.shipping_pricing as {
+      total_cents?: number | null;
+      carrier_cents?: number | null;
+    }) || {};
+    const postWriteLastWrite = (postWriteShipping._last_write as Record<string, unknown>) || {};
+
+    const postWriteLog = {
+      orderId,
+      canonicalPricing: postWritePricing
+        ? {
+            total_cents: postWritePricing.total_cents ?? null,
+            carrier_cents: postWritePricing.carrier_cents ?? null,
+          }
+        : null,
+      rateUsedPostWrite: {
+        price_cents: postWriteRateUsed.price_cents ?? null,
+        carrier_cents: postWriteRateUsed.carrier_cents ?? null,
+        customer_total_cents: postWriteRateUsed.customer_total_cents ?? null,
+      },
+      lastWrite: postWriteLastWrite,
+      mismatch: {
+        price_cents:
+          preWriteLog.rateUsedPreWrite?.price_cents !== postWriteRateUsed.price_cents
+            ? {
+                pre: preWriteLog.rateUsedPreWrite?.price_cents,
+                post: postWriteRateUsed.price_cents,
+              }
+            : null,
+        carrier_cents:
+          preWriteLog.rateUsedPreWrite?.carrier_cents !== postWriteRateUsed.carrier_cents
+            ? {
+                pre: preWriteLog.rateUsedPreWrite?.carrier_cents,
+                post: postWriteRateUsed.carrier_cents,
+              }
+            : null,
+      },
+    };
+    console.log("[apply-rate] POST-WRITE:", JSON.stringify(postWriteLog, null, 2));
+
+    // Validación POST-WRITE: Si hay mismatch o nulls, alertar
+    if (postWriteLog.mismatch.price_cents || postWriteLog.mismatch.carrier_cents) {
+      const mismatchMsg = `[apply-rate] CRITICAL: POST-WRITE mismatch detected. orderId=${orderId}, mismatches=${JSON.stringify(postWriteLog.mismatch)}`;
+      console.error(mismatchMsg);
+      // En dev/staging, esto es un error crítico que debe investigarse
+      if (process.env.NODE_ENV !== "production") {
+        console.error("[apply-rate] This indicates a DB trigger or function may be rewriting metadata.");
+      }
+    }
+
+    if (
+      postWritePricing &&
+      (postWritePricing.total_cents != null || postWritePricing.carrier_cents != null) &&
+      (postWriteRateUsed.price_cents == null || postWriteRateUsed.carrier_cents == null)
+    ) {
+      const nullsMsg = `[apply-rate] CRITICAL: POST-WRITE has nulls in rate_used despite canonical pricing. orderId=${orderId}, pricing=${JSON.stringify(postWritePricing)}, rate_used=${JSON.stringify(postWriteRateUsed)}`;
+      console.error(nullsMsg);
+      if (process.env.NODE_ENV !== "production") {
+        console.error(
+          "[apply-rate] This indicates a DB trigger or function may be rewriting metadata.shipping.rate_used.",
+        );
+      }
     }
 
     return NextResponse.json({
