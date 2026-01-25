@@ -206,19 +206,17 @@ export async function POST(req: NextRequest) {
     if (normalizedPricing) {
       updatedMetadata.shipping_pricing = normalizedPricing;
     }
-    const normalizedMeta = normalizeShippingMetadata(updatedMetadata, {
-      source: "apply-rate",
+    const normalized = normalizeShippingMetadata(updatedMetadata, {
+      source: "admin",
       orderId,
     });
-    
-    // Usar SOLO el resultado normalizado (nunca mezclar con updatedMetadata)
+
     const finalMetadata: Record<string, unknown> = {
       ...updatedMetadata,
-      shipping: addShippingMetadataDebug(normalizedMeta.shippingMeta, "apply-rate"),
-      ...(normalizedMeta.shippingPricing ? { shipping_pricing: normalizedMeta.shippingPricing } : {}),
+      ...(normalized.shippingPricing ? { shipping_pricing: normalized.shippingPricing } : {}),
+      shipping: addShippingMetadataDebug(normalized.shippingMeta, "apply-rate"),
     };
-    
-    const finalTotal = normalizedMeta.shippingPricing?.total_cents ?? normalizedPricing?.total_cents;
+    const finalTotal = normalized.shippingPricing?.total_cents ?? normalizedPricing?.total_cents;
 
     // Actualizar order
     const { error: updateError } = await supabase
