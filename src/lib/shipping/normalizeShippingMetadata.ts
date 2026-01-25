@@ -39,24 +39,28 @@ const slugifyOptionCode = (provider: string | null, service: string | null): str
     .replace(/[^a-z0-9_]/g, "");
 };
 
+const toNum = (v: unknown): number | null => {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string") {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+};
+
 function resolveCanonicalPricing(metadata: Record<string, unknown>): Partial<NormalizedShippingPricing> | null {
   const shippingMeta = (metadata.shipping as Record<string, unknown>) || {};
   const root = metadata.shipping_pricing as Record<string, unknown> | null | undefined;
   const nested = shippingMeta.pricing as Record<string, unknown> | null | undefined;
 
-  if (root && (typeof (root as { carrier_cents?: unknown }).carrier_cents === "number" || typeof (root as { total_cents?: unknown }).total_cents === "number")) {
+  if (root && (toNum((root as { carrier_cents?: unknown }).carrier_cents) != null || toNum((root as { total_cents?: unknown }).total_cents) != null)) {
     return root as Partial<NormalizedShippingPricing>;
   }
-  if (nested && (typeof (nested as { carrier_cents?: unknown }).carrier_cents === "number" || typeof (nested as { total_cents?: unknown }).total_cents === "number")) {
+  if (nested && (toNum((nested as { carrier_cents?: unknown }).carrier_cents) != null || toNum((nested as { total_cents?: unknown }).total_cents) != null)) {
     return nested as Partial<NormalizedShippingPricing>;
   }
-  const total =
-    typeof metadata.shipping_cost_cents === "number"
-      ? metadata.shipping_cost_cents
-      : typeof (shippingMeta.price_cents as unknown) === "number"
-        ? (shippingMeta.price_cents as number)
-        : null;
-  if (typeof total === "number" && total >= 0) {
+  const total = toNum(metadata.shipping_cost_cents) ?? toNum(shippingMeta.price_cents);
+  if (total != null && total >= 0) {
     return { total_cents: total, customer_total_cents: total } as Partial<NormalizedShippingPricing>;
   }
   return null;
@@ -111,36 +115,26 @@ export function normalizeShippingMetadata(
     Boolean(normalizedPricing);
 
   if (shouldDeriveRate) {
-    const hasCanonicalNumbers =
-      typeof normalizedPricing?.carrier_cents === "number" ||
-      typeof normalizedPricing?.total_cents === "number";
+    const canonCarrier = canonicalPricing ? toNum((canonicalPricing as { carrier_cents?: unknown }).carrier_cents) : null;
+    const canonTotal = canonicalPricing ? toNum((canonicalPricing as { total_cents?: unknown }).total_cents) : null;
+    const canonCustomerTotal = canonicalPricing
+      ? toNum((canonicalPricing as { customer_total_cents?: unknown }).customer_total_cents)
+      : null;
+    const hasCanonicalNumbers = canonCarrier != null || canonTotal != null;
 
     let carrierForced: number | null;
     let priceForced: number | null;
     let customerTotalForced: number | null;
 
-    if (hasCanonicalNumbers && normalizedPricing) {
-      carrierForced = typeof normalizedPricing.carrier_cents === "number" ? normalizedPricing.carrier_cents : null;
-      priceForced = typeof normalizedPricing.total_cents === "number" ? normalizedPricing.total_cents : null;
-      customerTotalForced =
-        typeof normalizedPricing.customer_total_cents === "number"
-          ? normalizedPricing.customer_total_cents
-          : typeof normalizedPricing.total_cents === "number"
-            ? normalizedPricing.total_cents
-            : null;
+    if (hasCanonicalNumbers && canonicalPricing) {
+      carrierForced = canonCarrier;
+      priceForced = canonTotal;
+      customerTotalForced = canonCustomerTotal ?? canonTotal;
     } else {
       carrierForced =
-        typeof rateUsed.carrier_cents === "number"
-          ? rateUsed.carrier_cents
-          : typeof rateFromMeta.carrier_cents === "number"
-            ? rateFromMeta.carrier_cents
-            : null;
+        toNum(rateUsed.carrier_cents) ?? toNum((rateFromMeta as { carrier_cents?: unknown }).carrier_cents) ?? null;
       priceForced =
-        typeof rateUsed.price_cents === "number"
-          ? rateUsed.price_cents
-          : typeof rateFromMeta.price_cents === "number"
-            ? rateFromMeta.price_cents
-            : carrierForced;
+        toNum(rateUsed.price_cents) ?? toNum((rateFromMeta as { price_cents?: unknown }).price_cents) ?? carrierForced;
       customerTotalForced = priceForced;
     }
 
