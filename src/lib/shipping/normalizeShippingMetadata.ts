@@ -39,6 +39,29 @@ const slugifyOptionCode = (provider: string | null, service: string | null): str
     .replace(/[^a-z0-9_]/g, "");
 };
 
+function resolveCanonicalPricing(metadata: Record<string, unknown>): Partial<NormalizedShippingPricing> | null {
+  const shippingMeta = (metadata.shipping as Record<string, unknown>) || {};
+  const root = metadata.shipping_pricing as Record<string, unknown> | null | undefined;
+  const nested = shippingMeta.pricing as Record<string, unknown> | null | undefined;
+
+  if (root && (typeof (root as { carrier_cents?: unknown }).carrier_cents === "number" || typeof (root as { total_cents?: unknown }).total_cents === "number")) {
+    return root as Partial<NormalizedShippingPricing>;
+  }
+  if (nested && (typeof (nested as { carrier_cents?: unknown }).carrier_cents === "number" || typeof (nested as { total_cents?: unknown }).total_cents === "number")) {
+    return nested as Partial<NormalizedShippingPricing>;
+  }
+  const total =
+    typeof metadata.shipping_cost_cents === "number"
+      ? metadata.shipping_cost_cents
+      : typeof (shippingMeta.price_cents as unknown) === "number"
+        ? (shippingMeta.price_cents as number)
+        : null;
+  if (typeof total === "number" && total >= 0) {
+    return { total_cents: total, customer_total_cents: total } as Partial<NormalizedShippingPricing>;
+  }
+  return null;
+}
+
 export function normalizeShippingMetadata(
   metadata: Record<string, unknown>,
   context: NormalizeContext,
@@ -50,7 +73,7 @@ export function normalizeShippingMetadata(
   const hasRoot = Boolean(rootPricing);
   const hasNested = Boolean(nestedPricing);
   const mismatchDetected = hasRoot && hasNested && JSON.stringify(rootPricing) !== JSON.stringify(nestedPricing);
-  const canonicalPricingInput = hasRoot ? rootPricing : nestedPricing;
+  const canonicalPricingInput = resolveCanonicalPricing(metadata) ?? (hasRoot ? rootPricing : nestedPricing) ?? null;
   const canonicalPricing = canonicalPricingInput as Partial<NormalizedShippingPricing> | null;
   const normalizedPricing = normalizeShippingPricing(canonicalPricingInput || undefined);
 
@@ -88,23 +111,39 @@ export function normalizeShippingMetadata(
     Boolean(normalizedPricing);
 
   if (shouldDeriveRate) {
-    // FORCE OVERWRITE desde shipping_pricing cuando existe (incondicional)
-    const carrierForced =
-      typeof normalizedPricing?.carrier_cents === "number"
-        ? normalizedPricing.carrier_cents
-        : typeof rateUsed.carrier_cents === "number"
+    const hasCanonicalNumbers =
+      typeof normalizedPricing?.carrier_cents === "number" ||
+      typeof normalizedPricing?.total_cents === "number";
+
+    let carrierForced: number | null;
+    let priceForced: number | null;
+    let customerTotalForced: number | null;
+
+    if (hasCanonicalNumbers && normalizedPricing) {
+      carrierForced = typeof normalizedPricing.carrier_cents === "number" ? normalizedPricing.carrier_cents : null;
+      priceForced = typeof normalizedPricing.total_cents === "number" ? normalizedPricing.total_cents : null;
+      customerTotalForced =
+        typeof normalizedPricing.customer_total_cents === "number"
+          ? normalizedPricing.customer_total_cents
+          : typeof normalizedPricing.total_cents === "number"
+            ? normalizedPricing.total_cents
+            : null;
+    } else {
+      carrierForced =
+        typeof rateUsed.carrier_cents === "number"
           ? rateUsed.carrier_cents
           : typeof rateFromMeta.carrier_cents === "number"
             ? rateFromMeta.carrier_cents
             : null;
-    const priceForced =
-      typeof normalizedPricing?.total_cents === "number"
-        ? normalizedPricing.total_cents
-        : typeof rateUsed.price_cents === "number"
+      priceForced =
+        typeof rateUsed.price_cents === "number"
           ? rateUsed.price_cents
           : typeof rateFromMeta.price_cents === "number"
             ? rateFromMeta.price_cents
             : carrierForced;
+      customerTotalForced = priceForced;
+    }
+
     const externalRateId =
       rateUsed.external_rate_id ||
       rateUsed.rate_id ||
@@ -117,7 +156,8 @@ export function normalizeShippingMetadata(
     const etaMin = rateUsed.eta_min_days ?? rateFromMeta.eta_min_days ?? null;
     const etaMax = rateUsed.eta_max_days ?? rateFromMeta.eta_max_days ?? null;
 
-    // Construir rate_used con overwrite forzado de pricing (los valores forzados van al final para sobrescribir cualquier null del spread)
+    // Construir rate_used: provider/service/eta/external_rate_id de rate_used o shipping.rate;
+    // carrier_cents, price_cents, customer_total_cents SIEMPRE desde canonical pricing cuando existe (nunca rate_used)
     nextShippingMeta.rate_used = {
       ...(rateUsed || {}),
       eta_min_days: etaMin,
@@ -126,15 +166,9 @@ export function normalizeShippingMetadata(
       selection_source: rateUsed.selection_source ?? (context.source === "checkout" ? "checkout" : "admin"),
       provider,
       service,
-      // FORCE OVERWRITE: estos valores siempre sobrescriben, incluso si rateUsed tenía nulls
       carrier_cents: carrierForced,
       price_cents: priceForced,
-      customer_total_cents:
-        typeof normalizedPricing?.total_cents === "number"
-          ? normalizedPricing.total_cents
-          : typeof normalizedPricing?.customer_total_cents === "number"
-            ? normalizedPricing.customer_total_cents
-            : priceForced ?? null,
+      customer_total_cents: customerTotalForced ?? priceForced ?? null,
     };
 
     const rateUsedFinal = nextShippingMeta.rate_used as ShippingRateUsed;

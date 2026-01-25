@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { normalizeShippingMetadata } from "@/lib/shipping/normalizeShippingMetadata";
 
 describe("normalizeShippingMetadata", () => {
-  it("rellena rate_used desde shipping_pricing aunque venía con valores previos o nulls", () => {
+  it("backfill desde shipping_pricing aunque rate_used venga con nulls", () => {
     const metadata = {
       shipping_pricing: {
         carrier_cents: 10000,
@@ -117,6 +117,39 @@ describe("normalizeShippingMetadata", () => {
     expect(rateUsed.price_cents).toBe(20270);
     expect(rateUsed.customer_total_cents).toBe(20270);
     // No debe quedar null nunca
+    expect(rateUsed.carrier_cents).not.toBeNull();
+    expect(rateUsed.price_cents).not.toBeNull();
+    expect(rateUsed.customer_total_cents).not.toBeNull();
+  });
+
+  it("fallback: si falta shipping_pricing pero existe shipping.pricing, también rellena rate_used", () => {
+    const metadata = {
+      shipping: {
+        pricing: {
+          carrier_cents: 12000,
+          packaging_cents: 1500,
+          margin_cents: 800,
+          total_cents: 14300,
+        },
+        rate_used: {
+          external_rate_id: "rate_fb",
+          provider: "skydropx",
+          service: "express",
+          carrier_cents: null,
+          price_cents: null,
+          customer_total_cents: null,
+        },
+      },
+    };
+
+    const result = normalizeShippingMetadata(metadata, {
+      source: "admin",
+    });
+
+    const rateUsed = result.shippingMeta.rate_used as Record<string, unknown>;
+    expect(rateUsed.carrier_cents).toBe(12000);
+    expect(rateUsed.price_cents).toBe(14300);
+    expect(rateUsed.customer_total_cents).toBe(14300);
     expect(rateUsed.carrier_cents).not.toBeNull();
     expect(rateUsed.price_cents).not.toBeNull();
     expect(rateUsed.customer_total_cents).not.toBeNull();
