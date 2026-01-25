@@ -6,7 +6,7 @@ import { getSkydropxRates } from "@/lib/shipping/skydropx.server";
 import { normalizeSkydropxRates } from "@/lib/shipping/normalizeSkydropxRates";
 import type { SkydropxRate } from "@/lib/shipping/skydropx.server";
 import { getOrderShippingAddress } from "@/lib/shipping/getOrderShippingAddress";
-import { normalizeShippingMetadata } from "@/lib/shipping/normalizeShippingMetadata";
+import { normalizeShippingMetadata, addShippingMetadataDebug } from "@/lib/shipping/normalizeShippingMetadata";
 import { createClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
@@ -488,9 +488,11 @@ export async function POST(req: NextRequest) {
           source: "admin",
           orderId,
         });
+        
+        // Usar SOLO el resultado normalizado (nunca mezclar con updatedMetadata)
         const finalMetadata: Record<string, unknown> = {
           ...updatedMetadata,
-          shipping: normalizedMeta.shippingMeta,
+          shipping: addShippingMetadataDebug(normalizedMeta.shippingMeta, "requote"),
           ...(normalizedMeta.shippingPricing ? { shipping_pricing: normalizedMeta.shippingPricing } : {}),
         };
         await supabase

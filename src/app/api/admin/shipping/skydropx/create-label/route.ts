@@ -16,7 +16,7 @@ import {
 import { getSkydropxConfig } from "@/lib/shipping/skydropx.server";
 import { getOrderShippingAddress } from "@/lib/shipping/getOrderShippingAddress";
 import { normalizeShippingPricing } from "@/lib/shipping/normalizeShippingPricing";
-import { normalizeShippingMetadata } from "@/lib/shipping/normalizeShippingMetadata";
+import { normalizeShippingMetadata, addShippingMetadataDebug } from "@/lib/shipping/normalizeShippingMetadata";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -1996,15 +1996,19 @@ export async function POST(req: NextRequest) {
       source: "create-label",
       orderId,
     });
-    if (finalNormalizedMeta.shippingPricing) {
-      updatedMetadata.shipping_pricing = finalNormalizedMeta.shippingPricing;
-    }
-    updatedMetadata.shipping = finalNormalizedMeta.shippingMeta;
+    
+    // Usar SOLO el resultado normalizado (nunca mezclar con updatedMetadata)
+    const normalizedFinalMetadata: Record<string, unknown> = {
+      ...updatedMetadata,
+      shipping: addShippingMetadataDebug(finalNormalizedMeta.shippingMeta, "create-label"),
+      ...(finalNormalizedMeta.shippingPricing ? { shipping_pricing: finalNormalizedMeta.shippingPricing } : {}),
+    };
+    
     // Actualizar la orden con tracking y label (si están disponibles)
     // IMPORTANTE: SIEMPRE guardar shipment_id en metadata Y columna shipping_shipment_id
     const shipmentIdToSave = shipmentResult.rawId || finalShippingMeta.shipment_id || null;
     const updateData: Record<string, unknown> = {
-      metadata: updatedMetadata, // Merge seguro de metadata (incluye shipment_id SIEMPRE)
+      metadata: normalizedFinalMetadata, // Usar SOLO resultado normalizado
       shipping_status: shippingStatus,
       shipping_status_updated_at: nowIso,
       updated_at: nowIso,

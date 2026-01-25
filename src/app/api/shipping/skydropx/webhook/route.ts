@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { normalizeShippingStatus, isValidShippingStatus } from "@/lib/orders/statuses";
-import { normalizeShippingMetadata } from "@/lib/shipping/normalizeShippingMetadata";
+import { normalizeShippingMetadata, addShippingMetadataDebug } from "@/lib/shipping/normalizeShippingMetadata";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -564,9 +564,11 @@ export async function POST(req: NextRequest) {
             source: "admin",
             orderId: order.id,
           });
+          
+          // Usar SOLO el resultado normalizado (nunca mezclar con updatedMetadata)
           updateData.metadata = {
             ...updatedMetadata,
-            shipping: normalizedMeta.shippingMeta,
+            shipping: addShippingMetadataDebug(normalizedMeta.shippingMeta, "webhook-skydropx"),
             ...(normalizedMeta.shippingPricing ? { shipping_pricing: normalizedMeta.shippingPricing } : {}),
           };
         }

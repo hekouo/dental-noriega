@@ -4,7 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { checkAdminAccess } from "@/lib/admin/access";
 import { getOrderWithItemsAdmin } from "@/lib/supabase/orders.server";
 import { normalizeShippingPricing } from "@/lib/shipping/normalizeShippingPricing";
-import { normalizeShippingMetadata } from "@/lib/shipping/normalizeShippingMetadata";
+import { normalizeShippingMetadata, addShippingMetadataDebug } from "@/lib/shipping/normalizeShippingMetadata";
 
 export const dynamic = "force-dynamic";
 
@@ -210,10 +210,14 @@ export async function POST(req: NextRequest) {
       source: "apply-rate",
       orderId,
     });
-    if (normalizedMeta.shippingPricing) {
-      updatedMetadata.shipping_pricing = normalizedMeta.shippingPricing;
-    }
-    updatedMetadata.shipping = normalizedMeta.shippingMeta;
+    
+    // Usar SOLO el resultado normalizado (nunca mezclar con updatedMetadata)
+    const finalMetadata: Record<string, unknown> = {
+      ...updatedMetadata,
+      shipping: addShippingMetadataDebug(normalizedMeta.shippingMeta, "apply-rate"),
+      ...(normalizedMeta.shippingPricing ? { shipping_pricing: normalizedMeta.shippingPricing } : {}),
+    };
+    
     const finalTotal = normalizedMeta.shippingPricing?.total_cents ?? normalizedPricing?.total_cents;
 
     // Actualizar order
@@ -227,7 +231,7 @@ export async function POST(req: NextRequest) {
         shipping_eta_min_days: typeof etaMin === "number" ? etaMin : null,
         shipping_eta_max_days: typeof etaMax === "number" ? etaMax : null,
         shipping_status: "rate_selected",
-        metadata: updatedMetadata,
+        metadata: finalMetadata,
         updated_at: now,
       })
       .eq("id", orderId);
