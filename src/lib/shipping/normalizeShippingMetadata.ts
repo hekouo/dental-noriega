@@ -17,6 +17,7 @@ type ShippingRateUsed = {
   eta_max_days?: number | null;
   carrier_cents?: number | null;
   price_cents?: number | null;
+  customer_total_cents?: number | null;
   selection_source?: "checkout" | "admin";
   eta_policy?: string | null;
   eta_changed?: boolean | null;
@@ -188,8 +189,34 @@ export function normalizeShippingMetadata(
     nextShippingMeta.option_code = slugifyOptionCode(derivedProvider, derivedService);
   }
 
+  // OVERWRITE FINAL: Garantizar que rate_used nunca quede con nulls cuando existe canonical pricing
+  // Este es el último paso antes de retornar para evitar que merges/spreads posteriores reintroduzcan nulls
+  if (canonicalPricing) {
+    const canonCarrier = toNum((canonicalPricing as { carrier_cents?: unknown }).carrier_cents);
+    const canonTotal = toNum((canonicalPricing as { total_cents?: unknown }).total_cents);
+    const canonCustomerTotal = toNum((canonicalPricing as { customer_total_cents?: unknown }).customer_total_cents);
+    const hasCanonicalNumbers = canonCarrier != null || canonTotal != null;
+
+    if (hasCanonicalNumbers) {
+      const currentRateUsed = (nextShippingMeta.rate_used as ShippingRateUsed) || {};
+      // Overwrite incondicional desde canonical RAW pricing (no desde normalizedPricing corregido)
+      nextShippingMeta.rate_used = {
+        ...currentRateUsed,
+        carrier_cents: canonCarrier ?? currentRateUsed.carrier_cents ?? null,
+        price_cents: canonTotal ?? currentRateUsed.price_cents ?? null,
+        customer_total_cents: canonCustomerTotal ?? canonTotal ?? currentRateUsed.customer_total_cents ?? null,
+      };
+    }
+  }
+
   const rateUsedLog = nextShippingMeta.rate_used as ShippingRateUsed | undefined;
   const hasPricing = Boolean(normalizedPricing);
+  const canonicalDetected = Boolean(canonicalPricing);
+  const rateUsedOverwritten = Boolean(
+    canonicalPricing &&
+    (toNum((canonicalPricing as { carrier_cents?: unknown }).carrier_cents) != null ||
+      toNum((canonicalPricing as { total_cents?: unknown }).total_cents) != null),
+  );
   const nullFieldsBefore = {
     carrier: rateUsedBefore?.carrier_cents == null,
     price: rateUsedBefore?.price_cents == null,
@@ -216,6 +243,8 @@ export function normalizeShippingMetadata(
       has_root_shipping_pricing: hasRoot,
       has_nested_shipping_pricing: hasNested,
       has_pricing: hasPricing,
+      canonical_detected: canonicalDetected,
+      rate_used_overwritten: rateUsedOverwritten,
       mismatch_detected: mismatchDetected,
       total_cents: normalizedPricing?.total_cents ?? null,
       carrier_cents: normalizedPricing?.carrier_cents ?? null,
@@ -250,9 +279,27 @@ export function normalizeShippingMetadata(
 export function addShippingMetadataDebug(
   shippingMeta: Record<string, unknown>,
   route: string,
+  metadata?: Record<string, unknown>,
 ): Record<string, unknown> {
   // Solo agregar debug en server-side (no en cliente)
   if (typeof process !== "undefined" && process.env) {
+    // Calcular si se detectó canonical pricing y si se hizo overwrite de rate_used
+    const rootPricing = metadata?.shipping_pricing as Record<string, unknown> | null | undefined;
+    const nestedPricing = shippingMeta.pricing as Record<string, unknown> | null | undefined;
+    const rateUsed = shippingMeta.rate_used as ShippingRateUsed | null | undefined;
+    
+    const canonicalDetected = Boolean(
+      (rootPricing && (toNum((rootPricing as { carrier_cents?: unknown }).carrier_cents) != null || toNum((rootPricing as { total_cents?: unknown }).total_cents) != null)) ||
+      (nestedPricing && (toNum((nestedPricing as { carrier_cents?: unknown }).carrier_cents) != null || toNum((nestedPricing as { total_cents?: unknown }).total_cents) != null)),
+    );
+    
+    const rateUsedOverwritten = Boolean(
+      canonicalDetected &&
+      rateUsed &&
+      rateUsed.carrier_cents != null &&
+      rateUsed.price_cents != null,
+    );
+
     return {
       ...shippingMeta,
       _last_write: {
@@ -260,6 +307,8 @@ export function addShippingMetadataDebug(
         at: new Date().toISOString(),
         // SHA del commit actual si está disponible (opcional, no crítico)
         sha: process.env.VERCEL_GIT_COMMIT_SHA?.substring(0, 7) || "unknown",
+        canonical_detected: canonicalDetected,
+        rate_used_overwritten: rateUsedOverwritten,
       },
     };
   }

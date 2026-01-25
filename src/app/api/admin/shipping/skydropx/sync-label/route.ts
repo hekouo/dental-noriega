@@ -480,10 +480,13 @@ export async function POST(req: NextRequest) {
     });
     
     // Usar SOLO el resultado normalizado (nunca mezclar con updatedMetadata)
-    updateData.metadata = {
+    const metadataWithPricing: Record<string, unknown> = {
       ...updatedMetadata,
-      shipping: addShippingMetadataDebug(normalizedMeta.shippingMeta, "sync-label"),
       ...(normalizedMeta.shippingPricing ? { shipping_pricing: normalizedMeta.shippingPricing } : {}),
+    };
+    updateData.metadata = {
+      ...metadataWithPricing,
+      shipping: addShippingMetadataDebug(normalizedMeta.shippingMeta, "sync-label", metadataWithPricing),
     };
 
     // Detectar si metadata difiere de columnas (necesita sync)

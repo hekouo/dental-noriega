@@ -407,10 +407,13 @@ export async function POST(req: NextRequest) {
     });
     
     // Usar SOLO el resultado normalizado (nunca mezclar con updatedMetadata)
-    const finalMetadata: Record<string, unknown> = {
+    const metadataWithPricing: Record<string, unknown> = {
       ...updatedMetadata,
-      shipping: addShippingMetadataDebug(normalizedMeta.shippingMeta, "cancel-label"),
       ...(normalizedMeta.shippingPricing ? { shipping_pricing: normalizedMeta.shippingPricing } : {}),
+    };
+    const finalMetadata: Record<string, unknown> = {
+      ...metadataWithPricing,
+      shipping: addShippingMetadataDebug(normalizedMeta.shippingMeta, "cancel-label", metadataWithPricing),
     };
 
     // Actualizar la orden localmente: estado = "cancelled" (solo si Skydropx respondió OK)

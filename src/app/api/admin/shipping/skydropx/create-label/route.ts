@@ -1998,10 +1998,13 @@ export async function POST(req: NextRequest) {
     });
     
     // Usar SOLO el resultado normalizado (nunca mezclar con updatedMetadata)
-    const normalizedFinalMetadata: Record<string, unknown> = {
+    const metadataWithPricing: Record<string, unknown> = {
       ...updatedMetadata,
-      shipping: addShippingMetadataDebug(finalNormalizedMeta.shippingMeta, "create-label"),
       ...(finalNormalizedMeta.shippingPricing ? { shipping_pricing: finalNormalizedMeta.shippingPricing } : {}),
+    };
+    const normalizedFinalMetadata: Record<string, unknown> = {
+      ...metadataWithPricing,
+      shipping: addShippingMetadataDebug(finalNormalizedMeta.shippingMeta, "create-label", metadataWithPricing),
     };
     
     // Actualizar la orden con tracking y label (si están disponibles)
