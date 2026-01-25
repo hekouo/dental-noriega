@@ -211,11 +211,33 @@ export async function POST(req: NextRequest) {
       orderId,
     });
 
-    const finalMetadata: Record<string, unknown> = {
+    // Construir metadata con pricing primero para pasarlo a addShippingMetadataDebug
+    const metadataWithPricing: Record<string, unknown> = {
       ...updatedMetadata,
       ...(normalized.shippingPricing ? { shipping_pricing: normalized.shippingPricing } : {}),
-      shipping: addShippingMetadataDebug(normalized.shippingMeta, "apply-rate"),
     };
+    
+    const finalMetadata: Record<string, unknown> = {
+      ...metadataWithPricing,
+      shipping: addShippingMetadataDebug(normalized.shippingMeta, "apply-rate", metadataWithPricing),
+    };
+    
+    // Validación crítica: Si existe canonical pricing pero rate_used tiene nulls, NO persistir silenciosamente
+    const finalShippingMeta = finalMetadata.shipping as Record<string, unknown>;
+    const finalRateUsed = finalShippingMeta?.rate_used as { carrier_cents?: number | null; price_cents?: number | null } | null | undefined;
+    const finalPricing = finalMetadata.shipping_pricing as { carrier_cents?: number | null; total_cents?: number | null } | null | undefined;
+    
+    if (finalPricing && (finalPricing.carrier_cents != null || finalPricing.total_cents != null)) {
+      // Existe canonical pricing con números
+      if (finalRateUsed && (finalRateUsed.carrier_cents == null || finalRateUsed.price_cents == null)) {
+        const errorMsg = `[apply-rate] CRITICAL: canonical pricing exists but rate_used has nulls. orderId=${orderId}, carrier_cents=${finalRateUsed.carrier_cents}, price_cents=${finalRateUsed.price_cents}, pricing.carrier_cents=${finalPricing.carrier_cents}, pricing.total_cents=${finalPricing.total_cents}`;
+        if (process.env.NODE_ENV === "production") {
+          console.error(errorMsg);
+        } else {
+          throw new Error(errorMsg);
+        }
+      }
+    }
     const finalTotal = normalized.shippingPricing?.total_cents ?? normalizedPricing?.total_cents;
 
     // Actualizar order

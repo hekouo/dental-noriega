@@ -237,4 +237,52 @@ describe("normalizeShippingMetadata", () => {
     expect(rateUsed.price_cents).not.toBeNull();
     expect(rateUsed.customer_total_cents).not.toBeNull();
   });
+
+  it("overwrite final: garantiza rate_used relleno incluso después de construcciones intermedias (simula apply-rate)", () => {
+    // Simula el estado exacto que ocurre en producción después de apply-rate
+    // donde shipping_pricing tiene números pero rate_used queda con nulls
+    const metadata = {
+      shipping_pricing: {
+        carrier_cents: 14964,
+        packaging_cents: 2000,
+        margin_cents: 3671,
+        total_cents: 21635,
+      },
+      shipping: {
+        rate_used: {
+          external_rate_id: "rate_xyz",
+          provider: "skydropx",
+          service: "express",
+          carrier_cents: null,
+          price_cents: null,
+          customer_total_cents: null,
+        },
+        // Simula que otros campos se agregaron después
+        quoted_at: "2025-01-22T00:00:00.000Z",
+        price_cents: 21635,
+      },
+    };
+
+    const result = normalizeShippingMetadata(metadata, {
+      source: "admin",
+      orderId: "test-order-123",
+    });
+
+    const rateUsed = result.shippingMeta.rate_used as Record<string, unknown>;
+    
+    // Invariante: rate_used debe reflejar exactamente los valores de shipping_pricing
+    expect(rateUsed.price_cents).toBe(metadata.shipping_pricing.total_cents);
+    expect(rateUsed.carrier_cents).toBe(metadata.shipping_pricing.carrier_cents);
+    expect(rateUsed.customer_total_cents).toBe(metadata.shipping_pricing.total_cents);
+    
+    // Nunca null cuando existe canonical pricing
+    expect(rateUsed.price_cents).not.toBeNull();
+    expect(rateUsed.carrier_cents).not.toBeNull();
+    expect(rateUsed.customer_total_cents).not.toBeNull();
+    
+    // Otros campos deben preservarse
+    expect(rateUsed.external_rate_id).toBe("rate_xyz");
+    expect(rateUsed.provider).toBe("skydropx");
+    expect(rateUsed.service).toBe("express");
+  });
 });
