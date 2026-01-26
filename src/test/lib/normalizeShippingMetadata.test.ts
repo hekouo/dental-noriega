@@ -380,4 +380,110 @@ describe("normalizeShippingMetadata", () => {
     expect(lastWrite.canonical_detected).toBe(true);
     expect(lastWrite.rate_used_overwritten).toBe(true);
   });
+
+  it("secuencia apply-rate -> create-label: rate_used persiste después de create-label", () => {
+    // Simula el flujo completo:
+    // 1. apply-rate escribe metadata con rate_used lleno
+    // 2. create-label lee metadata, agrega label_creation, y debe preservar rate_used
+
+    // Paso 1: Estado después de apply-rate (metadata con rate_used lleno)
+    const metadataAfterApplyRate: Record<string, unknown> = {
+      shipping_pricing: {
+        carrier_cents: 14964,
+        packaging_cents: 2000,
+        margin_cents: 3671,
+        total_cents: 21635,
+      },
+      shipping: {
+        rate_used: {
+          external_rate_id: "rate_xyz",
+          provider: "skydropx",
+          service: "express",
+          carrier_cents: 14964,
+          price_cents: 21635,
+          customer_total_cents: 21635,
+        },
+        _last_write: {
+          route: "apply-rate",
+          at: "2025-01-22T00:00:00.000Z",
+          sha: "abc123",
+          canonical_detected: true,
+          rate_used_overwritten: true,
+        },
+      },
+    };
+
+    // Paso 2: create-label lee metadata (simula freshMetadata)
+    const freshMetadata = { ...metadataAfterApplyRate };
+    const freshShippingMeta = (freshMetadata.shipping as Record<string, unknown>) || {};
+    const freshRateUsed = (freshShippingMeta.rate_used as {
+      carrier_cents?: number | null;
+      price_cents?: number | null;
+    }) || null;
+
+    // Paso 3: create-label agrega label_creation (simula updatedShippingMeta)
+    const updatedShippingMeta = {
+      ...freshShippingMeta,
+      label_creation: {
+        status: "created",
+        started_at: "2025-01-22T00:01:00.000Z",
+        finished_at: "2025-01-22T00:01:05.000Z",
+        request_id: "req_123",
+      },
+      label_url: "https://example.com/label.pdf",
+      tracking_number: "TRACK123",
+      shipping_status: "label_created",
+    };
+
+    // Paso 4: Merge seguro (como en create-label)
+    const finalShippingForUpdate: Record<string, unknown> = {
+      ...freshShippingMeta,
+      ...updatedShippingMeta,
+      // Preservar rate_used de freshMetadata si tiene números (más reciente)
+      rate_used: freshRateUsed && 
+        (freshRateUsed.price_cents != null || freshRateUsed.carrier_cents != null)
+        ? freshRateUsed
+        : (updatedShippingMeta as Record<string, unknown>).rate_used,
+    };
+
+    const mergedMetadata: Record<string, unknown> = {
+      ...freshMetadata,
+      shipping: finalShippingForUpdate,
+    };
+
+    // Paso 5: Normalizar (como en create-label)
+    const normalized = normalizeShippingMetadata(mergedMetadata, {
+      source: "create-label",
+      orderId: "test-order-123",
+    });
+
+    const finalMetadata: Record<string, unknown> = {
+      ...mergedMetadata,
+      ...(normalized.shippingPricing ? { shipping_pricing: normalized.shippingPricing } : {}),
+      shipping: normalized.shippingMeta,
+    };
+
+    // Paso 6: Validación - rate_used debe persistir con números
+    const finalShippingMeta = finalMetadata.shipping as Record<string, unknown>;
+    const finalRateUsed = finalShippingMeta.rate_used as {
+      carrier_cents?: number | null;
+      price_cents?: number | null;
+      customer_total_cents?: number | null;
+    };
+
+    // Invariantes: rate_used debe seguir con números después de create-label
+    expect(finalRateUsed).toBeTruthy();
+    expect(finalRateUsed.price_cents).toBe(21635);
+    expect(finalRateUsed.carrier_cents).toBe(14964);
+    expect(finalRateUsed.customer_total_cents).toBe(21635);
+    
+    // Nunca null
+    expect(finalRateUsed.price_cents).not.toBeNull();
+    expect(finalRateUsed.carrier_cents).not.toBeNull();
+    expect(finalRateUsed.customer_total_cents).not.toBeNull();
+    
+    // label_creation debe estar presente
+    expect(finalShippingMeta.label_creation).toBeTruthy();
+    expect((finalShippingMeta.label_creation as { status?: string }).status).toBe("created");
+  });
 });

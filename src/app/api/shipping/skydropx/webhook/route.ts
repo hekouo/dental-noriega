@@ -559,15 +559,56 @@ export async function POST(req: NextRequest) {
             ...currentMetadata,
             shipping: updatedShippingMeta,
           };
+          // CRÍTICO: Releer metadata justo antes del update para evitar race conditions
+          const { data: freshOrder } = await supabase
+            .from("orders")
+            .select("metadata")
+            .eq("id", order.id)
+            .single();
+          
+          const freshMetadata = (freshOrder?.metadata as Record<string, unknown>) || {};
+          const freshShippingMeta = (freshMetadata.shipping as Record<string, unknown>) || {};
+          const freshRateUsed = (freshShippingMeta.rate_used as {
+            carrier_cents?: number | null;
+            price_cents?: number | null;
+          }) || null;
+          
+          // INSTRUMENTACIÓN PRE-WRITE
+          const preWriteLog = {
+            orderId: order.id,
+            rateUsedBefore: freshRateUsed
+              ? {
+                  price_cents: freshRateUsed.price_cents,
+                  carrier_cents: freshRateUsed.carrier_cents,
+                }
+              : null,
+          };
+          console.log("[webhook-skydropx] PRE-WRITE:", JSON.stringify(preWriteLog, null, 2));
+          
+          // Merge seguro: preservar rate_used de freshMetadata
+          const mergedShippingMeta = {
+            ...(freshShippingMeta || {}),
+            ...updatedShippingMeta,
+            rate_used: freshRateUsed && 
+              (freshRateUsed.price_cents != null || freshRateUsed.carrier_cents != null)
+              ? freshRateUsed
+              : (updatedShippingMeta as Record<string, unknown>).rate_used,
+          };
+          
+          const mergedMetadata: Record<string, unknown> = {
+            ...freshMetadata,
+            shipping: mergedShippingMeta,
+          };
+          
           // Normalizar metadata antes de persistir para asegurar rate_used completo
-          const normalizedMeta = normalizeShippingMetadata(updatedMetadata, {
+          const normalizedMeta = normalizeShippingMetadata(mergedMetadata, {
             source: "admin",
             orderId: order.id,
           });
           
           // Usar SOLO el resultado normalizado (nunca mezclar con updatedMetadata)
           const metadataWithPricing: Record<string, unknown> = {
-            ...updatedMetadata,
+            ...mergedMetadata,
             ...(normalizedMeta.shippingPricing ? { shipping_pricing: normalizedMeta.shippingPricing } : {}),
           };
           updateData.metadata = {
@@ -577,11 +618,34 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Actualizar orden
-      const { error: updateError } = await supabase
+      // Actualizar orden con return=representation
+      const { data: updatedOrder, error: updateError } = await supabase
         .from("orders")
         .update(updateData)
-        .eq("id", order.id);
+        .eq("id", order.id)
+        .select("id, metadata")
+        .single();
+      
+      // INSTRUMENTACIÓN POST-WRITE
+      if (updateData.metadata && updatedOrder) {
+        const postWriteMetadata = (updatedOrder.metadata as Record<string, unknown>) || {};
+        const postWriteShippingMeta = (postWriteMetadata.shipping as Record<string, unknown>) || {};
+        const postWriteRateUsed = (postWriteShippingMeta.rate_used as {
+          carrier_cents?: number | null;
+          price_cents?: number | null;
+        }) || null;
+        
+        const postWriteLog = {
+          orderId: order.id,
+          rateUsedPostWrite: postWriteRateUsed
+            ? {
+                price_cents: postWriteRateUsed.price_cents,
+                carrier_cents: postWriteRateUsed.carrier_cents,
+              }
+            : null,
+        };
+        console.log("[webhook-skydropx] POST-WRITE:", JSON.stringify(postWriteLog, null, 2));
+      }
 
       if (updateError) {
         if (process.env.NODE_ENV !== "production") {
