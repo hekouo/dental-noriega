@@ -52,50 +52,104 @@ export default function ShippingPackagePickerClient({
     }
   }, [success]);
 
+  // Helper para construir el payload del body
+  const buildPackagePayload = (): {
+    orderId: string;
+    profile?: PackageProfileKey;
+    custom?: {
+      length_cm: number;
+      width_cm: number;
+      height_cm: number;
+      weight_g: number;
+    };
+  } => {
+    const body: {
+      orderId: string;
+      profile?: PackageProfileKey;
+      custom?: {
+        length_cm: number;
+        width_cm: number;
+        height_cm: number;
+        weight_g: number;
+      };
+    } = {
+      orderId,
+    };
+
+    if (mode === "profile") {
+      body.profile = selectedProfile;
+    } else {
+      const length = parseFloat(customLength);
+      const width = parseFloat(customWidth);
+      const height = parseFloat(customHeight);
+      const weight = parseFloat(customWeight);
+
+      body.custom = {
+        length_cm: length,
+        width_cm: width,
+        height_cm: height,
+        weight_g: weight,
+      };
+    }
+
+    return body;
+  };
+
+  // Helper para validar dimensiones personalizadas
+  const validateCustomDimensions = (): { valid: boolean; error?: string } => {
+    const length = parseFloat(customLength);
+    const width = parseFloat(customWidth);
+    const height = parseFloat(customHeight);
+    const weight = parseFloat(customWeight);
+
+    if (isNaN(length) || isNaN(width) || isNaN(height) || isNaN(weight)) {
+      return { valid: false, error: "Todos los campos personalizados deben ser números válidos." };
+    }
+
+    return validatePackageDimensions(length, width, height, weight);
+  };
+
+  // Helper para construir mensaje de error
+  const buildErrorMessage = (data: {
+    code?: string;
+    message?: string;
+  }): string => {
+    if (data.code === "unauthorized") {
+      return "No tienes permisos para realizar esta acción.";
+    }
+    if (data.code === "order_not_found") {
+      return "La orden no existe.";
+    }
+    if (data.code === "label_already_created") {
+      return "No se puede cambiar el empaque porque ya se creó la guía. Primero cancela la guía existente.";
+    }
+    if (data.code === "invalid_profile") {
+      return "Perfil inválido.";
+    }
+    if (data.code === "invalid_dimensions") {
+      return data.message || "Dimensiones inválidas.";
+    }
+    return data.message || "Error al guardar el empaque.";
+  };
+
   const handleSave = async () => {
     setLoading(true);
     setError(null);
     setSuccess(false);
 
     try {
-      const body: { orderId: string; profile?: PackageProfileKey; custom?: any } = {
-        orderId,
-      };
-
-      if (mode === "profile") {
-        body.profile = selectedProfile;
-      } else {
-        // Validar dimensiones personalizadas
-        const length = parseFloat(customLength);
-        const width = parseFloat(customWidth);
-        const height = parseFloat(customHeight);
-        const weight = parseFloat(customWeight);
-
-        if (
-          isNaN(length) ||
-          isNaN(width) ||
-          isNaN(height) ||
-          isNaN(weight)
-        ) {
-          setError("Todos los campos personalizados deben ser números válidos.");
-          setLoading(false);
-          return;
-        }
-
-        const validation = validatePackageDimensions(length, width, height, weight);
+      // Validar dimensiones personalizadas si es modo custom
+      if (mode === "custom") {
+        const validation = validateCustomDimensions();
         if (!validation.valid) {
           setError(validation.error || "Dimensiones inválidas.");
           setLoading(false);
           return;
         }
-
-        body.custom = {
-          length_cm: length,
-          width_cm: width,
-          height_cm: height,
-          weight_g: weight,
-        };
       }
+
+      // Construir payload
+      const body = buildPackagePayload();
 
       const res = await fetch("/api/admin/orders/set-shipping-package", {
         method: "POST",
@@ -108,20 +162,7 @@ export default function ShippingPackagePickerClient({
       const data = await res.json();
 
       if (!data.ok) {
-        const errorMessage =
-          data.code === "unauthorized"
-            ? "No tienes permisos para realizar esta acción."
-            : data.code === "order_not_found"
-              ? "La orden no existe."
-              : data.code === "label_already_created"
-                ? "No se puede cambiar el empaque porque ya se creó la guía. Primero cancela la guía existente."
-                : data.code === "invalid_profile"
-                  ? "Perfil inválido."
-                  : data.code === "invalid_dimensions"
-                    ? data.message || "Dimensiones inválidas."
-                    : data.message || "Error al guardar el empaque.";
-
-        setError(errorMessage);
+        setError(buildErrorMessage(data));
         return;
       }
 

@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { unstable_noStore as noStore } from "next/cache";
 import Link from "next/link";
 import { checkAdminAccess } from "@/lib/admin/access";
 import { getOrderWithItemsAdmin } from "@/lib/supabase/orders.server";
@@ -58,7 +59,11 @@ export default async function AdminPedidoDetailPage({
   const { id } = await params;
   const sp = (await searchParams) ?? {};
 
-  // Obtener orden con items
+  // CRÍTICO: Deshabilitar caching para asegurar lectura fresh de la orden
+  // Esto previene que se muestre metadata desactualizado después de apply-rate
+  noStore();
+
+  // Obtener orden con items (siempre fresh, sin cache)
   const order = await getOrderWithItemsAdmin(id);
 
   if (!order) {
@@ -150,6 +155,7 @@ export default async function AdminPedidoDetailPage({
   const shouldShowPackageFinal: boolean = isSkydropx && isNotPickup;
   const shippingMeta = ((order.metadata as Record<string, unknown>)?.shipping as Record<string, unknown>) || {};
   const rateUsed = (shippingMeta.rate_used as Record<string, unknown>) || {};
+  
   const hasSelectedRate =
     typeof rateUsed.external_rate_id === "string"
       ? rateUsed.external_rate_id.trim().length > 0

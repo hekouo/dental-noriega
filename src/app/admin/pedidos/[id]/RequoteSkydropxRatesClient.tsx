@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { formatMXNFromCents } from "@/lib/utils/currency";
 
 type RequoteSkydropxRatesClientProps = {
@@ -40,14 +41,15 @@ type RequoteResponse = {
  */
 export default function RequoteSkydropxRatesClient({
   orderId,
-  currentRatePriceCents,
+  currentRatePriceCents: _currentRatePriceCents,
   quotedAt,
 }: RequoteSkydropxRatesClientProps) {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [applying, setApplying] = useState<string | null>(null);
   const [rates, setRates] = useState<Rate[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [diagnostic, setDiagnostic] = useState<any>(null);
+  const [diagnostic, setDiagnostic] = useState<Record<string, unknown> | null>(null);
   const [emptyReason, setEmptyReason] = useState<string | null>(null);
   const [showDiagnostic, setShowDiagnostic] = useState(false);
   const [weightClamped, setWeightClamped] = useState(false);
@@ -144,6 +146,43 @@ export default function RequoteSkydropxRatesClient({
     }
   };
 
+  // Helper para construir mensaje de error de apply-rate
+  const buildRequoteErrorMessage = (data: {
+    code?: string;
+    message?: string;
+  }): string => {
+    if (data.code === "unauthorized") {
+      return "No tienes permisos para realizar esta acción.";
+    }
+    if (data.code === "order_not_found") {
+      return "La orden no existe.";
+    }
+    if (data.code === "label_already_created") {
+      return "No se puede cambiar la tarifa porque ya se creó la guía. Primero cancela la guía existente.";
+    }
+    return data.message || "Error al aplicar la tarifa.";
+  };
+
+  // Helper para renderizar warning de peso clampado
+  const renderWeightClampedWarning = (): JSX.Element | null => {
+    if (!weightClamped || !diagnostic?.pkg) {
+      return null;
+    }
+    const pkg = diagnostic.pkg as { min_billable_weight_g?: number } | undefined;
+    const minWeight = pkg?.min_billable_weight_g;
+    if (!minWeight) {
+      return null;
+    }
+    return (
+      <div className="rounded-lg border border-yellow-300 bg-yellow-50 p-4">
+        <p className="text-sm text-yellow-800">
+          <strong>Nota:</strong> Skydropx requiere/cobra mínimo {minWeight}g (1kg). 
+          Se cotizó con {minWeight}g ({minWeight / 1000}kg).
+        </p>
+      </div>
+    );
+  };
+
   const handleApplyRate = async (rate: Rate) => {
     setApplying(rate.external_id);
     setError(null);
@@ -171,22 +210,22 @@ export default function RequoteSkydropxRatesClient({
       const data = await res.json();
 
       if (!data.ok) {
-        const errorMessage =
-          data.code === "unauthorized"
-            ? "No tienes permisos para realizar esta acción."
-            : data.code === "order_not_found"
-              ? "La orden no existe."
-              : data.code === "label_already_created"
-                ? "No se puede cambiar la tarifa porque ya se creó la guía. Primero cancela la guía existente."
-                : data.message || "Error al aplicar la tarifa.";
-
+        const errorMessage = buildRequoteErrorMessage(data);
         setError(errorMessage);
         setApplying(null);
         return;
       }
 
-      // Refrescar página para mostrar cambios
-      window.location.reload();
+      // CRÍTICO: Refrescar datos del servidor antes de recargar página
+      // router.refresh() fuerza a Next.js a re-fetchear datos del servidor sin recargar toda la página
+      // Esto asegura que se muestren los valores actualizados de rate_used inmediatamente
+      router.refresh();
+      
+      // Pequeño delay para permitir que router.refresh() complete antes de recargar
+      // Esto mejora la experiencia: primero se actualiza el estado, luego se recarga si es necesario
+      setTimeout(() => {
+        window.location.reload();
+      }, 100);
     } catch (err) {
       console.error("[RequoteSkydropxRatesClient] Error:", err);
       setError("Error de red al aplicar la tarifa.");
@@ -265,14 +304,7 @@ export default function RequoteSkydropxRatesClient({
       )}
 
       {/* Warning si el peso fue clampado (informativo, no error) */}
-      {weightClamped && diagnostic?.pkg && (
-        <div className="rounded-lg border border-yellow-300 bg-yellow-50 p-4">
-          <p className="text-sm text-yellow-800">
-            <strong>Nota:</strong> Skydropx requiere/cobra mínimo {diagnostic.pkg.min_billable_weight_g}g (1kg). 
-            Se cotizó con {diagnostic.pkg.min_billable_weight_g}g ({diagnostic.pkg.min_billable_weight_g / 1000}kg).
-          </p>
-        </div>
-      )}
+      {renderWeightClampedWarning()}
 
       {/* Warning general (para empaque, etc.) */}
       {warning && !weightClamped && (
