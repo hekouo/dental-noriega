@@ -288,16 +288,30 @@ export function addShippingMetadataDebug(
     const nestedPricing = shippingMeta.pricing as Record<string, unknown> | null | undefined;
     const rateUsed = shippingMeta.rate_used as ShippingRateUsed | null | undefined;
     
-    const canonicalDetected = Boolean(
-      (rootPricing && (toNum((rootPricing as { carrier_cents?: unknown }).carrier_cents) != null || toNum((rootPricing as { total_cents?: unknown }).total_cents) != null)) ||
-      (nestedPricing && (toNum((nestedPricing as { carrier_cents?: unknown }).carrier_cents) != null || toNum((nestedPricing as { total_cents?: unknown }).total_cents) != null)),
-    );
+    const canonCarrier = rootPricing
+      ? toNum((rootPricing as { carrier_cents?: unknown }).carrier_cents)
+      : nestedPricing
+        ? toNum((nestedPricing as { carrier_cents?: unknown }).carrier_cents)
+        : null;
+    const canonTotal = rootPricing
+      ? toNum((rootPricing as { total_cents?: unknown }).total_cents)
+      : nestedPricing
+        ? toNum((nestedPricing as { total_cents?: unknown }).total_cents)
+        : null;
     
+    const canonicalDetected = canonCarrier != null || canonTotal != null;
+    
+    // rate_used_overwritten = true SOLO si:
+    // 1. Existe canonical pricing con números
+    // 2. rate_used tiene números (no null)
+    // 3. Los números coinciden con canonical (probar que realmente se hizo overwrite)
     const rateUsedOverwritten = Boolean(
       canonicalDetected &&
       rateUsed &&
       rateUsed.carrier_cents != null &&
-      rateUsed.price_cents != null,
+      rateUsed.price_cents != null &&
+      (canonCarrier == null || rateUsed.carrier_cents === canonCarrier) &&
+      (canonTotal == null || rateUsed.price_cents === canonTotal),
     );
 
     return {

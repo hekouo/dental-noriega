@@ -285,4 +285,103 @@ describe("normalizeShippingMetadata", () => {
     expect(rateUsed.provider).toBe("skydropx");
     expect(rateUsed.service).toBe("express");
   });
+
+  it("end-to-end apply-rate: simula post-write verificando que rate_used persiste correctamente", () => {
+    // Simula el flujo completo de apply-rate:
+    // 1. Metadata inicial con shipping_pricing
+    // 2. Normalización (simula lo que hace apply-rate)
+    // 3. Construcción de finalMetadata (simula pre-write)
+    // 4. Verificación de que post-write equivalente mantiene rate_used con números
+
+    // Usar valores consistentes para evitar corrección por normalizeShippingPricing
+    const carrierCents = 14964;
+    const packagingCents = 2000;
+    const marginCents = 3671;
+    const totalCents = carrierCents + packagingCents + marginCents; // 21635
+
+    const initialMetadata = {
+      shipping_pricing: {
+        carrier_cents: carrierCents,
+        packaging_cents: packagingCents,
+        margin_cents: marginCents,
+        total_cents: totalCents,
+        customer_total_cents: totalCents,
+      },
+      shipping: {
+        rate_used: {
+          external_rate_id: "rate_xyz",
+          provider: "skydropx",
+          service: "express",
+          carrier_cents: null, // null inicial (bug que queremos corregir)
+          price_cents: null,
+          customer_total_cents: null,
+        },
+      },
+    };
+
+    // Paso 1: Normalizar (simula normalizeShippingMetadata en apply-rate)
+    const normalized = normalizeShippingMetadata(initialMetadata, {
+      source: "admin",
+      orderId: "test-order-123",
+    });
+
+    // Paso 2: Construir finalMetadata (simula lo que hace apply-rate antes del UPDATE)
+    const metadataWithPricing: Record<string, unknown> = {
+      ...initialMetadata,
+      ...(normalized.shippingPricing ? { shipping_pricing: normalized.shippingPricing } : {}),
+    };
+
+    // Simular addShippingMetadataDebug (sin el helper real, solo verificar estructura)
+    const finalShippingMeta = normalized.shippingMeta;
+    const finalMetadata: Record<string, unknown> = {
+      ...metadataWithPricing,
+      shipping: finalShippingMeta,
+    };
+
+    // Paso 3: Verificar PRE-WRITE (lo que se va a enviar a Supabase)
+    const preWriteRateUsed = (finalMetadata.shipping as Record<string, unknown>)
+      ?.rate_used as Record<string, unknown> | null | undefined;
+    const preWritePricing = finalMetadata.shipping_pricing as {
+      total_cents?: number | null;
+      carrier_cents?: number | null;
+    } | null | undefined;
+
+    expect(preWritePricing).toBeTruthy();
+    expect(preWritePricing?.total_cents).toBe(totalCents);
+    // rate_used debe usar valores RAW de canonical pricing (no corregidos)
+    // El overwrite final usa canonicalPricing RAW, que tiene carrierCents original
+    expect(preWriteRateUsed).toBeTruthy();
+    expect(preWriteRateUsed?.price_cents).toBe(totalCents);
+    expect(preWriteRateUsed?.carrier_cents).toBe(carrierCents); // RAW value, no corregido
+    expect(preWriteRateUsed?.customer_total_cents).toBe(totalCents);
+
+    // Paso 4: Simular POST-WRITE (lo que Supabase devolvería)
+    // En un caso real, esto vendría de Supabase, pero aquí simulamos que es idéntico
+    const postWriteMetadata = JSON.parse(JSON.stringify(finalMetadata)) as typeof finalMetadata;
+    const postWriteShipping = postWriteMetadata.shipping as Record<string, unknown>;
+    const postWriteRateUsed = postWriteShipping?.rate_used as {
+      price_cents?: number | null;
+      carrier_cents?: number | null;
+      customer_total_cents?: number | null;
+    } | null | undefined;
+    const postWritePricing = postWriteMetadata.shipping_pricing as {
+      total_cents?: number | null;
+      carrier_cents?: number | null;
+    } | null | undefined;
+
+    // Verificar que POST-WRITE mantiene los valores (no hay trigger que los reescriba)
+    expect(postWritePricing?.total_cents).toBe(totalCents);
+
+    expect(postWriteRateUsed).toBeTruthy();
+    expect(postWriteRateUsed?.price_cents).toBe(totalCents);
+    expect(postWriteRateUsed?.carrier_cents).toBe(carrierCents); // RAW value
+    expect(postWriteRateUsed?.customer_total_cents).toBe(totalCents);
+
+    // Verificar invariante: rate_used debe reflejar canonical pricing RAW
+    // Nota: rate_used usa valores RAW de canonical, no los valores corregidos de normalizedPricing
+    expect(postWriteRateUsed?.price_cents).toBe(totalCents);
+    expect(postWriteRateUsed?.carrier_cents).toBe(carrierCents);
+    expect(postWriteRateUsed?.price_cents).not.toBeNull();
+    expect(postWriteRateUsed?.carrier_cents).not.toBeNull();
+  });
 });
