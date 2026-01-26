@@ -303,15 +303,15 @@ export function addShippingMetadataDebug(
     
     // rate_used_overwritten = true SOLO si:
     // 1. Existe canonical pricing con números
-    // 2. rate_used tiene números (no null)
-    // 3. Los números coinciden con canonical (probar que realmente se hizo overwrite)
+    // 2. rate_used tiene campos numéricos (no null)
+    // 3. Los valores coinciden exactamente con canonical (prueba de que el overwrite funcionó)
     const rateUsedOverwritten = Boolean(
       canonicalDetected &&
       rateUsed &&
-      rateUsed.carrier_cents != null &&
-      rateUsed.price_cents != null &&
-      (canonCarrier == null || rateUsed.carrier_cents === canonCarrier) &&
-      (canonTotal == null || rateUsed.price_cents === canonTotal),
+      typeof rateUsed.carrier_cents === "number" &&
+      typeof rateUsed.price_cents === "number" &&
+      rateUsed.carrier_cents === canonCarrier &&
+      rateUsed.price_cents === canonTotal,
     );
 
     return {

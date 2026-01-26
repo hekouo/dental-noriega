@@ -22,6 +22,19 @@ type Rate = {
   customer_total_cents?: number | null;
 };
 
+type RequoteResponse = {
+  ok: boolean;
+  rates?: Rate[];
+  warning?: string;
+  weightClamped?: boolean;
+  diagnostic?: Record<string, unknown>;
+  emptyReason?: string;
+  code?: string;
+  message?: string;
+  reason?: string;
+  missingFields?: string[];
+};
+
 /**
  * Componente para recotizar envíos de Skydropx en Admin
  */
@@ -61,6 +74,25 @@ export default function RequoteSkydropxRatesClient({
     return hoursSinceQuote >= 20 && hoursSinceQuote < 24; // Próxima a expirar entre 20-24h
   };
 
+  // Helper para construir mensaje de error desde respuesta
+  const buildErrorMessage = (data: RequoteResponse): string => {
+    if (data.code === "unauthorized") {
+      return "No tienes permisos para realizar esta acción.";
+    }
+    if (data.code === "requote_precondition_failed") {
+      const reasonPart = data.reason ? ` (${data.reason})` : "";
+      const missingFieldsPart = data.missingFields ? `. Campos faltantes: ${data.missingFields.join(", ")}` : "";
+      return `${data.message || ""}${reasonPart}${missingFieldsPart}`;
+    }
+    if (data.code === "order_not_found") {
+      return "La orden no existe.";
+    }
+    if (data.code === "missing_shipping_address") {
+      return "Falta dirección en la orden.";
+    }
+    return data.message || "Error al recotizar el envío.";
+  };
+
   const handleRequote = async () => {
     setLoading(true);
     setError(null);
@@ -80,7 +112,7 @@ export default function RequoteSkydropxRatesClient({
         body: JSON.stringify({ orderId }),
       });
 
-      const data = await res.json();
+      const data = (await res.json()) as RequoteResponse;
 
       if (!data.ok) {
         // Manejar quotation_pending de forma especial
@@ -90,19 +122,7 @@ export default function RequoteSkydropxRatesClient({
           return;
         }
         
-        // Si es precondition failed, mostrar reason y missingFields
-        const errorMessage =
-          data.code === "unauthorized"
-            ? "No tienes permisos para realizar esta acción."
-            : data.code === "requote_precondition_failed"
-              ? `${data.message}${data.reason ? ` (${data.reason})` : ""}${data.missingFields ? `. Campos faltantes: ${data.missingFields.join(", ")}` : ""}`
-              : data.code === "order_not_found"
-                ? "La orden no existe."
-                : data.code === "missing_shipping_address"
-                  ? "Falta dirección en la orden."
-                : data.message || "Error al recotizar el envío.";
-
-        setError(errorMessage);
+        setError(buildErrorMessage(data));
         return;
       }
 
