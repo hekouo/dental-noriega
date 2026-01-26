@@ -15,6 +15,60 @@ type Props = {
   onSuccess?: (data: { trackingNumber: string; labelUrl: string | null }) => void;
 };
 
+// Helper para obtener mensaje de error simple
+function getSimpleErrorMessage(code: string): string | null {
+  const simpleErrors: Record<string, string> = {
+    payment_not_paid: "La orden no está pagada. Solo se pueden crear guías para órdenes pagadas.",
+    unauthorized: "No tienes permisos para realizar esta acción.",
+    order_not_found: "La orden no existe.",
+    unsupported_provider: "El proveedor de envío no es compatible.",
+    missing_shipping_rate: "No hay tarifa guardada. Intenta crear la guía de nuevo.",
+    missing_selected_rate: "Primero recotiza y aplica una tarifa.",
+    missing_final_package: "Captura peso y medidas reales de la caja antes de crear guía. Ve a la sección 'Paquete real para guía'.",
+    skydropx_error: "Error al crear la guía en Skydropx. Revisa los logs.",
+    label_creation_in_progress: "La creación de la guía está en progreso. Intenta de nuevo en unos momentos.",
+  };
+  return simpleErrors[code] || null;
+}
+
+// Helper para manejar errores de payload inválido
+function getInvalidPayloadMessage(missingFields: unknown): string {
+  const missing = Array.isArray(missingFields) ? (missingFields as string[]) : [];
+  const hasConsignmentNote = missing.some((f) => f.includes("consignment_note"));
+  const hasPackageType = missing.some((f) => f.includes("package_type"));
+  if (hasConsignmentNote || hasPackageType) {
+    return "Faltan códigos Carta Porte: consignment_note y package_type. Configura env vars (SKYDROPX_DEFAULT_CONSIGNMENT_NOTE, SKYDROPX_DEFAULT_PACKAGE_TYPE) o guarda en metadata.shipping.";
+  }
+  return `Faltan campos requeridos: ${missing.join(", ")}`;
+}
+
+// Helper para manejar errores de bad request
+function getBadRequestMessage(payloadHealth: unknown): string {
+  let message = "Skydropx rechazó el payload. Revisa ORIGIN_* env vars y campos requeridos. Ver detalles abajo.";
+  if (payloadHealth && typeof payloadHealth === "object") {
+    const ph = payloadHealth as Record<string, boolean | number>;
+    const missing = Object.entries(ph)
+      .filter(([k, v]) => k.startsWith("has") && v === false)
+      .map(([k]) => k.replace("has", "").replace(/([A-Z])/g, " $1").trim());
+    if (missing.length > 0) {
+      message += `\n\nCampos faltantes detectados: ${missing.join(", ")}`;
+    }
+  }
+  return message;
+}
+
+// Helper para manejar errores de unprocessable entity
+function getUnprocessableEntityMessage(upstream: unknown): string {
+  const upstreamObj = upstream as Record<string, unknown> | undefined;
+  const errors = upstreamObj?.errors as Array<{ field?: string | null; message?: string }> | undefined;
+  const hasConsignmentNote = errors?.some((e) => e.field?.includes("consignment_note") || e.message?.includes("consignment_note"));
+  const hasPackageType = errors?.some((e) => e.field?.includes("package_type") || e.message?.includes("package_type"));
+  if (hasConsignmentNote || hasPackageType) {
+    return "Faltan códigos Carta Porte: consignment_note y package_type. Configura env vars (SKYDROPX_DEFAULT_CONSIGNMENT_NOTE, SKYDROPX_DEFAULT_PACKAGE_TYPE) o guarda en metadata.shipping.";
+  }
+  return "Skydropx rechazó el envío por errores de validación. Ver lista de errores abajo.";
+}
+
 // Helper para obtener mensaje de error desde código de respuesta
 function getErrorMessage(data: {
   code?: string;
@@ -32,20 +86,9 @@ function getErrorMessage(data: {
   }
 
   // Errores simples con mensaje directo
-  const simpleErrors: Record<string, string> = {
-    payment_not_paid: "La orden no está pagada. Solo se pueden crear guías para órdenes pagadas.",
-    unauthorized: "No tienes permisos para realizar esta acción.",
-    order_not_found: "La orden no existe.",
-    unsupported_provider: "El proveedor de envío no es compatible.",
-    missing_shipping_rate: "No hay tarifa guardada. Intenta crear la guía de nuevo.",
-    missing_selected_rate: "Primero recotiza y aplica una tarifa.",
-    missing_final_package: "Captura peso y medidas reales de la caja antes de crear guía. Ve a la sección 'Paquete real para guía'.",
-    skydropx_error: "Error al crear la guía en Skydropx. Revisa los logs.",
-    label_creation_in_progress: "La creación de la guía está en progreso. Intenta de nuevo en unos momentos.",
-  };
-
-  if (simpleErrors[code]) {
-    return simpleErrors[code];
+  const simpleError = getSimpleErrorMessage(code);
+  if (simpleError) {
+    return simpleError;
   }
 
   // Errores de dirección
@@ -60,40 +103,17 @@ function getErrorMessage(data: {
 
   // Errores de payload inválido
   if (code === "invalid_shipping_payload") {
-    const missing = Array.isArray(data.details?.missingFields) ? (data.details.missingFields as string[]) : [];
-    const hasConsignmentNote = missing.some((f) => f.includes("consignment_note"));
-    const hasPackageType = missing.some((f) => f.includes("package_type"));
-    if (hasConsignmentNote || hasPackageType) {
-      return "Faltan códigos Carta Porte: consignment_note y package_type. Configura env vars (SKYDROPX_DEFAULT_CONSIGNMENT_NOTE, SKYDROPX_DEFAULT_PACKAGE_TYPE) o guarda en metadata.shipping.";
-    }
-    return `Faltan campos requeridos: ${missing.join(", ")}`;
+    return getInvalidPayloadMessage(data.details?.missingFields);
   }
 
   // Errores de bad request
   if (code === "skydropx_bad_request") {
-    let message = "Skydropx rechazó el payload. Revisa ORIGIN_* env vars y campos requeridos. Ver detalles abajo.";
-    if (data.details?.payloadHealth) {
-      const ph = data.details.payloadHealth as Record<string, boolean | number>;
-      const missing = Object.entries(ph)
-        .filter(([k, v]) => k.startsWith("has") && v === false)
-        .map(([k]) => k.replace("has", "").replace(/([A-Z])/g, " $1").trim());
-      if (missing.length > 0) {
-        message += `\n\nCampos faltantes detectados: ${missing.join(", ")}`;
-      }
-    }
-    return message;
+    return getBadRequestMessage(data.details?.payloadHealth);
   }
 
   // Errores de unprocessable entity
   if (code === "skydropx_unprocessable_entity") {
-    const upstream = data.details?.upstream as Record<string, unknown> | undefined;
-    const errors = upstream?.errors as Array<{ field?: string | null; message?: string }> | undefined;
-    const hasConsignmentNote = errors?.some((e) => e.field?.includes("consignment_note") || e.message?.includes("consignment_note"));
-    const hasPackageType = errors?.some((e) => e.field?.includes("package_type") || e.message?.includes("package_type"));
-    if (hasConsignmentNote || hasPackageType) {
-      return "Faltan códigos Carta Porte: consignment_note y package_type. Configura env vars (SKYDROPX_DEFAULT_CONSIGNMENT_NOTE, SKYDROPX_DEFAULT_PACKAGE_TYPE) o guarda en metadata.shipping.";
-    }
-    return "Skydropx rechazó el envío por errores de validación. Ver lista de errores abajo.";
+    return getUnprocessableEntityMessage(data.details?.upstream);
   }
 
   return data.message || "Error desconocido al crear la guía.";
@@ -554,42 +574,52 @@ export default function CreateSkydropxLabelClient({
     }
   };
 
-  // Si tracking está pendiente Y hay evidencia de guía creada (shipment_id), mostrar mensaje y botón de sincronización
-  // IMPORTANTE: Solo mostrar si REALMENTE hay shipment_id (evidencia de que se creó la guía)
-  if (trackingPending && hasShipmentId && !trackingNumber && !labelUrl) {
-    return <TrackingPendingView onSync={handleSyncTracking} isSyncing={isSyncing} error={error} />;
-  }
-
-  // Si ya tiene tracking O label O shipment_id (evidencia de guía creada), mostrar información
-  if (trackingNumber || labelUrl || hasLabelCreated || hasShipmentId) {
-    const displayTracking = trackingNumber || currentTrackingNumber;
-    const displayLabelUrl = labelUrl || currentLabelUrl;
-    const needsSync = Boolean(hasShipmentId && !displayTracking && !displayLabelUrl);
-
-    return (
-      <LabelCreatedView
-        trackingNumber={displayTracking}
-        labelUrl={displayLabelUrl}
-        hasLabelCreated={hasLabelCreated}
-        needsSync={needsSync}
-        onSync={handleSyncTracking}
-        isSyncing={isSyncing}
-        error={error}
-      />
-    );
-  }
-
-  // Si no puede crear guía, mostrar mensaje o botón deshabilitado
-  if (!canCreateLabel) {
-    if (paymentStatus !== "paid") {
-      return <CannotCreateLabelView reason="not_paid" />;
+  // Helper para determinar qué vista renderizar
+  const renderView = () => {
+    // Si tracking está pendiente Y hay evidencia de guía creada (shipment_id), mostrar mensaje y botón de sincronización
+    // IMPORTANTE: Solo mostrar si REALMENTE hay shipment_id (evidencia de que se creó la guía)
+    if (trackingPending && hasShipmentId && !trackingNumber && !labelUrl) {
+      return <TrackingPendingView onSync={handleSyncTracking} isSyncing={isSyncing} error={error} />;
     }
 
-    if (!hasSelectedRate) {
-      return <CannotCreateLabelView reason="no_rate" />;
+    // Si ya tiene tracking O label O shipment_id (evidencia de guía creada), mostrar información
+    if (trackingNumber || labelUrl || hasLabelCreated || hasShipmentId) {
+      const displayTracking = trackingNumber || currentTrackingNumber;
+      const displayLabelUrl = labelUrl || currentLabelUrl;
+      const needsSync = Boolean(hasShipmentId && !displayTracking && !displayLabelUrl);
+
+      return (
+        <LabelCreatedView
+          trackingNumber={displayTracking}
+          labelUrl={displayLabelUrl}
+          hasLabelCreated={hasLabelCreated}
+          needsSync={needsSync}
+          onSync={handleSyncTracking}
+          isSyncing={isSyncing}
+          error={error}
+        />
+      );
+    }
+
+    // Si no puede crear guía, mostrar mensaje o botón deshabilitado
+    if (!canCreateLabel) {
+      if (paymentStatus !== "paid") {
+        return <CannotCreateLabelView reason="not_paid" />;
+      }
+
+      if (!hasSelectedRate) {
+        return <CannotCreateLabelView reason="no_rate" />;
+      }
+
+      return null;
     }
 
     return null;
+  };
+
+  const conditionalView = renderView();
+  if (conditionalView !== null) {
+    return conditionalView;
   }
 
   return (

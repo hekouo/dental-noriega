@@ -155,15 +155,6 @@ export default async function AdminPedidoDetailPage({
   const shouldShowPackageFinal: boolean = isSkydropx && isNotPickup;
   const shippingMeta = ((order.metadata as Record<string, unknown>)?.shipping as Record<string, unknown>) || {};
   const rateUsed = (shippingMeta.rate_used as Record<string, unknown>) || {};
-  const shippingPricing = ((order.metadata as Record<string, unknown>)?.shipping_pricing as Record<string, unknown>) || {};
-  
-  // Fallback display: si rate_used tiene nulls, usar shipping_pricing para mostrar
-  // Esto evita mostrar "null" en la UI incluso si algo se tarda en refrescar
-  // NOTA: Estos valores son solo para display, no se usan para lógica de negocio
-  const displayPriceCents = (rateUsed.price_cents as number | null | undefined) ?? 
-    (shippingPricing.total_cents as number | null | undefined) ?? null;
-  const displayCarrierCents = (rateUsed.carrier_cents as number | null | undefined) ?? 
-    (shippingPricing.carrier_cents as number | null | undefined) ?? null;
   
   const hasSelectedRate =
     typeof rateUsed.external_rate_id === "string"
