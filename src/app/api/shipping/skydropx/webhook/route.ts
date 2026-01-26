@@ -551,14 +551,6 @@ export async function POST(req: NextRequest) {
         if (fullOrder?.metadata) {
           const currentMetadata = fullOrder.metadata as Record<string, unknown>;
           const shippingMeta = (currentMetadata.shipping as Record<string, unknown>) || {};
-          const updatedShippingMeta = {
-            ...shippingMeta,
-            shipment_id: shipmentId.trim(),
-          };
-          const updatedMetadata = {
-            ...currentMetadata,
-            shipping: updatedShippingMeta,
-          };
           // CRÍTICO: Releer metadata justo antes del update para evitar race conditions
           const { data: freshOrder } = await supabase
             .from("orders")
@@ -585,7 +577,11 @@ export async function POST(req: NextRequest) {
           };
           console.log("[webhook-skydropx] PRE-WRITE:", JSON.stringify(preWriteLog, null, 2));
           
-          // Merge seguro: preservar rate_used de freshMetadata
+          // Merge seguro: preservar rate_used de freshMetadata y agregar shipment_id
+          const updatedShippingMeta = {
+            ...shippingMeta,
+            shipment_id: shipmentId.trim(),
+          };
           const mergedShippingMeta = {
             ...(freshShippingMeta || {}),
             ...updatedShippingMeta,

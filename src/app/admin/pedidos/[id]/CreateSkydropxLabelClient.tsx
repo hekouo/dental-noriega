@@ -246,43 +246,52 @@ function LabelCreatedView({
                 Número de rastreo: <span className="font-mono font-medium">{trackingNumber}</span>
               </p>
             )}
-            {labelUrl ? (
-              <div className="flex gap-2 mt-3 flex-wrap">
-                <a
-                  href={labelUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2"
-                >
-                  <Download className="w-4 h-4" />
-                  Reimprimir etiqueta
-                </a>
-                {needsSync && (
-                  <button
-                    type="button"
-                    onClick={onSync}
-                    disabled={isSyncing}
-                    className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-green-700 dark:text-green-300 bg-white dark:bg-gray-800 border border-green-300 dark:border-green-700 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/30 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2"
-                  >
-                    {isSyncing ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Sincronizando...
-                      </>
-                    ) : (
-                      <>
-                        <RefreshCw className="w-4 h-4" />
-                        Sincronizar
-                      </>
+            {(() => {
+              // Extraer ternario anidado a lógica clara
+              if (labelUrl) {
+                return (
+                  <div className="flex gap-2 mt-3 flex-wrap">
+                    <a
+                      href={labelUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2"
+                    >
+                      <Download className="w-4 h-4" />
+                      Reimprimir etiqueta
+                    </a>
+                    {needsSync && (
+                      <button
+                        type="button"
+                        onClick={onSync}
+                        disabled={isSyncing}
+                        className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-green-700 dark:text-green-300 bg-white dark:bg-gray-800 border border-green-300 dark:border-green-700 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/30 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2"
+                      >
+                        {isSyncing ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Sincronizando...
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="w-4 h-4" />
+                            Sincronizar
+                          </>
+                        )}
+                      </button>
                     )}
-                  </button>
-                )}
-              </div>
-            ) : needsSync ? (
-              <div className="flex gap-2 mt-3">
-                <SyncButton onClick={onSync} disabled={isSyncing} isLoading={isSyncing} />
-              </div>
-            ) : null}
+                  </div>
+                );
+              }
+              if (needsSync) {
+                return (
+                  <div className="flex gap-2 mt-3">
+                    <SyncButton onClick={onSync} disabled={isSyncing} isLoading={isSyncing} />
+                  </div>
+                );
+              }
+              return null;
+            })()}
           </div>
         </div>
       </div>
@@ -369,6 +378,76 @@ export default function CreateSkydropxLabelClient({
     hasSelectedRate &&
     (!cooldownUntil || Date.now() >= cooldownUntil);
 
+  // Helper para manejar errores de creación de label
+  const handleCreateLabelError = (data: {
+    code?: string;
+    message?: string;
+    statusCode?: number;
+    details?: {
+      missingFields?: unknown;
+      upstream?: Record<string, unknown>;
+      payloadHealth?: Record<string, boolean | number>;
+    };
+  }): void => {
+    // Manejar tracking_pending como caso especial (no es un error real)
+    if (data.code === "tracking_pending") {
+      setTrackingPending(true);
+      setError(null);
+      return;
+    }
+
+    if (data.code === "label_creation_in_progress") {
+      const until = Date.now() + 15000;
+      setCooldownUntil(until);
+      setError("Creación en progreso, reintenta en unos segundos.");
+      setTimeout(() => {
+        setCooldownUntil(null);
+      }, 15000);
+      return;
+    }
+
+    let errorMessage = getErrorMessage(data);
+    errorMessage += formatSkydropxValidationErrors(data);
+    setError(errorMessage);
+    
+    // Si falta dirección, sugerir editar override
+    if (
+      (data.code === "missing_address_data" || data.code === "missing_shipping_address") &&
+      typeof window !== "undefined"
+    ) {
+      window.location.hash = "#shipping-override";
+    }
+  };
+
+  // Helper para manejar éxito de creación de label
+  const handleCreateLabelSuccess = (data: {
+    trackingNumber?: string;
+    labelUrl?: string | null;
+    trackingPending?: boolean;
+  }) => {
+    // Actualizar estado local
+    setTrackingNumber(data.trackingNumber || null);
+    setLabelUrl(data.labelUrl || null);
+    setTrackingPending(data.trackingPending || false);
+
+    // Si tracking está pendiente, no recargar página (mostrar mensaje)
+    if (data.trackingPending) {
+      setError(null);
+      return;
+    }
+
+    // Llamar callback si existe
+    if (onSuccess) {
+      onSuccess({
+        trackingNumber: data.trackingNumber || "",
+        labelUrl: data.labelUrl || null,
+      });
+    }
+
+    // Recargar la página para actualizar datos del servidor
+    window.location.reload();
+  };
+
   const handleCreateLabel = async () => {
     setIsLoading(true);
     setError(null);
@@ -382,67 +461,67 @@ export default function CreateSkydropxLabelClient({
         body: JSON.stringify({ orderId }),
       });
 
-          const data = await response.json();
+      const data = await response.json();
 
       if (!data.ok) {
-        // Manejar tracking_pending como caso especial (no es un error real)
-        if (data.code === "tracking_pending") {
-          setTrackingPending(true);
-          setError(null);
-          // No recargar página, mostrar mensaje y botón de sincronización
-          return;
-        }
-
-        if (data.code === "label_creation_in_progress") {
-          const until = Date.now() + 15000;
-          setCooldownUntil(until);
-          setError("Creación en progreso, reintenta en unos segundos.");
-          setTimeout(() => {
-            setCooldownUntil(null);
-          }, 15000);
-          return;
-        }
-
-        let errorMessage = getErrorMessage(data);
-        errorMessage += formatSkydropxValidationErrors(data);
-        setError(errorMessage);
-        // Si falta dirección, sugerir editar override
-        if (
-          (data.code === "missing_address_data" || data.code === "missing_shipping_address") &&
-          typeof window !== "undefined"
-        ) {
-          // agregar un hash para ayudar a ubicar el editor
-          window.location.hash = "#shipping-override";
-        }
+        handleCreateLabelError(data);
         return;
       }
 
-      // Actualizar estado local
-      setTrackingNumber(data.trackingNumber);
-      setLabelUrl(data.labelUrl);
-      setTrackingPending(data.trackingPending || false);
-
-      // Si tracking está pendiente, no recargar página (mostrar mensaje)
-      if (data.trackingPending) {
-        setError(null);
-        return;
-      }
-
-      // Llamar callback si existe
-      if (onSuccess) {
-        onSuccess({
-          trackingNumber: data.trackingNumber || "",
-          labelUrl: data.labelUrl,
-        });
-      }
-
-      // Recargar la página para actualizar datos del servidor
-      window.location.reload();
+      handleCreateLabelSuccess(data);
     } catch (err) {
       console.error("[CreateSkydropxLabelClient] Error:", err);
       setError("Error de red al crear la guía. Intenta de nuevo.");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Helper para construir mensaje de error de sincronización
+  const buildSyncErrorMessage = (data: {
+    code?: string;
+    message?: string;
+  }): string => {
+    if (data.code === "missing_shipment_id") {
+      return "La orden no tiene shipment_id guardado. Crea la guía primero.";
+    }
+    if (data.code === "skydropx_not_found") {
+      return "No se encontró el envío en Skydropx.";
+    }
+    if (data.code === "skydropx_unauthorized") {
+      return "Error de autenticación con Skydropx.";
+    }
+    if (data.message) {
+      return data.message;
+    }
+    return "Error desconocido al sincronizar tracking.";
+  };
+
+  // Helper para manejar éxito de sincronización
+  const handleSyncSuccess = (data: {
+    trackingNumber?: string;
+    labelUrl?: string | null;
+    updated?: boolean;
+  }) => {
+    // Actualizar estado local
+    if (data.trackingNumber) {
+      setTrackingNumber(data.trackingNumber);
+    }
+    if (data.labelUrl) {
+      setLabelUrl(data.labelUrl);
+    }
+
+    // Si ahora tenemos tracking y label completos, dejar de mostrar como pendiente
+    if (data.trackingNumber && data.labelUrl) {
+      setTrackingPending(false);
+    }
+
+    // Si se actualizó, recargar página
+    if (data.updated) {
+      window.location.reload();
+    } else {
+      // Si no se actualizó, puede ser que aún esté pendiente
+      setError("El tracking/label aún no está disponible en Skydropx. Reintenta en unos momentos.");
     }
   };
 
@@ -462,40 +541,11 @@ export default function CreateSkydropxLabelClient({
       const data = await response.json();
 
       if (!data.ok) {
-        let syncErrorMessage = "Error desconocido al sincronizar tracking.";
-        if (data.code === "missing_shipment_id") {
-          syncErrorMessage = "La orden no tiene shipment_id guardado. Crea la guía primero.";
-        } else if (data.code === "skydropx_not_found") {
-          syncErrorMessage = "No se encontró el envío en Skydropx.";
-        } else if (data.code === "skydropx_unauthorized") {
-          syncErrorMessage = "Error de autenticación con Skydropx.";
-        } else if (data.message) {
-          syncErrorMessage = data.message;
-        }
-        setError(syncErrorMessage);
+        setError(buildSyncErrorMessage(data));
         return;
       }
 
-      // Actualizar estado local
-      if (data.trackingNumber) {
-        setTrackingNumber(data.trackingNumber);
-      }
-      if (data.labelUrl) {
-        setLabelUrl(data.labelUrl);
-      }
-
-      // Si ahora tenemos tracking y label completos, dejar de mostrar como pendiente
-      if (data.trackingNumber && data.labelUrl) {
-        setTrackingPending(false);
-      }
-
-      // Si se actualizó, recargar página
-      if (data.updated) {
-        window.location.reload();
-      } else {
-        // Si no se actualizó, puede ser que aún esté pendiente
-        setError("El tracking/label aún no está disponible en Skydropx. Reintenta en unos momentos.");
-      }
+      handleSyncSuccess(data);
     } catch (err) {
       console.error("[CreateSkydropxLabelClient] Error al sincronizar:", err);
       setError("Error de red al sincronizar tracking. Intenta de nuevo.");
