@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { formatMXNFromCents } from "@/lib/utils/currency";
 
 type RequoteSkydropxRatesClientProps = {
@@ -40,9 +41,10 @@ type RequoteResponse = {
  */
 export default function RequoteSkydropxRatesClient({
   orderId,
-  currentRatePriceCents,
+  currentRatePriceCents: _currentRatePriceCents,
   quotedAt,
 }: RequoteSkydropxRatesClientProps) {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [applying, setApplying] = useState<string | null>(null);
   const [rates, setRates] = useState<Rate[] | null>(null);
@@ -185,8 +187,16 @@ export default function RequoteSkydropxRatesClient({
         return;
       }
 
-      // Refrescar página para mostrar cambios
-      window.location.reload();
+      // CRÍTICO: Refrescar datos del servidor antes de recargar página
+      // router.refresh() fuerza a Next.js a re-fetchear datos del servidor sin recargar toda la página
+      // Esto asegura que se muestren los valores actualizados de rate_used inmediatamente
+      router.refresh();
+      
+      // Pequeño delay para permitir que router.refresh() complete antes de recargar
+      // Esto mejora la experiencia: primero se actualiza el estado, luego se recarga si es necesario
+      setTimeout(() => {
+        window.location.reload();
+      }, 100);
     } catch (err) {
       console.error("[RequoteSkydropxRatesClient] Error:", err);
       setError("Error de red al aplicar la tarifa.");
