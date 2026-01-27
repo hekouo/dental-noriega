@@ -283,6 +283,59 @@ export async function POST(req: NextRequest) {
     // o preserveRateUsed no lo incluyeron correctamente
     const finalMetadataForDb = ensureRateUsedInMetadata(finalMetadataWithPreserve);
 
+    // GUARDRAIL: Verificar que el payload tiene rate_used antes de escribir
+    const shippingPricingForCheck = finalMetadataForDb.shipping_pricing as {
+      carrier_cents?: number | null;
+      total_cents?: number | null;
+    } | null | undefined;
+    const shippingMetaForCheck = (finalMetadataForDb.shipping as Record<string, unknown>) || {};
+    const rateUsedForCheck = (shippingMetaForCheck.rate_used as {
+      carrier_cents?: number | null;
+      price_cents?: number | null;
+    }) || null;
+
+    const hasPricingNumbers = shippingPricingForCheck && (
+      (typeof shippingPricingForCheck.carrier_cents === "number" && shippingPricingForCheck.carrier_cents > 0) ||
+      (typeof shippingPricingForCheck.total_cents === "number" && shippingPricingForCheck.total_cents > 0)
+    );
+
+    const rateUsedIsNull = !rateUsedForCheck || (
+      (rateUsedForCheck.price_cents == null || rateUsedForCheck.price_cents === null) ||
+      (rateUsedForCheck.carrier_cents == null || rateUsedForCheck.carrier_cents === null)
+    );
+
+    if (hasPricingNumbers && rateUsedIsNull) {
+      const errorMsg = `[apply-rate] GUARDRAIL: Abortando write. shipping_pricing tiene números pero rate_used tiene nulls. orderId=${orderId}, pricing.total_cents=${shippingPricingForCheck.total_cents}, pricing.carrier_cents=${shippingPricingForCheck.carrier_cents}, rate_used.price_cents=${rateUsedForCheck?.price_cents}, rate_used.carrier_cents=${rateUsedForCheck?.carrier_cents}`;
+      console.error(errorMsg);
+      return NextResponse.json(
+        {
+          ok: false,
+          code: "inconsistent_metadata",
+          message: "Error: metadata inconsistente. Revisa los logs.",
+        } satisfies ApplyRateResponse,
+        { status: 500 },
+      );
+    }
+
+    // LOGGING: Payload exacto que se va a escribir
+    const finalPayloadShippingMeta = (finalMetadataForDb.shipping as Record<string, unknown>) || {};
+    const finalPayloadRateUsed = (finalPayloadShippingMeta.rate_used as {
+      price_cents?: number | null;
+      carrier_cents?: number | null;
+    }) || null;
+    const finalPayloadPricing = finalMetadataForDb.shipping_pricing as {
+      total_cents?: number | null;
+      carrier_cents?: number | null;
+    } | null | undefined;
+
+    console.log(`[apply-rate] FINAL_PAYLOAD (antes de .update()):`, JSON.stringify({
+      orderId,
+      "metadata.shipping.rate_used.price_cents": finalPayloadRateUsed?.price_cents ?? null,
+      "metadata.shipping.rate_used.carrier_cents": finalPayloadRateUsed?.carrier_cents ?? null,
+      "metadata.shipping_pricing.total_cents": finalPayloadPricing?.total_cents ?? null,
+      "metadata.shipping_pricing.carrier_cents": finalPayloadPricing?.carrier_cents ?? null,
+    }, null, 2));
+
     // INSTRUMENTACIÓN PRE-WRITE
     logPreWrite("apply-rate", orderId, freshMetadata, freshUpdatedAt, finalMetadataForDb);
 
@@ -316,8 +369,52 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // INSTRUMENTACIÓN POST-WRITE (el helper ya detecta discrepancias)
-    const postWriteMetadata = (updatedOrder?.metadata as Record<string, unknown>) || {};
+    // CRÍTICO: Reread post-write para verificar persistencia real en DB
+    const { data: rereadOrder, error: rereadError } = await supabase
+      .from("orders")
+      .select("metadata")
+      .eq("id", orderId)
+      .single();
+
+    if (rereadError) {
+      console.error("[apply-rate] Error al releer orden post-write:", rereadError);
+    } else {
+      const dbAfterWriteMetadata = (rereadOrder?.metadata as Record<string, unknown>) || {};
+      const dbAfterWriteShippingMeta = (dbAfterWriteMetadata.shipping as Record<string, unknown>) || {};
+      const dbAfterWriteRateUsed = (dbAfterWriteShippingMeta.rate_used as {
+        price_cents?: number | null;
+        carrier_cents?: number | null;
+      }) || null;
+      const dbAfterWritePricing = dbAfterWriteMetadata.shipping_pricing as {
+        total_cents?: number | null;
+        carrier_cents?: number | null;
+      } | null | undefined;
+
+      console.log(`[apply-rate] DB_AFTER_WRITE (reread desde Supabase):`, JSON.stringify({
+        orderId,
+        "metadata.shipping.rate_used.price_cents": dbAfterWriteRateUsed?.price_cents ?? null,
+        "metadata.shipping.rate_used.carrier_cents": dbAfterWriteRateUsed?.carrier_cents ?? null,
+        "metadata.shipping_pricing.total_cents": dbAfterWritePricing?.total_cents ?? null,
+        "metadata.shipping_pricing.carrier_cents": dbAfterWritePricing?.carrier_cents ?? null,
+      }, null, 2));
+
+      // Detectar discrepancia entre payload y DB
+      const payloadHadRateUsed = finalPayloadRateUsed && (
+        (finalPayloadRateUsed.price_cents != null && finalPayloadRateUsed.price_cents !== null) ||
+        (finalPayloadRateUsed.carrier_cents != null && finalPayloadRateUsed.carrier_cents !== null)
+      );
+      const dbHasRateUsed = dbAfterWriteRateUsed && (
+        (dbAfterWriteRateUsed.price_cents != null && dbAfterWriteRateUsed.price_cents !== null) ||
+        (dbAfterWriteRateUsed.carrier_cents != null && dbAfterWriteRateUsed.carrier_cents !== null)
+      );
+
+      if (payloadHadRateUsed && !dbHasRateUsed) {
+        console.error(`[apply-rate] DISCREPANCIA CRÍTICA: Payload tenía rate_used pero DB no. orderId=${orderId}`);
+      }
+    }
+
+    // INSTRUMENTACIÓN POST-WRITE (usar reread para valores reales de DB)
+    const postWriteMetadata = (rereadOrder?.metadata || updatedOrder?.metadata) as Record<string, unknown> || {};
     const postWriteUpdatedAt = updatedOrder?.updated_at as string | null | undefined;
     logPostWrite("apply-rate", orderId, postWriteMetadata, postWriteUpdatedAt);
 

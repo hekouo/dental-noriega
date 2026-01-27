@@ -123,14 +123,14 @@ export function logPreWrite(
   
   const freshDb = extractMetadataSnapshot(freshDbMetadata);
   const incoming = extractMetadataSnapshot(incomingMetadata);
-  const rawDbValues = extractRawDbValues(freshDbMetadata);
+  const dbBeforeWritePaths = extractDbAfterWritePaths(freshDbMetadata);
 
   const log: PreWriteLog & {
-    raw_db?: {
-      raw_ru_price: string | null;
-      raw_ru_carrier: string | null;
-      raw_sp_total: string | null;
-      raw_sp_carrier: string | null;
+    db_before_write_paths?: {
+      db_ru_price: string | null;
+      db_ru_carrier: string | null;
+      db_sp_total: string | null;
+      db_sp_carrier: string | null;
     };
   } = {
     routeName,
@@ -147,51 +147,54 @@ export function logPreWrite(
       rate_used: incoming.rate_used,
       shipping_pricing: incoming.shipping_pricing,
     },
-    raw_db: rawDbValues,
+    db_before_write_paths: dbBeforeWritePaths,
   };
 
   console.log(`[${routeName}] PRE-WRITE:`, JSON.stringify(log, null, 2));
 }
 
 /**
- * Extrae valores RAW de DB usando paths SQL (sin fallbacks)
+ * Extrae valores desde paths SQL reales (metadata #>> '{shipping,rate_used,price_cents}')
+ * IMPORTANTE: Esta función debe recibir metadata que viene de DB real (reread post-write),
+ * NO del payload local antes de escribir.
  */
-function extractRawDbValues(metadata: Record<string, unknown> | null | undefined): {
-  raw_ru_price: string | null;
-  raw_ru_carrier: string | null;
-  raw_sp_total: string | null;
-  raw_sp_carrier: string | null;
+function extractDbAfterWritePaths(metadata: Record<string, unknown> | null | undefined): {
+  db_ru_price: string | null;
+  db_ru_carrier: string | null;
+  db_sp_total: string | null;
+  db_sp_carrier: string | null;
 } {
   if (!metadata) {
     return {
-      raw_ru_price: null,
-      raw_ru_carrier: null,
-      raw_sp_total: null,
-      raw_sp_carrier: null,
+      db_ru_price: null,
+      db_ru_carrier: null,
+      db_sp_total: null,
+      db_sp_carrier: null,
     };
   }
 
-  // Simular extracción SQL: metadata #>> '{shipping,rate_used,price_cents}'
+  // Extraer usando paths SQL: metadata #>> '{shipping,rate_used,price_cents}'
   const shippingMeta = (metadata.shipping as Record<string, unknown>) || {};
   const rateUsed = (shippingMeta.rate_used as Record<string, unknown>) || null;
   const shippingPricing = (metadata.shipping_pricing as Record<string, unknown>) || null;
 
   // Extraer valores RAW (sin fallbacks, tal como están en DB)
-  const rawRuPrice = rateUsed?.price_cents != null ? String(rateUsed.price_cents) : null;
-  const rawRuCarrier = rateUsed?.carrier_cents != null ? String(rateUsed.carrier_cents) : null;
-  const rawSpTotal = shippingPricing?.total_cents != null ? String(shippingPricing.total_cents) : null;
-  const rawSpCarrier = shippingPricing?.carrier_cents != null ? String(shippingPricing.carrier_cents) : null;
+  const dbRuPrice = rateUsed?.price_cents != null ? String(rateUsed.price_cents) : null;
+  const dbRuCarrier = rateUsed?.carrier_cents != null ? String(rateUsed.carrier_cents) : null;
+  const dbSpTotal = shippingPricing?.total_cents != null ? String(shippingPricing.total_cents) : null;
+  const dbSpCarrier = shippingPricing?.carrier_cents != null ? String(shippingPricing.carrier_cents) : null;
 
   return {
-    raw_ru_price: rawRuPrice,
-    raw_ru_carrier: rawRuCarrier,
-    raw_sp_total: rawSpTotal,
-    raw_sp_carrier: rawSpCarrier,
+    db_ru_price: dbRuPrice,
+    db_ru_carrier: dbRuCarrier,
+    db_sp_total: dbSpTotal,
+    db_sp_carrier: dbSpCarrier,
   };
 }
 
 /**
  * Log POST-WRITE: después de hacer update, detecta discrepancias
+ * IMPORTANTE: postWriteMetadata debe venir de DB real (reread post-write), NO del payload local
  */
 export function logPostWrite(
   routeName: string,
@@ -203,7 +206,7 @@ export function logPostWrite(
   const sha = getCurrentSha();
   
   const postWrite = extractMetadataSnapshot(postWriteMetadata);
-  const rawDbValues = extractRawDbValues(postWriteMetadata);
+  const dbAfterWritePaths = extractDbAfterWritePaths(postWriteMetadata);
 
   // Detectar discrepancia: shipping_pricing tiene números pero rate_used queda null
   const hasCanonicalNumbers = Boolean(
@@ -216,25 +219,25 @@ export function logPostWrite(
     (postWrite.rate_used.carrier_cents == null || postWrite.rate_used.carrier_cents === null)
   );
 
-  // Detectar discrepancia usando valores RAW de DB
-  const rawHasCanonicalNumbers = Boolean(
-    (rawDbValues.raw_sp_total != null) ||
-    (rawDbValues.raw_sp_carrier != null)
+  // Detectar discrepancia usando valores reales de DB (reread post-write)
+  const dbHasCanonicalNumbers = Boolean(
+    (dbAfterWritePaths.db_sp_total != null) ||
+    (dbAfterWritePaths.db_sp_carrier != null)
   );
 
-  const rawRateUsedIsNull = !rawDbValues.raw_ru_price && !rawDbValues.raw_ru_carrier;
+  const dbRateUsedIsNull = !dbAfterWritePaths.db_ru_price && !dbAfterWritePaths.db_ru_carrier;
 
-  const discrepancy = (hasCanonicalNumbers && rateUsedIsNull) || (rawHasCanonicalNumbers && rawRateUsedIsNull) ? {
+  const discrepancy = (hasCanonicalNumbers && rateUsedIsNull) || (dbHasCanonicalNumbers && dbRateUsedIsNull) ? {
     detected: true,
-    reason: "shipping_pricing tiene números pero rate_used quedó null en DB",
+    reason: "shipping_pricing tiene números pero rate_used quedó null en DB (confirmado con reread post-write)",
   } : undefined;
 
   const log: PostWriteLog & {
-    raw_db?: {
-      raw_ru_price: string | null;
-      raw_ru_carrier: string | null;
-      raw_sp_total: string | null;
-      raw_sp_carrier: string | null;
+    db_after_write_paths?: {
+      db_ru_price: string | null;
+      db_ru_carrier: string | null;
+      db_sp_total: string | null;
+      db_sp_carrier: string | null;
     };
   } = {
     routeName,
@@ -247,18 +250,18 @@ export function logPostWrite(
       shipping_pricing: postWrite.shipping_pricing,
       _last_write: postWrite._last_write,
     },
-    raw_db: rawDbValues,
+    db_after_write_paths: dbAfterWritePaths,
     discrepancy,
   };
 
   console.log(`[${routeName}] POST-WRITE:`, JSON.stringify(log, null, 2));
 
-  // Si hay discrepancia, loggear error con valores RAW
+  // Si hay discrepancia, loggear error con valores reales de DB
   if (discrepancy) {
     console.error(`[${routeName}] DISCREPANCIA DETECTADA:`, discrepancy.reason, {
       orderId,
       routeName,
-      raw_db: rawDbValues,
+      db_after_write_paths: dbAfterWritePaths,
       shipping_pricing: postWrite.shipping_pricing,
       rate_used: postWrite.rate_used,
     });
