@@ -16,7 +16,7 @@ import {
 import { getSkydropxConfig } from "@/lib/shipping/skydropx.server";
 import { getOrderShippingAddress } from "@/lib/shipping/getOrderShippingAddress";
 import { normalizeShippingPricing } from "@/lib/shipping/normalizeShippingPricing";
-import { normalizeShippingMetadata, addShippingMetadataDebug, preserveRateUsed } from "@/lib/shipping/normalizeShippingMetadata";
+import { normalizeShippingMetadata, addShippingMetadataDebug, preserveRateUsed, ensureRateUsedInMetadata } from "@/lib/shipping/normalizeShippingMetadata";
 import { logPreWrite, logPostWrite } from "@/lib/shipping/metadataWriterLogger";
 
 export const dynamic = "force-dynamic";
@@ -2037,15 +2037,18 @@ export async function POST(req: NextRequest) {
       shipping: addShippingMetadataDebug(finalMergedNormalized.shippingMeta, "create-label", finalMetadataWithPricing),
     };
     
+    // CRÍTICO: Asegurar que rate_used esté presente en el payload final antes de escribir
+    const finalMetadataForDb = ensureRateUsedInMetadata(finalMetadataForUpdate);
+    
     // INSTRUMENTACIÓN PRE-WRITE
-    logPreWrite("create-label", orderId, freshMetadata, freshUpdatedAt, finalMetadataForUpdate);
+    logPreWrite("create-label", orderId, freshMetadata, freshUpdatedAt, finalMetadataForDb);
     
     // Actualizar la orden con tracking y label (si están disponibles)
     // IMPORTANTE: SIEMPRE guardar shipment_id en metadata Y columna shipping_shipment_id
     const freshShippingMeta = (freshMetadata.shipping as Record<string, unknown>) || {};
     const shipmentIdToSave = shipmentResult.rawId || freshShippingMeta.shipment_id || null;
     const updateData: Record<string, unknown> = {
-      metadata: finalMetadataForUpdate, // Usar metadata mergeado y normalizado
+      metadata: finalMetadataForDb, // Usar metadata con rate_used garantizado
       shipping_status: shippingStatus,
       shipping_status_updated_at: nowIso,
       updated_at: nowIso,

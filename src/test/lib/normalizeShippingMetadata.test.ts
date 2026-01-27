@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { normalizeShippingMetadata, preserveRateUsed } from "@/lib/shipping/normalizeShippingMetadata";
+import { normalizeShippingMetadata, preserveRateUsed, ensureRateUsedInMetadata } from "@/lib/shipping/normalizeShippingMetadata";
 
 /** Fixture que reproduce el bug de producción: pricing con números, rate_used nulls, _last_write apply-rate */
 const PRODUCTION_FIXTURE = {
@@ -669,5 +669,104 @@ describe("normalizeShippingMetadata", () => {
     expect((finalRateUsed as Record<string, unknown>).external_rate_id).toBe("rate_new");
     expect((finalRateUsed as Record<string, unknown>).provider).toBe("skydropx");
     expect((finalRateUsed as Record<string, unknown>).service).toBe("express");
+  });
+
+  it("reproduce bug DB null: metadata con shipping_pricing numerico pero rate_used sin cents debe incluir rate_used", () => {
+    // Caso real: metadata tiene shipping_pricing con números pero rate_used no tiene cents
+    // o rate_used no existe. ensureRateUsedInMetadata debe forzar que rate_used tenga cents.
+
+    // Paso 1: Metadata con shipping_pricing pero rate_used sin cents (o inexistente)
+    const metadataWithoutRateUsedCents: Record<string, unknown> = {
+      shipping_pricing: {
+        carrier_cents: 15338,
+        packaging_cents: 2000,
+        margin_cents: 4788,
+        total_cents: 22126,
+        customer_total_cents: 22126,
+      },
+      shipping: {
+        rate_used: {
+          external_rate_id: "rate_xyz",
+          provider: "skydropx",
+          service: "express",
+          // price_cents y carrier_cents NO están presentes o son null
+        },
+      },
+    };
+
+    // Paso 2: Aplicar ensureRateUsedInMetadata (esto es lo que debe hacer cada writer antes de escribir)
+    const finalMetadata = ensureRateUsedInMetadata(metadataWithoutRateUsedCents);
+
+    // Paso 3: Validación - rate_used DEBE incluir price_cents y carrier_cents
+    const finalShippingMeta = finalMetadata.shipping as Record<string, unknown>;
+    const finalRateUsed = finalShippingMeta.rate_used as {
+      carrier_cents?: number | null;
+      price_cents?: number | null;
+      customer_total_cents?: number | null;
+    };
+    const finalPricing = finalMetadata.shipping_pricing as {
+      carrier_cents?: number | null;
+      total_cents?: number | null;
+    };
+
+    // Invariantes críticos:
+    // 1. rate_used DEBE tener price_cents y carrier_cents (no null, no undefined)
+    expect(finalRateUsed).toBeTruthy();
+    expect(finalRateUsed.price_cents).toBe(22126);
+    expect(finalRateUsed.carrier_cents).toBe(15338);
+    expect(finalRateUsed.customer_total_cents).toBe(22126);
+    
+    // 2. NO debe quedar null
+    expect(finalRateUsed.price_cents).not.toBeNull();
+    expect(finalRateUsed.carrier_cents).not.toBeNull();
+    expect(finalRateUsed.customer_total_cents).not.toBeNull();
+    
+    // 3. rate_used debe coincidir con shipping_pricing (canonical)
+    expect(finalRateUsed.carrier_cents).toBe(finalPricing.carrier_cents);
+    expect(finalRateUsed.price_cents).toBe(finalPricing.total_cents);
+    
+    // 4. Otros campos deben preservarse
+    expect((finalRateUsed as Record<string, unknown>).external_rate_id).toBe("rate_xyz");
+    expect((finalRateUsed as Record<string, unknown>).provider).toBe("skydropx");
+    expect((finalRateUsed as Record<string, unknown>).service).toBe("express");
+  });
+
+  it("reproduce bug DB null: metadata sin rate_used debe crear rate_used desde shipping_pricing", () => {
+    // Caso extremo: metadata tiene shipping_pricing pero rate_used no existe en absoluto
+
+    const metadataWithoutRateUsed: Record<string, unknown> = {
+      shipping_pricing: {
+        carrier_cents: 15338,
+        packaging_cents: 2000,
+        margin_cents: 4788,
+        total_cents: 22126,
+        customer_total_cents: 22126,
+      },
+      shipping: {
+        // rate_used no existe
+        provider: "skydropx",
+        service: "express",
+      },
+    };
+
+    // Aplicar ensureRateUsedInMetadata
+    const finalMetadata = ensureRateUsedInMetadata(metadataWithoutRateUsed);
+
+    // Validación - rate_used DEBE ser creado con valores desde shipping_pricing
+    const finalShippingMeta = finalMetadata.shipping as Record<string, unknown>;
+    const finalRateUsed = finalShippingMeta.rate_used as {
+      carrier_cents?: number | null;
+      price_cents?: number | null;
+      customer_total_cents?: number | null;
+    };
+
+    expect(finalRateUsed).toBeTruthy();
+    expect(finalRateUsed.price_cents).toBe(22126);
+    expect(finalRateUsed.carrier_cents).toBe(15338);
+    expect(finalRateUsed.customer_total_cents).toBe(22126);
+    
+    // NO debe quedar null
+    expect(finalRateUsed.price_cents).not.toBeNull();
+    expect(finalRateUsed.carrier_cents).not.toBeNull();
   });
 });

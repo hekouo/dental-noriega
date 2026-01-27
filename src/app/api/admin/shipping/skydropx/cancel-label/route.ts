@@ -4,7 +4,7 @@ import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
 import { checkAdminAccess } from "@/lib/admin/access";
 import { skydropxFetch, getSkydropxConfig } from "@/lib/skydropx/client";
-import { normalizeShippingMetadata, addShippingMetadataDebug, preserveRateUsed } from "@/lib/shipping/normalizeShippingMetadata";
+import { normalizeShippingMetadata, addShippingMetadataDebug, preserveRateUsed, ensureRateUsedInMetadata } from "@/lib/shipping/normalizeShippingMetadata";
 import { logPreWrite, logPostWrite } from "@/lib/shipping/metadataWriterLogger";
 
 export const dynamic = "force-dynamic";
@@ -430,7 +430,10 @@ export async function POST(req: NextRequest) {
     };
     
     // Aplicar preserveRateUsed para garantizar que rate_used nunca quede null
-    const finalMetadata = preserveRateUsed(freshMetadata, normalizedWithDebug);
+    const finalMetadataWithPreserve = preserveRateUsed(freshMetadata, normalizedWithDebug);
+    
+    // CRÍTICO: Asegurar que rate_used esté presente en el payload final antes de escribir
+    const finalMetadata = ensureRateUsedInMetadata(finalMetadataWithPreserve);
     
     // INSTRUMENTACIÓN PRE-WRITE
     logPreWrite("cancel-label", orderId, freshMetadata, freshUpdatedAt, finalMetadata);
@@ -441,7 +444,7 @@ export async function POST(req: NextRequest) {
     const updateData: Record<string, unknown> = {
       shipping_status: "cancelled", // Marcar como cancelado
       shipping_status_updated_at: nowIso,
-      metadata: finalMetadata, // Usar SOLO resultado normalizado
+      metadata: finalMetadata, // Usar metadata con rate_used garantizado
       updated_at: nowIso,
     };
 

@@ -500,3 +500,95 @@ export function preserveRateUsed(
   // Si no hay canonical pricing y no hay números en ningún lado, devolver incoming tal cual
   return incomingMetadata;
 }
+
+/**
+ * Helper CRÍTICO: Garantiza que rate_used.*_cents esté presente en metadata antes de escribir a Supabase.
+ * 
+ * Este helper se ejecuta JUSTO ANTES del update a Supabase para asegurar que rate_used
+ * se incluya explícitamente en el payload, incluso si normalizeShippingMetadata o preserveRateUsed
+ * no lo incluyeron correctamente.
+ * 
+ * Reglas:
+ * 1. Si shipping_pricing tiene números -> rate_used.price_cents y carrier_cents DEBEN existir
+ * 2. Si rate_used no existe o tiene nulls -> crear/rellenar desde shipping_pricing
+ * 3. Mantener otros campos de rate_used si ya existen
+ * 
+ * @param metadata - Metadata final que se va a escribir a Supabase
+ * @returns Metadata con rate_used garantizado (nunca null si hay canonical pricing)
+ */
+export function ensureRateUsedInMetadata(
+  metadata: Record<string, unknown>,
+): Record<string, unknown> {
+  const shippingPricing = metadata.shipping_pricing as {
+    carrier_cents?: number | null;
+    total_cents?: number | null;
+    customer_total_cents?: number | null;
+  } | null | undefined;
+
+  const shippingMeta = (metadata.shipping as Record<string, unknown>) || {};
+  const existingRateUsed = (shippingMeta.rate_used as Record<string, unknown>) || null;
+
+  // Si hay canonical pricing con números, rate_used DEBE existir con números
+  const hasCanonicalNumbers = shippingPricing && (
+    (typeof shippingPricing.carrier_cents === "number" && shippingPricing.carrier_cents > 0) ||
+    (typeof shippingPricing.total_cents === "number" && shippingPricing.total_cents > 0)
+  );
+
+  if (hasCanonicalNumbers) {
+    const canonCarrier = shippingPricing.carrier_cents ?? null;
+    const canonTotal = shippingPricing.total_cents ?? null;
+    const canonCustomerTotal = shippingPricing.customer_total_cents ?? canonTotal ?? null;
+
+    // Verificar si rate_used tiene números o está null/missing
+    const rateUsedHasNumbers = existingRateUsed && (
+      (typeof existingRateUsed.price_cents === "number" && existingRateUsed.price_cents > 0) ||
+      (typeof existingRateUsed.carrier_cents === "number" && existingRateUsed.carrier_cents > 0)
+    );
+
+    // Si rate_used no tiene números, forzar desde canonical
+    if (!rateUsedHasNumbers) {
+      const ensuredRateUsed: Record<string, unknown> = {
+        ...(existingRateUsed || {}),
+        // FORZAR valores desde canonical pricing
+        price_cents: canonTotal,
+        carrier_cents: canonCarrier,
+        customer_total_cents: canonCustomerTotal,
+      };
+
+      return {
+        ...metadata,
+        shipping: {
+          ...shippingMeta,
+          rate_used: ensuredRateUsed,
+        },
+      };
+    }
+
+    // Si rate_used tiene números pero alguno está null, rellenar desde canonical
+    const needsFill = existingRateUsed && (
+      (existingRateUsed.price_cents == null || existingRateUsed.price_cents === null) ||
+      (existingRateUsed.carrier_cents == null || existingRateUsed.carrier_cents === null)
+    );
+
+    if (needsFill) {
+      const filledRateUsed: Record<string, unknown> = {
+        ...existingRateUsed,
+        // Solo rellenar los que están null
+        ...(existingRateUsed.price_cents == null ? { price_cents: canonTotal } : {}),
+        ...(existingRateUsed.carrier_cents == null ? { carrier_cents: canonCarrier } : {}),
+        ...(existingRateUsed.customer_total_cents == null ? { customer_total_cents: canonCustomerTotal } : {}),
+      };
+
+      return {
+        ...metadata,
+        shipping: {
+          ...shippingMeta,
+          rate_used: filledRateUsed,
+        },
+      };
+    }
+  }
+
+  // Si no hay canonical pricing o rate_used ya está bien, devolver tal cual
+  return metadata;
+}

@@ -4,7 +4,7 @@ import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
 import { checkAdminAccess } from "@/lib/admin/access";
 import { getShipment, type SkydropxShipmentResponse } from "@/lib/skydropx/client";
-import { normalizeShippingMetadata, addShippingMetadataDebug, preserveRateUsed } from "@/lib/shipping/normalizeShippingMetadata";
+import { normalizeShippingMetadata, addShippingMetadataDebug, preserveRateUsed, ensureRateUsedInMetadata } from "@/lib/shipping/normalizeShippingMetadata";
 import { logPreWrite, logPostWrite } from "@/lib/shipping/metadataWriterLogger";
 import { isValidShippingStatus } from "@/lib/orders/statuses";
 
@@ -512,7 +512,10 @@ export async function POST(req: NextRequest) {
     };
     
     // Aplicar preserveRateUsed para garantizar que rate_used nunca quede null
-    const finalMetadata = preserveRateUsed(freshMetadata, normalizedWithDebug);
+    const finalMetadataWithPreserve = preserveRateUsed(freshMetadata, normalizedWithDebug);
+    
+    // CRÍTICO: Asegurar que rate_used esté presente en el payload final antes de escribir
+    const finalMetadata = ensureRateUsedInMetadata(finalMetadataWithPreserve);
     
     // INSTRUMENTACIÓN PRE-WRITE
     logPreWrite("sync-label", orderId, freshMetadata, freshUpdatedAt, finalMetadata);

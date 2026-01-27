@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { normalizeShippingStatus, isValidShippingStatus } from "@/lib/orders/statuses";
-import { normalizeShippingMetadata, addShippingMetadataDebug, preserveRateUsed } from "@/lib/shipping/normalizeShippingMetadata";
+import { normalizeShippingMetadata, addShippingMetadataDebug, preserveRateUsed, ensureRateUsedInMetadata } from "@/lib/shipping/normalizeShippingMetadata";
 import { logPreWrite, logPostWrite } from "@/lib/shipping/metadataWriterLogger";
 
 export const dynamic = "force-dynamic";
@@ -597,7 +597,10 @@ export async function POST(req: NextRequest) {
           };
           
           // Aplicar preserveRateUsed para garantizar que rate_used nunca quede null
-          const finalMetadata = preserveRateUsed(freshMetadata, normalizedWithDebug);
+          const finalMetadataWithPreserve = preserveRateUsed(freshMetadata, normalizedWithDebug);
+          
+          // CRÍTICO: Asegurar que rate_used esté presente en el payload final antes de escribir
+          const finalMetadata = ensureRateUsedInMetadata(finalMetadataWithPreserve);
           
           // INSTRUMENTACIÓN PRE-WRITE
           logPreWrite("webhook-skydropx", order.id, freshMetadata, freshUpdatedAt, finalMetadata);
