@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { normalizeShippingStatus, isValidShippingStatus } from "@/lib/orders/statuses";
-import { normalizeShippingMetadata, addShippingMetadataDebug } from "@/lib/shipping/normalizeShippingMetadata";
+import { normalizeShippingMetadata, addShippingMetadataDebug, preserveRateUsed } from "@/lib/shipping/normalizeShippingMetadata";
+import { logPreWrite, logPostWrite } from "@/lib/shipping/metadataWriterLogger";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -551,31 +552,17 @@ export async function POST(req: NextRequest) {
         if (fullOrder?.metadata) {
           const currentMetadata = fullOrder.metadata as Record<string, unknown>;
           const shippingMeta = (currentMetadata.shipping as Record<string, unknown>) || {};
+          
           // CRÍTICO: Releer metadata justo antes del update para evitar race conditions
           const { data: freshOrder } = await supabase
             .from("orders")
-            .select("metadata")
+            .select("metadata, updated_at")
             .eq("id", order.id)
             .single();
           
           const freshMetadata = (freshOrder?.metadata as Record<string, unknown>) || {};
+          const freshUpdatedAt = freshOrder?.updated_at as string | null | undefined;
           const freshShippingMeta = (freshMetadata.shipping as Record<string, unknown>) || {};
-          const freshRateUsed = (freshShippingMeta.rate_used as {
-            carrier_cents?: number | null;
-            price_cents?: number | null;
-          }) || null;
-          
-          // INSTRUMENTACIÓN PRE-WRITE
-          const preWriteLog = {
-            orderId: order.id,
-            rateUsedBefore: freshRateUsed
-              ? {
-                  price_cents: freshRateUsed.price_cents,
-                  carrier_cents: freshRateUsed.carrier_cents,
-                }
-              : null,
-          };
-          console.log("[webhook-skydropx] PRE-WRITE:", JSON.stringify(preWriteLog, null, 2));
           
           // Merge seguro: preservar rate_used de freshMetadata y agregar shipment_id
           const updatedShippingMeta = {
@@ -585,10 +572,6 @@ export async function POST(req: NextRequest) {
           const mergedShippingMeta = {
             ...(freshShippingMeta || {}),
             ...updatedShippingMeta,
-            rate_used: freshRateUsed && 
-              (freshRateUsed.price_cents != null || freshRateUsed.carrier_cents != null)
-              ? freshRateUsed
-              : (updatedShippingMeta as Record<string, unknown>).rate_used,
           };
           
           const mergedMetadata: Record<string, unknown> = {
@@ -607,10 +590,19 @@ export async function POST(req: NextRequest) {
             ...mergedMetadata,
             ...(normalizedMeta.shippingPricing ? { shipping_pricing: normalizedMeta.shippingPricing } : {}),
           };
-          updateData.metadata = {
+          
+          const normalizedWithDebug = {
             ...metadataWithPricing,
             shipping: addShippingMetadataDebug(normalizedMeta.shippingMeta, "webhook-skydropx", metadataWithPricing),
           };
+          
+          // Aplicar preserveRateUsed para garantizar que rate_used nunca quede null
+          const finalMetadata = preserveRateUsed(freshMetadata, normalizedWithDebug);
+          
+          // INSTRUMENTACIÓN PRE-WRITE
+          logPreWrite("webhook-skydropx", order.id, freshMetadata, freshUpdatedAt, finalMetadata);
+          
+          updateData.metadata = finalMetadata;
         }
       }
 
@@ -619,28 +611,14 @@ export async function POST(req: NextRequest) {
         .from("orders")
         .update(updateData)
         .eq("id", order.id)
-        .select("id, metadata")
+        .select("id, metadata, updated_at")
         .single();
       
       // INSTRUMENTACIÓN POST-WRITE
       if (updateData.metadata && updatedOrder) {
         const postWriteMetadata = (updatedOrder.metadata as Record<string, unknown>) || {};
-        const postWriteShippingMeta = (postWriteMetadata.shipping as Record<string, unknown>) || {};
-        const postWriteRateUsed = (postWriteShippingMeta.rate_used as {
-          carrier_cents?: number | null;
-          price_cents?: number | null;
-        }) || null;
-        
-        const postWriteLog = {
-          orderId: order.id,
-          rateUsedPostWrite: postWriteRateUsed
-            ? {
-                price_cents: postWriteRateUsed.price_cents,
-                carrier_cents: postWriteRateUsed.carrier_cents,
-              }
-            : null,
-        };
-        console.log("[webhook-skydropx] POST-WRITE:", JSON.stringify(postWriteLog, null, 2));
+        const postWriteUpdatedAt = updatedOrder.updated_at as string | null | undefined;
+        logPostWrite("webhook-skydropx", order.id, postWriteMetadata, postWriteUpdatedAt);
       }
 
       if (updateError) {

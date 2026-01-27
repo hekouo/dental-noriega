@@ -127,14 +127,42 @@ export async function POST(req: NextRequest) {
       ...currentMetadata,
       shipping_package_final: shippingPackageFinal,
     };
+    
+    // CRÍTICO: Releer metadata justo antes del update para evitar race conditions
+    const { data: freshOrderData } = await supabase
+      .from("orders")
+      .select("metadata, updated_at")
+      .eq("id", orderId)
+      .single();
+    
+    const freshMetadata = (freshOrderData?.metadata as Record<string, unknown>) || {};
+    const freshUpdatedAt = freshOrderData?.updated_at as string | null | undefined;
+    
+    // Aplicar preserveRateUsed para garantizar que rate_used nunca quede null
+    const { preserveRateUsed } = await import("@/lib/shipping/normalizeShippingMetadata");
+    const { logPreWrite, logPostWrite } = await import("@/lib/shipping/metadataWriterLogger");
+    
+    const finalMetadata = preserveRateUsed(freshMetadata, updatedMetadata);
+    
+    // INSTRUMENTACIÓN PRE-WRITE
+    logPreWrite("set-shipping-package-final", orderId, freshMetadata, freshUpdatedAt, finalMetadata);
 
-    const { error: updateError } = await supabase
+    const { data: updatedOrder, error: updateError } = await supabase
       .from("orders")
       .update({
-        metadata: updatedMetadata,
+        metadata: finalMetadata,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", orderId);
+      .eq("id", orderId)
+      .select("id, metadata, updated_at")
+      .single();
+    
+    // INSTRUMENTACIÓN POST-WRITE
+    if (updatedOrder) {
+      const postWriteMetadata = (updatedOrder.metadata as Record<string, unknown>) || {};
+      const postWriteUpdatedAt = updatedOrder.updated_at as string | null | undefined;
+      logPostWrite("set-shipping-package-final", orderId, postWriteMetadata, postWriteUpdatedAt);
+    }
 
     if (updateError) {
       console.error("[set-shipping-package-final] Error al actualizar orden:", updateError);

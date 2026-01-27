@@ -6,7 +6,8 @@ import { getSkydropxRates } from "@/lib/shipping/skydropx.server";
 import { normalizeSkydropxRates } from "@/lib/shipping/normalizeSkydropxRates";
 import type { SkydropxRate } from "@/lib/shipping/skydropx.server";
 import { getOrderShippingAddress } from "@/lib/shipping/getOrderShippingAddress";
-import { normalizeShippingMetadata, addShippingMetadataDebug } from "@/lib/shipping/normalizeShippingMetadata";
+import { normalizeShippingMetadata, addShippingMetadataDebug, preserveRateUsed } from "@/lib/shipping/normalizeShippingMetadata";
+import { logPreWrite, logPostWrite } from "@/lib/shipping/metadataWriterLogger";
 import { createClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
@@ -483,6 +484,17 @@ export async function POST(req: NextRequest) {
           ...orderMetadata,
           shipping: updatedShipping,
         };
+        
+        // CRÍTICO: Releer metadata justo antes del update para evitar race conditions
+        const { data: freshOrderData } = await supabase
+          .from("orders")
+          .select("metadata, updated_at")
+          .eq("id", orderId)
+          .single();
+        
+        const freshMetadata = (freshOrderData?.metadata as Record<string, unknown>) || {};
+        const freshUpdatedAt = freshOrderData?.updated_at as string | null | undefined;
+        
         // Normalizar metadata antes de persistir para asegurar rate_used completo
         const normalizedMeta = normalizeShippingMetadata(updatedMetadata, {
           source: "admin",
@@ -494,14 +506,34 @@ export async function POST(req: NextRequest) {
           ...updatedMetadata,
           ...(normalizedMeta.shippingPricing ? { shipping_pricing: normalizedMeta.shippingPricing } : {}),
         };
-        const finalMetadata: Record<string, unknown> = {
+        
+        const normalizedWithDebug = {
           ...metadataWithPricing,
           shipping: addShippingMetadataDebug(normalizedMeta.shippingMeta, "requote", metadataWithPricing),
         };
-        await supabase
+        
+        // Aplicar preserveRateUsed para garantizar que rate_used nunca quede null
+        const finalMetadata = preserveRateUsed(freshMetadata, normalizedWithDebug);
+        
+        // INSTRUMENTACIÓN PRE-WRITE
+        logPreWrite("requote", orderId, freshMetadata, freshUpdatedAt, finalMetadata);
+        
+        // Actualizar con return=representation para obtener metadata post-write
+        const { data: updatedOrder, error: updateError } = await supabase
           .from("orders")
           .update({ metadata: finalMetadata, updated_at: new Date().toISOString() })
-          .eq("id", orderId);
+          .eq("id", orderId)
+          .select("id, metadata, updated_at")
+          .single();
+        
+        if (updateError) {
+          console.error("[requote] Error al actualizar orden:", updateError);
+        } else {
+          // INSTRUMENTACIÓN POST-WRITE
+          const postWriteMetadata = (updatedOrder?.metadata as Record<string, unknown>) || {};
+          const postWriteUpdatedAt = updatedOrder?.updated_at as string | null | undefined;
+          logPostWrite("requote", orderId, postWriteMetadata, postWriteUpdatedAt);
+        }
       }
     } catch (persistError) {
       if (process.env.NODE_ENV !== "production") {

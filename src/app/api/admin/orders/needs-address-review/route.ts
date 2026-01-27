@@ -113,10 +113,29 @@ export async function POST(req: NextRequest) {
       ...currentMetadata,
       needs_address_review: true,
     };
+    
+    // CRÍTICO: Releer metadata justo antes del update para evitar race conditions
+    const { data: freshOrderData } = await supabase
+      .from("orders")
+      .select("metadata, updated_at")
+      .eq("id", orderId)
+      .single();
+    
+    const freshMetadata = (freshOrderData?.metadata as Record<string, unknown>) || {};
+    const freshUpdatedAt = freshOrderData?.updated_at as string | null | undefined;
+    
+    // Aplicar preserveRateUsed para garantizar que rate_used nunca quede null
+    const { preserveRateUsed } = await import("@/lib/shipping/normalizeShippingMetadata");
+    const { logPreWrite, logPostWrite } = await import("@/lib/shipping/metadataWriterLogger");
+    
+    const finalMetadata = preserveRateUsed(freshMetadata, updatedMetadata);
+    
+    // INSTRUMENTACIÓN PRE-WRITE
+    logPreWrite("needs-address-review", orderId, freshMetadata, freshUpdatedAt, finalMetadata);
 
     // Actualizar orden: metadata y opcionalmente shipping_status
     const updateData: Record<string, unknown> = {
-      metadata: updatedMetadata,
+      metadata: finalMetadata,
       updated_at: new Date().toISOString(),
     };
 
@@ -129,10 +148,19 @@ export async function POST(req: NextRequest) {
       updateData.shipping_status = "needs_address_review";
     }
 
-    const { error: updateError } = await supabase
+    const { data: updatedOrder, error: updateError } = await supabase
       .from("orders")
       .update(updateData)
-      .eq("id", orderId);
+      .eq("id", orderId)
+      .select("id, metadata, updated_at")
+      .single();
+    
+    // INSTRUMENTACIÓN POST-WRITE
+    if (updatedOrder) {
+      const postWriteMetadata = (updatedOrder.metadata as Record<string, unknown>) || {};
+      const postWriteUpdatedAt = updatedOrder.updated_at as string | null | undefined;
+      logPostWrite("needs-address-review", orderId, postWriteMetadata, postWriteUpdatedAt);
+    }
 
     if (updateError) {
       console.error("[needs-address-review] Error al actualizar orden:", updateError);

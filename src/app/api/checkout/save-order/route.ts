@@ -508,11 +508,13 @@ export async function POST(req: NextRequest) {
       // Obtener metadata actualizada después de procesar puntos (si se procesaron)
       const { data: updatedOrder } = await supabase
         .from("orders")
-        .select("metadata")
+        .select("metadata, updated_at")
         .eq("id", orderData.order_id)
         .single();
 
       const loyaltyMetadata = updatedOrder?.metadata || metadata;
+      const freshMetadata = (updatedOrder?.metadata as Record<string, unknown>) || {};
+      const freshUpdatedAt = updatedOrder?.updated_at as string | null | undefined;
 
       // Obtener valores actuales de payment_provider y payment_id para no sobreescribir
       const { data: currentOrderData } = await supabase
@@ -521,6 +523,16 @@ export async function POST(req: NextRequest) {
         .eq("id", orderData.order_id)
         .single();
 
+      // Aplicar preserveRateUsed para garantizar que rate_used nunca quede null
+      const { preserveRateUsed } = await import("@/lib/shipping/normalizeShippingMetadata");
+      const { logPreWrite, logPostWrite } = await import("@/lib/shipping/metadataWriterLogger");
+      
+      const incomingMetadata = loyaltyMetadata as Record<string, unknown>;
+      const finalMetadata = preserveRateUsed(freshMetadata, incomingMetadata);
+      
+      // INSTRUMENTACIÓN PRE-WRITE
+      logPreWrite("save-order", orderData.order_id, freshMetadata, freshUpdatedAt, finalMetadata);
+      
       // Actualizar orden existente usando el schema real
       // IMPORTANTE: NO eliminamos ni recreamos order_items aquí
       // Los items ya fueron creados en create-order y solo se actualizan si es necesario
@@ -530,7 +542,7 @@ export async function POST(req: NextRequest) {
         email: orderData.email,
         total_cents: orderData.total_cents,
         status: orderData.status,
-        metadata: loyaltyMetadata,
+        metadata: finalMetadata,
         // Campos de shipping de Skydropx (opcionales)
         shipping_provider: shippingProvider,
         shipping_service_name: shippingServiceName,
@@ -552,10 +564,19 @@ export async function POST(req: NextRequest) {
         updateData.payment_id = orderData.payment_id;
       }
 
-      const { error: updateError } = await supabase
+      const { data: updatedOrderAfterWrite, error: updateError } = await supabase
         .from("orders")
         .update(updateData)
-        .eq("id", orderData.order_id);
+        .eq("id", orderData.order_id)
+        .select("id, metadata, updated_at")
+        .single();
+      
+      // INSTRUMENTACIÓN POST-WRITE
+      if (updatedOrderAfterWrite) {
+        const postWriteMetadata = (updatedOrderAfterWrite.metadata as Record<string, unknown>) || {};
+        const postWriteUpdatedAt = updatedOrderAfterWrite.updated_at as string | null | undefined;
+        logPostWrite("save-order", orderData.order_id, postWriteMetadata, postWriteUpdatedAt);
+      }
 
       if (updateError) {
         console.error("[save-order] Error al actualizar orden:", {

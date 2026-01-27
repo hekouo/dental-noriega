@@ -4,7 +4,8 @@ import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
 import { checkAdminAccess } from "@/lib/admin/access";
 import { skydropxFetch, getSkydropxConfig } from "@/lib/skydropx/client";
-import { normalizeShippingMetadata, addShippingMetadataDebug } from "@/lib/shipping/normalizeShippingMetadata";
+import { normalizeShippingMetadata, addShippingMetadataDebug, preserveRateUsed } from "@/lib/shipping/normalizeShippingMetadata";
+import { logPreWrite, logPostWrite } from "@/lib/shipping/metadataWriterLogger";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -401,6 +402,17 @@ export async function POST(req: NextRequest) {
       ...currentMetadata, // Preservar todos los campos existentes
       shipping: updatedShippingMeta,
     };
+    
+    // CRÍTICO: Releer metadata justo antes del update para evitar race conditions
+    const { data: freshOrderData } = await supabase
+      .from("orders")
+      .select("metadata, updated_at")
+      .eq("id", orderId)
+      .single();
+    
+    const freshMetadata = (freshOrderData?.metadata as Record<string, unknown>) || {};
+    const freshUpdatedAt = freshOrderData?.updated_at as string | null | undefined;
+    
     const normalizedMeta = normalizeShippingMetadata(updatedMetadata, {
       source: "admin",
       orderId,
@@ -411,10 +423,17 @@ export async function POST(req: NextRequest) {
       ...updatedMetadata,
       ...(normalizedMeta.shippingPricing ? { shipping_pricing: normalizedMeta.shippingPricing } : {}),
     };
-    const finalMetadata: Record<string, unknown> = {
+    
+    const normalizedWithDebug = {
       ...metadataWithPricing,
       shipping: addShippingMetadataDebug(normalizedMeta.shippingMeta, "cancel-label", metadataWithPricing),
     };
+    
+    // Aplicar preserveRateUsed para garantizar que rate_used nunca quede null
+    const finalMetadata = preserveRateUsed(freshMetadata, normalizedWithDebug);
+    
+    // INSTRUMENTACIÓN PRE-WRITE
+    logPreWrite("cancel-label", orderId, freshMetadata, freshUpdatedAt, finalMetadata);
 
     // Actualizar la orden localmente: estado = "cancelled" (solo si Skydropx respondió OK)
     // Conservar tracking/label para referencia histórica, pero marcar como cancelado
@@ -431,7 +450,19 @@ export async function POST(req: NextRequest) {
       updateData.shipping_shipment_id = shipmentId;
     }
 
-    const { error: updateError } = await supabase.from("orders").update(updateData).eq("id", orderId);
+    const { data: updatedOrder, error: updateError } = await supabase
+      .from("orders")
+      .update(updateData)
+      .eq("id", orderId)
+      .select("id, metadata, updated_at")
+      .single();
+    
+    // INSTRUMENTACIÓN POST-WRITE
+    if (updatedOrder) {
+      const postWriteMetadata = (updatedOrder.metadata as Record<string, unknown>) || {};
+      const postWriteUpdatedAt = updatedOrder.updated_at as string | null | undefined;
+      logPostWrite("cancel-label", orderId, postWriteMetadata, postWriteUpdatedAt);
+    }
 
     if (updateError) {
       if (process.env.NODE_ENV !== "production") {

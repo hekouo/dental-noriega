@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { normalizeShippingMetadata } from "@/lib/shipping/normalizeShippingMetadata";
+import { normalizeShippingMetadata, preserveRateUsed } from "@/lib/shipping/normalizeShippingMetadata";
 
 /** Fixture que reproduce el bug de producción: pricing con números, rate_used nulls, _last_write apply-rate */
 const PRODUCTION_FIXTURE = {
@@ -485,5 +485,89 @@ describe("normalizeShippingMetadata", () => {
     // label_creation debe estar presente
     expect(finalShippingMeta.label_creation).toBeTruthy();
     expect((finalShippingMeta.label_creation as { status?: string }).status).toBe("created");
+  });
+
+  it("reproduce bug: otro writer (webhook/sync-label/requote) no debe borrar rate_used después de apply-rate", async () => {
+    // Simula el bug reportado:
+    // 1. apply-rate setea rate_used con números
+    // 2. Otro writer (ej: webhook/sync-label/requote) ejecuta update con metadata stale donde rate_used viene null
+    // 3. Después del segundo update, rate_used debe seguir con números (preservado o rellenado desde shipping_pricing)
+
+    // Paso 1: Estado después de apply-rate (metadata con rate_used lleno)
+    const metadataAfterApplyRate: Record<string, unknown> = {
+      shipping_pricing: {
+        carrier_cents: 15338,
+        packaging_cents: 2000,
+        margin_cents: 4788,
+        total_cents: 22126,
+      },
+      shipping: {
+        rate_used: {
+          external_rate_id: "rate_xyz",
+          provider: "skydropx",
+          service: "express",
+          carrier_cents: 15338,
+          price_cents: 22126,
+          customer_total_cents: 22126,
+        },
+        _last_write: {
+          route: "apply-rate",
+          at: "2025-01-27T00:23:22.000Z",
+          sha: "e935144",
+          canonical_detected: true,
+          rate_used_overwritten: true,
+        },
+      },
+    };
+
+    // Paso 2: Otro writer (ej: webhook) lee metadata (simula freshMetadata)
+    const freshMetadata = { ...metadataAfterApplyRate };
+
+    // Paso 3: Otro writer quiere actualizar solo shipment_id (simula updatedShippingMeta)
+    // PERO viene con metadata stale donde rate_used es null (BUG)
+    const staleMetadata: Record<string, unknown> = {
+      shipping_pricing: {
+        carrier_cents: 15338,
+        packaging_cents: 2000,
+        margin_cents: 4788,
+        total_cents: 22126,
+      },
+      shipping: {
+        rate_used: {
+          external_rate_id: "rate_xyz",
+          provider: "skydropx",
+          service: "express",
+          carrier_cents: null, // NULL (stale data)
+          price_cents: null, // NULL (stale data)
+          customer_total_cents: null, // NULL (stale data)
+        },
+        shipment_id: "shipment_123", // Nuevo campo que el writer quiere agregar
+      },
+    };
+
+    // Paso 4: Aplicar preserveRateUsed (esto es lo que debe hacer cada writer)
+    const finalMetadata = preserveRateUsed(freshMetadata, staleMetadata);
+
+    // Paso 5: Validación - rate_used debe persistir con números
+    const finalShippingMeta = finalMetadata.shipping as Record<string, unknown>;
+    const finalRateUsed = finalShippingMeta.rate_used as {
+      carrier_cents?: number | null;
+      price_cents?: number | null;
+      customer_total_cents?: number | null;
+    };
+
+    // Invariantes: rate_used debe seguir con números después del segundo update
+    expect(finalRateUsed).toBeTruthy();
+    expect(finalRateUsed.price_cents).toBe(22126);
+    expect(finalRateUsed.carrier_cents).toBe(15338);
+    expect(finalRateUsed.customer_total_cents).toBe(22126);
+    
+    // Nunca null
+    expect(finalRateUsed.price_cents).not.toBeNull();
+    expect(finalRateUsed.carrier_cents).not.toBeNull();
+    expect(finalRateUsed.customer_total_cents).not.toBeNull();
+    
+    // shipment_id debe estar presente (el nuevo campo que el writer agregó)
+    expect(finalShippingMeta.shipment_id).toBe("shipment_123");
   });
 });

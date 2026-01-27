@@ -45,18 +45,51 @@ export async function POST(req: NextRequest) {
 		});
 
 		// Leer metadata actual
-		const { data: existing } = await supabase.from("orders").select("metadata").eq("id", body.orderId).single();
+		const { data: existing } = await supabase
+			.from("orders")
+			.select("metadata, updated_at")
+			.eq("id", body.orderId)
+			.single();
 		const currentMetadata = ((existing as any)?.metadata as Record<string, unknown>) || {};
+		const freshUpdatedAt = (existing as any)?.updated_at as string | null | undefined;
 
 		const updatedMetadata = {
 			...currentMetadata,
 			shipping_address_override: body.shipping_address_override,
 		};
-
-		const { error: updateError } = await supabase
+		
+		// CRÍTICO: Releer metadata justo antes del update para evitar race conditions
+		const { data: freshOrderData } = await supabase
 			.from("orders")
-			.update({ metadata: updatedMetadata, updated_at: new Date().toISOString() })
-			.eq("id", body.orderId);
+			.select("metadata, updated_at")
+			.eq("id", body.orderId)
+			.single();
+		
+		const freshMetadata = ((freshOrderData as any)?.metadata as Record<string, unknown>) || {};
+		const freshUpdatedAtFinal = (freshOrderData as any)?.updated_at as string | null | undefined;
+		
+		// Aplicar preserveRateUsed para garantizar que rate_used nunca quede null
+		const { preserveRateUsed } = await import("@/lib/shipping/normalizeShippingMetadata");
+		const { logPreWrite, logPostWrite } = await import("@/lib/shipping/metadataWriterLogger");
+		
+		const finalMetadata = preserveRateUsed(freshMetadata, updatedMetadata);
+		
+		// INSTRUMENTACIÓN PRE-WRITE
+		logPreWrite("update-shipping-override", body.orderId, freshMetadata, freshUpdatedAtFinal, finalMetadata);
+
+		const { data: updatedOrder, error: updateError } = await supabase
+			.from("orders")
+			.update({ metadata: finalMetadata, updated_at: new Date().toISOString() })
+			.eq("id", body.orderId)
+			.select("id, metadata, updated_at")
+			.single();
+		
+		// INSTRUMENTACIÓN POST-WRITE
+		if (updatedOrder) {
+			const postWriteMetadata = ((updatedOrder as any).metadata as Record<string, unknown>) || {};
+			const postWriteUpdatedAt = (updatedOrder as any).updated_at as string | null | undefined;
+			logPostWrite("update-shipping-override", body.orderId, postWriteMetadata, postWriteUpdatedAt);
+		}
 
 		if (updateError) {
 			return NextResponse.json({ ok: false, error: "update_failed", details: updateError.message }, { status: 500 });

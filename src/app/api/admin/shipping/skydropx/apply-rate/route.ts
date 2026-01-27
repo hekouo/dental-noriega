@@ -4,7 +4,8 @@ import { createClient } from "@supabase/supabase-js";
 import { checkAdminAccess } from "@/lib/admin/access";
 import { getOrderWithItemsAdmin } from "@/lib/supabase/orders.server";
 import { normalizeShippingPricing } from "@/lib/shipping/normalizeShippingPricing";
-import { normalizeShippingMetadata, addShippingMetadataDebug } from "@/lib/shipping/normalizeShippingMetadata";
+import { normalizeShippingMetadata, addShippingMetadataDebug, preserveRateUsed } from "@/lib/shipping/normalizeShippingMetadata";
+import { logPreWrite, logPostWrite } from "@/lib/shipping/metadataWriterLogger";
 
 export const dynamic = "force-dynamic";
 
@@ -240,26 +241,21 @@ export async function POST(req: NextRequest) {
     }
     const finalTotal = normalized.shippingPricing?.total_cents ?? normalizedPricing?.total_cents;
 
-    // INSTRUMENTACIÓN PRE-WRITE: Loggear exactamente lo que se va a persistir
-    const preWriteLog = {
-      orderId,
-      canonicalPricing: finalPricing
-        ? {
-            total_cents: finalPricing.total_cents,
-            carrier_cents: finalPricing.carrier_cents,
-            customer_total_cents: (finalPricing as { customer_total_cents?: number | null }).customer_total_cents,
-          }
-        : null,
-      rateUsedPreWrite: finalRateUsed
-        ? {
-            price_cents: finalRateUsed.price_cents,
-            carrier_cents: finalRateUsed.carrier_cents,
-            customer_total_cents: (finalRateUsed as { customer_total_cents?: number | null }).customer_total_cents,
-          }
-        : null,
-      lastWrite: (finalShippingMeta._last_write as Record<string, unknown>) || null,
-    };
-    console.log("[apply-rate] PRE-WRITE:", JSON.stringify(preWriteLog, null, 2));
+    // CRÍTICO: Releer metadata justo antes del update para evitar race conditions
+    const { data: freshOrderData } = await supabase
+      .from("orders")
+      .select("metadata, updated_at")
+      .eq("id", orderId)
+      .single();
+    
+    const freshMetadata = (freshOrderData?.metadata as Record<string, unknown>) || {};
+    const freshUpdatedAt = freshOrderData?.updated_at as string | null | undefined;
+    
+    // Aplicar preserveRateUsed para garantizar que rate_used nunca quede null
+    const finalMetadataWithPreserve = preserveRateUsed(freshMetadata, finalMetadata);
+
+    // INSTRUMENTACIÓN PRE-WRITE
+    logPreWrite("apply-rate", orderId, freshMetadata, freshUpdatedAt, finalMetadataWithPreserve);
 
     // Actualizar order con return=representation para obtener metadata post-write
     const { data: updatedOrder, error: updateError } = await supabase
@@ -272,11 +268,11 @@ export async function POST(req: NextRequest) {
         shipping_eta_min_days: typeof etaMin === "number" ? etaMin : null,
         shipping_eta_max_days: typeof etaMax === "number" ? etaMax : null,
         shipping_status: "rate_selected",
-        metadata: finalMetadata,
+        metadata: finalMetadataWithPreserve,
         updated_at: now,
       })
       .eq("id", orderId)
-      .select("id, metadata")
+      .select("id, metadata, updated_at")
       .single();
 
     if (updateError) {
@@ -291,65 +287,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // INSTRUMENTACIÓN POST-WRITE: Loggear exactamente lo que devolvió Supabase
+    // INSTRUMENTACIÓN POST-WRITE (el helper ya detecta discrepancias)
     const postWriteMetadata = (updatedOrder?.metadata as Record<string, unknown>) || {};
-    const postWriteShippingMeta = (postWriteMetadata.shipping as Record<string, unknown>) || {};
-    const postWriteRateUsed = (postWriteShippingMeta.rate_used as {
-      carrier_cents?: number | null;
-      price_cents?: number | null;
-      customer_total_cents?: number | null;
-    }) || null;
-    const postWritePricing = (postWriteMetadata.shipping_pricing as {
-      carrier_cents?: number | null;
-      total_cents?: number | null;
-    }) || null;
-    const postWriteLastWrite = (postWriteShippingMeta._last_write as Record<string, unknown>) || null;
-
-    const postWriteLog = {
-      orderId,
-      canonicalPricing: postWritePricing
-        ? {
-            total_cents: postWritePricing.total_cents,
-            carrier_cents: postWritePricing.carrier_cents,
-          }
-        : null,
-      rateUsedPostWrite: postWriteRateUsed
-        ? {
-            price_cents: postWriteRateUsed.price_cents,
-            carrier_cents: postWriteRateUsed.carrier_cents,
-            customer_total_cents: postWriteRateUsed.customer_total_cents,
-          }
-        : null,
-      lastWrite: postWriteLastWrite,
-    };
-    console.log("[apply-rate] POST-WRITE:", JSON.stringify(postWriteLog, null, 2));
-
-    // DETECCIÓN DE DISCREPANCIA: Comparar pre-write vs post-write
-    const discrepancy = {
-      pricingMatches:
-        preWriteLog.canonicalPricing?.total_cents === postWriteLog.canonicalPricing?.total_cents &&
-        preWriteLog.canonicalPricing?.carrier_cents === postWriteLog.canonicalPricing?.carrier_cents,
-      rateUsedMatches:
-        preWriteLog.rateUsedPreWrite?.price_cents === postWriteLog.rateUsedPostWrite?.price_cents &&
-        preWriteLog.rateUsedPreWrite?.carrier_cents === postWriteLog.rateUsedPostWrite?.carrier_cents,
-      rateUsedNullsIntroduced:
-        preWriteLog.rateUsedPreWrite?.price_cents != null &&
-        postWriteLog.rateUsedPostWrite?.price_cents == null,
-      rateUsedCarrierNullsIntroduced:
-        preWriteLog.rateUsedPreWrite?.carrier_cents != null &&
-        postWriteLog.rateUsedPostWrite?.carrier_cents == null,
-    };
-
-    if (!discrepancy.rateUsedMatches || discrepancy.rateUsedNullsIntroduced || discrepancy.rateUsedCarrierNullsIntroduced) {
-      const errorMsg = `[apply-rate] DISCREPANCIA DETECTADA: pre-write vs post-write no coinciden. orderId=${orderId}, discrepancy=${JSON.stringify(discrepancy)}`;
-      console.error(errorMsg);
-      // En producción, solo loggear; en dev/staging, throw para debugging
-      if (process.env.NODE_ENV !== "production") {
-        console.error("[apply-rate] PRE-WRITE:", preWriteLog);
-        console.error("[apply-rate] POST-WRITE:", postWriteLog);
-        // No throw para no romper el flujo, pero loggear fuerte
-      }
-    }
+    const postWriteUpdatedAt = updatedOrder?.updated_at as string | null | undefined;
+    logPostWrite("apply-rate", orderId, postWriteMetadata, postWriteUpdatedAt);
 
     return NextResponse.json({
       ok: true,

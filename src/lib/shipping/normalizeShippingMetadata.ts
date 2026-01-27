@@ -328,3 +328,125 @@ export function addShippingMetadataDebug(
   }
   return shippingMeta;
 }
+
+/**
+ * Helper central para preservar rate_used y prevenir que quede null cuando hay canonical pricing.
+ * 
+ * Reglas:
+ * 1. Si freshDb.rate_used tiene números -> preservar (prioridad máxima)
+ * 2. Si incoming.rate_used viene null pero hay canonical pricing -> rellenar desde canonical
+ * 3. Si incoming.rate_used tiene números -> usar incoming
+ * 4. Bloquear explícitamente: shipping_pricing tiene números pero rate_used queda null
+ * 
+ * @param freshDbMetadata - Metadata leído de DB justo antes del update
+ * @param incomingMetadata - Metadata que el writer quiere guardar
+ * @returns Metadata con rate_used garantizado (nunca null si hay canonical pricing)
+ */
+export function preserveRateUsed(
+  freshDbMetadata: Record<string, unknown> | null | undefined,
+  incomingMetadata: Record<string, unknown>,
+): Record<string, unknown> {
+  const freshShippingMeta = (freshDbMetadata?.shipping as Record<string, unknown>) || {};
+  const freshRateUsed = (freshShippingMeta.rate_used as {
+    carrier_cents?: number | null;
+    price_cents?: number | null;
+    customer_total_cents?: number | null;
+  }) || null;
+
+  const incomingShippingMeta = (incomingMetadata.shipping as Record<string, unknown>) || {};
+  const incomingRateUsed = (incomingShippingMeta.rate_used as {
+    carrier_cents?: number | null;
+    price_cents?: number | null;
+    customer_total_cents?: number | null;
+  }) || null;
+
+  // Obtener canonical pricing (prioridad: root shipping_pricing -> nested shipping.pricing)
+  const rootPricing = incomingMetadata.shipping_pricing as Record<string, unknown> | null | undefined;
+  const nestedPricing = incomingShippingMeta.pricing as Record<string, unknown> | null | undefined;
+  const canonicalPricing = rootPricing || nestedPricing || null;
+
+  const canonCarrier = canonicalPricing ? toNum((canonicalPricing as { carrier_cents?: unknown }).carrier_cents) : null;
+  const canonTotal = canonicalPricing ? toNum((canonicalPricing as { total_cents?: unknown }).total_cents) : null;
+  const canonCustomerTotal = canonicalPricing ? toNum((canonicalPricing as { customer_total_cents?: unknown }).customer_total_cents) : null;
+
+  const hasCanonicalNumbers = canonCarrier != null || canonTotal != null;
+
+  // REGLA 1: Si freshDb.rate_used tiene números -> preservar (prioridad máxima)
+  const freshHasNumbers = freshRateUsed && (
+    (typeof freshRateUsed.price_cents === "number" && freshRateUsed.price_cents > 0) ||
+    (typeof freshRateUsed.carrier_cents === "number" && freshRateUsed.carrier_cents > 0)
+  );
+
+  if (freshHasNumbers) {
+    // Preservar rate_used de DB, pero mergear otros campos de incoming si existen
+    const preservedRateUsed: Record<string, unknown> = {
+      ...(incomingRateUsed as Record<string, unknown> || {}),
+      ...(freshRateUsed as Record<string, unknown>),
+    };
+    
+    return {
+      ...incomingMetadata,
+      shipping: {
+        ...incomingShippingMeta,
+        rate_used: preservedRateUsed,
+      },
+    };
+  }
+
+  // REGLA 2: Si incoming.rate_used viene null pero hay canonical pricing -> rellenar desde canonical
+  const incomingIsNull = !incomingRateUsed || (
+    (incomingRateUsed.price_cents == null || incomingRateUsed.price_cents === null) &&
+    (incomingRateUsed.carrier_cents == null || incomingRateUsed.carrier_cents === null)
+  );
+
+  if (incomingIsNull && hasCanonicalNumbers) {
+    // Rellenar rate_used desde canonical pricing
+    const filledRateUsed: Record<string, unknown> = {
+      ...(incomingRateUsed as Record<string, unknown> || {}),
+      price_cents: canonTotal,
+      carrier_cents: canonCarrier,
+      customer_total_cents: canonCustomerTotal ?? canonTotal,
+    };
+
+    return {
+      ...incomingMetadata,
+      shipping: {
+        ...incomingShippingMeta,
+        rate_used: filledRateUsed,
+      },
+    };
+  }
+
+  // REGLA 3: Si incoming.rate_used tiene números -> usar incoming (ya está bien)
+  const incomingHasNumbers = incomingRateUsed && (
+    (typeof incomingRateUsed.price_cents === "number" && incomingRateUsed.price_cents > 0) ||
+    (typeof incomingRateUsed.carrier_cents === "number" && incomingRateUsed.carrier_cents > 0)
+  );
+
+  if (incomingHasNumbers) {
+    // incoming ya tiene números, no hacer nada
+    return incomingMetadata;
+  }
+
+  // REGLA 4: Bloquear explícitamente - shipping_pricing tiene números pero rate_used queda null
+  if (hasCanonicalNumbers && !incomingHasNumbers && !freshHasNumbers) {
+    // Forzar fill desde canonical
+    const forcedRateUsed: Record<string, unknown> = {
+      ...(incomingRateUsed as Record<string, unknown> || {}),
+      price_cents: canonTotal,
+      carrier_cents: canonCarrier,
+      customer_total_cents: canonCustomerTotal ?? canonTotal,
+    };
+
+    return {
+      ...incomingMetadata,
+      shipping: {
+        ...incomingShippingMeta,
+        rate_used: forcedRateUsed,
+      },
+    };
+  }
+
+  // Si no hay canonical pricing y no hay números en ningún lado, devolver incoming tal cual
+  return incomingMetadata;
+}

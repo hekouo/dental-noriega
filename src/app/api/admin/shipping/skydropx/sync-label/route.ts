@@ -4,7 +4,8 @@ import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
 import { checkAdminAccess } from "@/lib/admin/access";
 import { getShipment, type SkydropxShipmentResponse } from "@/lib/skydropx/client";
-import { normalizeShippingMetadata, addShippingMetadataDebug } from "@/lib/shipping/normalizeShippingMetadata";
+import { normalizeShippingMetadata, addShippingMetadataDebug, preserveRateUsed } from "@/lib/shipping/normalizeShippingMetadata";
+import { logPreWrite, logPostWrite } from "@/lib/shipping/metadataWriterLogger";
 import { isValidShippingStatus } from "@/lib/orders/statuses";
 
 export const dynamic = "force-dynamic";
@@ -482,55 +483,17 @@ export async function POST(req: NextRequest) {
     // CRÍTICO: Releer metadata justo antes del update para evitar race conditions
     const { data: freshOrderData } = await supabase
       .from("orders")
-      .select("metadata")
+      .select("metadata, updated_at")
       .eq("id", orderId)
       .single();
     
     const freshMetadata = (freshOrderData?.metadata as Record<string, unknown>) || {};
-    const freshShippingMeta = (freshMetadata.shipping as Record<string, unknown>) || {};
-    const freshRateUsed = (freshShippingMeta.rate_used as {
-      carrier_cents?: number | null;
-      price_cents?: number | null;
-    }) || null;
-    const freshPricing = (freshMetadata.shipping_pricing as {
-      carrier_cents?: number | null;
-      total_cents?: number | null;
-    }) || null;
-    
-    // INSTRUMENTACIÓN PRE-WRITE
-    const preWriteLog = {
-      orderId,
-      lastWriteBefore: (freshShippingMeta._last_write as Record<string, unknown>) || null,
-      canonicalPricing: freshPricing
-        ? {
-            total_cents: freshPricing.total_cents,
-            carrier_cents: freshPricing.carrier_cents,
-          }
-        : null,
-      rateUsedBefore: freshRateUsed
-        ? {
-            price_cents: freshRateUsed.price_cents,
-            carrier_cents: freshRateUsed.carrier_cents,
-          }
-        : null,
-    };
-    console.log("[sync-label] PRE-WRITE:", JSON.stringify(preWriteLog, null, 2));
-    
-    // Merge seguro: preservar rate_used de freshMetadata si existe y tiene números
-    const mergedShippingMeta = {
-      ...(freshShippingMeta || {}),
-      ...normalizedMeta.shippingMeta,
-      // Preservar rate_used de freshMetadata si tiene números (más reciente)
-      rate_used: freshRateUsed && 
-        (freshRateUsed.price_cents != null || freshRateUsed.carrier_cents != null)
-        ? freshRateUsed
-        : normalizedMeta.shippingMeta.rate_used,
-    };
+    const freshUpdatedAt = freshOrderData?.updated_at as string | null | undefined;
     
     // Re-normalizar después del merge
     const mergedMetadata: Record<string, unknown> = {
       ...freshMetadata,
-      shipping: mergedShippingMeta,
+      shipping: updatedShippingMeta,
     };
     const finalMergedNormalized = normalizeShippingMetadata(mergedMetadata, {
       source: "admin",
@@ -542,10 +505,19 @@ export async function POST(req: NextRequest) {
       ...mergedMetadata,
       ...(finalMergedNormalized.shippingPricing ? { shipping_pricing: finalMergedNormalized.shippingPricing } : {}),
     };
-    updateData.metadata = {
+    
+    const normalizedWithDebug = {
       ...metadataWithPricing,
       shipping: addShippingMetadataDebug(finalMergedNormalized.shippingMeta, "sync-label", metadataWithPricing),
     };
+    
+    // Aplicar preserveRateUsed para garantizar que rate_used nunca quede null
+    const finalMetadata = preserveRateUsed(freshMetadata, normalizedWithDebug);
+    
+    // INSTRUMENTACIÓN PRE-WRITE
+    logPreWrite("sync-label", orderId, freshMetadata, freshUpdatedAt, finalMetadata);
+    
+    updateData.metadata = finalMetadata;
 
     // Detectar si metadata difiere de columnas (necesita sync)
     const metadataBeforeShipping = (orderData.metadata as { shipping?: Record<string, unknown> } | null)?.shipping || {};
@@ -571,40 +543,14 @@ export async function POST(req: NextRequest) {
         .from("orders")
         .update(updateData)
         .eq("id", orderId)
-        .select("id, metadata")
+        .select("id, metadata, updated_at")
         .single();
       
       // INSTRUMENTACIÓN POST-WRITE
       if (updatedOrder) {
         const postWriteMetadata = (updatedOrder.metadata as Record<string, unknown>) || {};
-        const postWriteShippingMeta = (postWriteMetadata.shipping as Record<string, unknown>) || {};
-        const postWriteRateUsed = (postWriteShippingMeta.rate_used as {
-          carrier_cents?: number | null;
-          price_cents?: number | null;
-        }) || null;
-        
-        const postWriteLog = {
-          orderId,
-          rateUsedPostWrite: postWriteRateUsed
-            ? {
-                price_cents: postWriteRateUsed.price_cents,
-                carrier_cents: postWriteRateUsed.carrier_cents,
-              }
-            : null,
-        };
-        console.log("[sync-label] POST-WRITE:", JSON.stringify(postWriteLog, null, 2));
-        
-        // Detectar discrepancias
-        const discrepancy = {
-          rateUsedNullsIntroduced:
-            preWriteLog.rateUsedBefore?.price_cents != null &&
-            postWriteLog.rateUsedPostWrite?.price_cents == null,
-        };
-        
-        if (discrepancy.rateUsedNullsIntroduced) {
-          const errorMsg = `[sync-label] DISCREPANCIA: rate_used pasó de números a null. orderId=${orderId}`;
-          console.error(errorMsg);
-        }
+        const postWriteUpdatedAt = updatedOrder.updated_at as string | null | undefined;
+        logPostWrite("sync-label", orderId, postWriteMetadata, postWriteUpdatedAt);
       }
 
       // Gate estricto: enviar email solo con evidencia real de guía
