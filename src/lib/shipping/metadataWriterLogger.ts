@@ -4,12 +4,16 @@
  * Formato consistente para identificar qué writer está causando problemas
  */
 
+type RateUsedSnapshot = {
+  price_cents?: number | null;
+  carrier_cents?: number | null;
+  customer_total_cents?: number | null;
+  raw_price_cents?: number | null;
+  raw_carrier_cents?: number | null;
+};
+
 type MetadataSnapshot = {
-  rate_used?: {
-    price_cents?: number | null;
-    carrier_cents?: number | null;
-    customer_total_cents?: number | null;
-  } | null;
+  rate_used?: RateUsedSnapshot | null;
   shipping_pricing?: {
     total_cents?: number | null;
     carrier_cents?: number | null;
@@ -72,7 +76,7 @@ function extractMetadataSnapshot(metadata: Record<string, unknown> | null | unde
   }
 
   const shippingMeta = (metadata.shipping as Record<string, unknown>) || {};
-  const rateUsed = (shippingMeta.rate_used as MetadataSnapshot["rate_used"]) || null;
+  const rateUsed = (shippingMeta.rate_used as Record<string, unknown> | null) || null;
   const shippingPricing = (metadata.shipping_pricing as MetadataSnapshot["shipping_pricing"]) || null;
   const lastWrite = (shippingMeta._last_write as MetadataSnapshot["_last_write"]) || null;
 
@@ -84,7 +88,7 @@ function extractMetadataSnapshot(metadata: Record<string, unknown> | null | unde
       // Agregar valores raw para debugging (sin fallbacks)
       raw_price_cents: typeof rateUsed.price_cents === "number" ? rateUsed.price_cents : null,
       raw_carrier_cents: typeof rateUsed.carrier_cents === "number" ? rateUsed.carrier_cents : null,
-    } : null,
+    } as RateUsedSnapshot : null,
     shipping_pricing: shippingPricing ? {
       total_cents: shippingPricing.total_cents ?? null,
       carrier_cents: shippingPricing.carrier_cents ?? null,
