@@ -110,6 +110,49 @@ export default async function AdminPedidoDetailPage({
     return statusMap[status] || status;
   };
 
+  // Helper functions para reducir cognitive complexity
+  const buildSuccessMessage = (success: string): string => {
+    if (success === "skydropx_label_created") {
+      return "Guía Skydropx creada correctamente.";
+    }
+    return "Operación realizada correctamente.";
+  };
+
+  const buildErrorMessage = (error: string): string => {
+    const errorMessages: Record<string, string> = {
+      skydropx_label_failed: "No se pudo crear la guía Skydropx. Revisa los datos de dirección y los logs.",
+      orden_no_encontrada: "Orden no encontrada.",
+      direccion_incompleta: "La dirección de envío está incompleta. Completa CP, estado y ciudad.",
+      rate_id_no_encontrado: "No se encontró información de tarifa. Esta orden no tiene datos de envío calculados.",
+      configuracion_supabase: "Error de configuración. Contacta al administrador.",
+      error_actualizar_orden: "Error al actualizar la orden. Revisa los logs.",
+    };
+    return errorMessages[error] || `Error: ${error}`;
+  };
+
+  const getShippingMethodLabel = (method: string | null | undefined): string => {
+    if (method === "pickup") return "Recoger en tienda";
+    if (method === "standard") return "Estándar";
+    if (method === "express") return "Express";
+    return method || "";
+  };
+
+  const getProviderLabel = (provider: string | null | undefined): string => {
+    if (provider === "pickup") return "Recoger en tienda";
+    if (provider === "skydropx") return "Skydropx";
+    return provider || "";
+  };
+
+  const getEtaLabel = (minDays: number | null | undefined, maxDays: number | null | undefined): string => {
+    if (minDays && maxDays) {
+      return `${minDays}-${maxDays} días`;
+    }
+    if (minDays) {
+      return `${minDays}+ días`;
+    }
+    return "";
+  };
+
   // Calcular totales desde items si no están en metadata
   const subtotalFromItems = order.items.reduce(
     (sum, item) => sum + item.unit_price_cents * item.qty,
@@ -156,12 +199,16 @@ export default async function AdminPedidoDetailPage({
   const shippingMeta = ((order.metadata as Record<string, unknown>)?.shipping as Record<string, unknown>) || {};
   const rateUsed = (shippingMeta.rate_used as Record<string, unknown>) || {};
   
-  const hasSelectedRate =
-    typeof rateUsed.external_rate_id === "string"
-      ? rateUsed.external_rate_id.trim().length > 0
-      : typeof rateUsed.rate_id === "string"
-        ? rateUsed.rate_id.trim().length > 0
-        : false;
+  const getHasSelectedRate = (): boolean => {
+    if (typeof rateUsed.external_rate_id === "string") {
+      return rateUsed.external_rate_id.trim().length > 0;
+    }
+    if (typeof rateUsed.rate_id === "string") {
+      return rateUsed.rate_id.trim().length > 0;
+    }
+    return false;
+  };
+  const hasSelectedRate = getHasSelectedRate();
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -181,28 +228,12 @@ export default async function AdminPedidoDetailPage({
       {/* Mensajes de feedback */}
       {sp.success && (
         <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-          {sp.success === "skydropx_label_created" &&
-            "Guía Skydropx creada correctamente."}
-          {sp.success !== "skydropx_label_created" &&
-            "Operación realizada correctamente."}
+          {buildSuccessMessage(sp.success)}
         </div>
       )}
       {sp.error && (
         <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-          {sp.error === "skydropx_label_failed" &&
-            "No se pudo crear la guía Skydropx. Revisa los datos de dirección y los logs."}
-          {sp.error === "orden_no_encontrada" && "Orden no encontrada."}
-          {sp.error === "direccion_incompleta" &&
-            "La dirección de envío está incompleta. Completa CP, estado y ciudad."}
-          {sp.error === "rate_id_no_encontrado" &&
-            "No se encontró información de tarifa. Esta orden no tiene datos de envío calculados."}
-          {sp.error === "configuracion_supabase" &&
-            "Error de configuración. Contacta al administrador."}
-          {sp.error === "error_actualizar_orden" &&
-            "Error al actualizar la orden. Revisa los logs."}
-          {!["skydropx_label_failed", "orden_no_encontrada", "direccion_incompleta", "rate_id_no_encontrado", "configuracion_supabase", "error_actualizar_orden"].includes(
-            sp.error,
-          ) && `Error: ${sp.error}`}
+          {buildErrorMessage(sp.error)}
         </div>
       )}
 
@@ -217,15 +248,12 @@ export default async function AdminPedidoDetailPage({
             <div>
               <p className="text-sm text-gray-600">Estado</p>
               <span
-                className={`inline-flex px-2 py-1 text-xs font-medium rounded-full mt-1 ${
-                  order.status === "paid"
-                    ? "bg-green-100 text-green-700"
-                    : order.status === "pending"
-                      ? "bg-yellow-100 text-yellow-700"
-                      : order.status === "failed"
-                        ? "bg-red-100 text-red-700"
-                        : "bg-gray-100 text-gray-700"
-                }`}
+                className={`inline-flex px-2 py-1 text-xs font-medium rounded-full mt-1 ${(() => {
+                  if (order.status === "paid") return "bg-green-100 text-green-700";
+                  if (order.status === "pending") return "bg-yellow-100 text-yellow-700";
+                  if (order.status === "failed") return "bg-red-100 text-red-700";
+                  return "bg-gray-100 text-gray-700";
+                })()}`}
               >
                 {formatStatus(order.status)}
               </span>
@@ -304,13 +332,7 @@ export default async function AdminPedidoDetailPage({
                     <div className="mt-2">
                       <p className="text-gray-600">Método de envío</p>
                       <p className="font-medium">
-                        {order.shipping.shipping_method === "pickup"
-                          ? "Recoger en tienda"
-                          : order.shipping.shipping_method === "standard"
-                            ? "Estándar"
-                            : order.shipping.shipping_method === "express"
-                              ? "Express"
-                              : order.shipping.shipping_method}
+                        {getShippingMethodLabel(order.shipping.shipping_method)}
                       </p>
                     </div>
                   )}
@@ -338,11 +360,7 @@ export default async function AdminPedidoDetailPage({
                 <div>
                   <p className="text-gray-600">Proveedor</p>
                   <p className="font-medium">
-                    {order.shipping_provider === "pickup"
-                      ? "Recoger en tienda"
-                      : order.shipping_provider === "skydropx"
-                        ? "Skydropx"
-                        : order.shipping_provider}
+                    {getProviderLabel(order.shipping_provider)}
                   </p>
                 </div>
                 {order.shipping_service_name && (
@@ -363,11 +381,7 @@ export default async function AdminPedidoDetailPage({
                   <div>
                     <p className="text-gray-600">Tiempo estimado</p>
                     <p className="font-medium">
-                      {order.shipping_eta_min_days && order.shipping_eta_max_days
-                        ? `${order.shipping_eta_min_days}-${order.shipping_eta_max_days} días`
-                        : order.shipping_eta_min_days
-                          ? `${order.shipping_eta_min_days}+ días`
-                          : ""}
+                      {getEtaLabel(order.shipping_eta_min_days, order.shipping_eta_max_days)}
                     </p>
                   </div>
                 )}

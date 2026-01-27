@@ -30,13 +30,16 @@ export default function UpdatePaymentStatusClient({
 
       if (!result.ok) {
         // Mapear códigos de error a mensajes
-        const errorMessage =
-          result.code === "order-not-found"
-            ? "Orden no encontrada"
-            : result.code === "fetch-error" || result.code === "update-error" || result.code === "config-error"
-              ? "Error al obtener la orden"
-              : "Error al actualizar el estado";
-        setError(errorMessage);
+        const getErrorMessage = (code: string): string => {
+          if (code === "order-not-found") {
+            return "Orden no encontrada";
+          }
+          if (code === "fetch-error" || code === "update-error" || code === "config-error") {
+            return "Error al obtener la orden";
+          }
+          return "Error al actualizar el estado";
+        };
+        setError(getErrorMessage(result.code));
         return;
       }
 

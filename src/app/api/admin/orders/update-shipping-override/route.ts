@@ -47,14 +47,12 @@ export async function POST(req: NextRequest) {
 		// Leer metadata actual
 		const { data: existing } = await supabase
 			.from("orders")
-			.select("metadata, updated_at")
+			.select("metadata")
 			.eq("id", body.orderId)
 			.single();
-		const currentMetadata = ((existing as any)?.metadata as Record<string, unknown>) || {};
-		const freshUpdatedAt = (existing as any)?.updated_at as string | null | undefined;
-
+		
 		const updatedMetadata = {
-			...currentMetadata,
+			...((existing as any)?.metadata as Record<string, unknown> || {}),
 			shipping_address_override: body.shipping_address_override,
 		};
 		
