@@ -524,11 +524,14 @@ export async function POST(req: NextRequest) {
         .single();
 
       // Aplicar preserveRateUsed para garantizar que rate_used nunca quede null
-      const { preserveRateUsed } = await import("@/lib/shipping/normalizeShippingMetadata");
+      const { preserveRateUsed, ensureRateUsedInMetadata } = await import("@/lib/shipping/normalizeShippingMetadata");
       const { logPreWrite, logPostWrite } = await import("@/lib/shipping/metadataWriterLogger");
       
       const incomingMetadata = loyaltyMetadata as Record<string, unknown>;
-      const finalMetadata = preserveRateUsed(freshMetadata, incomingMetadata);
+      const finalMetadataWithPreserve = preserveRateUsed(freshMetadata, incomingMetadata);
+      
+      // CRÍTICO: Asegurar que rate_used esté presente en el payload final antes de escribir
+      const finalMetadata = ensureRateUsedInMetadata(finalMetadataWithPreserve);
       
       // INSTRUMENTACIÓN PRE-WRITE
       logPreWrite("save-order", orderData.order_id, freshMetadata, freshUpdatedAt, finalMetadata);

@@ -125,10 +125,13 @@ export async function POST(req: NextRequest) {
     const freshUpdatedAt = freshOrderData?.updated_at as string | null | undefined;
     
     // Aplicar preserveRateUsed para garantizar que rate_used nunca quede null
-    const { preserveRateUsed } = await import("@/lib/shipping/normalizeShippingMetadata");
+    const { preserveRateUsed, ensureRateUsedInMetadata } = await import("@/lib/shipping/normalizeShippingMetadata");
     const { logPreWrite, logPostWrite } = await import("@/lib/shipping/metadataWriterLogger");
     
-    const finalMetadata = preserveRateUsed(freshMetadata, updatedMetadata);
+    const finalMetadataWithPreserve = preserveRateUsed(freshMetadata, updatedMetadata);
+    
+    // CRÍTICO: Asegurar que rate_used esté presente en el payload final antes de escribir
+    const finalMetadata = ensureRateUsedInMetadata(finalMetadataWithPreserve);
     
     // INSTRUMENTACIÓN PRE-WRITE
     logPreWrite("needs-address-review", orderId, freshMetadata, freshUpdatedAt, finalMetadata);

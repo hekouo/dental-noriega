@@ -6,7 +6,7 @@ import { getSkydropxRates } from "@/lib/shipping/skydropx.server";
 import { normalizeSkydropxRates } from "@/lib/shipping/normalizeSkydropxRates";
 import type { SkydropxRate } from "@/lib/shipping/skydropx.server";
 import { getOrderShippingAddress } from "@/lib/shipping/getOrderShippingAddress";
-import { normalizeShippingMetadata, addShippingMetadataDebug, preserveRateUsed } from "@/lib/shipping/normalizeShippingMetadata";
+import { normalizeShippingMetadata, addShippingMetadataDebug, preserveRateUsed, ensureRateUsedInMetadata } from "@/lib/shipping/normalizeShippingMetadata";
 import { logPreWrite, logPostWrite } from "@/lib/shipping/metadataWriterLogger";
 import { createClient } from "@supabase/supabase-js";
 
@@ -513,7 +513,10 @@ export async function POST(req: NextRequest) {
         };
         
         // Aplicar preserveRateUsed para garantizar que rate_used nunca quede null
-        const finalMetadata = preserveRateUsed(freshMetadata, normalizedWithDebug);
+        const finalMetadataWithPreserve = preserveRateUsed(freshMetadata, normalizedWithDebug);
+        
+        // CRÍTICO: Asegurar que rate_used esté presente en el payload final antes de escribir
+        const finalMetadata = ensureRateUsedInMetadata(finalMetadataWithPreserve);
         
         // INSTRUMENTACIÓN PRE-WRITE
         logPreWrite("requote", orderId, freshMetadata, freshUpdatedAt, finalMetadata);

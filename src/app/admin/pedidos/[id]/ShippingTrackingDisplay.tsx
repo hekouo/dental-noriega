@@ -39,12 +39,16 @@ export default function ShippingTrackingDisplay({
     }
   };
 
-  const etaLabel =
-    typeof etaMinDays === "number" && typeof etaMaxDays === "number"
-      ? `${etaMinDays}-${etaMaxDays} días`
-      : typeof etaMinDays === "number"
-        ? `${etaMinDays}+ días`
-        : null;
+  const getEtaLabel = (): string | null => {
+    if (typeof etaMinDays === "number" && typeof etaMaxDays === "number") {
+      return `${etaMinDays}-${etaMaxDays} días`;
+    }
+    if (typeof etaMinDays === "number") {
+      return `${etaMinDays}+ días`;
+    }
+    return null;
+  };
+  const etaLabel = getEtaLabel();
 
   return (
     <div className="space-y-3">
@@ -61,8 +65,19 @@ export default function ShippingTrackingDisplay({
                 {trackingNumber}
               </p>
               <p className="text-xs text-blue-700/80 dark:text-blue-300/80 mt-1">
-                {provider || service ? `${provider ?? ""}${provider && service ? " • " : ""}${service ?? ""}` : null}
-                {etaLabel ? ` • ETA ${etaLabel}` : null}
+                {(() => {
+                  const getProviderServiceText = (): string | null => {
+                    if (!provider && !service) return null;
+                    const providerPart = provider ?? "";
+                    const separator = provider && service ? " • " : "";
+                    const servicePart = service ?? "";
+                    return `${providerPart}${separator}${servicePart}`;
+                  };
+                  const providerServiceText = getProviderServiceText();
+                  const etaText = etaLabel ? ` • ETA ${etaLabel}` : null;
+                  if (!providerServiceText && !etaText) return null;
+                  return `${providerServiceText ?? ""}${etaText ?? ""}`;
+                })()}
               </p>
             </div>
             <div className="flex flex-col items-end gap-2">

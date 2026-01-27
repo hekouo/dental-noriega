@@ -29,13 +29,19 @@ export default function ShippingSummaryClient({
     ? getShippingStatusLabel(shippingStatus)
     : "No enviado";
 
-  const providerLabel = shippingProvider
-    ? shippingProvider === "pickup"
-      ? "Recoger en tienda"
-      : shippingProvider === "skydropx"
-        ? "Skydropx"
-        : shippingProvider
-    : "No enviado";
+  const getProviderLabel = (): string => {
+    if (!shippingProvider) {
+      return "No enviado";
+    }
+    if (shippingProvider === "pickup") {
+      return "Recoger en tienda";
+    }
+    if (shippingProvider === "skydropx") {
+      return "Skydropx";
+    }
+    return shippingProvider;
+  };
+  const providerLabel = getProviderLabel();
 
   const serviceLabel = shippingServiceName || "—";
 

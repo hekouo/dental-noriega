@@ -47,14 +47,12 @@ export async function POST(req: NextRequest) {
 		// Leer metadata actual
 		const { data: existing } = await supabase
 			.from("orders")
-			.select("metadata, updated_at")
+			.select("metadata")
 			.eq("id", body.orderId)
 			.single();
-		const currentMetadata = ((existing as any)?.metadata as Record<string, unknown>) || {};
-		const freshUpdatedAt = (existing as any)?.updated_at as string | null | undefined;
-
+		
 		const updatedMetadata = {
-			...currentMetadata,
+			...((existing as any)?.metadata as Record<string, unknown> || {}),
 			shipping_address_override: body.shipping_address_override,
 		};
 		
@@ -69,10 +67,13 @@ export async function POST(req: NextRequest) {
 		const freshUpdatedAtFinal = (freshOrderData as any)?.updated_at as string | null | undefined;
 		
 		// Aplicar preserveRateUsed para garantizar que rate_used nunca quede null
-		const { preserveRateUsed } = await import("@/lib/shipping/normalizeShippingMetadata");
+		const { preserveRateUsed, ensureRateUsedInMetadata } = await import("@/lib/shipping/normalizeShippingMetadata");
 		const { logPreWrite, logPostWrite } = await import("@/lib/shipping/metadataWriterLogger");
 		
-		const finalMetadata = preserveRateUsed(freshMetadata, updatedMetadata);
+		const finalMetadataWithPreserve = preserveRateUsed(freshMetadata, updatedMetadata);
+		
+		// CRÍTICO: Asegurar que rate_used esté presente en el payload final antes de escribir
+		const finalMetadata = ensureRateUsedInMetadata(finalMetadataWithPreserve);
 		
 		// INSTRUMENTACIÓN PRE-WRITE
 		logPreWrite("update-shipping-override", body.orderId, freshMetadata, freshUpdatedAtFinal, finalMetadata);
