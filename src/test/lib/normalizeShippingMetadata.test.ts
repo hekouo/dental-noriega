@@ -769,4 +769,69 @@ describe("normalizeShippingMetadata", () => {
     expect(finalRateUsed.price_cents).not.toBeNull();
     expect(finalRateUsed.carrier_cents).not.toBeNull();
   });
+
+  it("regression: ensureRateUsedInMetadata debe persistir rate_used cuando shipping_pricing tiene números", () => {
+    // Test de regresión: verificar que ensureRateUsedInMetadata garantiza persistencia
+    // Input: metadata con shipping_pricing numérico pero rate_used sin cents
+    // Output: rate_used.price_cents y carrier_cents deben ser no-null
+
+    const metadataInput: Record<string, unknown> = {
+      shipping_pricing: {
+        carrier_cents: 15338,
+        packaging_cents: 2000,
+        margin_cents: 4788,
+        total_cents: 22126,
+        customer_total_cents: 22126,
+      },
+      shipping: {
+        rate_used: {
+          external_rate_id: "rate_abc123",
+          provider: "skydropx",
+          service: "express",
+          // price_cents y carrier_cents NO están presentes
+        },
+      },
+    };
+
+    const result = ensureRateUsedInMetadata(metadataInput);
+
+    // Verificar estructura correcta
+    const resultShipping = result.shipping as Record<string, unknown>;
+    const resultRateUsed = resultShipping.rate_used as {
+      price_cents?: number | null;
+      carrier_cents?: number | null;
+      customer_total_cents?: number | null;
+    };
+    const resultPricing = result.shipping_pricing as {
+      total_cents?: number | null;
+      carrier_cents?: number | null;
+    };
+
+    // Invariantes críticos:
+    // 1. rate_used DEBE tener price_cents y carrier_cents (no null, no undefined)
+    expect(resultRateUsed).toBeTruthy();
+    expect(resultRateUsed.price_cents).toBe(22126);
+    expect(resultRateUsed.carrier_cents).toBe(15338);
+    expect(resultRateUsed.customer_total_cents).toBe(22126);
+
+    // 2. NO debe quedar null
+    expect(resultRateUsed.price_cents).not.toBeNull();
+    expect(resultRateUsed.carrier_cents).not.toBeNull();
+    expect(resultRateUsed.customer_total_cents).not.toBeNull();
+
+    // 3. rate_used debe coincidir con shipping_pricing (canonical)
+    expect(resultRateUsed.carrier_cents).toBe(resultPricing.carrier_cents);
+    expect(resultRateUsed.price_cents).toBe(resultPricing.total_cents);
+
+    // 4. Otros campos deben preservarse
+    expect((resultRateUsed as Record<string, unknown>).external_rate_id).toBe("rate_abc123");
+    expect((resultRateUsed as Record<string, unknown>).provider).toBe("skydropx");
+    expect((resultRateUsed as Record<string, unknown>).service).toBe("express");
+
+    // 5. Verificar que el path es correcto: metadata.shipping.rate_used.* (no metadata.rate_used.*)
+    expect(result.shipping).toBeTruthy();
+    expect(resultShipping.rate_used).toBeTruthy();
+    // No debe existir rate_used en root
+    expect(result.rate_used).toBeUndefined();
+  });
 });
