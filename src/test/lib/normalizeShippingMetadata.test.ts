@@ -570,4 +570,104 @@ describe("normalizeShippingMetadata", () => {
     // shipment_id debe estar presente (el nuevo campo que el writer agregó)
     expect(finalShippingMeta.shipment_id).toBe("shipment_123");
   });
+
+  it("reproduce bug real: apply-rate debe actualizar rate_used con nuevo carrier_cents aunque DB tenga valores viejos", async () => {
+    // Caso real reportado:
+    // - DB tiene rate_used.carrier_cents = 20126 (valor viejo)
+    // - apply-rate quiere aplicar nuevo rate con carrier_cents = 15338
+    // - shipping_pricing.carrier_cents = 15338 (canonical)
+    // - Resultado esperado: rate_used.carrier_cents = 15338 (no 20126, no null)
+
+    // Paso 1: Estado inicial en DB (con valores viejos)
+    const freshDbMetadata: Record<string, unknown> = {
+      shipping_pricing: {
+        carrier_cents: 20126, // Valor viejo
+        packaging_cents: 2000,
+        margin_cents: 4788,
+        total_cents: 26914, // Valor viejo
+      },
+      shipping: {
+        rate_used: {
+          external_rate_id: "rate_old",
+          provider: "skydropx",
+          service: "express",
+          carrier_cents: 20126, // Valor viejo
+          price_cents: 26914, // Valor viejo
+          customer_total_cents: 26914,
+        },
+        _last_write: {
+          route: "requote",
+          at: "2025-01-27T00:20:00.000Z",
+          sha: "abc1234",
+        },
+      },
+    };
+
+    // Paso 2: apply-rate quiere aplicar nuevo rate con carrier_cents = 15338
+    const incomingMetadata: Record<string, unknown> = {
+      shipping_pricing: {
+        carrier_cents: 15338, // Nuevo valor
+        packaging_cents: 2000,
+        margin_cents: 4788,
+        total_cents: 22126, // Nuevo valor
+        customer_total_cents: 22126,
+      },
+      shipping: {
+        rate_used: {
+          external_rate_id: "rate_new",
+          provider: "skydropx",
+          service: "express",
+          carrier_cents: 15338, // Nuevo valor explícito
+          price_cents: 22126, // Nuevo valor explícito
+          customer_total_cents: 22126,
+          selection_source: "admin",
+        },
+        _last_write: {
+          route: "apply-rate",
+          at: "2025-01-27T00:23:22.000Z",
+          sha: "e935144",
+          canonical_detected: true,
+          rate_used_overwritten: true,
+        },
+      },
+    };
+
+    // Paso 3: Aplicar preserveRateUsed
+    const finalMetadata = preserveRateUsed(freshDbMetadata, incomingMetadata);
+
+    // Paso 4: Validación - rate_used debe reflejar los nuevos valores, no los viejos
+    const finalShippingMeta = finalMetadata.shipping as Record<string, unknown>;
+    const finalRateUsed = finalShippingMeta.rate_used as {
+      carrier_cents?: number | null;
+      price_cents?: number | null;
+      customer_total_cents?: number | null;
+    };
+    const finalPricing = finalMetadata.shipping_pricing as {
+      carrier_cents?: number | null;
+      total_cents?: number | null;
+    };
+
+    // Invariantes críticos:
+    // 1. rate_used debe reflejar los nuevos valores del rate aplicado
+    expect(finalRateUsed.carrier_cents).toBe(15338);
+    expect(finalRateUsed.price_cents).toBe(22126);
+    expect(finalRateUsed.customer_total_cents).toBe(22126);
+    
+    // 2. NO debe preservar valores viejos
+    expect(finalRateUsed.carrier_cents).not.toBe(20126);
+    expect(finalRateUsed.price_cents).not.toBe(26914);
+    
+    // 3. NO debe quedar null
+    expect(finalRateUsed.carrier_cents).not.toBeNull();
+    expect(finalRateUsed.price_cents).not.toBeNull();
+    
+    // 4. rate_used debe coincidir con shipping_pricing (canonical)
+    expect(finalRateUsed.carrier_cents).toBe(finalPricing.carrier_cents);
+    expect(finalRateUsed.price_cents).toBe(finalPricing.total_cents);
+    
+    // 5. Otros campos deben preservarse
+    expect((finalRateUsed as Record<string, unknown>).external_rate_id).toBe("rate_new");
+    expect((finalRateUsed as Record<string, unknown>).provider).toBe("skydropx");
+    expect((finalRateUsed as Record<string, unknown>).service).toBe("express");
+  });
 });

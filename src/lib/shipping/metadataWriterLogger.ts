@@ -81,6 +81,9 @@ function extractMetadataSnapshot(metadata: Record<string, unknown> | null | unde
       price_cents: rateUsed.price_cents ?? null,
       carrier_cents: rateUsed.carrier_cents ?? null,
       customer_total_cents: rateUsed.customer_total_cents ?? null,
+      // Agregar valores raw para debugging (sin fallbacks)
+      raw_price_cents: typeof rateUsed.price_cents === "number" ? rateUsed.price_cents : null,
+      raw_carrier_cents: typeof rateUsed.carrier_cents === "number" ? rateUsed.carrier_cents : null,
     } : null,
     shipping_pricing: shippingPricing ? {
       total_cents: shippingPricing.total_cents ?? null,

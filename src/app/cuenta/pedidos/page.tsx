@@ -808,7 +808,7 @@ export default function PedidosPage() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Estado</p>
-                  <span
+                      <span
                     className={`inline-block px-2 py-1 rounded text-xs font-medium ${
                       orderDetail.status === "paid"
                         ? "bg-green-100 text-green-700"
@@ -818,7 +818,7 @@ export default function PedidosPage() {
                     }`}
                   >
                     {formatStatus(orderDetail.status)}
-                  </span>
+                      </span>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Email</p>

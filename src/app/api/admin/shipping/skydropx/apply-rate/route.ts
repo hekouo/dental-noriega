@@ -218,15 +218,39 @@ export async function POST(req: NextRequest) {
       ...(normalized.shippingPricing ? { shipping_pricing: normalized.shippingPricing } : {}),
     };
     
+    // CRÍTICO: Asegurar que rate_used tenga los valores correctos del canonical pricing
+    // antes de aplicar preserveRateUsed. Esto garantiza que apply-rate pueda actualizar
+    // rate_used incluso si DB tiene valores viejos.
+    const normalizedShippingMeta = normalized.shippingMeta;
+    const normalizedPricing = normalized.shippingPricing;
+    const normalizedRateUsed = (normalizedShippingMeta.rate_used as Record<string, unknown>) || {};
+    
+    // Si canonical pricing existe, asegurar que rate_used refleje esos valores
+    if (normalizedPricing) {
+      const canonCarrier = normalizedPricing.carrier_cents ?? null;
+      const canonTotal = normalizedPricing.total_cents ?? null;
+      const canonCustomerTotal = normalizedPricing.customer_total_cents ?? canonTotal ?? null;
+      
+      // Actualizar rate_used con valores del canonical pricing
+      const updatedRateUsed: Record<string, unknown> = {
+        ...normalizedRateUsed,
+        ...(canonCarrier != null ? { carrier_cents: canonCarrier } : {}),
+        ...(canonTotal != null ? { price_cents: canonTotal } : {}),
+        ...(canonCustomerTotal != null ? { customer_total_cents: canonCustomerTotal } : {}),
+      };
+      
+      normalizedShippingMeta.rate_used = updatedRateUsed;
+    }
+    
     const finalMetadata: Record<string, unknown> = {
       ...metadataWithPricing,
-      shipping: addShippingMetadataDebug(normalized.shippingMeta, "apply-rate", metadataWithPricing),
+      shipping: addShippingMetadataDebug(normalizedShippingMeta, "apply-rate", metadataWithPricing),
     };
     
     // Validación crítica: Si existe canonical pricing pero rate_used tiene nulls, NO persistir silenciosamente
-    const finalShippingMeta = finalMetadata.shipping as Record<string, unknown>;
-    const finalRateUsed = finalShippingMeta?.rate_used as { carrier_cents?: number | null; price_cents?: number | null } | null | undefined;
-    const finalPricing = finalMetadata.shipping_pricing as { carrier_cents?: number | null; total_cents?: number | null } | null | undefined;
+    const finalShippingMetaForValidation = finalMetadata.shipping as Record<string, unknown>;
+    const finalRateUsedForValidation = finalShippingMetaForValidation?.rate_used as { carrier_cents?: number | null; price_cents?: number | null } | null | undefined;
+    const finalPricingForValidation = finalMetadata.shipping_pricing as { carrier_cents?: number | null; total_cents?: number | null } | null | undefined;
     
     if (finalPricing && (finalPricing.carrier_cents != null || finalPricing.total_cents != null)) {
       // Existe canonical pricing con números
@@ -239,7 +263,7 @@ export async function POST(req: NextRequest) {
         }
       }
     }
-    const finalTotal = normalized.shippingPricing?.total_cents ?? normalizedPricing?.total_cents;
+    const finalTotal = normalizedPricing?.total_cents ?? normalized.shippingPricing?.total_cents;
 
     // CRÍTICO: Releer metadata justo antes del update para evitar race conditions
     const { data: freshOrderData } = await supabase

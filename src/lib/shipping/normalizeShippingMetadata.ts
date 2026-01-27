@@ -333,10 +333,12 @@ export function addShippingMetadataDebug(
  * Helper central para preservar rate_used y prevenir que quede null cuando hay canonical pricing.
  * 
  * Reglas:
- * 1. Si freshDb.rate_used tiene números -> preservar (prioridad máxima)
- * 2. Si incoming.rate_used viene null pero hay canonical pricing -> rellenar desde canonical
- * 3. Si incoming.rate_used tiene números -> usar incoming
- * 4. Bloquear explícitamente: shipping_pricing tiene números pero rate_used queda null
+ * 1. Si incoming tiene números explícitos Y hay canonical pricing que coincide -> usar incoming (permitir overwrite)
+ * 2. Si incoming._last_write.route === "apply-rate" o canonical_detected=true -> permitir overwrite de incoming
+ * 3. Si freshDb.rate_used tiene números Y incoming tiene nulls -> preservar DB (solo cuando incoming no tiene intención explícita)
+ * 4. Si incoming.rate_used viene null pero hay canonical pricing -> rellenar desde canonical
+ * 5. Si incoming.rate_used tiene números -> usar incoming
+ * 6. Bloquear explícitamente: shipping_pricing tiene números pero rate_used queda null
  * 
  * @param freshDbMetadata - Metadata leído de DB justo antes del update
  * @param incomingMetadata - Metadata que el writer quiere guardar
@@ -371,13 +373,77 @@ export function preserveRateUsed(
 
   const hasCanonicalNumbers = canonCarrier != null || canonTotal != null;
 
-  // REGLA 1: Si freshDb.rate_used tiene números -> preservar (prioridad máxima)
+  // Detectar si incoming tiene intención explícita de overwrite (apply-rate o canonical_detected)
+  const incomingLastWrite = (incomingShippingMeta._last_write as {
+    route?: string;
+    canonical_detected?: boolean;
+  }) || null;
+  const isExplicitOverwrite = incomingLastWrite?.route === "apply-rate" || incomingLastWrite?.canonical_detected === true;
+
+  // REGLA 1: Si incoming tiene números explícitos Y coincide con canonical pricing -> usar incoming (permitir overwrite)
+  const incomingHasNumbers = incomingRateUsed && (
+    (typeof incomingRateUsed.price_cents === "number" && incomingRateUsed.price_cents > 0) ||
+    (typeof incomingRateUsed.carrier_cents === "number" && incomingRateUsed.carrier_cents > 0)
+  );
+  
+  const incomingMatchesCanonical = incomingHasNumbers && hasCanonicalNumbers && (
+    (incomingRateUsed.price_cents === canonTotal && incomingRateUsed.carrier_cents === canonCarrier) ||
+    isExplicitOverwrite
+  );
+
+  if (incomingMatchesCanonical || isExplicitOverwrite) {
+    // incoming tiene intención explícita de overwrite (apply-rate o coincide con canonical)
+    // Permitir overwrite completo, pero rellenar campos faltantes desde canonical si es necesario
+    const finalRateUsed: Record<string, unknown> = {
+      ...(incomingRateUsed as Record<string, unknown> || {}),
+      // Asegurar que price_cents y carrier_cents coincidan con canonical si están presentes
+      ...(canonTotal != null ? { price_cents: canonTotal } : {}),
+      ...(canonCarrier != null ? { carrier_cents: canonCarrier } : {}),
+      ...(canonCustomerTotal != null ? { customer_total_cents: canonCustomerTotal } : {}),
+    };
+    
+    return {
+      ...incomingMetadata,
+      shipping: {
+        ...incomingShippingMeta,
+        rate_used: finalRateUsed,
+      },
+    };
+  }
+
+  // REGLA 2: Si incoming tiene números explícitos -> usar incoming (ya está bien)
+  if (incomingHasNumbers) {
+    // incoming ya tiene números, pero no coincide con canonical o no es overwrite explícito
+    // Rellenar campos faltantes desde canonical si es necesario
+    const finalRateUsed: Record<string, unknown> = {
+      ...(incomingRateUsed as Record<string, unknown> || {}),
+      // Solo rellenar si están null/undefined
+      ...(incomingRateUsed.price_cents == null && canonTotal != null ? { price_cents: canonTotal } : {}),
+      ...(incomingRateUsed.carrier_cents == null && canonCarrier != null ? { carrier_cents: canonCarrier } : {}),
+      ...(incomingRateUsed.customer_total_cents == null && canonCustomerTotal != null ? { customer_total_cents: canonCustomerTotal } : {}),
+    };
+    
+    return {
+      ...incomingMetadata,
+      shipping: {
+        ...incomingShippingMeta,
+        rate_used: finalRateUsed,
+      },
+    };
+  }
+
+  // REGLA 3: Si freshDb.rate_used tiene números Y incoming tiene nulls -> preservar DB (solo cuando incoming no tiene intención explícita)
   const freshHasNumbers = freshRateUsed && (
     (typeof freshRateUsed.price_cents === "number" && freshRateUsed.price_cents > 0) ||
     (typeof freshRateUsed.carrier_cents === "number" && freshRateUsed.carrier_cents > 0)
   );
 
-  if (freshHasNumbers) {
+  const incomingIsNull = !incomingRateUsed || (
+    (incomingRateUsed.price_cents == null || incomingRateUsed.price_cents === null) &&
+    (incomingRateUsed.carrier_cents == null || incomingRateUsed.carrier_cents === null)
+  );
+
+  if (freshHasNumbers && incomingIsNull && !isExplicitOverwrite) {
     // Preservar rate_used de DB, pero mergear otros campos de incoming si existen
     const preservedRateUsed: Record<string, unknown> = {
       ...(incomingRateUsed as Record<string, unknown> || {}),
@@ -393,12 +459,7 @@ export function preserveRateUsed(
     };
   }
 
-  // REGLA 2: Si incoming.rate_used viene null pero hay canonical pricing -> rellenar desde canonical
-  const incomingIsNull = !incomingRateUsed || (
-    (incomingRateUsed.price_cents == null || incomingRateUsed.price_cents === null) &&
-    (incomingRateUsed.carrier_cents == null || incomingRateUsed.carrier_cents === null)
-  );
-
+  // REGLA 4: Si incoming.rate_used viene null pero hay canonical pricing -> rellenar desde canonical
   if (incomingIsNull && hasCanonicalNumbers) {
     // Rellenar rate_used desde canonical pricing
     const filledRateUsed: Record<string, unknown> = {
@@ -417,18 +478,7 @@ export function preserveRateUsed(
     };
   }
 
-  // REGLA 3: Si incoming.rate_used tiene números -> usar incoming (ya está bien)
-  const incomingHasNumbers = incomingRateUsed && (
-    (typeof incomingRateUsed.price_cents === "number" && incomingRateUsed.price_cents > 0) ||
-    (typeof incomingRateUsed.carrier_cents === "number" && incomingRateUsed.carrier_cents > 0)
-  );
-
-  if (incomingHasNumbers) {
-    // incoming ya tiene números, no hacer nada
-    return incomingMetadata;
-  }
-
-  // REGLA 4: Bloquear explícitamente - shipping_pricing tiene números pero rate_used queda null
+  // REGLA 5: Bloquear explícitamente - shipping_pricing tiene números pero rate_used queda null
   if (hasCanonicalNumbers && !incomingHasNumbers && !freshHasNumbers) {
     // Forzar fill desde canonical
     const forcedRateUsed: Record<string, unknown> = {
