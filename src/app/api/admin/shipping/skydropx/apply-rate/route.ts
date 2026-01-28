@@ -6,6 +6,7 @@ import { getOrderWithItemsAdmin } from "@/lib/supabase/orders.server";
 import { normalizeShippingPricing } from "@/lib/shipping/normalizeShippingPricing";
 import { normalizeShippingMetadata, addShippingMetadataDebug, preserveRateUsed, ensureRateUsedInMetadata } from "@/lib/shipping/normalizeShippingMetadata";
 import { logPreWrite, logPostWrite } from "@/lib/shipping/metadataWriterLogger";
+import { sanitizeForLog } from "@/lib/utils/sanitizeForLog";
 
 export const dynamic = "force-dynamic";
 
@@ -255,11 +256,17 @@ export async function POST(req: NextRequest) {
     if (finalPricingForValidation && (finalPricingForValidation.carrier_cents != null || finalPricingForValidation.total_cents != null)) {
       // Existe canonical pricing con números
       if (finalRateUsedForValidation && (finalRateUsedForValidation.carrier_cents == null || finalRateUsedForValidation.price_cents == null)) {
-        const errorMsg = `[apply-rate] CRITICAL: canonical pricing exists but rate_used has nulls. orderId=${orderId}, carrier_cents=${finalRateUsedForValidation.carrier_cents}, price_cents=${finalRateUsedForValidation.price_cents}, pricing.carrier_cents=${finalPricingForValidation.carrier_cents}, pricing.total_cents=${finalPricingForValidation.total_cents}`;
-        if (process.env.NODE_ENV === "production") {
-          console.error(errorMsg);
-        } else {
-          throw new Error(errorMsg);
+        // Structured logging para prevenir log injection
+        const sanitizedOrderId = sanitizeForLog(orderId);
+        console.error("[apply-rate] CRITICAL: canonical pricing exists but rate_used has nulls", {
+          orderId: sanitizedOrderId,
+          rateUsedCarrierCents: finalRateUsedForValidation.carrier_cents,
+          rateUsedPriceCents: finalRateUsedForValidation.price_cents,
+          pricingCarrierCents: finalPricingForValidation.carrier_cents,
+          pricingTotalCents: finalPricingForValidation.total_cents,
+        });
+        if (process.env.NODE_ENV !== "production") {
+          throw new Error(`[apply-rate] CRITICAL: canonical pricing exists but rate_used has nulls for orderId=${sanitizedOrderId}`);
         }
       }
     }
@@ -328,13 +335,15 @@ export async function POST(req: NextRequest) {
       carrier_cents?: number | null;
     } | null | undefined;
 
-    console.log(`[apply-rate] FINAL_PAYLOAD (antes de .update()):`, JSON.stringify({
-      orderId,
-      "metadata.shipping.rate_used.price_cents": finalPayloadRateUsed?.price_cents ?? null,
-      "metadata.shipping.rate_used.carrier_cents": finalPayloadRateUsed?.carrier_cents ?? null,
-      "metadata.shipping_pricing.total_cents": finalPayloadPricing?.total_cents ?? null,
-      "metadata.shipping_pricing.carrier_cents": finalPayloadPricing?.carrier_cents ?? null,
-    }, null, 2));
+    // Structured logging para prevenir log injection
+    const sanitizedOrderId = sanitizeForLog(orderId);
+    console.log("[apply-rate] FINAL_PAYLOAD (antes de .update())", {
+      orderId: sanitizedOrderId,
+      metadataShippingRateUsedPriceCents: finalPayloadRateUsed?.price_cents ?? null,
+      metadataShippingRateUsedCarrierCents: finalPayloadRateUsed?.carrier_cents ?? null,
+      metadataShippingPricingTotalCents: finalPayloadPricing?.total_cents ?? null,
+      metadataShippingPricingCarrierCents: finalPayloadPricing?.carrier_cents ?? null,
+    });
 
     // INSTRUMENTACIÓN PRE-WRITE
     logPreWrite("apply-rate", orderId, freshMetadata, freshUpdatedAt, finalMetadataForDb);
@@ -407,7 +416,10 @@ export async function POST(req: NextRequest) {
       );
 
       if (payloadHadRateUsed && !dbHasRateUsed) {
-        console.error(`[apply-rate] DISCREPANCIA CRÍTICA: Payload tenía rate_used pero DB no. orderId=${orderId}`, {
+        // Structured logging para prevenir log injection
+        const sanitizedOrderIdForDiscrepancy = sanitizeForLog(orderId);
+        console.error("[apply-rate] DISCREPANCIA CRÍTICA: Payload tenía rate_used pero DB no", {
+          orderId: sanitizedOrderIdForDiscrepancy,
           finalPayloadRateUsed,
           rawDbRateUsed,
         });

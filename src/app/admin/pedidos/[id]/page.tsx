@@ -623,7 +623,17 @@ export default async function AdminPedidoDetailPage({
           <h2 className="text-lg font-semibold mb-4">Override de dirección</h2>
           <EditShippingOverrideClient
             orderId={order.id}
-            currentOverride={((order.metadata as Record<string, unknown>)?.shipping_address_override as any) || null}
+            currentOverride={((order.metadata as Record<string, unknown>)?.shipping_address_override as {
+              name: string;
+              phone?: string | null;
+              email?: string | null;
+              address1: string;
+              address2?: string | null;
+              city: string;
+              state: string;
+              postal_code: string;
+              country?: string;
+            } | null | undefined) || null}
           />
         </div>
 

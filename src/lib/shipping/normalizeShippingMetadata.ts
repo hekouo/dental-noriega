@@ -553,7 +553,6 @@ export function ensureRateUsedInMetadata(
     // GUARDRAIL CENTRAL: Si shipping_pricing tiene números pero rate_used tiene nulls -> log error y forzar fill
     // (No throw para no romper tests, pero loggea fuerte para detectar en producción)
     const rateUsedPriceIsNull = !existingRateUsed || existingRateUsed.price_cents == null || existingRateUsed.price_cents === null;
-    const rateUsedCarrierIsNull = !existingRateUsed || existingRateUsed.carrier_cents == null || existingRateUsed.carrier_cents === null;
     
     if (canonTotal != null && rateUsedPriceIsNull) {
       const errorMsg = `[ensureRateUsedInMetadata] GUARDRAIL: shipping_pricing.total_cents=${canonTotal} pero rate_used.price_cents es null. Forzando fill desde canonical.`;
