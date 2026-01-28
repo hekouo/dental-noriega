@@ -7,6 +7,7 @@ import { normalizeShippingPricing } from "@/lib/shipping/normalizeShippingPricin
 import { normalizeShippingMetadata, addShippingMetadataDebug, preserveRateUsed, ensureRateUsedInMetadata } from "@/lib/shipping/normalizeShippingMetadata";
 import { logPreWrite, logPostWrite } from "@/lib/shipping/metadataWriterLogger";
 import { sanitizeForLog } from "@/lib/utils/sanitizeForLog";
+import { validateRateUsedPersistence } from "@/lib/shipping/validateRateUsedPersistence";
 
 export const dynamic = "force-dynamic";
 
