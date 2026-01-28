@@ -13,6 +13,7 @@ import {
   deleteProductImageAction,
   toggleProductActiveAction,
 } from "@/lib/actions/products.admin";
+import type { PackageProfileKey } from "@/lib/shipping/packageProfiles";
 import ProductShippingEditorClient from "./ProductShippingEditorClient";
 
 export const dynamic = "force-dynamic";
@@ -332,7 +333,7 @@ export default async function AdminProductosEditarPage({
           initialLengthCm={product.shippingLengthCm}
           initialWidthCm={product.shippingWidthCm}
           initialHeightCm={product.shippingHeightCm}
-          initialProfile={(product.shippingProfile as any) || null}
+          initialProfile={(product.shippingProfile as PackageProfileKey) || null}
         />
       </div>
 

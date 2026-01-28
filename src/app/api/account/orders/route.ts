@@ -20,6 +20,102 @@ const OrdersRequestSchema = z.object({
 // Type export for potential future use
 export type OrdersRequest = z.infer<typeof OrdersRequestSchema>;
 
+// Helper: Normalizar orderId
+function normalizeOrderId(rawOrderId: string | undefined): string | undefined {
+  return typeof rawOrderId === "string" && rawOrderId.trim().length > 0
+    ? rawOrderId.trim()
+    : undefined;
+}
+
+// Helper: Obtener userId de sesión
+async function getUserIdFromSession(): Promise<string | null> {
+  try {
+    const authSupabase = createActionSupabase();
+    const {
+      data: { user },
+    } = await authSupabase.auth.getUser();
+    return user?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// Helper: Normalizar y validar email
+function normalizeEmail(email: string | undefined): string | null {
+  const normalized = email?.trim().toLowerCase() || null;
+  if (normalized && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
+    return null;
+  }
+  return normalized;
+}
+
+// Helper: Validar que haya userId o email válido
+function validateAuth(userId: string | null, email: string | null): boolean {
+  return !!(userId || email);
+}
+
+// Helper: Manejar request de detalle de orden
+async function handleOrderDetail(
+  orderId: string,
+  normalizedEmail: string | null,
+): Promise<NextResponse> {
+  if (process.env.NODE_ENV !== "production") {
+    console.log("[api/account/orders] Buscando detalle de orden:", {
+      normalizedEmail,
+      orderId,
+      orderIdLength: orderId.length,
+      orderIdType: typeof orderId,
+      rama: "detalle",
+    });
+  }
+
+  const order = await getOrderWithItems(orderId, normalizedEmail ?? null);
+
+  if (process.env.NODE_ENV !== "production") {
+    console.log("[api/account/orders] getOrderWithItems result:", {
+      orderId,
+      email: normalizedEmail,
+      found: !!order,
+      itemsCount: order?.items?.length || 0,
+      orderEmail: order?.email,
+      ownedByEmail: order?.ownedByEmail,
+    });
+  }
+
+  if (!order) {
+    return NextResponse.json(
+      { error: "Orden no encontrada" },
+      { status: 404 },
+    );
+  }
+
+  return NextResponse.json({ order });
+}
+
+// Helper: Manejar request de lista de órdenes
+async function handleOrdersList(
+  normalizedEmail: string | null,
+): Promise<NextResponse> {
+  if (process.env.NODE_ENV === "development") {
+    console.log("[api/account/orders] Buscando lista de órdenes:", {
+      email: normalizedEmail,
+      rama: "lista",
+    });
+  }
+
+  const orders = await getOrdersByEmail(normalizedEmail ?? null, {
+    limit: 20,
+  });
+
+  if (process.env.NODE_ENV === "development") {
+    console.log("[api/account/orders] getOrdersByEmail result:", {
+      email: normalizedEmail,
+      count: orders?.length || 0,
+    });
+  }
+
+  return NextResponse.json({ orders });
+}
 
 export async function POST(req: NextRequest) {
   noStore();
@@ -48,45 +144,24 @@ export async function POST(req: NextRequest) {
 
     const { email, orderId: rawOrderId } = validationResult.data;
 
-    // Normalizar orderId: solo usar si es string no vacío
-    const orderId =
-      typeof rawOrderId === "string" && rawOrderId.trim().length > 0
-        ? rawOrderId.trim()
-        : undefined;
+    const orderId = normalizeOrderId(rawOrderId);
+    const userId = await getUserIdFromSession();
+    const normalizedEmail = normalizeEmail(email);
 
-    // Intentar obtener user_id de la sesión (si el usuario está autenticado)
-    let userId: string | null = null;
-    try {
-      const authSupabase = createActionSupabase();
-      const {
-        data: { user },
-      } = await authSupabase.auth.getUser();
-      userId = user?.id ?? null;
-    } catch (err) {
-      // Si no hay sesión, continuar como guest (userId = null, buscar por email)
-      if (process.env.NODE_ENV === "development") {
-        console.debug("[api/account/orders] No hay sesión activa:", err);
-      }
-    }
-
-    // Validar que haya al menos userId o email válido
-    const normalizedEmail = email?.trim().toLowerCase() || null;
-    if (!userId && !normalizedEmail) {
+    if (!validateAuth(userId, normalizedEmail)) {
       return NextResponse.json(
         { error: "Email requerido o sesión activa" },
         { status: 400 },
       );
     }
 
-    // Si hay email pero no es válido, devolver error
-    if (normalizedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    if (normalizedEmail === null && email) {
       return NextResponse.json(
         { error: "Email inválido" },
         { status: 400 },
       );
     }
 
-    // Logs detallados solo en development
     if (process.env.NODE_ENV === "development") {
       console.log("[api/account/orders] Request recibido:", {
         email: normalizedEmail,
@@ -97,67 +172,11 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Si viene orderId normalizado, devolver detalle de una orden
     if (orderId) {
-      if (process.env.NODE_ENV !== "production") {
-        console.log("[api/account/orders] Buscando detalle de orden:", {
-          body: { email: body.email, rawOrderId },
-          normalizedEmail,
-          orderId,
-          orderIdLength: orderId.length,
-          orderIdType: typeof orderId,
-          rama: "detalle",
-        });
-      }
-
-      const order = await getOrderWithItems(orderId, normalizedEmail ?? null);
-
-      // Log temporal para debugging
-      if (process.env.NODE_ENV !== "production") {
-        console.log("[api/account/orders] getOrderWithItems result:", {
-          orderId,
-          email: normalizedEmail,
-          found: !!order,
-          itemsCount: order?.items?.length || 0,
-          orderEmail: order?.email,
-          ownedByEmail: order?.ownedByEmail,
-        });
-      }
-
-      // Solo devolver 404 si la orden realmente no existe
-      // Si existe pero ownedByEmail === false, aún devolvemos 200 con el detalle
-      if (!order) {
-        return NextResponse.json(
-          { error: "Orden no encontrada" },
-          { status: 404 },
-        );
-      }
-
-      // Siempre devolver 200 si la orden existe, independientemente de ownedByEmail
-      return NextResponse.json({ order });
+      return handleOrderDetail(orderId, normalizedEmail);
     }
 
-    // Si no viene orderId, devolver lista de órdenes
-    if (process.env.NODE_ENV === "development") {
-      console.log("[api/account/orders] Buscando lista de órdenes:", {
-        email: normalizedEmail,
-        rama: "lista",
-      });
-    }
-
-    const orders = await getOrdersByEmail(normalizedEmail ?? null, {
-      limit: 20,
-    });
-
-    if (process.env.NODE_ENV === "development") {
-      console.log("[api/account/orders] getOrdersByEmail result:", {
-        email: normalizedEmail,
-        count: orders?.length || 0,
-      });
-    }
-
-    // Siempre devolver 200 con orders (nunca 404)
-    return NextResponse.json({ orders });
+    return handleOrdersList(normalizedEmail);
   } catch (error) {
     // Catch final para errores inesperados (parsing, validación, etc.)
     console.error("[api/account/orders] ERROR inesperado:", {

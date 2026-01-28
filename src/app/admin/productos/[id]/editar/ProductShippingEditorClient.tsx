@@ -13,6 +13,22 @@ type ProductShippingEditorClientProps = {
 };
 
 /**
+ * Helper: Obtener mensaje de error según código
+ */
+function getErrorMessage(code: string | undefined, message: string | undefined): string {
+  if (code === "unauthorized") {
+    return "No tienes permisos para realizar esta acción.";
+  }
+  if (code === "invalid_request") {
+    return message || "Datos inválidos.";
+  }
+  if (code === "invalid_dimensions") {
+    return message || "Dimensiones inválidas.";
+  }
+  return message || "Error al guardar las dimensiones.";
+}
+
+/**
  * Componente para editar dimensiones de envío de un producto
  */
 export default function ProductShippingEditorClient({
@@ -129,15 +145,7 @@ export default function ProductShippingEditorClient({
       const data = await res.json();
 
       if (!data.ok) {
-        const errorMessage =
-          data.code === "unauthorized"
-            ? "No tienes permisos para realizar esta acción."
-            : data.code === "invalid_request"
-              ? data.message || "Datos inválidos."
-              : data.code === "invalid_dimensions"
-                ? data.message || "Dimensiones inválidas."
-                : data.message || "Error al guardar las dimensiones.";
-
+        const errorMessage = getErrorMessage(data.code, data.message);
         setError(errorMessage);
         return;
       }

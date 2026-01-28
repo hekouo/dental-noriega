@@ -6,6 +6,7 @@ import { getOrderWithItemsAdmin } from "@/lib/supabase/orders.server";
 import { normalizeShippingPricing } from "@/lib/shipping/normalizeShippingPricing";
 import { normalizeShippingMetadata, addShippingMetadataDebug, preserveRateUsed, ensureRateUsedInMetadata } from "@/lib/shipping/normalizeShippingMetadata";
 import { logPreWrite, logPostWrite } from "@/lib/shipping/metadataWriterLogger";
+import { sanitizeForLog } from "@/lib/utils/sanitizeForLog";
 
 export const dynamic = "force-dynamic";
 
@@ -255,11 +256,17 @@ export async function POST(req: NextRequest) {
     if (finalPricingForValidation && (finalPricingForValidation.carrier_cents != null || finalPricingForValidation.total_cents != null)) {
       // Existe canonical pricing con números
       if (finalRateUsedForValidation && (finalRateUsedForValidation.carrier_cents == null || finalRateUsedForValidation.price_cents == null)) {
-        const errorMsg = `[apply-rate] CRITICAL: canonical pricing exists but rate_used has nulls. orderId=${orderId}, carrier_cents=${finalRateUsedForValidation.carrier_cents}, price_cents=${finalRateUsedForValidation.price_cents}, pricing.carrier_cents=${finalPricingForValidation.carrier_cents}, pricing.total_cents=${finalPricingForValidation.total_cents}`;
-        if (process.env.NODE_ENV === "production") {
-          console.error(errorMsg);
-        } else {
-          throw new Error(errorMsg);
+        // Structured logging para prevenir log injection
+        const sanitizedOrderId = sanitizeForLog(orderId);
+        console.error("[apply-rate] CRITICAL: canonical pricing exists but rate_used has nulls", {
+          orderId: sanitizedOrderId,
+          rateUsedCarrierCents: finalRateUsedForValidation.carrier_cents,
+          rateUsedPriceCents: finalRateUsedForValidation.price_cents,
+          pricingCarrierCents: finalPricingForValidation.carrier_cents,
+          pricingTotalCents: finalPricingForValidation.total_cents,
+        });
+        if (process.env.NODE_ENV !== "production") {
+          throw new Error(`[apply-rate] CRITICAL: canonical pricing exists but rate_used has nulls for orderId=${sanitizedOrderId}`);
         }
       }
     }
@@ -328,13 +335,15 @@ export async function POST(req: NextRequest) {
       carrier_cents?: number | null;
     } | null | undefined;
 
-    console.log(`[apply-rate] FINAL_PAYLOAD (antes de .update()):`, JSON.stringify({
-      orderId,
-      "metadata.shipping.rate_used.price_cents": finalPayloadRateUsed?.price_cents ?? null,
-      "metadata.shipping.rate_used.carrier_cents": finalPayloadRateUsed?.carrier_cents ?? null,
-      "metadata.shipping_pricing.total_cents": finalPayloadPricing?.total_cents ?? null,
-      "metadata.shipping_pricing.carrier_cents": finalPayloadPricing?.carrier_cents ?? null,
-    }, null, 2));
+    // Structured logging para prevenir log injection
+    const sanitizedOrderId = sanitizeForLog(orderId);
+    console.log("[apply-rate] FINAL_PAYLOAD (antes de .update())", {
+      orderId: sanitizedOrderId,
+      metadataShippingRateUsedPriceCents: finalPayloadRateUsed?.price_cents ?? null,
+      metadataShippingRateUsedCarrierCents: finalPayloadRateUsed?.carrier_cents ?? null,
+      metadataShippingPricingTotalCents: finalPayloadPricing?.total_cents ?? null,
+      metadataShippingPricingCarrierCents: finalPayloadPricing?.carrier_cents ?? null,
+    });
 
     // INSTRUMENTACIÓN PRE-WRITE
     logPreWrite("apply-rate", orderId, freshMetadata, freshUpdatedAt, finalMetadataForDb);
@@ -369,33 +378,31 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // CRÍTICO: Reread post-write para verificar persistencia real en DB
+    // CRÍTICO: Reread post-write para verificar persistencia real en DB (RAW, sin normalizadores)
     const { data: rereadOrder, error: rereadError } = await supabase
       .from("orders")
-      .select("metadata")
+      .select("id, updated_at, metadata")
       .eq("id", orderId)
       .single();
 
     if (rereadError) {
       console.error("[apply-rate] Error al releer orden post-write:", rereadError);
     } else {
-      const dbAfterWriteMetadata = (rereadOrder?.metadata as Record<string, unknown>) || {};
-      const dbAfterWriteShippingMeta = (dbAfterWriteMetadata.shipping as Record<string, unknown>) || {};
-      const dbAfterWriteRateUsed = (dbAfterWriteShippingMeta.rate_used as {
-        price_cents?: number | null;
-        carrier_cents?: number | null;
-      }) || null;
-      const dbAfterWritePricing = dbAfterWriteMetadata.shipping_pricing as {
-        total_cents?: number | null;
-        carrier_cents?: number | null;
-      } | null | undefined;
+      // RAW_DB: Leer directamente sin normalizadores/helpers
+      const rawDbMetadata = rereadOrder?.metadata as Record<string, unknown> | null | undefined;
+      const rawDbShipping = (rawDbMetadata?.shipping as Record<string, unknown>) || null;
+      const rawDbRateUsed = (rawDbShipping?.rate_used as Record<string, unknown>) || null;
+      const rawDbPricing = (rawDbMetadata?.shipping_pricing as Record<string, unknown>) || null;
 
-      console.log(`[apply-rate] DB_AFTER_WRITE (reread desde Supabase):`, JSON.stringify({
+      // RAW_DB reread log: valores exactos desde DB sin procesamiento
+      console.log(`[apply-rate] RAW_DB reread (post-write, sin normalizadores):`, JSON.stringify({
         orderId,
-        "metadata.shipping.rate_used.price_cents": dbAfterWriteRateUsed?.price_cents ?? null,
-        "metadata.shipping.rate_used.carrier_cents": dbAfterWriteRateUsed?.carrier_cents ?? null,
-        "metadata.shipping_pricing.total_cents": dbAfterWritePricing?.total_cents ?? null,
-        "metadata.shipping_pricing.carrier_cents": dbAfterWritePricing?.carrier_cents ?? null,
+        updated_at: rereadOrder?.updated_at ?? null,
+        "metadata.shipping.rate_used.price_cents": rawDbRateUsed?.price_cents ?? null,
+        "metadata.shipping.rate_used.carrier_cents": rawDbRateUsed?.carrier_cents ?? null,
+        "metadata.shipping_pricing.total_cents": rawDbPricing?.total_cents ?? null,
+        "metadata.shipping_pricing.carrier_cents": rawDbPricing?.carrier_cents ?? null,
+        "metadata.shipping.rate_used (objeto completo)": rawDbRateUsed,
       }, null, 2));
 
       // Detectar discrepancia entre payload y DB
@@ -403,13 +410,19 @@ export async function POST(req: NextRequest) {
         (finalPayloadRateUsed.price_cents != null && finalPayloadRateUsed.price_cents !== null) ||
         (finalPayloadRateUsed.carrier_cents != null && finalPayloadRateUsed.carrier_cents !== null)
       );
-      const dbHasRateUsed = dbAfterWriteRateUsed && (
-        (dbAfterWriteRateUsed.price_cents != null && dbAfterWriteRateUsed.price_cents !== null) ||
-        (dbAfterWriteRateUsed.carrier_cents != null && dbAfterWriteRateUsed.carrier_cents !== null)
+      const dbHasRateUsed = rawDbRateUsed && (
+        (rawDbRateUsed.price_cents != null && rawDbRateUsed.price_cents !== null) ||
+        (rawDbRateUsed.carrier_cents != null && rawDbRateUsed.carrier_cents !== null)
       );
 
       if (payloadHadRateUsed && !dbHasRateUsed) {
-        console.error(`[apply-rate] DISCREPANCIA CRÍTICA: Payload tenía rate_used pero DB no. orderId=${orderId}`);
+        // Structured logging para prevenir log injection
+        const sanitizedOrderIdForDiscrepancy = sanitizeForLog(orderId);
+        console.error("[apply-rate] DISCREPANCIA CRÍTICA: Payload tenía rate_used pero DB no", {
+          orderId: sanitizedOrderIdForDiscrepancy,
+          finalPayloadRateUsed,
+          rawDbRateUsed,
+        });
       }
     }
 
