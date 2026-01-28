@@ -396,15 +396,33 @@ export async function POST(req: NextRequest) {
       const rawDbPricing = (rawDbMetadata?.shipping_pricing as Record<string, unknown>) || null;
 
       // RAW_DB reread log: valores exactos desde DB sin procesamiento
-      console.log(`[apply-rate] RAW_DB reread (post-write, sin normalizadores):`, JSON.stringify({
+      // Structured logging para prevenir log injection
+      const sanitizedOrderIdForReread = sanitizeForLog(orderId);
+      console.log("[apply-rate] RAW_DB reread (post-write, sin normalizadores)", {
+        orderId: sanitizedOrderIdForReread,
+        updatedAt: rereadOrder?.updated_at ?? null,
+        metadataShippingRateUsedPriceCents: rawDbRateUsed?.price_cents ?? null,
+        metadataShippingRateUsedCarrierCents: rawDbRateUsed?.carrier_cents ?? null,
+        metadataShippingPricingTotalCents: rawDbPricing?.total_cents ?? null,
+        metadataShippingPricingCarrierCents: rawDbPricing?.carrier_cents ?? null,
+        metadataShippingRateUsedFull: rawDbRateUsed,
+      });
+
+      // CANARY VALIDATION: Verificar persistencia de rate_used.*_cents
+      const validationResult = validateRateUsedPersistence(
+        rawDbMetadata,
         orderId,
-        updated_at: rereadOrder?.updated_at ?? null,
-        "metadata.shipping.rate_used.price_cents": rawDbRateUsed?.price_cents ?? null,
-        "metadata.shipping.rate_used.carrier_cents": rawDbRateUsed?.carrier_cents ?? null,
-        "metadata.shipping_pricing.total_cents": rawDbPricing?.total_cents ?? null,
-        "metadata.shipping_pricing.carrier_cents": rawDbPricing?.carrier_cents ?? null,
-        "metadata.shipping.rate_used (objeto completo)": rawDbRateUsed,
-      }, null, 2));
+        "apply-rate",
+      );
+      
+      if (validationResult.discrepancy) {
+        // El log CRITICAL ya se hizo dentro de validateRateUsedPersistence
+        // Aquí solo confirmamos que detectamos el problema
+        console.error("[apply-rate] CANARY DETECTED BUG: rate_used.*_cents no persistió correctamente", {
+          orderId: sanitizedOrderIdForReread,
+          validationResult,
+        });
+      }
 
       // Detectar discrepancia entre payload y DB
       const payloadHadRateUsed = finalPayloadRateUsed && (
