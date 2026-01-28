@@ -369,33 +369,31 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // CRÍTICO: Reread post-write para verificar persistencia real en DB
+    // CRÍTICO: Reread post-write para verificar persistencia real en DB (RAW, sin normalizadores)
     const { data: rereadOrder, error: rereadError } = await supabase
       .from("orders")
-      .select("metadata")
+      .select("id, updated_at, metadata")
       .eq("id", orderId)
       .single();
 
     if (rereadError) {
       console.error("[apply-rate] Error al releer orden post-write:", rereadError);
     } else {
-      const dbAfterWriteMetadata = (rereadOrder?.metadata as Record<string, unknown>) || {};
-      const dbAfterWriteShippingMeta = (dbAfterWriteMetadata.shipping as Record<string, unknown>) || {};
-      const dbAfterWriteRateUsed = (dbAfterWriteShippingMeta.rate_used as {
-        price_cents?: number | null;
-        carrier_cents?: number | null;
-      }) || null;
-      const dbAfterWritePricing = dbAfterWriteMetadata.shipping_pricing as {
-        total_cents?: number | null;
-        carrier_cents?: number | null;
-      } | null | undefined;
+      // RAW_DB: Leer directamente sin normalizadores/helpers
+      const rawDbMetadata = rereadOrder?.metadata as Record<string, unknown> | null | undefined;
+      const rawDbShipping = (rawDbMetadata?.shipping as Record<string, unknown>) || null;
+      const rawDbRateUsed = (rawDbShipping?.rate_used as Record<string, unknown>) || null;
+      const rawDbPricing = (rawDbMetadata?.shipping_pricing as Record<string, unknown>) || null;
 
-      console.log(`[apply-rate] DB_AFTER_WRITE (reread desde Supabase):`, JSON.stringify({
+      // RAW_DB reread log: valores exactos desde DB sin procesamiento
+      console.log(`[apply-rate] RAW_DB reread (post-write, sin normalizadores):`, JSON.stringify({
         orderId,
-        "metadata.shipping.rate_used.price_cents": dbAfterWriteRateUsed?.price_cents ?? null,
-        "metadata.shipping.rate_used.carrier_cents": dbAfterWriteRateUsed?.carrier_cents ?? null,
-        "metadata.shipping_pricing.total_cents": dbAfterWritePricing?.total_cents ?? null,
-        "metadata.shipping_pricing.carrier_cents": dbAfterWritePricing?.carrier_cents ?? null,
+        updated_at: rereadOrder?.updated_at ?? null,
+        "metadata.shipping.rate_used.price_cents": rawDbRateUsed?.price_cents ?? null,
+        "metadata.shipping.rate_used.carrier_cents": rawDbRateUsed?.carrier_cents ?? null,
+        "metadata.shipping_pricing.total_cents": rawDbPricing?.total_cents ?? null,
+        "metadata.shipping_pricing.carrier_cents": rawDbPricing?.carrier_cents ?? null,
+        "metadata.shipping.rate_used (objeto completo)": rawDbRateUsed,
       }, null, 2));
 
       // Detectar discrepancia entre payload y DB
@@ -403,13 +401,16 @@ export async function POST(req: NextRequest) {
         (finalPayloadRateUsed.price_cents != null && finalPayloadRateUsed.price_cents !== null) ||
         (finalPayloadRateUsed.carrier_cents != null && finalPayloadRateUsed.carrier_cents !== null)
       );
-      const dbHasRateUsed = dbAfterWriteRateUsed && (
-        (dbAfterWriteRateUsed.price_cents != null && dbAfterWriteRateUsed.price_cents !== null) ||
-        (dbAfterWriteRateUsed.carrier_cents != null && dbAfterWriteRateUsed.carrier_cents !== null)
+      const dbHasRateUsed = rawDbRateUsed && (
+        (rawDbRateUsed.price_cents != null && rawDbRateUsed.price_cents !== null) ||
+        (rawDbRateUsed.carrier_cents != null && rawDbRateUsed.carrier_cents !== null)
       );
 
       if (payloadHadRateUsed && !dbHasRateUsed) {
-        console.error(`[apply-rate] DISCREPANCIA CRÍTICA: Payload tenía rate_used pero DB no. orderId=${orderId}`);
+        console.error(`[apply-rate] DISCREPANCIA CRÍTICA: Payload tenía rate_used pero DB no. orderId=${orderId}`, {
+          finalPayloadRateUsed,
+          rawDbRateUsed,
+        });
       }
     }
 

@@ -433,21 +433,32 @@ export function preserveRateUsed(
   }
 
   // REGLA 3: Si freshDb.rate_used tiene números Y incoming tiene nulls -> preservar DB (solo cuando incoming no tiene intención explícita)
+  // ENDURECIDO: Tratar null como "missing" y preservar valores numéricos de freshDb
   const freshHasNumbers = freshRateUsed && (
     (typeof freshRateUsed.price_cents === "number" && freshRateUsed.price_cents > 0) ||
     (typeof freshRateUsed.carrier_cents === "number" && freshRateUsed.carrier_cents > 0)
   );
 
+  // incomingIsNull: true si incoming no existe O si price_cents/carrier_cents son null/undefined
   const incomingIsNull = !incomingRateUsed || (
     (incomingRateUsed.price_cents == null || incomingRateUsed.price_cents === null) &&
     (incomingRateUsed.carrier_cents == null || incomingRateUsed.carrier_cents === null)
   );
 
-  if (freshHasNumbers && incomingIsNull && !isExplicitOverwrite) {
+  // ENDURECIDO: Si incoming trae null explícito pero freshDb tiene números, preservar freshDb
+  const incomingHasExplicitNulls = incomingRateUsed && (
+    incomingRateUsed.price_cents === null ||
+    incomingRateUsed.carrier_cents === null
+  );
+
+  if (freshHasNumbers && (incomingIsNull || incomingHasExplicitNulls) && !isExplicitOverwrite) {
     // Preservar rate_used de DB, pero mergear otros campos de incoming si existen
     const preservedRateUsed: Record<string, unknown> = {
       ...(incomingRateUsed as Record<string, unknown> || {}),
-      ...(freshRateUsed as Record<string, unknown>),
+      // FORZAR preservación de valores numéricos de freshDb (tratar null como missing)
+      price_cents: freshRateUsed.price_cents ?? incomingRateUsed?.price_cents ?? null,
+      carrier_cents: freshRateUsed.carrier_cents ?? incomingRateUsed?.carrier_cents ?? null,
+      customer_total_cents: freshRateUsed.customer_total_cents ?? incomingRateUsed?.customer_total_cents ?? null,
     };
     
     return {
@@ -538,6 +549,23 @@ export function ensureRateUsedInMetadata(
     const canonCarrier = shippingPricing.carrier_cents ?? null;
     const canonTotal = shippingPricing.total_cents ?? null;
     const canonCustomerTotal = shippingPricing.customer_total_cents ?? canonTotal ?? null;
+
+    // GUARDRAIL CENTRAL: Si shipping_pricing tiene números pero rate_used tiene nulls -> log error y forzar fill
+    // (No throw para no romper tests, pero loggea fuerte para detectar en producción)
+    const rateUsedPriceIsNull = !existingRateUsed || existingRateUsed.price_cents == null || existingRateUsed.price_cents === null;
+    const rateUsedCarrierIsNull = !existingRateUsed || existingRateUsed.carrier_cents == null || existingRateUsed.carrier_cents === null;
+    
+    if (canonTotal != null && rateUsedPriceIsNull) {
+      const errorMsg = `[ensureRateUsedInMetadata] GUARDRAIL: shipping_pricing.total_cents=${canonTotal} pero rate_used.price_cents es null. Forzando fill desde canonical.`;
+      console.error(errorMsg, {
+        shipping_pricing: {
+          total_cents: canonTotal,
+          carrier_cents: canonCarrier,
+        },
+        rate_used: existingRateUsed,
+      });
+      // No throw, solo loggear y forzar fill (el código abajo lo hace)
+    }
 
     // Verificar si rate_used tiene números o está null/missing
     const rateUsedHasNumbers = existingRateUsed && (
