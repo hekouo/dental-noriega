@@ -536,6 +536,32 @@ export async function POST(req: NextRequest) {
           const postWriteMetadata = (updatedOrder?.metadata as Record<string, unknown>) || {};
           const postWriteUpdatedAt = updatedOrder?.updated_at as string | null | undefined;
           logPostWrite("requote", orderId, postWriteMetadata, postWriteUpdatedAt);
+
+          // CANARY VALIDATION: Reread post-write y validar persistencia
+          const { data: rereadOrder, error: rereadError } = await supabase
+            .from("orders")
+            .select("id, updated_at, metadata")
+            .eq("id", orderId)
+            .single();
+
+          if (!rereadError && rereadOrder) {
+            const rawDbMetadata = rereadOrder.metadata as Record<string, unknown> | null | undefined;
+            
+            // Validar persistencia de rate_used.*_cents
+            const { validateRateUsedPersistence } = await import("@/lib/shipping/validateRateUsedPersistence");
+            const validationResult = validateRateUsedPersistence(
+              rawDbMetadata,
+              orderId,
+              "requote",
+            );
+
+            if (validationResult.discrepancy) {
+              console.error("[requote] CANARY DETECTED BUG: rate_used.*_cents no persistió correctamente", {
+                orderId,
+                validationResult,
+              });
+            }
+          }
         }
       }
     } catch (persistError) {
