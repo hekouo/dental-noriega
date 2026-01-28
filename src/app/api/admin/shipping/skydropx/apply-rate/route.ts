@@ -8,6 +8,7 @@ import { normalizeShippingMetadata, addShippingMetadataDebug, preserveRateUsed, 
 import { logPreWrite, logPostWrite } from "@/lib/shipping/metadataWriterLogger";
 import { sanitizeForLog } from "@/lib/utils/sanitizeForLog";
 import { validateRateUsedPersistence } from "@/lib/shipping/validateRateUsedPersistence";
+import { mergeRateUsedPreserveCents } from "@/lib/shipping/mergeRateUsedPreserveCents";
 
 export const dynamic = "force-dynamic";
 
@@ -289,7 +290,33 @@ export async function POST(req: NextRequest) {
     // CRÍTICO: Asegurar que rate_used esté presente en el payload final antes de escribir
     // Esto garantiza persistencia real en Supabase, incluso si normalizeShippingMetadata
     // o preserveRateUsed no lo incluyeron correctamente
-    const finalMetadataForDb = ensureRateUsedInMetadata(finalMetadataWithPreserve);
+    let finalMetadataForDb = ensureRateUsedInMetadata(finalMetadataWithPreserve);
+
+    // CRÍTICO: Aplicar mergeRateUsedPreserveCents JUSTO antes de persistir
+    // Esto garantiza que los cents nunca queden null
+    const finalShippingMeta = (finalMetadataForDb.shipping as Record<string, unknown>) || {};
+    const finalRateUsed = (finalShippingMeta.rate_used as Record<string, unknown>) || {};
+    const finalShippingPricing = finalMetadataForDb.shipping_pricing as {
+      total_cents?: number | null;
+      carrier_cents?: number | null;
+      customer_total_cents?: number | null;
+    } | null | undefined;
+    
+    // Merge preservando cents
+    const mergedRateUsed = mergeRateUsedPreserveCents(
+      finalRateUsed,
+      finalRateUsed, // incoming es el mismo porque ya pasó por ensureRateUsedInMetadata
+      finalShippingPricing,
+    );
+    
+    // Actualizar metadata con rate_used mergeado
+    finalMetadataForDb = {
+      ...finalMetadataForDb,
+      shipping: {
+        ...finalShippingMeta,
+        rate_used: mergedRateUsed,
+      },
+    };
 
     // GUARDRAIL: Verificar que el payload tiene rate_used antes de escribir
     const shippingPricingForCheck = finalMetadataForDb.shipping_pricing as {
@@ -406,6 +433,36 @@ export async function POST(req: NextRequest) {
         metadataShippingPricingTotalCents: rawDbPricing?.total_cents ?? null,
         metadataShippingPricingCarrierCents: rawDbPricing?.carrier_cents ?? null,
         metadataShippingRateUsedFull: rawDbRateUsed,
+      });
+
+      // CRÍTICO: Log explícito desde DB usando paths JSONB (simulando SQL)
+      // Esto muestra exactamente lo que SQL vería: metadata #>> '{shipping,rate_used,price_cents}'
+      const dbPriceCents = rawDbRateUsed?.price_cents ?? null;
+      const dbCarrierCents = rawDbRateUsed?.carrier_cents ?? null;
+      const dbPricingTotalCents = rawDbPricing?.total_cents ?? null;
+      const dbPricingCarrierCents = rawDbPricing?.carrier_cents ?? null;
+      
+      console.log("[apply-rate] DB_VERIFICATION (simulando SQL paths)", {
+        orderId: sanitizedOrderIdForReread,
+        "db.metadata #>> '{shipping,rate_used,price_cents}'": dbPriceCents,
+        "db.metadata #>> '{shipping,rate_used,carrier_cents}'": dbCarrierCents,
+        "db.metadata #>> '{shipping_pricing,total_cents}'": dbPricingTotalCents,
+        "db.metadata #>> '{shipping_pricing,carrier_cents}'": dbPricingCarrierCents,
+        beforeUpdateHadNumbers: finalPayloadRateUsed && (
+          (finalPayloadRateUsed.price_cents != null && finalPayloadRateUsed.price_cents !== null) ||
+          (finalPayloadRateUsed.carrier_cents != null && finalPayloadRateUsed.carrier_cents !== null)
+        ),
+        afterUpdateHasNumbers: rawDbRateUsed && (
+          (rawDbRateUsed.price_cents != null && rawDbRateUsed.price_cents !== null) ||
+          (rawDbRateUsed.carrier_cents != null && rawDbRateUsed.carrier_cents !== null)
+        ),
+        discrepancy: (finalPayloadRateUsed && (
+          (finalPayloadRateUsed.price_cents != null && finalPayloadRateUsed.price_cents !== null) ||
+          (finalPayloadRateUsed.carrier_cents != null && finalPayloadRateUsed.carrier_cents !== null)
+        )) && !(rawDbRateUsed && (
+          (rawDbRateUsed.price_cents != null && rawDbRateUsed.price_cents !== null) ||
+          (rawDbRateUsed.carrier_cents != null && rawDbRateUsed.carrier_cents !== null)
+        )),
       });
 
       // CANARY VALIDATION: Verificar persistencia de rate_used.*_cents
