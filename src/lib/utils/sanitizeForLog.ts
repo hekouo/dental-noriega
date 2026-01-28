@@ -38,6 +38,7 @@ export function sanitizeForLog(value: unknown, maxLength = 1000): string {
   str = str.replace(/[\r\n\t]/g, " ");
 
   // Remover caracteres de control restantes (excepto espacios)
+  // eslint-disable-next-line no-control-regex, sonarjs/no-control-regex
   str = str.replace(/[\u0000-\u001f\u007f]/g, "");
 
   return str;
