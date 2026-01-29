@@ -412,8 +412,8 @@ export async function POST(req: NextRequest) {
     );
 
     if (finalHasPricingNumbers && finalRateUsedStillNull) {
-      const errorMsg = `[apply-rate] GUARDRAIL FINAL: Abortando write. shipping_pricing tiene números pero rate_used.*_cents sigue null después de mergeRateUsedPreserveCents. orderId=${sanitizedOrderId}`;
-      console.error(errorMsg, {
+      // Structured logging: primer argumento constante, valores dinámicos en objeto
+      console.error("[apply-rate] GUARDRAIL FINAL: Abortando write. shipping_pricing tiene números pero rate_used.*_cents sigue null después de mergeRateUsedPreserveCents", {
         orderId: sanitizedOrderId,
         pricing: exactPricing,
         rateUsed: exactRateUsed,
@@ -476,7 +476,13 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (rereadError) {
-      console.error("[apply-rate] Error al releer orden post-write:", rereadError);
+      // Structured logging: primer argumento constante, error sanitizado en objeto
+      console.error("[apply-rate] Error al releer orden post-write", {
+        errorCode: rereadError.code ?? null,
+        errorMessage: sanitizeForLog(rereadError.message),
+        errorDetails: sanitizeForLog(rereadError.details),
+        errorHint: sanitizeForLog(rereadError.hint),
+      });
     } else {
       // RAW_DB: Leer directamente sin normalizadores/helpers
       const rawDbMetadata = rereadOrder?.metadata as Record<string, unknown> | null | undefined;
