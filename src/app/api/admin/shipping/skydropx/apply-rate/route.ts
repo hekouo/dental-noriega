@@ -373,6 +373,55 @@ export async function POST(req: NextRequest) {
       metadataShippingPricingCarrierCents: finalPayloadPricing?.carrier_cents ?? null,
     });
 
+    // CRÍTICO: Log del objeto EXACTO que se pasa a .update()
+    // Usar la MISMA variable que se pasa al update (finalMetadataForDb)
+    const exactMetadataToDb = finalMetadataForDb;
+    const exactShippingMeta = (exactMetadataToDb.shipping as Record<string, unknown>) || {};
+    const exactRateUsed = (exactShippingMeta.rate_used as Record<string, unknown>) || null;
+    const exactPricing = exactMetadataToDb.shipping_pricing as {
+      total_cents?: number | null;
+      carrier_cents?: number | null;
+    } | null | undefined;
+    
+    console.log("[apply-rate] FINAL_METADATA_TO_DB (objeto EXACTO que entra a .update())", {
+      orderId: sanitizedOrderId,
+      rateUsedPriceCents: exactRateUsed?.price_cents ?? null,
+      rateUsedCarrierCents: exactRateUsed?.carrier_cents ?? null,
+      rateUsedCustomerTotalCents: exactRateUsed?.customer_total_cents ?? null,
+      pricingTotalCents: exactPricing?.total_cents ?? null,
+      pricingCarrierCents: exactPricing?.carrier_cents ?? null,
+      rateUsedKeys: exactRateUsed ? Object.keys(exactRateUsed) : [],
+      rateUsedFull: exactRateUsed,
+    });
+
+    // GUARDRAIL FINAL: Si shipping_pricing tiene números y rate_used.*_cents sigue null -> throw
+    const hasPricingNumbers = exactPricing && (
+      (typeof exactPricing.total_cents === "number" && exactPricing.total_cents > 0) ||
+      (typeof exactPricing.carrier_cents === "number" && exactPricing.carrier_cents > 0)
+    );
+    const rateUsedStillNull = !exactRateUsed || (
+      (exactRateUsed.price_cents == null || exactRateUsed.price_cents === null) ||
+      (exactRateUsed.carrier_cents == null || exactRateUsed.carrier_cents === null)
+    );
+    
+    if (hasPricingNumbers && rateUsedStillNull) {
+      const errorMsg = `[apply-rate] GUARDRAIL FINAL: Abortando write. shipping_pricing tiene números pero rate_used.*_cents sigue null después de mergeRateUsedPreserveCents. orderId=${sanitizedOrderId}`;
+      console.error(errorMsg, {
+        orderId: sanitizedOrderId,
+        pricing: exactPricing,
+        rateUsed: exactRateUsed,
+        rateUsedKeys: exactRateUsed ? Object.keys(exactRateUsed) : [],
+      });
+      return NextResponse.json(
+        {
+          ok: false,
+          code: "inconsistent_metadata",
+          message: "Error: metadata inconsistente después de merge. Revisa los logs.",
+        } satisfies ApplyRateResponse,
+        { status: 500 },
+      );
+    }
+
     // INSTRUMENTACIÓN PRE-WRITE
     logPreWrite("apply-rate", orderId, freshMetadata, freshUpdatedAt, finalMetadataForDb);
 
