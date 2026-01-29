@@ -2058,12 +2058,20 @@ export async function POST(req: NextRequest) {
       finalShippingPricingForDb,
     );
     
-    // Actualizar metadata con rate_used mergeado
+    // CRÍTICO: Espejar tracking_number y label_url desde columnas a metadata
+    // Esto asegura consistencia: si se actualiza la columna, también se actualiza metadata
+    const trackingNumberFromColumns = updateData.shipping_tracking_number as string | null | undefined;
+    const labelUrlFromColumns = updateData.shipping_label_url as string | null | undefined;
+    
+    // Actualizar metadata con rate_used mergeado Y tracking/label espejados
     finalMetadataForDb = {
       ...finalMetadataForDb,
       shipping: {
         ...finalShippingMetaForDb,
         rate_used: mergedRateUsed,
+        // Espejar tracking_number y label_url desde columnas (si se van a actualizar)
+        tracking_number: trackingNumberFromColumns ?? finalShippingMetaForDb.tracking_number ?? null,
+        label_url: labelUrlFromColumns ?? finalShippingMetaForDb.label_url ?? null,
       },
     };
 
@@ -2093,6 +2101,16 @@ export async function POST(req: NextRequest) {
     
     // INSTRUMENTACIÓN PRE-WRITE
     logPreWrite("create-label", orderId, freshMetadata, freshUpdatedAt, finalMetadataForDb);
+    
+    // CRÍTICO: Log de verificación de espejo tracking/label
+    const finalShippingMetaForLog = (finalMetadataForDb.shipping as Record<string, unknown>) || {};
+    console.log("[create-label] METADATA_MIRROR_CHECK", {
+      orderId: sanitizedOrderId,
+      shipping_tracking_number: updateData.shipping_tracking_number ?? null,
+      md_tracking: finalShippingMetaForLog.tracking_number ?? null,
+      shipping_label_url: updateData.shipping_label_url ?? null,
+      md_label: finalShippingMetaForLog.label_url ?? null,
+    });
     
     // Actualizar la orden con tracking y label (si están disponibles)
     // IMPORTANTE: SIEMPRE guardar shipment_id en metadata Y columna shipping_shipment_id
