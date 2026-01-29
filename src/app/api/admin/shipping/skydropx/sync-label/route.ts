@@ -443,15 +443,12 @@ export async function POST(req: NextRequest) {
     }
     if (nextStatus) {
       const statusChanged = nextStatus !== orderData.shipping_status;
-      const statusUpdatedAtFromColumns = (orderData as { shipping_status_updated_at?: string | null }).shipping_status_updated_at || null;
+      // NOTA: shipping_status_updated_at no existe como columna, se guarda en metadata.shipping._last_write.at
       if (statusChanged) {
         updateData.shipping_status = nextStatus;
-        updateData.shipping_status_updated_at = nowIso;
       }
       // Espejar status a metadata siempre (desde columnas o nuevo)
       updatedShippingMeta.shipping_status = nextStatus;
-      updatedShippingMeta.shipping_status_updated_at =
-        updateData.shipping_status_updated_at || statusUpdatedAtFromColumns || nowIso;
     }
 
     // label_creation evidencia si ya hay tracking/label/status
@@ -515,7 +512,56 @@ export async function POST(req: NextRequest) {
     const finalMetadataWithPreserve = preserveRateUsed(freshMetadata, normalizedWithDebug);
     
     // CRÍTICO: Asegurar que rate_used esté presente en el payload final antes de escribir
-    const finalMetadata = ensureRateUsedInMetadata(finalMetadataWithPreserve);
+    let finalMetadata = ensureRateUsedInMetadata(finalMetadataWithPreserve);
+
+    // CRÍTICO: Aplicar mergeRateUsedPreserveCents JUSTO antes de persistir
+    const { mergeRateUsedPreserveCents } = await import("@/lib/shipping/mergeRateUsedPreserveCents");
+    const { sanitizeForLog } = await import("@/lib/utils/sanitizeForLog");
+    const finalShippingMeta = (finalMetadata.shipping as Record<string, unknown>) || {};
+    const finalRateUsed = (finalShippingMeta.rate_used as Record<string, unknown>) || {};
+    const finalShippingPricing = finalMetadata.shipping_pricing as {
+      total_cents?: number | null;
+      carrier_cents?: number | null;
+      customer_total_cents?: number | null;
+    } | null | undefined;
+    
+    // Merge preservando cents
+    const mergedRateUsed = mergeRateUsedPreserveCents(
+      finalRateUsed,
+      finalRateUsed,
+      finalShippingPricing,
+    );
+    
+    // Actualizar metadata con rate_used mergeado
+    finalMetadata = {
+      ...finalMetadata,
+      shipping: {
+        ...finalShippingMeta,
+        rate_used: mergedRateUsed,
+      },
+    };
+
+    // CRÍTICO: Log del objeto EXACTO que se pasa a .update()
+    const exactMetadataToDb = finalMetadata;
+    const exactShippingMeta = (exactMetadataToDb.shipping as Record<string, unknown>) || {};
+    const exactRateUsed = (exactShippingMeta.rate_used as Record<string, unknown>) || null;
+    const exactPricing = exactMetadataToDb.shipping_pricing as {
+      total_cents?: number | null;
+      carrier_cents?: number | null;
+    } | null | undefined;
+    const exactLastWrite = (exactShippingMeta._last_write as { route?: string }) || {};
+    
+    const sanitizedOrderId = sanitizeForLog(orderId);
+    console.log("[sync-label] FINAL_METADATA_TO_DB (objeto EXACTO que entra a .update())", {
+      orderId: sanitizedOrderId,
+      lastWriteRoute: exactLastWrite.route ?? null,
+      rateUsedPriceCents: exactRateUsed?.price_cents ?? null,
+      rateUsedCarrierCents: exactRateUsed?.carrier_cents ?? null,
+      rateUsedCustomerTotalCents: exactRateUsed?.customer_total_cents ?? null,
+      pricingTotalCents: exactPricing?.total_cents ?? null,
+      pricingCarrierCents: exactPricing?.carrier_cents ?? null,
+      rateUsedKeys: exactRateUsed ? Object.keys(exactRateUsed) : [],
+    });
     
     // INSTRUMENTACIÓN PRE-WRITE
     logPreWrite("sync-label", orderId, freshMetadata, freshUpdatedAt, finalMetadata);
@@ -542,19 +588,91 @@ export async function POST(req: NextRequest) {
       metadataDiffersFromColumns;
 
     if (hasRealChanges) {
-      const { data: updatedOrder } = await supabase
+      const { data: updatedOrder, error: updateError } = await supabase
         .from("orders")
         .update(updateData)
         .eq("id", orderId)
         .select("id, metadata, updated_at")
         .single();
-      
-      // INSTRUMENTACIÓN POST-WRITE
-      if (updatedOrder) {
-        const postWriteMetadata = (updatedOrder.metadata as Record<string, unknown>) || {};
-        const postWriteUpdatedAt = updatedOrder.updated_at as string | null | undefined;
-        logPostWrite("sync-label", orderId, postWriteMetadata, postWriteUpdatedAt);
+
+      if (updateError) {
+        // Structured logging: primer argumento constante, error sanitizado en objeto
+        console.error("[sync-label] Error al actualizar orden", {
+          errorCode: updateError.code ?? null,
+          errorMessage: sanitizeForLog(updateError.message),
+          errorDetails: sanitizeForLog(updateError.details),
+          errorHint: sanitizeForLog(updateError.hint),
+        });
+      } else {
+        // CRÍTICO: Reread post-write para verificar persistencia real en DB (RAW, sin normalizadores)
+        const { data: rereadOrder, error: rereadError } = await supabase
+          .from("orders")
+          .select("id, updated_at, metadata")
+          .eq("id", orderId)
+          .single();
+
+        if (rereadError) {
+          // Structured logging: primer argumento constante, error sanitizado en objeto
+          console.error("[sync-label] Error al releer orden post-write", {
+            errorCode: rereadError.code ?? null,
+            errorMessage: sanitizeForLog(rereadError.message),
+            errorDetails: sanitizeForLog(rereadError.details),
+            errorHint: sanitizeForLog(rereadError.hint),
+          });
+        } else {
+          // RAW_DB: Leer directamente sin normalizadores/helpers
+          const rawDbMetadata = rereadOrder?.metadata as Record<string, unknown> | null | undefined;
+          const rawDbShipping = (rawDbMetadata?.shipping as Record<string, unknown>) || null;
+          const rawDbRateUsed = (rawDbShipping?.rate_used as Record<string, unknown>) || null;
+          const rawDbPricing = (rawDbMetadata?.shipping_pricing as Record<string, unknown>) || null;
+
+          // RAW_DB reread log
+          console.log("[sync-label] RAW_DB reread (post-write, sin normalizadores)", {
+            orderId: sanitizedOrderId,
+            updatedAt: rereadOrder?.updated_at ?? null,
+            metadataShippingRateUsedPriceCents: rawDbRateUsed?.price_cents ?? null,
+            metadataShippingRateUsedCarrierCents: rawDbRateUsed?.carrier_cents ?? null,
+            metadataShippingPricingTotalCents: rawDbPricing?.total_cents ?? null,
+            metadataShippingPricingCarrierCents: rawDbPricing?.carrier_cents ?? null,
+            metadataShippingRateUsedFull: rawDbRateUsed,
+          });
+
+          // DB_VERIFICATION log
+          const dbPriceCents = rawDbRateUsed?.price_cents ?? null;
+          const dbCarrierCents = rawDbRateUsed?.carrier_cents ?? null;
+          const dbPricingTotalCents = rawDbPricing?.total_cents ?? null;
+          const dbPricingCarrierCents = rawDbPricing?.carrier_cents ?? null;
+          
+          console.log("[sync-label] DB_VERIFICATION (simulando SQL paths)", {
+            orderId: sanitizedOrderId,
+            "db.metadata #>> '{shipping,rate_used,price_cents}'": dbPriceCents,
+            "db.metadata #>> '{shipping,rate_used,carrier_cents}'": dbCarrierCents,
+            "db.metadata #>> '{shipping_pricing,total_cents}'": dbPricingTotalCents,
+            "db.metadata #>> '{shipping_pricing,carrier_cents}'": dbPricingCarrierCents,
+            beforeUpdateHadNumbers: exactRateUsed && (
+              (exactRateUsed.price_cents != null && exactRateUsed.price_cents !== null) ||
+              (exactRateUsed.carrier_cents != null && exactRateUsed.carrier_cents !== null)
+            ),
+            afterUpdateHasNumbers: rawDbRateUsed && (
+              (rawDbRateUsed.price_cents != null && rawDbRateUsed.price_cents !== null) ||
+              (rawDbRateUsed.carrier_cents != null && rawDbRateUsed.carrier_cents !== null)
+            ),
+            discrepancy: (exactRateUsed && (
+              (exactRateUsed.price_cents != null && exactRateUsed.price_cents !== null) ||
+              (exactRateUsed.carrier_cents != null && exactRateUsed.carrier_cents !== null)
+            )) && !(rawDbRateUsed && (
+              (rawDbRateUsed.price_cents != null && rawDbRateUsed.price_cents !== null) ||
+              (rawDbRateUsed.carrier_cents != null && rawDbRateUsed.carrier_cents !== null)
+            )),
+          });
+        }
       }
+      
+      // INSTRUMENTACIÓN POST-WRITE (usar reread para valores reales de DB)
+      const postWriteMetadata = (rereadOrder?.metadata || updatedOrder?.metadata) as Record<string, unknown> || {};
+      const postWriteUpdatedAt = updatedOrder?.updated_at as string | null | undefined;
+      logPostWrite("sync-label", orderId, postWriteMetadata, postWriteUpdatedAt);
+    }
 
       // Gate estricto: enviar email solo con evidencia real de guía
       const hasLabelUrlEvidence =
