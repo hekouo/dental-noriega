@@ -566,6 +566,16 @@ export async function POST(req: NextRequest) {
     // INSTRUMENTACIÓN PRE-WRITE
     logPreWrite("sync-label", orderId, freshMetadata, freshUpdatedAt, finalMetadata);
     
+    // CRÍTICO: Log de verificación de espejo tracking/label
+    const finalShippingMetaForLog = (finalMetadata.shipping as Record<string, unknown>) || {};
+    console.log("[sync-label] METADATA_MIRROR_CHECK", {
+      orderId: sanitizedOrderId,
+      shipping_tracking_number: updateData.shipping_tracking_number ?? null,
+      md_tracking: finalShippingMetaForLog.tracking_number ?? null,
+      shipping_label_url: updateData.shipping_label_url ?? null,
+      md_label: finalShippingMetaForLog.label_url ?? null,
+    });
+    
     updateData.metadata = finalMetadata;
 
     // Detectar si metadata difiere de columnas (necesita sync)

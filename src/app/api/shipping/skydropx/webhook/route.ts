@@ -619,12 +619,20 @@ export async function POST(req: NextRequest) {
             finalShippingPricing,
           );
           
-          // Actualizar metadata con rate_used mergeado
+          // CRÍTICO: Espejar tracking_number y label_url desde columnas a metadata
+          // Esto asegura consistencia: si se actualiza la columna, también se actualiza metadata
+          const trackingNumberFromColumns = updateData.shipping_tracking_number as string | null | undefined;
+          const labelUrlFromColumns = updateData.shipping_label_url as string | null | undefined;
+          
+          // Actualizar metadata con rate_used mergeado Y tracking/label espejados
           finalMetadata = {
             ...finalMetadata,
             shipping: {
               ...finalShippingMeta,
               rate_used: mergedRateUsed,
+              // Espejar tracking_number y label_url desde columnas (si se van a actualizar)
+              tracking_number: trackingNumberFromColumns ?? finalShippingMeta.tracking_number ?? null,
+              label_url: labelUrlFromColumns ?? finalShippingMeta.label_url ?? null,
             },
           };
 
@@ -653,6 +661,18 @@ export async function POST(req: NextRequest) {
           
           // INSTRUMENTACIÓN PRE-WRITE
           logPreWrite("webhook-skydropx", order.id, freshMetadata, freshUpdatedAt, finalMetadata);
+          
+          // CRÍTICO: Log de verificación de espejo tracking/label
+          const { sanitizeForLog: sanitizeForLogWebhook } = await import("@/lib/utils/sanitizeForLog");
+          const finalShippingMetaForLog = (finalMetadata.shipping as Record<string, unknown>) || {};
+          const sanitizedOrderIdWebhook = sanitizeForLogWebhook(order.id);
+          console.log("[webhook-skydropx] METADATA_MIRROR_CHECK", {
+            orderId: sanitizedOrderIdWebhook,
+            shipping_tracking_number: updateData.shipping_tracking_number ?? null,
+            md_tracking: finalShippingMetaForLog.tracking_number ?? null,
+            shipping_label_url: updateData.shipping_label_url ?? null,
+            md_label: finalShippingMetaForLog.label_url ?? null,
+          });
           
           updateData.metadata = finalMetadata;
         }

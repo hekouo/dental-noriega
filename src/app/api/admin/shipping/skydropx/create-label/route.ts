@@ -2058,7 +2058,7 @@ export async function POST(req: NextRequest) {
       finalShippingPricingForDb,
     );
     
-    // Actualizar metadata con rate_used mergeado
+    // Actualizar metadata con rate_used mergeado (tracking/label se espejarán después cuando se construya updateData)
     finalMetadataForDb = {
       ...finalMetadataForDb,
       shipping: {
@@ -2099,7 +2099,7 @@ export async function POST(req: NextRequest) {
     const freshShippingMeta = (freshMetadata.shipping as Record<string, unknown>) || {};
     const shipmentIdToSave = shipmentResult.rawId || freshShippingMeta.shipment_id || null;
     const updateData: Record<string, unknown> = {
-      metadata: finalMetadataForDb, // Usar metadata con rate_used garantizado
+      metadata: finalMetadataForDb, // Usar metadata con rate_used garantizado (se actualizará después con tracking/label)
       shipping_status: shippingStatus,
       // NOTA: shipping_status_updated_at no existe como columna, se guarda en metadata.shipping._last_write.at
       updated_at: nowIso,
@@ -2124,6 +2124,35 @@ export async function POST(req: NextRequest) {
     if (shipmentResult.labelUrl) {
       updateData.shipping_label_url = shipmentResult.labelUrl;
     }
+
+    // CRÍTICO: Espejar tracking_number y label_url desde columnas a metadata
+    // Esto asegura consistencia: si se actualiza la columna, también se actualiza metadata
+    const trackingNumberFromColumns = updateData.shipping_tracking_number as string | null | undefined;
+    const labelUrlFromColumns = updateData.shipping_label_url as string | null | undefined;
+    
+    // Actualizar metadata con tracking/label espejados
+    finalMetadataForDb = {
+      ...finalMetadataForDb,
+      shipping: {
+        ...(finalMetadataForDb.shipping as Record<string, unknown>) || {},
+        // Espejar tracking_number y label_url desde columnas (si se van a actualizar)
+        tracking_number: trackingNumberFromColumns ?? ((finalMetadataForDb.shipping as Record<string, unknown>)?.tracking_number as string | null | undefined) ?? null,
+        label_url: labelUrlFromColumns ?? ((finalMetadataForDb.shipping as Record<string, unknown>)?.label_url as string | null | undefined) ?? null,
+      },
+    };
+    
+    // Actualizar updateData.metadata con el metadata final que incluye tracking/label espejados
+    updateData.metadata = finalMetadataForDb;
+
+    // CRÍTICO: Log de verificación de espejo tracking/label
+    const finalShippingMetaForLog = (finalMetadataForDb.shipping as Record<string, unknown>) || {};
+    console.log("[create-label] METADATA_MIRROR_CHECK", {
+      orderId: sanitizedOrderId,
+      shipping_tracking_number: updateData.shipping_tracking_number ?? null,
+      md_tracking: finalShippingMetaForLog.tracking_number ?? null,
+      shipping_label_url: updateData.shipping_label_url ?? null,
+      md_label: finalShippingMetaForLog.label_url ?? null,
+    });
 
     let updateQuery = supabase
       .from("orders")
