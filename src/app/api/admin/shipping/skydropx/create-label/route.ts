@@ -2043,9 +2043,10 @@ export async function POST(req: NextRequest) {
     // CRÍTICO: Aplicar mergeRateUsedPreserveCents JUSTO antes de persistir
     // Esto garantiza que los cents nunca queden null
     const { mergeRateUsedPreserveCents } = await import("@/lib/shipping/mergeRateUsedPreserveCents");
-    const finalShippingMeta = (finalMetadataForDb.shipping as Record<string, unknown>) || {};
-    const finalRateUsed = (finalShippingMeta.rate_used as Record<string, unknown>) || {};
-    const finalShippingPricing = finalMetadataForDb.shipping_pricing as {
+    const { sanitizeForLog } = await import("@/lib/utils/sanitizeForLog");
+    const finalShippingMetaForDb = (finalMetadataForDb.shipping as Record<string, unknown>) || {};
+    const finalRateUsedForDb = (finalShippingMetaForDb.rate_used as Record<string, unknown>) || {};
+    const finalShippingPricingForDb = finalMetadataForDb.shipping_pricing as {
       total_cents?: number | null;
       carrier_cents?: number | null;
       customer_total_cents?: number | null;
@@ -2053,16 +2054,16 @@ export async function POST(req: NextRequest) {
     
     // Merge preservando cents
     const mergedRateUsed = mergeRateUsedPreserveCents(
-      finalRateUsed,
-      finalRateUsed, // incoming es el mismo porque ya pasó por ensureRateUsedInMetadata
-      finalShippingPricing,
+      finalRateUsedForDb,
+      finalRateUsedForDb, // incoming es el mismo porque ya pasó por ensureRateUsedInMetadata
+      finalShippingPricingForDb,
     );
     
     // Actualizar metadata con rate_used mergeado
     finalMetadataForDb = {
       ...finalMetadataForDb,
       shipping: {
-        ...finalShippingMeta,
+        ...finalShippingMetaForDb,
         rate_used: mergedRateUsed,
       },
     };
