@@ -2043,7 +2043,6 @@ export async function POST(req: NextRequest) {
     // CRÍTICO: Aplicar mergeRateUsedPreserveCents JUSTO antes de persistir
     // Esto garantiza que los cents nunca queden null
     const { mergeRateUsedPreserveCents } = await import("@/lib/shipping/mergeRateUsedPreserveCents");
-    const { sanitizeForLog } = await import("@/lib/utils/sanitizeForLog");
     const finalShippingMetaForDb = (finalMetadataForDb.shipping as Record<string, unknown>) || {};
     const finalRateUsedForDb = (finalShippingMetaForDb.rate_used as Record<string, unknown>) || {};
     const finalShippingPricingForDb = finalMetadataForDb.shipping_pricing as {
