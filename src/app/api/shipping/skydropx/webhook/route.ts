@@ -600,7 +600,56 @@ export async function POST(req: NextRequest) {
           const finalMetadataWithPreserve = preserveRateUsed(freshMetadata, normalizedWithDebug);
           
           // CRÍTICO: Asegurar que rate_used esté presente en el payload final antes de escribir
-          const finalMetadata = ensureRateUsedInMetadata(finalMetadataWithPreserve);
+          let finalMetadata = ensureRateUsedInMetadata(finalMetadataWithPreserve);
+
+          // CRÍTICO: Aplicar mergeRateUsedPreserveCents JUSTO antes de persistir
+          const { mergeRateUsedPreserveCents } = await import("@/lib/shipping/mergeRateUsedPreserveCents");
+          const finalShippingMeta = (finalMetadata.shipping as Record<string, unknown>) || {};
+          const finalRateUsed = (finalShippingMeta.rate_used as Record<string, unknown>) || {};
+          const finalShippingPricing = finalMetadata.shipping_pricing as {
+            total_cents?: number | null;
+            carrier_cents?: number | null;
+            customer_total_cents?: number | null;
+          } | null | undefined;
+          
+          // Merge preservando cents
+          const mergedRateUsed = mergeRateUsedPreserveCents(
+            finalRateUsed,
+            finalRateUsed,
+            finalShippingPricing,
+          );
+          
+          // Actualizar metadata con rate_used mergeado
+          finalMetadata = {
+            ...finalMetadata,
+            shipping: {
+              ...finalShippingMeta,
+              rate_used: mergedRateUsed,
+            },
+          };
+
+          // CRÍTICO: Log del objeto EXACTO que se pasa a .update()
+          const { sanitizeForLog } = await import("@/lib/utils/sanitizeForLog");
+          const exactMetadataToDb = finalMetadata;
+          const exactShippingMeta = (exactMetadataToDb.shipping as Record<string, unknown>) || {};
+          const exactRateUsed = (exactShippingMeta.rate_used as Record<string, unknown>) || null;
+          const exactPricing = exactMetadataToDb.shipping_pricing as {
+            total_cents?: number | null;
+            carrier_cents?: number | null;
+          } | null | undefined;
+          const exactLastWrite = (exactShippingMeta._last_write as { route?: string }) || {};
+          
+          const sanitizedOrderId = sanitizeForLog(order.id);
+          console.log("[webhook-skydropx] FINAL_METADATA_TO_DB (objeto EXACTO que entra a .update())", {
+            orderId: sanitizedOrderId,
+            lastWriteRoute: exactLastWrite.route ?? null,
+            rateUsedPriceCents: exactRateUsed?.price_cents ?? null,
+            rateUsedCarrierCents: exactRateUsed?.carrier_cents ?? null,
+            rateUsedCustomerTotalCents: exactRateUsed?.customer_total_cents ?? null,
+            pricingTotalCents: exactPricing?.total_cents ?? null,
+            pricingCarrierCents: exactPricing?.carrier_cents ?? null,
+            rateUsedKeys: exactRateUsed ? Object.keys(exactRateUsed) : [],
+          });
           
           // INSTRUMENTACIÓN PRE-WRITE
           logPreWrite("webhook-skydropx", order.id, freshMetadata, freshUpdatedAt, finalMetadata);
@@ -617,10 +666,79 @@ export async function POST(req: NextRequest) {
         .select("id, metadata, updated_at")
         .single();
       
-      // INSTRUMENTACIÓN POST-WRITE
-      if (updateData.metadata && updatedOrder) {
-        const postWriteMetadata = (updatedOrder.metadata as Record<string, unknown>) || {};
-        const postWriteUpdatedAt = updatedOrder.updated_at as string | null | undefined;
+      // CRÍTICO: Reread post-write para verificar persistencia real en DB (RAW, sin normalizadores)
+      const { data: rereadOrder, error: rereadError } = await supabase
+        .from("orders")
+        .select("id, updated_at, metadata")
+        .eq("id", order.id)
+        .single();
+
+      if (rereadError) {
+        // Structured logging: primer argumento constante, error sanitizado en objeto
+        const { sanitizeForLog: sanitizeForLogReread } = await import("@/lib/utils/sanitizeForLog");
+        console.error("[webhook-skydropx] Error al releer orden post-write", {
+          errorCode: rereadError.code ?? null,
+          errorMessage: sanitizeForLogReread(rereadError.message),
+          errorDetails: sanitizeForLogReread(rereadError.details),
+          errorHint: sanitizeForLogReread(rereadError.hint),
+        });
+      } else if (updateData.metadata) {
+        // RAW_DB: Leer directamente sin normalizadores/helpers
+        const rawDbMetadata = rereadOrder?.metadata as Record<string, unknown> | null | undefined;
+        const rawDbShipping = (rawDbMetadata?.shipping as Record<string, unknown>) || null;
+        const rawDbRateUsed = (rawDbShipping?.rate_used as Record<string, unknown>) || null;
+        const rawDbPricing = (rawDbMetadata?.shipping_pricing as Record<string, unknown>) || null;
+
+        // RAW_DB reread log
+        const { sanitizeForLog: sanitizeForLogWebhook } = await import("@/lib/utils/sanitizeForLog");
+        const sanitizedOrderIdWebhook = sanitizeForLogWebhook(order.id);
+        console.log("[webhook-skydropx] RAW_DB reread (post-write, sin normalizadores)", {
+          orderId: sanitizedOrderIdWebhook,
+          updatedAt: rereadOrder?.updated_at ?? null,
+          metadataShippingRateUsedPriceCents: rawDbRateUsed?.price_cents ?? null,
+          metadataShippingRateUsedCarrierCents: rawDbRateUsed?.carrier_cents ?? null,
+          metadataShippingPricingTotalCents: rawDbPricing?.total_cents ?? null,
+          metadataShippingPricingCarrierCents: rawDbPricing?.carrier_cents ?? null,
+          metadataShippingRateUsedFull: rawDbRateUsed,
+        });
+
+        // DB_VERIFICATION log
+        const dbPriceCents = rawDbRateUsed?.price_cents ?? null;
+        const dbCarrierCents = rawDbRateUsed?.carrier_cents ?? null;
+        const dbPricingTotalCents = rawDbPricing?.total_cents ?? null;
+        const dbPricingCarrierCents = rawDbPricing?.carrier_cents ?? null;
+        
+        const exactRateUsed = (updateData.metadata as Record<string, unknown>)?.shipping as Record<string, unknown> | undefined;
+        const exactRateUsedForWebhook = (exactRateUsed?.rate_used as Record<string, unknown>) || null;
+        
+        console.log("[webhook-skydropx] DB_VERIFICATION (simulando SQL paths)", {
+          orderId: sanitizedOrderIdWebhook,
+          "db.metadata #>> '{shipping,rate_used,price_cents}'": dbPriceCents,
+          "db.metadata #>> '{shipping,rate_used,carrier_cents}'": dbCarrierCents,
+          "db.metadata #>> '{shipping_pricing,total_cents}'": dbPricingTotalCents,
+          "db.metadata #>> '{shipping_pricing,carrier_cents}'": dbPricingCarrierCents,
+          beforeUpdateHadNumbers: exactRateUsedForWebhook && (
+            (exactRateUsedForWebhook.price_cents != null && exactRateUsedForWebhook.price_cents !== null) ||
+            (exactRateUsedForWebhook.carrier_cents != null && exactRateUsedForWebhook.carrier_cents !== null)
+          ),
+          afterUpdateHasNumbers: rawDbRateUsed && (
+            (rawDbRateUsed.price_cents != null && rawDbRateUsed.price_cents !== null) ||
+            (rawDbRateUsed.carrier_cents != null && rawDbRateUsed.carrier_cents !== null)
+          ),
+          discrepancy: (exactRateUsedForWebhook && (
+            (exactRateUsedForWebhook.price_cents != null && exactRateUsedForWebhook.price_cents !== null) ||
+            (exactRateUsedForWebhook.carrier_cents != null && exactRateUsedForWebhook.carrier_cents !== null)
+          )) && !(rawDbRateUsed && (
+            (rawDbRateUsed.price_cents != null && rawDbRateUsed.price_cents !== null) ||
+            (rawDbRateUsed.carrier_cents != null && rawDbRateUsed.carrier_cents !== null)
+          )),
+        });
+      }
+      
+      // INSTRUMENTACIÓN POST-WRITE (usar reread para valores reales de DB)
+      const postWriteMetadata = (rereadOrder?.metadata || updatedOrder?.metadata) as Record<string, unknown> || {};
+      const postWriteUpdatedAt = updatedOrder?.updated_at as string | null | undefined;
+      if (updateData.metadata) {
         logPostWrite("webhook-skydropx", order.id, postWriteMetadata, postWriteUpdatedAt);
       }
 
