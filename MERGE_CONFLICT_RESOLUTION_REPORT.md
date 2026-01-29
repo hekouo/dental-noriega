@@ -1,82 +1,89 @@
-# Reporte: Resolución de Conflictos en apply-rate/route.ts
+# Reporte: Resolución de Conflicto de Merge en apply-rate/route.ts
 
 ## Archivo Resuelto
 `src/app/api/admin/shipping/skydropx/apply-rate/route.ts`
 
 ## Conflictos Encontrados y Resueltos
 
-### 1. SELECT del reread post-write (líneas 372-377)
+### 1. Import de validateRateUsedPersistence (líneas 10-13)
 **Conflicto:**
-- HEAD: `.select("id, updated_at, metadata")`
-- origin/main: `.select("metadata")`
+- HEAD: `import { validateRateUsedPersistence } from "@/lib/shipping/validateRateUsedPersistence";`
+- origin/main: No tiene este import
 
 **Resolución:** ✅ **Mantenido HEAD**
-- Se conservó `id, updated_at, metadata` para tener `updated_at` en el log RAW_DB
-- Permite logging más completo del timestamp de actualización
+- Se conservó el import porque es necesario para la canary validation
+- Es una pieza nueva crítica del hardening
 
-### 2. Logging RAW_DB vs DB_AFTER_WRITE (líneas 382-417)
+### 2. Logging RAW_DB reread y Canary Validation (líneas 398-425)
 **Conflicto:**
-- HEAD: Logging RAW_DB con `updated_at` y objeto completo `rate_used`
-- origin/main: Logging DB_AFTER_WRITE más simple
+- HEAD: Structured logging con `sanitizeForLog()` + canary validation con `validateRateUsedPersistence()`
+- origin/main: Logging simple con `JSON.stringify()` sin sanitización ni canary
 
-**Resolución:** ✅ **Mantenido HEAD (RAW_DB completo)**
-- Se conservó el logging RAW_DB con:
-  - `updated_at` del reread
-  - Objeto completo `metadata.shipping.rate_used` en el log
-  - Variables `rawDbMetadata`, `rawDbShipping`, `rawDbRateUsed`, `rawDbPricing`
-- Log más detallado: `[apply-rate] RAW_DB reread (post-write, sin normalizadores)`
+**Resolución:** ✅ **Mantenido HEAD (versión completa y segura)**
+- Se conservó structured logging con `sanitizeForLog()` para prevenir log injection (CodeQL safe)
+- Se conservó canary validation que detecta bugs de persistencia
+- Se conservó el log completo con todos los campos necesarios
 
-### 3. Detección de Discrepancia (líneas 424-430)
-**Conflicto:**
-- HEAD: Log de discrepancia con contexto completo (`finalPayloadRateUsed`, `rawDbRateUsed`)
-- origin/main: Log de discrepancia sin contexto adicional
+## Piezas Críticas Verificadas (Todas Presentes)
 
-**Resolución:** ✅ **Mantenido HEAD**
-- Se conservó el log con contexto completo para debugging
-- `console.error` incluye ambos objetos para comparación
+### ✅ 1. Logging Seguro (CodeQL)
+- **FINAL_PAYLOAD** (línea 341): Structured logging con `sanitizeForLog(orderId)`
+- **RAW_DB reread** (línea 401): Structured logging con valores sanitizados
+- **DISCREPANCIA CRÍTICA** (línea 440): Structured logging con contexto completo
+- **GUARDRAIL** (línea 316): Structured logging
+- **CRITICAL** (línea 265): Structured logging
+- **CANARY DETECTED BUG** (línea 421): Structured logging
 
-## Bloques Conservados (Sin Cambios)
+**Resultado**: ✅ Todos los logs usan structured format, ningún format string con input externo
 
-✅ **FINAL_PAYLOAD logging** (líneas 331-337)
-- Logging del payload exacto antes de `.update()`
-- Muestra `rate_used.*_cents` y `shipping_pricing.*_cents`
+### ✅ 2. Instrumentación Existente
+- **FINAL_PAYLOAD** (línea 341): Log del payload exacto antes de `.update()`
+- **PRE-WRITE** (línea 350): `logPreWrite("apply-rate", ...)` con metadata fresca y final
+- **POST-WRITE** (línea 451): `logPostWrite("apply-rate", ...)` usando reread para valores reales de DB
+- **RAW_DB reread** (líneas 383-425): 
+  - SELECT: `.select("id, updated_at, metadata")` ✅
+  - Log estructurado con todos los campos necesarios
+  - Canary validation después del reread
 
-✅ **PRE-WRITE instrumentation** (línea 340)
-- `logPreWrite("apply-rate", ...)` con metadata fresca y final
+### ✅ 3. Detección DISCREPANCIA CRÍTICA
+- **Líneas 427-445**: Comparación entre `finalPayloadRateUsed` vs `rawDbRateUsed`
+- Si payload tenía números pero DB no, log CRITICAL estructurado
+- Usa `sanitizeForLog()` para prevenir log injection
 
-✅ **POST-WRITE instrumentation** (líneas 454-457)
-- `logPostWrite("apply-rate", ...)` usando reread para valores reales de DB
+### ✅ 4. Normalización / Guardrails
+- **preserveRateUsed** (línea 287): `preserveRateUsed(freshMetadata, finalMetadata)`
+- **ensureRateUsedInMetadata** (línea 292): `ensureRateUsedInMetadata(finalMetadataWithPreserve)`
+- **Guardrail** (líneas 294-326): 
+  - Verifica que si `shipping_pricing.total_cents` es number y `rate_used.price_cents` es null
+  - Log fuerte estructurado + aborta write con error 500
 
-✅ **preserveRateUsed + ensureRateUsedInMetadata** (líneas 278-284)
-- Normalización antes de escribir
-- Garantiza que `rate_used` esté presente en el payload final
-
-✅ **Guardrail** (líneas 286-318)
-- Verifica que si `shipping_pricing` tiene números, `rate_used.*_cents` no sea null
-- Aborta el write si detecta inconsistencia
-
-✅ **DISCREPANCIA CRÍTICA detection** (líneas 419-430)
-- Compara payload vs DB post-write
-- Loggea error si hay discrepancia
-
-## Cambios de Lógica
-
-❌ **Ninguno**
-- Solo resolución de conflictos de merge
-- No se modificó comportamiento funcional
-- Se mantuvieron todas las mejoras de logging y guardrails
+### ✅ 5. Canary Validation (Nuevo)
+- **Import** (línea 10): `import { validateRateUsedPersistence } from "@/lib/shipping/validateRateUsedPersistence";`
+- **Ejecución** (líneas 412-425): 
+  - Se ejecuta después del RAW_DB reread post-write
+  - Usa `rawDbMetadata` (no normalized) para validación real
+  - Si detecta discrepancia, log CRITICAL estructurado y sanitizado
 
 ## Validaciones Ejecutadas
 
-✅ `pnpm typecheck` - PASS (sin errores TypeScript)
-✅ `pnpm lint` - PASS (solo warnings en otros archivos)
-✅ `pnpm test` - PASS (16 tests pasan)
+✅ `git diff --check` - PASS (no hay conflict markers)
+✅ `pnpm typecheck` - PASS (0 errores TypeScript)
+✅ `pnpm lint` - PASS (0 errores, solo warnings en otros archivos)
 ✅ `pnpm build` - PASS (compilación exitosa)
 
-## Estado Final
+## Resultado Final
 
-- ✅ Conflictos resueltos
-- ✅ Logging completo preservado
-- ✅ Guardrails y normalización intactos
-- ✅ Código compila y pasa validaciones
-- ✅ Cambios pusheados a `fix/persist-rate-used-cents`
+- ✅ Conflicto resuelto completamente
+- ✅ Todas las piezas críticas preservadas
+- ✅ Logging seguro (CodeQL compliant)
+- ✅ Canary validation integrada
+- ✅ RAW_DB reread con SELECT correcto
+- ✅ Todas las validaciones pasan
+
+## Próximos Pasos
+
+1. ✅ Commit y push completados
+2. ⏳ Esperar que CI pase los checks
+3. ⏳ Merge PR cuando CI esté verde
+
+El PR está listo para merge con todas las piezas críticas preservadas y sin vulnerabilidades de CodeQL.

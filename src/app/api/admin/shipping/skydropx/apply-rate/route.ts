@@ -8,6 +8,7 @@ import { normalizeShippingMetadata, addShippingMetadataDebug, preserveRateUsed, 
 import { logPreWrite, logPostWrite } from "@/lib/shipping/metadataWriterLogger";
 import { sanitizeForLog } from "@/lib/utils/sanitizeForLog";
 import { validateRateUsedPersistence } from "@/lib/shipping/validateRateUsedPersistence";
+import { mergeRateUsedPreserveCents } from "@/lib/shipping/mergeRateUsedPreserveCents";
 
 export const dynamic = "force-dynamic";
 
@@ -289,7 +290,33 @@ export async function POST(req: NextRequest) {
     // CRÍTICO: Asegurar que rate_used esté presente en el payload final antes de escribir
     // Esto garantiza persistencia real en Supabase, incluso si normalizeShippingMetadata
     // o preserveRateUsed no lo incluyeron correctamente
-    const finalMetadataForDb = ensureRateUsedInMetadata(finalMetadataWithPreserve);
+    let finalMetadataForDb = ensureRateUsedInMetadata(finalMetadataWithPreserve);
+
+    // CRÍTICO: Aplicar mergeRateUsedPreserveCents JUSTO antes de persistir
+    // Esto garantiza que los cents nunca queden null
+    const finalShippingMeta = (finalMetadataForDb.shipping as Record<string, unknown>) || {};
+    const finalRateUsed = (finalShippingMeta.rate_used as Record<string, unknown>) || {};
+    const finalShippingPricing = finalMetadataForDb.shipping_pricing as {
+      total_cents?: number | null;
+      carrier_cents?: number | null;
+      customer_total_cents?: number | null;
+    } | null | undefined;
+    
+    // Merge preservando cents
+    const mergedRateUsed = mergeRateUsedPreserveCents(
+      finalRateUsed,
+      finalRateUsed, // incoming es el mismo porque ya pasó por ensureRateUsedInMetadata
+      finalShippingPricing,
+    );
+    
+    // Actualizar metadata con rate_used mergeado
+    finalMetadataForDb = {
+      ...finalMetadataForDb,
+      shipping: {
+        ...finalShippingMeta,
+        rate_used: mergedRateUsed,
+      },
+    };
 
     // GUARDRAIL: Verificar que el payload tiene rate_used antes de escribir
     const shippingPricingForCheck = finalMetadataForDb.shipping_pricing as {
@@ -313,8 +340,15 @@ export async function POST(req: NextRequest) {
     );
 
     if (hasPricingNumbers && rateUsedIsNull) {
-      const errorMsg = `[apply-rate] GUARDRAIL: Abortando write. shipping_pricing tiene números pero rate_used tiene nulls. orderId=${orderId}, pricing.total_cents=${shippingPricingForCheck.total_cents}, pricing.carrier_cents=${shippingPricingForCheck.carrier_cents}, rate_used.price_cents=${rateUsedForCheck?.price_cents}, rate_used.carrier_cents=${rateUsedForCheck?.carrier_cents}`;
-      console.error(errorMsg);
+      // Structured logging: primer argumento constante, valores dinámicos en objeto
+      const sanitizedOrderIdForGuardrail = sanitizeForLog(orderId);
+      console.error("[apply-rate] GUARDRAIL: Abortando write. shipping_pricing tiene números pero rate_used tiene nulls", {
+        orderId: sanitizedOrderIdForGuardrail,
+        pricingTotalCents: shippingPricingForCheck.total_cents,
+        pricingCarrierCents: shippingPricingForCheck.carrier_cents,
+        rateUsedPriceCents: rateUsedForCheck?.price_cents,
+        rateUsedCarrierCents: rateUsedForCheck?.carrier_cents,
+      });
       return NextResponse.json(
         {
           ok: false,
@@ -346,6 +380,55 @@ export async function POST(req: NextRequest) {
       metadataShippingPricingCarrierCents: finalPayloadPricing?.carrier_cents ?? null,
     });
 
+    // CRÍTICO: Log del objeto EXACTO que se pasa a .update()
+    // Usar la MISMA variable que se pasa al update (finalMetadataForDb)
+    const exactMetadataToDb = finalMetadataForDb;
+    const exactShippingMeta = (exactMetadataToDb.shipping as Record<string, unknown>) || {};
+    const exactRateUsed = (exactShippingMeta.rate_used as Record<string, unknown>) || null;
+    const exactPricing = exactMetadataToDb.shipping_pricing as {
+      total_cents?: number | null;
+      carrier_cents?: number | null;
+    } | null | undefined;
+    
+    console.log("[apply-rate] FINAL_METADATA_TO_DB (objeto EXACTO que entra a .update())", {
+      orderId: sanitizedOrderId,
+      rateUsedPriceCents: exactRateUsed?.price_cents ?? null,
+      rateUsedCarrierCents: exactRateUsed?.carrier_cents ?? null,
+      rateUsedCustomerTotalCents: exactRateUsed?.customer_total_cents ?? null,
+      pricingTotalCents: exactPricing?.total_cents ?? null,
+      pricingCarrierCents: exactPricing?.carrier_cents ?? null,
+      rateUsedKeys: exactRateUsed ? Object.keys(exactRateUsed) : [],
+      rateUsedFull: exactRateUsed,
+    });
+
+    // GUARDRAIL FINAL: Si shipping_pricing tiene números y rate_used.*_cents sigue null -> throw
+    const finalHasPricingNumbers = exactPricing && (
+      (typeof exactPricing.total_cents === "number" && exactPricing.total_cents > 0) ||
+      (typeof exactPricing.carrier_cents === "number" && exactPricing.carrier_cents > 0)
+    );
+    const finalRateUsedStillNull = !exactRateUsed || (
+      (exactRateUsed.price_cents == null || exactRateUsed.price_cents === null) ||
+      (exactRateUsed.carrier_cents == null || exactRateUsed.carrier_cents === null)
+    );
+
+    if (finalHasPricingNumbers && finalRateUsedStillNull) {
+      // Structured logging: primer argumento constante, valores dinámicos en objeto
+      console.error("[apply-rate] GUARDRAIL FINAL: Abortando write. shipping_pricing tiene números pero rate_used.*_cents sigue null después de mergeRateUsedPreserveCents", {
+        orderId: sanitizedOrderId,
+        pricing: exactPricing,
+        rateUsed: exactRateUsed,
+        rateUsedKeys: exactRateUsed ? Object.keys(exactRateUsed) : [],
+      });
+      return NextResponse.json(
+        {
+          ok: false,
+          code: "inconsistent_metadata",
+          message: "Error: metadata inconsistente después de merge. Revisa los logs.",
+        } satisfies ApplyRateResponse,
+        { status: 500 },
+      );
+    }
+
     // INSTRUMENTACIÓN PRE-WRITE
     logPreWrite("apply-rate", orderId, freshMetadata, freshUpdatedAt, finalMetadataForDb);
 
@@ -368,7 +451,13 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (updateError) {
-      console.error("[apply-rate] Error al actualizar orden:", updateError);
+      // Structured logging: primer argumento constante, error sanitizado en objeto
+      console.error("[apply-rate] Error al actualizar orden", {
+        errorCode: updateError.code ?? null,
+        errorMessage: sanitizeForLog(updateError.message),
+        errorDetails: sanitizeForLog(updateError.details),
+        errorHint: sanitizeForLog(updateError.hint),
+      });
       return NextResponse.json(
         {
           ok: false,
@@ -387,7 +476,13 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (rereadError) {
-      console.error("[apply-rate] Error al releer orden post-write:", rereadError);
+      // Structured logging: primer argumento constante, error sanitizado en objeto
+      console.error("[apply-rate] Error al releer orden post-write", {
+        errorCode: rereadError.code ?? null,
+        errorMessage: sanitizeForLog(rereadError.message),
+        errorDetails: sanitizeForLog(rereadError.details),
+        errorHint: sanitizeForLog(rereadError.hint),
+      });
     } else {
       // RAW_DB: Leer directamente sin normalizadores/helpers
       const rawDbMetadata = rereadOrder?.metadata as Record<string, unknown> | null | undefined;
@@ -406,6 +501,36 @@ export async function POST(req: NextRequest) {
         metadataShippingPricingTotalCents: rawDbPricing?.total_cents ?? null,
         metadataShippingPricingCarrierCents: rawDbPricing?.carrier_cents ?? null,
         metadataShippingRateUsedFull: rawDbRateUsed,
+      });
+
+      // CRÍTICO: Log explícito desde DB usando paths JSONB (simulando SQL)
+      // Esto muestra exactamente lo que SQL vería: metadata #>> '{shipping,rate_used,price_cents}'
+      const dbPriceCents = rawDbRateUsed?.price_cents ?? null;
+      const dbCarrierCents = rawDbRateUsed?.carrier_cents ?? null;
+      const dbPricingTotalCents = rawDbPricing?.total_cents ?? null;
+      const dbPricingCarrierCents = rawDbPricing?.carrier_cents ?? null;
+      
+      console.log("[apply-rate] DB_VERIFICATION (simulando SQL paths)", {
+        orderId: sanitizedOrderIdForReread,
+        "db.metadata #>> '{shipping,rate_used,price_cents}'": dbPriceCents,
+        "db.metadata #>> '{shipping,rate_used,carrier_cents}'": dbCarrierCents,
+        "db.metadata #>> '{shipping_pricing,total_cents}'": dbPricingTotalCents,
+        "db.metadata #>> '{shipping_pricing,carrier_cents}'": dbPricingCarrierCents,
+        beforeUpdateHadNumbers: finalPayloadRateUsed && (
+          (finalPayloadRateUsed.price_cents != null && finalPayloadRateUsed.price_cents !== null) ||
+          (finalPayloadRateUsed.carrier_cents != null && finalPayloadRateUsed.carrier_cents !== null)
+        ),
+        afterUpdateHasNumbers: rawDbRateUsed && (
+          (rawDbRateUsed.price_cents != null && rawDbRateUsed.price_cents !== null) ||
+          (rawDbRateUsed.carrier_cents != null && rawDbRateUsed.carrier_cents !== null)
+        ),
+        discrepancy: (finalPayloadRateUsed && (
+          (finalPayloadRateUsed.price_cents != null && finalPayloadRateUsed.price_cents !== null) ||
+          (finalPayloadRateUsed.carrier_cents != null && finalPayloadRateUsed.carrier_cents !== null)
+        )) && !(rawDbRateUsed && (
+          (rawDbRateUsed.price_cents != null && rawDbRateUsed.price_cents !== null) ||
+          (rawDbRateUsed.carrier_cents != null && rawDbRateUsed.carrier_cents !== null)
+        )),
       });
 
       // CANARY VALIDATION: Verificar persistencia de rate_used.*_cents
@@ -455,7 +580,15 @@ export async function POST(req: NextRequest) {
       message: "Tarifa actualizada correctamente.",
     } satisfies ApplyRateResponse);
   } catch (error) {
-    console.error("[apply-rate] Error inesperado:", error);
+    // Structured logging: primer argumento constante, error sanitizado en objeto
+    const errorName = error instanceof Error ? error.name : "Unknown";
+    const errorMessage = error instanceof Error ? sanitizeForLog(error.message) : sanitizeForLog(String(error));
+    const errorStack = error instanceof Error ? sanitizeForLog(error.stack?.substring(0, 500) ?? null) : null;
+    console.error("[apply-rate] Error inesperado", {
+      errorName,
+      errorMessage,
+      errorStack,
+    });
     return NextResponse.json(
       {
         ok: false,
