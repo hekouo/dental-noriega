@@ -672,7 +672,6 @@ export async function POST(req: NextRequest) {
       const postWriteMetadata = (rereadOrder?.metadata || updatedOrder?.metadata) as Record<string, unknown> || {};
       const postWriteUpdatedAt = updatedOrder?.updated_at as string | null | undefined;
       logPostWrite("sync-label", orderId, postWriteMetadata, postWriteUpdatedAt);
-    }
 
       // Gate estricto: enviar email solo con evidencia real de guía
       const hasLabelUrlEvidence =
