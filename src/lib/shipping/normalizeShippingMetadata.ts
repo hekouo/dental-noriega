@@ -191,22 +191,29 @@ export function normalizeShippingMetadata(
 
   // OVERWRITE FINAL: Garantizar que rate_used nunca quede con nulls cuando existe canonical pricing
   // Este es el último paso antes de retornar para evitar que merges/spreads posteriores reintroduzcan nulls
-  if (canonicalPricing) {
-    const canonCarrier = toNum((canonicalPricing as { carrier_cents?: unknown }).carrier_cents);
-    const canonTotal = toNum((canonicalPricing as { total_cents?: unknown }).total_cents);
-    const canonCustomerTotal = toNum((canonicalPricing as { customer_total_cents?: unknown }).customer_total_cents);
-    const hasCanonicalNumbers = canonCarrier != null || canonTotal != null;
-
-    if (hasCanonicalNumbers) {
-      const currentRateUsed = (nextShippingMeta.rate_used as ShippingRateUsed) || {};
-      // Overwrite incondicional desde canonical RAW pricing (no desde normalizedPricing corregido)
-      nextShippingMeta.rate_used = {
-        ...currentRateUsed,
-        carrier_cents: canonCarrier ?? currentRateUsed.carrier_cents ?? null,
-        price_cents: canonTotal ?? currentRateUsed.price_cents ?? null,
-        customer_total_cents: canonCustomerTotal ?? canonTotal ?? currentRateUsed.customer_total_cents ?? null,
-      };
-    }
+  // CRÍTICO: Usar mergeRateUsedPreserveCents para preservar cents existentes y nunca reintroducir nulls
+  if (canonicalPricing || normalizedPricing) {
+    const pricingSource = normalizedPricing || canonicalPricing;
+    const currentRateUsed = (nextShippingMeta.rate_used as Record<string, unknown>) || {};
+    
+    // Importar mergeRateUsedPreserveCents dinámicamente para evitar circular dependencies
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { mergeRateUsedPreserveCents } = require("./mergeRateUsedPreserveCents");
+    
+    // Aplicar merge preservando cents: incoming (currentRateUsed) > existing (si hay) > canonical pricing
+    // CRÍTICO: Preservar los cents existentes si ya están presentes, solo rellenar si son null
+    const existingRateUsedBeforeMerge = currentRateUsed;
+    const mergedRateUsed = mergeRateUsedPreserveCents(
+      existingRateUsedBeforeMerge, // existing: el rate_used actual (puede tener cents de DB)
+      currentRateUsed, // incoming: el mismo (ya tiene los valores que queremos preservar)
+      pricingSource as {
+        total_cents?: number | null;
+        carrier_cents?: number | null;
+        customer_total_cents?: number | null;
+      } | null | undefined,
+    );
+    
+    nextShippingMeta.rate_used = mergedRateUsed;
   }
 
   const rateUsedLog = nextShippingMeta.rate_used as ShippingRateUsed | undefined;

@@ -1982,7 +1982,7 @@ export async function POST(req: NextRequest) {
     updatedMetadata.shipping = {
       ...metadataShipping,
       shipping_status: shippingStatus,
-      shipping_status_updated_at: nowIso,
+      // NOTA: shipping_status_updated_at se guarda en metadata, no en columna (columna no existe)
       label_url:
         shipmentResult.labelUrl ??
         (metadataShipping as { label_url?: string | null }).label_url ??
@@ -2038,7 +2038,58 @@ export async function POST(req: NextRequest) {
     };
     
     // CRÍTICO: Asegurar que rate_used esté presente en el payload final antes de escribir
-    const finalMetadataForDb = ensureRateUsedInMetadata(finalMetadataForUpdate);
+    let finalMetadataForDb = ensureRateUsedInMetadata(finalMetadataForUpdate);
+
+    // CRÍTICO: Aplicar mergeRateUsedPreserveCents JUSTO antes de persistir
+    // Esto garantiza que los cents nunca queden null
+    const { mergeRateUsedPreserveCents } = await import("@/lib/shipping/mergeRateUsedPreserveCents");
+    const finalShippingMeta = (finalMetadataForDb.shipping as Record<string, unknown>) || {};
+    const finalRateUsed = (finalShippingMeta.rate_used as Record<string, unknown>) || {};
+    const finalShippingPricing = finalMetadataForDb.shipping_pricing as {
+      total_cents?: number | null;
+      carrier_cents?: number | null;
+      customer_total_cents?: number | null;
+    } | null | undefined;
+    
+    // Merge preservando cents
+    const mergedRateUsed = mergeRateUsedPreserveCents(
+      finalRateUsed,
+      finalRateUsed, // incoming es el mismo porque ya pasó por ensureRateUsedInMetadata
+      finalShippingPricing,
+    );
+    
+    // Actualizar metadata con rate_used mergeado
+    finalMetadataForDb = {
+      ...finalMetadataForDb,
+      shipping: {
+        ...finalShippingMeta,
+        rate_used: mergedRateUsed,
+      },
+    };
+
+    // CRÍTICO: Log del objeto EXACTO que se pasa a .update()
+    // Usar la MISMA variable que se pasa al update (finalMetadataForDb)
+    const { sanitizeForLog } = await import("@/lib/utils/sanitizeForLog");
+    const exactMetadataToDb = finalMetadataForDb;
+    const exactShippingMeta = (exactMetadataToDb.shipping as Record<string, unknown>) || {};
+    const exactRateUsed = (exactShippingMeta.rate_used as Record<string, unknown>) || null;
+    const exactPricing = exactMetadataToDb.shipping_pricing as {
+      total_cents?: number | null;
+      carrier_cents?: number | null;
+    } | null | undefined;
+    const exactLastWrite = (exactShippingMeta._last_write as { route?: string }) || {};
+    
+    const sanitizedOrderId = sanitizeForLog(orderId);
+    console.log("[create-label] FINAL_METADATA_TO_DB (objeto EXACTO que entra a .update())", {
+      orderId: sanitizedOrderId,
+      lastWriteRoute: exactLastWrite.route ?? null,
+      rateUsedPriceCents: exactRateUsed?.price_cents ?? null,
+      rateUsedCarrierCents: exactRateUsed?.carrier_cents ?? null,
+      rateUsedCustomerTotalCents: exactRateUsed?.customer_total_cents ?? null,
+      pricingTotalCents: exactPricing?.total_cents ?? null,
+      pricingCarrierCents: exactPricing?.carrier_cents ?? null,
+      rateUsedKeys: exactRateUsed ? Object.keys(exactRateUsed) : [],
+    });
     
     // INSTRUMENTACIÓN PRE-WRITE
     logPreWrite("create-label", orderId, freshMetadata, freshUpdatedAt, finalMetadataForDb);
@@ -2050,7 +2101,7 @@ export async function POST(req: NextRequest) {
     const updateData: Record<string, unknown> = {
       metadata: finalMetadataForDb, // Usar metadata con rate_used garantizado
       shipping_status: shippingStatus,
-      shipping_status_updated_at: nowIso,
+      // NOTA: shipping_status_updated_at no existe como columna, se guarda en metadata.shipping._last_write.at
       updated_at: nowIso,
     };
 
@@ -2091,12 +2142,10 @@ export async function POST(req: NextRequest) {
       // Continuar con el manejo de error existente más abajo (línea ~2214)
     }
 
-    // INSTRUMENTACIÓN POST-WRITE (el helper ya detecta discrepancias)
-    if (updatedOrder) {
-      const postWriteMetadata = (updatedOrder.metadata as Record<string, unknown>) || {};
-      const postWriteUpdatedAt = updatedOrder.updated_at as string | null | undefined;
-      logPostWrite("create-label", orderId, postWriteMetadata, postWriteUpdatedAt);
-    }
+    // INSTRUMENTACIÓN POST-WRITE (usar reread para valores reales de DB)
+    const postWriteMetadata = (rereadOrder?.metadata || updatedOrder?.metadata) as Record<string, unknown> || {};
+    const postWriteUpdatedAt = updatedOrder?.updated_at as string | null | undefined;
+    logPostWrite("create-label", orderId, postWriteMetadata, postWriteUpdatedAt);
 
     // Enviar email de envío generado solo si hay evidencia de guía (label_url) o estado label_created
     const hasLabelUrlEvidence =
