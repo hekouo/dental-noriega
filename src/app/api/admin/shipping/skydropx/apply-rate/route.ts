@@ -340,8 +340,15 @@ export async function POST(req: NextRequest) {
     );
 
     if (hasPricingNumbers && rateUsedIsNull) {
-      const errorMsg = `[apply-rate] GUARDRAIL: Abortando write. shipping_pricing tiene números pero rate_used tiene nulls. orderId=${orderId}, pricing.total_cents=${shippingPricingForCheck.total_cents}, pricing.carrier_cents=${shippingPricingForCheck.carrier_cents}, rate_used.price_cents=${rateUsedForCheck?.price_cents}, rate_used.carrier_cents=${rateUsedForCheck?.carrier_cents}`;
-      console.error(errorMsg);
+      // Structured logging: primer argumento constante, valores dinámicos en objeto
+      const sanitizedOrderIdForGuardrail = sanitizeForLog(orderId);
+      console.error("[apply-rate] GUARDRAIL: Abortando write. shipping_pricing tiene números pero rate_used tiene nulls", {
+        orderId: sanitizedOrderIdForGuardrail,
+        pricingTotalCents: shippingPricingForCheck.total_cents,
+        pricingCarrierCents: shippingPricingForCheck.carrier_cents,
+        rateUsedPriceCents: rateUsedForCheck?.price_cents,
+        rateUsedCarrierCents: rateUsedForCheck?.carrier_cents,
+      });
       return NextResponse.json(
         {
           ok: false,
@@ -444,7 +451,13 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (updateError) {
-      console.error("[apply-rate] Error al actualizar orden:", updateError);
+      // Structured logging: primer argumento constante, error sanitizado en objeto
+      console.error("[apply-rate] Error al actualizar orden", {
+        errorCode: updateError.code ?? null,
+        errorMessage: sanitizeForLog(updateError.message),
+        errorDetails: sanitizeForLog(updateError.details),
+        errorHint: sanitizeForLog(updateError.hint),
+      });
       return NextResponse.json(
         {
           ok: false,
@@ -561,7 +574,15 @@ export async function POST(req: NextRequest) {
       message: "Tarifa actualizada correctamente.",
     } satisfies ApplyRateResponse);
   } catch (error) {
-    console.error("[apply-rate] Error inesperado:", error);
+    // Structured logging: primer argumento constante, error sanitizado en objeto
+    const errorName = error instanceof Error ? error.name : "Unknown";
+    const errorMessage = error instanceof Error ? sanitizeForLog(error.message) : sanitizeForLog(String(error));
+    const errorStack = error instanceof Error ? sanitizeForLog(error.stack?.substring(0, 500) ?? null) : null;
+    console.error("[apply-rate] Error inesperado", {
+      errorName,
+      errorMessage,
+      errorStack,
+    });
     return NextResponse.json(
       {
         ok: false,
