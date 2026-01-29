@@ -395,16 +395,16 @@ export async function POST(req: NextRequest) {
     });
 
     // GUARDRAIL FINAL: Si shipping_pricing tiene números y rate_used.*_cents sigue null -> throw
-    const hasPricingNumbers = exactPricing && (
+    const finalHasPricingNumbers = exactPricing && (
       (typeof exactPricing.total_cents === "number" && exactPricing.total_cents > 0) ||
       (typeof exactPricing.carrier_cents === "number" && exactPricing.carrier_cents > 0)
     );
-    const rateUsedStillNull = !exactRateUsed || (
+    const finalRateUsedStillNull = !exactRateUsed || (
       (exactRateUsed.price_cents == null || exactRateUsed.price_cents === null) ||
       (exactRateUsed.carrier_cents == null || exactRateUsed.carrier_cents === null)
     );
-    
-    if (hasPricingNumbers && rateUsedStillNull) {
+
+    if (finalHasPricingNumbers && finalRateUsedStillNull) {
       const errorMsg = `[apply-rate] GUARDRAIL FINAL: Abortando write. shipping_pricing tiene números pero rate_used.*_cents sigue null después de mergeRateUsedPreserveCents. orderId=${sanitizedOrderId}`;
       console.error(errorMsg, {
         orderId: sanitizedOrderId,
