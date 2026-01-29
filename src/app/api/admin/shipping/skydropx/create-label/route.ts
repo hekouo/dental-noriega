@@ -1853,7 +1853,7 @@ export async function POST(req: NextRequest) {
 
     // Merge seguro de metadata (NO sobreescribir completo)
     const finalMetadata = (order.metadata as Record<string, unknown>) || {};
-    const finalShippingMetaForShipment = (finalMetadata.shipping as Record<string, unknown>) || {};
+    const finalShippingMeta = (finalMetadata.shipping as Record<string, unknown>) || {};
 
     if (!selectedRateForShipment) {
       const error = new Error("No se encontró rate seleccionado para el envío.");
