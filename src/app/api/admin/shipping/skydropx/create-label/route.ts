@@ -1853,7 +1853,7 @@ export async function POST(req: NextRequest) {
 
     // Merge seguro de metadata (NO sobreescribir completo)
     const finalMetadata = (order.metadata as Record<string, unknown>) || {};
-    const finalShippingMeta = (finalMetadata.shipping as Record<string, unknown>) || {};
+    const finalShippingMetaForShipment = (finalMetadata.shipping as Record<string, unknown>) || {};
 
     if (!selectedRateForShipment) {
       const error = new Error("No se encontró rate seleccionado para el envío.");
@@ -2138,8 +2138,78 @@ export async function POST(req: NextRequest) {
     const { data: updatedOrder, error: updateError } = await updateQuery.select("id, metadata, updated_at").single();
 
     if (updateError) {
-      console.error("[create-label] Error al actualizar orden:", updateError);
+      // Structured logging: primer argumento constante, error sanitizado en objeto
+      const { sanitizeForLog: sanitizeForLogError } = await import("@/lib/utils/sanitizeForLog");
+      console.error("[create-label] Error al actualizar orden", {
+        errorCode: updateError.code ?? null,
+        errorMessage: sanitizeForLogError(updateError.message),
+        errorDetails: sanitizeForLogError(updateError.details),
+        errorHint: sanitizeForLogError(updateError.hint),
+      });
       // Continuar con el manejo de error existente más abajo (línea ~2214)
+    }
+
+    // CRÍTICO: Reread post-write para verificar persistencia real en DB (RAW, sin normalizadores)
+    const { data: rereadOrder, error: rereadError } = await supabase
+      .from("orders")
+      .select("id, updated_at, metadata")
+      .eq("id", orderId)
+      .single();
+
+    if (rereadError) {
+      // Structured logging: primer argumento constante, error sanitizado en objeto
+      console.error("[create-label] Error al releer orden post-write", {
+        errorCode: rereadError.code ?? null,
+        errorMessage: sanitizeForLog(rereadError.message),
+        errorDetails: sanitizeForLog(rereadError.details),
+        errorHint: sanitizeForLog(rereadError.hint),
+      });
+    } else {
+      // RAW_DB: Leer directamente sin normalizadores/helpers
+      const rawDbMetadata = rereadOrder?.metadata as Record<string, unknown> | null | undefined;
+      const rawDbShipping = (rawDbMetadata?.shipping as Record<string, unknown>) || null;
+      const rawDbRateUsed = (rawDbShipping?.rate_used as Record<string, unknown>) || null;
+      const rawDbPricing = (rawDbMetadata?.shipping_pricing as Record<string, unknown>) || null;
+
+      // RAW_DB reread log: valores exactos desde DB sin procesamiento
+      console.log("[create-label] RAW_DB reread (post-write, sin normalizadores)", {
+        orderId: sanitizedOrderId,
+        updatedAt: rereadOrder?.updated_at ?? null,
+        metadataShippingRateUsedPriceCents: rawDbRateUsed?.price_cents ?? null,
+        metadataShippingRateUsedCarrierCents: rawDbRateUsed?.carrier_cents ?? null,
+        metadataShippingPricingTotalCents: rawDbPricing?.total_cents ?? null,
+        metadataShippingPricingCarrierCents: rawDbPricing?.carrier_cents ?? null,
+        metadataShippingRateUsedFull: rawDbRateUsed,
+      });
+
+      // CRÍTICO: Log explícito desde DB usando paths JSONB (simulando SQL)
+      const dbPriceCents = rawDbRateUsed?.price_cents ?? null;
+      const dbCarrierCents = rawDbRateUsed?.carrier_cents ?? null;
+      const dbPricingTotalCents = rawDbPricing?.total_cents ?? null;
+      const dbPricingCarrierCents = rawDbPricing?.carrier_cents ?? null;
+      
+      console.log("[create-label] DB_VERIFICATION (simulando SQL paths)", {
+        orderId: sanitizedOrderId,
+        "db.metadata #>> '{shipping,rate_used,price_cents}'": dbPriceCents,
+        "db.metadata #>> '{shipping,rate_used,carrier_cents}'": dbCarrierCents,
+        "db.metadata #>> '{shipping_pricing,total_cents}'": dbPricingTotalCents,
+        "db.metadata #>> '{shipping_pricing,carrier_cents}'": dbPricingCarrierCents,
+        beforeUpdateHadNumbers: exactRateUsed && (
+          (exactRateUsed.price_cents != null && exactRateUsed.price_cents !== null) ||
+          (exactRateUsed.carrier_cents != null && exactRateUsed.carrier_cents !== null)
+        ),
+        afterUpdateHasNumbers: rawDbRateUsed && (
+          (rawDbRateUsed.price_cents != null && rawDbRateUsed.price_cents !== null) ||
+          (rawDbRateUsed.carrier_cents != null && rawDbRateUsed.carrier_cents !== null)
+        ),
+        discrepancy: (exactRateUsed && (
+          (exactRateUsed.price_cents != null && exactRateUsed.price_cents !== null) ||
+          (exactRateUsed.carrier_cents != null && exactRateUsed.carrier_cents !== null)
+        )) && !(rawDbRateUsed && (
+          (rawDbRateUsed.price_cents != null && rawDbRateUsed.price_cents !== null) ||
+          (rawDbRateUsed.carrier_cents != null && rawDbRateUsed.carrier_cents !== null)
+        )),
+      });
     }
 
     // INSTRUMENTACIÓN POST-WRITE (usar reread para valores reales de DB)
