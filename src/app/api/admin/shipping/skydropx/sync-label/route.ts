@@ -595,6 +595,9 @@ export async function POST(req: NextRequest) {
         .select("id, metadata, updated_at")
         .single();
 
+      // CRÍTICO: Reread post-write para verificar persistencia real en DB (RAW, sin normalizadores)
+      let rereadOrder: { id: string; updated_at: string | null; metadata: Record<string, unknown> } | null = null;
+      
       if (updateError) {
         // Structured logging: primer argumento constante, error sanitizado en objeto
         console.error("[sync-label] Error al actualizar orden", {
@@ -604,8 +607,8 @@ export async function POST(req: NextRequest) {
           errorHint: sanitizeForLog(updateError.hint),
         });
       } else {
-        // CRÍTICO: Reread post-write para verificar persistencia real en DB (RAW, sin normalizadores)
-        const { data: rereadOrder, error: rereadError } = await supabase
+        // Reread después del update exitoso
+        const { data: rereadOrderData, error: rereadError } = await supabase
           .from("orders")
           .select("id, updated_at, metadata")
           .eq("id", orderId)
@@ -620,6 +623,8 @@ export async function POST(req: NextRequest) {
             errorHint: sanitizeForLog(rereadError.hint),
           });
         } else {
+          rereadOrder = rereadOrderData;
+          
           // RAW_DB: Leer directamente sin normalizadores/helpers
           const rawDbMetadata = rereadOrder?.metadata as Record<string, unknown> | null | undefined;
           const rawDbShipping = (rawDbMetadata?.shipping as Record<string, unknown>) || null;
