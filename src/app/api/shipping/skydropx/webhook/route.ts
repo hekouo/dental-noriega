@@ -662,20 +662,99 @@ export async function POST(req: NextRequest) {
           // INSTRUMENTACIÓN PRE-WRITE
           logPreWrite("webhook-skydropx", order.id, freshMetadata, freshUpdatedAt, finalMetadata);
           
-          // CRÍTICO: Log de verificación de espejo tracking/label
+          // CRÍTICO: Log de verificación de espejo tracking/label (valores entrantes / updateData)
           const { sanitizeForLog: sanitizeForLogWebhook } = await import("@/lib/utils/sanitizeForLog");
           const finalShippingMetaForLog = (finalMetadata.shipping as Record<string, unknown>) || {};
           const sanitizedOrderIdWebhook = sanitizeForLogWebhook(order.id);
-          console.log("[webhook-skydropx] METADATA_MIRROR_CHECK", {
+          console.log("[skydropx/webhook] METADATA_MIRROR_CHECK", {
             orderId: sanitizedOrderIdWebhook,
-            shipping_tracking_number: updateData.shipping_tracking_number ?? null,
-            md_tracking: finalShippingMetaForLog.tracking_number ?? null,
-            shipping_label_url: updateData.shipping_label_url ?? null,
-            md_label: finalShippingMetaForLog.label_url ?? null,
+            updateData_shipping_tracking_number: updateData.shipping_tracking_number ?? null,
+            metadata_shipping_tracking_number: finalShippingMetaForLog.tracking_number ?? null,
+            updateData_shipping_label_url: updateData.shipping_label_url ?? null,
+            metadata_shipping_label_url: finalShippingMetaForLog.label_url ?? null,
           });
           
           updateData.metadata = finalMetadata;
         }
+      }
+
+      // Cuando la orden YA tiene shipping_shipment_id, el bloque anterior no corre pero sí actualizamos
+      // columnas (tracking/label). Debemos también espejar tracking/label a metadata para que no queden NULL.
+      if (!updateData.metadata && (updateData.shipping_tracking_number != null || updateData.shipping_label_url != null)) {
+        const { data: freshOrderForMirror } = await supabase
+          .from("orders")
+          .select("metadata, updated_at")
+          .eq("id", order.id)
+          .single();
+
+        const freshMetadataForMirror = (freshOrderForMirror?.metadata as Record<string, unknown>) || {};
+        const freshShippingForMirror = (freshMetadataForMirror.shipping as Record<string, unknown>) || {};
+
+        // Valores entrantes del webhook (updateData o payload parseado); NO leer columnas viejas del DB
+        const incomingTracking = (updateData.shipping_tracking_number as string | null | undefined) ?? (trackingNumber?.trim() || null);
+        const incomingLabel = (updateData.shipping_label_url as string | null | undefined) ?? (labelUrl?.trim() || null);
+
+        // Normalizar y preservar rate_used como en el otro path
+        const mergedMetadataForMirror: Record<string, unknown> = {
+          ...freshMetadataForMirror,
+          shipping: {
+            ...freshShippingForMirror,
+            tracking_number: incomingTracking ?? freshShippingForMirror.tracking_number ?? null,
+            label_url: incomingLabel ?? freshShippingForMirror.label_url ?? null,
+          },
+        };
+
+        const normalizedForMirror = normalizeShippingMetadata(mergedMetadataForMirror, {
+          source: "admin",
+          orderId: order.id,
+        });
+        const metadataWithPricingMirror: Record<string, unknown> = {
+          ...mergedMetadataForMirror,
+          ...(normalizedForMirror.shippingPricing ? { shipping_pricing: normalizedForMirror.shippingPricing } : {}),
+        };
+        const normalizedWithDebugMirror = {
+          ...metadataWithPricingMirror,
+          shipping: addShippingMetadataDebug(normalizedForMirror.shippingMeta, "webhook-skydropx", metadataWithPricingMirror),
+        };
+        const preservedMirror = preserveRateUsed(freshMetadataForMirror, normalizedWithDebugMirror);
+        let finalMetadataMirror = ensureRateUsedInMetadata(preservedMirror);
+
+        const { mergeRateUsedPreserveCents } = await import("@/lib/shipping/mergeRateUsedPreserveCents");
+        const finalShippingMirror = (finalMetadataMirror.shipping as Record<string, unknown>) || {};
+        const finalRateUsedMirror = (finalShippingMirror.rate_used as Record<string, unknown>) || {};
+        const finalPricingMirror = finalMetadataMirror.shipping_pricing as {
+          total_cents?: number | null;
+          carrier_cents?: number | null;
+          customer_total_cents?: number | null;
+        } | null | undefined;
+        const mergedRateUsedMirror = mergeRateUsedPreserveCents(
+          finalRateUsedMirror,
+          finalRateUsedMirror,
+          finalPricingMirror,
+        );
+
+        // CRÍTICO: mirror AL FINAL, después de normalizadores, usando valores entrantes (updateData / parseados)
+        finalMetadataMirror = {
+          ...finalMetadataMirror,
+          shipping: {
+            ...finalShippingMirror,
+            rate_used: mergedRateUsedMirror,
+            tracking_number: incomingTracking ?? finalShippingMirror.tracking_number ?? null,
+            label_url: incomingLabel ?? finalShippingMirror.label_url ?? null,
+          },
+        };
+
+        const { sanitizeForLog } = await import("@/lib/utils/sanitizeForLog");
+        const sanitizedOrderIdMirror = sanitizeForLog(order.id);
+        console.log("[skydropx/webhook] METADATA_MIRROR_CHECK", {
+          orderId: sanitizedOrderIdMirror,
+          updateData_shipping_tracking_number: updateData.shipping_tracking_number ?? null,
+          metadata_shipping_tracking_number: (finalMetadataMirror.shipping as Record<string, unknown>)?.tracking_number ?? null,
+          updateData_shipping_label_url: updateData.shipping_label_url ?? null,
+          metadata_shipping_label_url: (finalMetadataMirror.shipping as Record<string, unknown>)?.label_url ?? null,
+        });
+
+        updateData.metadata = finalMetadataMirror;
       }
 
       // Actualizar orden con return=representation
