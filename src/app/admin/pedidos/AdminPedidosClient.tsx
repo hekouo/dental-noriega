@@ -8,6 +8,7 @@ import type { OrderSummary } from "@/lib/supabase/orders.server";
 import { getShippingStatusLabel, getShippingStatusVariant } from "@/lib/orders/shippingStatus";
 import { getPaymentMethodLabel, getPaymentStatusLabel, getPaymentStatusVariant } from "@/lib/orders/paymentStatus";
 import { PAYMENT_STATUSES, PAYMENT_STATUS_LABELS } from "@/lib/orders/statuses";
+import OrderCleanupPanel from "./OrderCleanupPanel";
 
 type Props = {
   orders: OrderSummary[];
@@ -66,6 +67,8 @@ export default function AdminPedidosClient({
     const statusMap: Record<string, string> = {
       pending: "Pendiente",
       paid: "Pagado",
+      processing: "En proceso",
+      completed: "Completado",
       failed: "Fallido",
       canceled: "Cancelado",
       requires_payment: "Requiere pago",
@@ -115,8 +118,11 @@ export default function AdminPedidosClient({
   };
 
   const getOrderStatusBadgeClasses = (status: string) => {
-    if (status === "paid") {
+    if (status === "completed") {
       return "bg-green-100 text-green-700";
+    }
+    if (status === "paid" || status === "processing") {
+      return "bg-blue-100 text-blue-700";
     }
     if (status === "pending") {
       return "bg-yellow-100 text-yellow-700";
@@ -188,6 +194,8 @@ export default function AdminPedidosClient({
           </Link>
         </div>
       </header>
+
+      <OrderCleanupPanel />
 
       {/* Filtros rápidos de transferencia */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">

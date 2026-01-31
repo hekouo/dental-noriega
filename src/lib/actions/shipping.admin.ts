@@ -76,10 +76,12 @@ export async function createSkydropxLabelAction(
  * Actualiza el estado de envío de una orden (solo admin)
  * @param orderId - ID de la orden
  * @param newStatus - Nuevo estado de envío
+ * @param overrideReason - Razón opcional para el override manual (si se proporciona, se marca como manual_override)
  */
 export async function updateShippingStatusAdmin(
   orderId: string,
   newStatus: ShippingStatus,
+  overrideReason?: string,
 ): Promise<{ ok: true } | { ok: false; code: "order-not-found" | "fetch-error" | "update-error" | "invalid-status" | "config-error" }> {
   try {
     // Validar que el estado es válido (usar estados canónicos)
@@ -113,7 +115,7 @@ export async function updateShippingStatusAdmin(
     // SELECT inicial: solo columnas que realmente existen en public.orders
     const { data: order, error: fetchError } = await supabase
       .from("orders")
-      .select("id, shipping_status, shipping_provider, shipping_service_name, shipping_tracking_number, email, metadata")
+      .select("id, shipping_status, status, shipping_provider, shipping_service_name, shipping_tracking_number, email, metadata")
       .eq("id", orderId)
       .maybeSingle();
 
@@ -147,13 +149,76 @@ export async function updateShippingStatusAdmin(
     // Verificar idempotencia: solo notificar si el estado cambió
     const shouldNotify = order.shipping_status !== newStatus;
 
-    // Preparar datos para actualización
+    // Preparar datos para actualización (shipping_status_updated_at no existe como columna)
     const nowIso = new Date().toISOString();
-    const updatePayload = {
+    const updatePayload: Record<string, unknown> = {
       shipping_status: newStatus,
-      shipping_status_updated_at: nowIso,
       updated_at: nowIso,
     };
+
+    // Regla coherente: cuando shipping_status -> delivered, status debe pasar a completed (idempotente)
+    const currentOrderStatus = (order as { status?: string }).status ?? "pending";
+    if (newStatus === "delivered" && currentOrderStatus !== "completed") {
+      updatePayload.status = "completed";
+    }
+
+    // C) Manual override: cuando admin cambia shipping_status manualmente, marcar como override
+    // Esto previene que webhooks de Skydropx pisen el estado manual
+    // Releer metadata fresco para evitar race conditions
+    const { data: freshOrder } = await supabase
+      .from("orders")
+      .select("metadata, updated_at")
+      .eq("id", orderId)
+      .maybeSingle();
+    
+    const freshMetadata = (freshOrder?.metadata as Record<string, unknown>) || {};
+    const freshShippingMeta = (freshMetadata.shipping as Record<string, unknown>) || {};
+    
+    // Setear manual_override en metadata
+    const updatedShippingMeta: Record<string, unknown> = {
+      ...freshShippingMeta,
+      manual_override: true,
+      override_set_at: nowIso,
+    };
+    
+    if (overrideReason && overrideReason.trim().length > 0) {
+      updatedShippingMeta.override_reason = overrideReason.trim();
+    }
+    
+    // Normalizar metadata preservando rate_used
+    const { normalizeShippingMetadata, preserveRateUsed, ensureRateUsedInMetadata } = await import("@/lib/shipping/normalizeShippingMetadata");
+    const mergedMetadata: Record<string, unknown> = {
+      ...freshMetadata,
+      shipping: updatedShippingMeta,
+    };
+    
+    const normalizedMeta = normalizeShippingMetadata(mergedMetadata, {
+      source: "admin",
+      orderId: order.id,
+    });
+    
+    const metadataWithPricing: Record<string, unknown> = {
+      ...mergedMetadata,
+      ...(normalizedMeta.shippingPricing ? { shipping_pricing: normalizedMeta.shippingPricing } : {}),
+    };
+    
+    const preservedMetadata = preserveRateUsed(freshMetadata, {
+      ...metadataWithPricing,
+      shipping: normalizedMeta.shippingMeta,
+    });
+    
+    const finalMetadata = ensureRateUsedInMetadata(preservedMetadata);
+    
+    // Asegurar que manual_override y override_set_at estén presentes
+    const finalShippingMeta = (finalMetadata.shipping as Record<string, unknown>) || {};
+    finalMetadata.shipping = {
+      ...finalShippingMeta,
+      manual_override: true,
+      override_set_at: nowIso,
+      ...(overrideReason && overrideReason.trim().length > 0 ? { override_reason: overrideReason.trim() } : {}),
+    };
+    
+    updatePayload.metadata = finalMetadata;
 
     // Intentar enviar notificación (no bloquea si falla)
     if (shouldNotify && customerEmail) {
@@ -330,7 +395,7 @@ export async function updatePaymentStatusAdmin(
     // SELECT inicial: solo columnas que realmente existen
     const { data: order, error: fetchError } = await supabase
       .from("orders")
-      .select("id, payment_status")
+      .select("id, payment_status, status")
       .eq("id", orderId)
       .maybeSingle();
 
@@ -354,11 +419,20 @@ export async function updatePaymentStatusAdmin(
       };
     }
 
-    // Actualizar el estado de pago
-    const updatePayload = {
+    const nowIso = new Date().toISOString();
+    const updatePayload: Record<string, unknown> = {
       payment_status: newStatus,
-      updated_at: new Date().toISOString(),
+      updated_at: nowIso,
     };
+
+    // Regla coherente: cuando payment_status -> paid, status debe pasar a processing (evitar "Pagado + Pendiente")
+    const currentStatus = (order as { status?: string }).status ?? "pending";
+    const statusStaysPending = ["pending", "requires_payment", "requires_action", ""].includes(
+      String(currentStatus).toLowerCase().trim(),
+    );
+    if (newStatus === "paid" && statusStaysPending) {
+      updatePayload.status = "processing";
+    }
 
     const { data: updateResult, error: updateError } = await supabase
       .from("orders")

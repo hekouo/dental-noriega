@@ -519,12 +519,32 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // Verificar si hay manual_override activo (C: respetar override manual)
+    const currentMetadata = (order.metadata as Record<string, unknown>) || {};
+    const shippingMeta = (currentMetadata.shipping as Record<string, unknown>) || {};
+    const hasManualOverride = shippingMeta.manual_override === true;
+    
     // Actualizar orden solo si mapped_status es válido
+    // C: Si hay manual_override, NO actualizar shipping_status (pero sí tracking/label)
     if (mappedStatus && isValidShippingStatus(mappedStatus)) {
       const updateData: Record<string, unknown> = {
-        shipping_status: mappedStatus,
         updated_at: new Date().toISOString(),
       };
+      
+      // Solo actualizar shipping_status si NO hay manual_override
+      if (!hasManualOverride) {
+        updateData.shipping_status = mappedStatus;
+      } else {
+        // Log cuando se respeta el override
+        if (process.env.NODE_ENV !== "production") {
+          console.log("[skydropx/webhook] Respeta manual_override, no actualiza shipping_status:", {
+            orderId: order.id,
+            mappedStatus,
+            overrideReason: shippingMeta.override_reason ?? null,
+            overrideSetAt: shippingMeta.override_set_at ?? null,
+          });
+        }
+      }
 
       // Si viene tracking_number y es diferente del actual (o no existe), actualizarlo
       // NO sobreescribir valores existentes con null
