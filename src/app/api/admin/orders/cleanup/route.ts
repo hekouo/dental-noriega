@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 const CleanupRequestSchema = z.object({
-  mode: z.enum(["cancelled", "abandoned", "both"]),
+  mode: z.enum(["cancelled", "abandoned", "both", "unpaid_any_age"]),
   olderThanDays: z.number().int().min(1).max(365).default(14),
   dryRun: z.boolean().default(true),
   excludeWithShipmentId: z.boolean().default(true),

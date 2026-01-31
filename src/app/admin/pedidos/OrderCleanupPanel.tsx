@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-type CleanupMode = "cancelled" | "abandoned" | "both";
+type CleanupMode = "cancelled" | "abandoned" | "both" | "unpaid_any_age";
 
 type DryRunResult = {
   ok: true;
@@ -31,7 +31,7 @@ type CleanupResponse = DryRunResult | ExecuteResult | ErrorResult;
 export default function OrderCleanupPanel() {
   const router = useRouter();
   const [mode, setMode] = useState<CleanupMode>("abandoned");
-  const [olderThanDays, setOlderThanDays] = useState(14);
+  const [olderThanDaysStr, setOlderThanDaysStr] = useState("14");
   const [dryRun, setDryRun] = useState(true);
   const [excludeWithShipmentId, setExcludeWithShipmentId] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -49,7 +49,7 @@ export default function OrderCleanupPanel() {
         credentials: "same-origin",
         body: JSON.stringify({
           mode,
-          olderThanDays: Number(olderThanDays) || 14,
+          olderThanDays: Math.min(365, Math.max(1, parseInt(olderThanDaysStr, 10) || 14)),
           dryRun: !actuallyExecute,
           excludeWithShipmentId,
         }),
@@ -113,26 +113,36 @@ export default function OrderCleanupPanel() {
             <option value="cancelled">Solo canceladas</option>
             <option value="abandoned">Solo abandonadas (&gt; N días)</option>
             <option value="both">Ambas</option>
+            <option value="unpaid_any_age">No pagadas (cualquier edad)</option>
           </select>
         </div>
 
-        <div>
-          <label
-            htmlFor="cleanup-days"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Más antiguas que (días)
-          </label>
-          <input
-            id="cleanup-days"
-            type="number"
-            min={1}
-            max={365}
-            value={olderThanDays}
-            onChange={(e) => setOlderThanDays(Number(e.target.value) || 14)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-          />
-        </div>
+        {mode !== "unpaid_any_age" && (
+          <div>
+            <label
+              htmlFor="cleanup-days"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Más antiguas que (días)
+            </label>
+            <input
+              id="cleanup-days"
+              type="number"
+              min={1}
+              max={365}
+              value={olderThanDaysStr}
+              onChange={(e) => setOlderThanDaysStr(e.target.value)}
+              onBlur={() => {
+                const n = parseInt(olderThanDaysStr, 10);
+                if (isNaN(n) || n < 1) setOlderThanDaysStr("1");
+                else if (n > 365) setOlderThanDaysStr("365");
+                else setOlderThanDaysStr(String(n));
+              }}
+              placeholder="14"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            />
+          </div>
+        )}
 
         <div className="flex items-center gap-2">
           <input
