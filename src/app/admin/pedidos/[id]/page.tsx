@@ -102,6 +102,8 @@ export default async function AdminPedidoDetailPage({
     const statusMap: Record<string, string> = {
       pending: "Pendiente",
       paid: "Pagado",
+      processing: "En proceso",
+      completed: "Completado",
       failed: "Fallido",
       canceled: "Cancelado",
       requires_payment: "Requiere pago",
@@ -249,7 +251,8 @@ export default async function AdminPedidoDetailPage({
               <p className="text-sm text-gray-600">Estado</p>
               <span
                 className={`inline-flex px-2 py-1 text-xs font-medium rounded-full mt-1 ${(() => {
-                  if (order.status === "paid") return "bg-green-100 text-green-700";
+                  if (order.status === "completed") return "bg-green-100 text-green-700";
+                  if (order.status === "paid" || order.status === "processing") return "bg-blue-100 text-blue-700";
                   if (order.status === "pending") return "bg-yellow-100 text-yellow-700";
                   if (order.status === "failed") return "bg-red-100 text-red-700";
                   return "bg-gray-100 text-gray-700";
