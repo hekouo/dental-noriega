@@ -1,0 +1,29 @@
+## Objetivo
+Implementa tres entregables para Admin: consistencia de estado, limpieza de órdenes basura y override manual de shipping.
+
+## A) Estado general cuando admin marca pago
+- Cuando `payment_status` cambia a `paid` => `status` pasa automáticamente a `processing` (evitar Pagado + Pendiente)
+- Cuando `shipping_status` cambia a `delivered` => `status` pasa a `completed`
+- UI: badges para `processing` (En proceso) y `completed` (Completado)
+
+## B) Limpieza de órdenes
+- **POST /api/admin/orders/cleanup** (solo admin)
+  - body: `mode` (cancelled|abandoned|both), `olderThanDays`, `dryRun=true`, `excludeWithShipmentId=true`
+  - Nunca borra órdenes con `payment_status='paid'`
+  - Borra primero `order_items`, luego `orders`
+- **UI** en `/admin/pedidos`: panel con preview (dry run) + confirmación escribiendo BORRAR para ejecutar
+
+## C) Override manual shipping
+- Admin setea `shipping_status` => `metadata.shipping.manual_override=true` + `override_reason?` + `override_set_at`
+- Webhook Skydropx respeta `manual_override`: no pisa `shipping_status` pero sí actualiza `tracking_number`/`label_url` (columnas + metadata)
+- UI: input reason opcional + aviso "Override manual - webhooks no cambiarán este estado"
+
+## Validación
+- `pnpm typecheck` OK
+- `pnpm build` OK
+- `pnpm lint` OK (0 errors)
+
+## Cómo probar
+1. **A**: Marcar pago como Pagado en transferencia => verificar que Estado pasa a "En proceso"
+2. **B**: En /admin/pedidos, usar panel Limpieza. Vista previa (dry run) muestra conteos. Ejecutar requiere escribir BORRAR
+3. **C**: En orden Skydropx, usar "Marcar como en tránsito/entregado". Verificar metadata.override y que webhooks no pisen el estado

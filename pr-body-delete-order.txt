@@ -1,0 +1,40 @@
+## Objetivo
+Borrado seguro de una orden específica desde Admin (sin usar SQL).
+
+## D) Borrado de una orden específica (admin)
+
+### API
+- **DELETE /api/admin/orders/[id]** (`src/app/api/admin/orders/[id]/route.ts`)
+- Auth: solo admin (`checkAdminAccess()`), 403 si no
+- Validación: `id` como UUID (Zod/regex)
+- Body JSON: `{ force?: boolean, reason?: string }`
+
+### Comportamiento
+- **Por defecto (force=false)**:
+  - No borrar si `payment_status='paid'`
+  - No borrar si `shipping_shipment_id` no es null
+  - Respuesta 409: `{ ok: false, code: 'protected-order', reason: 'paid' | 'has_shipment' }`
+- **Con force=true**:
+  - Permite borrar pagadas o con guía (para pruebas)
+  - Exige `reason` no vacío (mínimo 5 caracteres)
+- Borrado: primero `order_items` donde `order_id=id`, luego `orders` donde `id=id`
+- Logging con `sanitizeForLog`: orderId, force, reason, adminEmail, deletedItemsCount, deletedOrderCount
+- Respuesta éxito: `{ ok: true, deletedOrder: true, deletedItems: n }`
+
+### UI
+- Bloque "Eliminar pedido" (danger zone) al final de `/admin/pedidos/[id]`
+- Muestra ID completo de la orden
+- Checkbox "Entiendo que esto borra el pedido permanentemente"
+- Input de confirmación: usuario debe escribir **BORRAR \<ID\>** (exacto)
+- Botón "Eliminar" deshabilitado hasta que la confirmación sea válida
+- Toggle "Forzar (permitir borrar pagadas / con guía)" + input `reason` obligatorio (min 5 chars) si force activo
+- Al ejecutar: DELETE con body `{ force, reason }`; mensaje de error si 409; si ok => redirección a `/admin/pedidos` + refresh
+
+## Validaciones
+- `pnpm typecheck` OK
+- `pnpm build` OK
+
+## Prueba manual
+1. Orden no pagada y sin guía: marcar checkbox, escribir "BORRAR \<uuid\>", Eliminar → debe borrar y redirigir a lista.
+2. Orden pagada: intentar Eliminar sin forzar → debe mostrar 409 / mensaje "orden pagada"; activar Forzar + razón (≥5 chars) → debe permitir borrar.
+3. Orden con guía: sin forzar → 409; con forzar + razón → debe permitir borrar.
