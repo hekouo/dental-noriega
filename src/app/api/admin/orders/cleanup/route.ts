@@ -15,12 +15,27 @@ import { sanitizeForLog } from "@/lib/utils/sanitizeForLog";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const CleanupRequestSchema = z.object({
-  mode: z.enum(["cancelled", "abandoned", "both", "unpaid_any_age"]),
-  olderThanDays: z.number().int().min(1).max(365).default(14),
-  dryRun: z.boolean().default(true),
-  excludeWithShipmentId: z.boolean().default(true),
-});
+const CleanupRequestSchema = z
+  .object({
+    mode: z.enum(["cancelled", "abandoned", "both", "unpaid_any_age", "bank_transfer_test"]),
+    olderThanDays: z.number().int().min(1).max(365).default(14),
+    dryRun: z.boolean().default(true),
+    excludeWithShipmentId: z.boolean().default(true),
+    allowDeletePaidForBankTransferTest: z.boolean().optional().default(false),
+    reason: z.string().optional(),
+  })
+  .refine(
+    (data) => {
+      if (
+        data.mode === "bank_transfer_test" &&
+        data.allowDeletePaidForBankTransferTest === true
+      ) {
+        return (data.reason ?? "").trim().length >= 10;
+      }
+      return true;
+    },
+    { message: "Con allowDeletePaidForBankTransferTest se requiere reason de al menos 10 caracteres", path: ["reason"] },
+  );
 
 type CleanupDryRunResponse = {
   ok: true;
@@ -75,7 +90,14 @@ export async function POST(req: NextRequest): Promise<NextResponse<CleanupRespon
       );
     }
 
-    const { mode, olderThanDays, dryRun, excludeWithShipmentId } = parsed.data;
+    const {
+      mode,
+      olderThanDays,
+      dryRun,
+      excludeWithShipmentId,
+      allowDeletePaidForBankTransferTest = false,
+      reason,
+    } = parsed.data;
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -101,7 +123,35 @@ export async function POST(req: NextRequest): Promise<NextResponse<CleanupRespon
 
     let orderIds: string[] = [];
 
-    if (mode === "both") {
+    if (mode === "bank_transfer_test") {
+      let query = supabase
+        .from("orders")
+        .select("id")
+        .eq("payment_method", "bank_transfer")
+        .lt("created_at", cutoffIso);
+      if (!allowDeletePaidForBankTransferTest) {
+        query = query.neq("payment_status", "paid");
+      }
+      if (excludeWithShipmentId) {
+        query = query.is("shipping_shipment_id", null);
+      }
+      const { data: bankRows, error: bankError } = await query;
+      if (bankError) {
+        console.error(
+          "[orders/cleanup] Error al listar bank_transfer_test:",
+          sanitizeForLog(bankError.message),
+        );
+        return NextResponse.json(
+          {
+            ok: false,
+            code: "db_error",
+            message: "Error al consultar órdenes",
+          } satisfies CleanupErrorResponse,
+          { status: 500 },
+        );
+      }
+      orderIds = (bankRows ?? []).map((r: { id: string }) => r.id);
+    } else if (mode === "both") {
       let cancelledQuery = supabase
         .from("orders")
         .select("id")
@@ -202,6 +252,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<CleanupRespon
           admin: sanitizeForLog(access.userEmail),
           ordersToDelete: 0,
           orderItemsToDelete: 0,
+          ...(mode === "bank_transfer_test" && { allowDeletePaid: allowDeletePaidForBankTransferTest }),
         });
         return NextResponse.json(dryPayload);
       }
@@ -231,6 +282,10 @@ export async function POST(req: NextRequest): Promise<NextResponse<CleanupRespon
         ordersToDelete,
         orderItemsToDelete,
         sampleOrderIds: sampleOrderIds.map(sanitizeForLog),
+        ...(mode === "bank_transfer_test" && {
+          allowDeletePaid: allowDeletePaidForBankTransferTest,
+          hasReason: !!reason?.trim(),
+        }),
       });
       return NextResponse.json({
         ok: true,
@@ -286,6 +341,10 @@ export async function POST(req: NextRequest): Promise<NextResponse<CleanupRespon
       admin: sanitizeForLog(access.userEmail),
       ordersDeleted: orderIds.length,
       orderItemsDeleted: orderItemsToDelete,
+      ...(mode === "bank_transfer_test" && {
+        allowDeletePaid: allowDeletePaidForBankTransferTest,
+        hasReason: !!reason?.trim(),
+      }),
     });
 
     return NextResponse.json({
