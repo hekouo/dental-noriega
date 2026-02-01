@@ -448,14 +448,7 @@ export default async function AdminPedidoDetailPage({
                       shippingPackage={
                         (order.metadata as Record<string, unknown> | null)?.shipping_package &&
                         typeof (order.metadata as Record<string, unknown>).shipping_package === "object"
-                          ? {
-                              mode: ((order.metadata as Record<string, unknown>).shipping_package as { mode?: string })?.mode as "profile" | "custom" | undefined,
-                              profile: ((order.metadata as Record<string, unknown>).shipping_package as { profile?: string | null })?.profile as "ENVELOPE" | "BOX_S" | "BOX_M" | null | undefined,
-                              length_cm: ((order.metadata as Record<string, unknown>).shipping_package as { length_cm?: number })?.length_cm,
-                              width_cm: ((order.metadata as Record<string, unknown>).shipping_package as { width_cm?: number })?.width_cm,
-                              height_cm: ((order.metadata as Record<string, unknown>).shipping_package as { height_cm?: number })?.height_cm,
-                              weight_g: ((order.metadata as Record<string, unknown>).shipping_package as { weight_g?: number })?.weight_g,
-                            }
+                          ? (order.metadata as Record<string, unknown>).shipping_package as Record<string, unknown>
                           : null
                       }
                     />

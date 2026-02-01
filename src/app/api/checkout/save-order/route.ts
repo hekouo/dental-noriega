@@ -3,7 +3,6 @@ import { unstable_noStore as noStore } from "next/cache";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { createActionSupabase } from "@/lib/supabase/server-actions";
-import { estimatePackageWeight } from "@/lib/shipping/estimatePackageWeight";
 import { normalizeShippingPricing } from "@/lib/shipping/normalizeShippingPricing";
 import { normalizeShippingMetadata } from "@/lib/shipping/normalizeShippingMetadata";
 
@@ -267,40 +266,39 @@ export async function POST(req: NextRequest) {
       image_url: item.image_url,
     }));
 
-    // Calcular peso estimado del paquete (solo si hay items con product_id)
-    // Solo calcular si NO existe ya shipping_package_estimated (no sobreescribir)
-    if (!metadataFromPayload.shipping_package_estimated && orderData.items.length > 0) {
-      const BASE_PACKAGE_WEIGHT_G = 1200; // caja + relleno + cinta
-      const defaultLengthCm = 25;
-      const defaultWidthCm = 20;
-      const defaultHeightCm = 15;
+    // Calcular paquete para envío (solo si hay items con product_id)
+    // Solo calcular si NO existe ya shipping_package (no sobreescribir)
+    if (!metadataFromPayload.shipping_package && orderData.items.length > 0) {
       const productIds = orderData.items
         .map((item) => item.productId)
         .filter((id): id is string => !!id);
 
       if (productIds.length > 0) {
         try {
-          // Obtener pesos y dimensiones de productos desde DB
+          const { computeShippingPackage } = await import("@/lib/shipping/computeShippingPackage");
+
           const { data: products } = await supabase
             .from("products")
-            .select("id, shipping_weight_g, shipping_length_cm, shipping_width_cm, shipping_height_cm")
+            .select("id, shipping_weight_g, shipping_length_cm, shipping_width_cm, shipping_height_cm, shipping_profile")
             .in("id", productIds);
 
-          const weightsMap = new Map<string, number | null>();
-          const dimensionsMap = new Map<
+          const productsMap = new Map<
             string,
             {
-              length_cm: number | null;
-              width_cm: number | null;
-              height_cm: number | null;
+              shipping_weight_g: number | null;
+              shipping_length_cm: number | null;
+              shipping_width_cm: number | null;
+              shipping_height_cm: number | null;
+              shipping_profile: string | null;
             }
           >();
           products?.forEach((p) => {
-            weightsMap.set(p.id, p.shipping_weight_g);
-            dimensionsMap.set(p.id, {
-              length_cm: p.shipping_length_cm,
-              width_cm: p.shipping_width_cm,
-              height_cm: p.shipping_height_cm,
+            productsMap.set(p.id, {
+              shipping_weight_g: p.shipping_weight_g,
+              shipping_length_cm: p.shipping_length_cm,
+              shipping_width_cm: p.shipping_width_cm,
+              shipping_height_cm: p.shipping_height_cm,
+              shipping_profile: p.shipping_profile,
             });
           });
 
@@ -309,118 +307,111 @@ export async function POST(req: NextRequest) {
             10,
           );
 
-          const estimatedWeight = await estimatePackageWeight(
+          const pkg = computeShippingPackage(
             orderData.items.map((item) => ({
               product_id: item.productId || null,
               qty: item.qty,
             })),
-            weightsMap,
+            productsMap,
             defaultItemWeightG,
           );
 
-          // Importar helper de dimensiones
-          const { estimatePackageDimensions } = await import("@/lib/shipping/estimatePackageDimensions");
-          const estimatedDims = await estimatePackageDimensions(
-            orderData.items.map((item) => ({
-              product_id: item.productId || null,
-            })),
-            dimensionsMap,
-            {
-              length_cm: defaultLengthCm,
-              width_cm: defaultWidthCm,
-              height_cm: defaultHeightCm,
-            },
-          );
-
-          // Clamp a mínimo 1kg (Skydropx requiere mínimo 1kg)
           const MIN_BILLABLE_WEIGHT_G = parseInt(
             process.env.SKYDROPX_MIN_BILLABLE_WEIGHT_G || "1000",
             10,
           );
-          const estimatedWithBase = estimatedWeight.weight_g + BASE_PACKAGE_WEIGHT_G;
-          const finalWeightG = Math.max(estimatedWithBase, MIN_BILLABLE_WEIGHT_G);
+          const billableWeightG = Math.max(
+            Math.round(pkg.billable_weight_kg * 1000),
+            MIN_BILLABLE_WEIGHT_G,
+          );
+          const billableWeightKg = billableWeightG / 1000;
 
-          // Log estructurado del paquete estimado
           if (process.env.NODE_ENV !== "production") {
             console.log("[shipping/package] ESTIMATED_PACKAGE", {
               orderId: "pending",
-              weight_g: finalWeightG,
-              dims: {
-                length_cm: estimatedDims.length_cm,
-                width_cm: estimatedDims.width_cm,
-                height_cm: estimatedDims.height_cm,
-              },
-              weight_source: estimatedWeight.source,
-              dims_source: estimatedDims.source,
-              fallback_used_count: estimatedWeight.fallback_used_count,
-              missing_fields_count: estimatedDims.missing_fields_count,
-              was_clamped: finalWeightG > estimatedWithBase,
+              mass_weight_g: pkg.mass_weight_g,
+              tare_weight_g: pkg.tare_weight_g,
+              volumetric_weight_kg: pkg.volumetric_weight_kg,
+              billable_weight_kg: pkg.billable_weight_kg,
+              weight_sent_to_skydropx: billableWeightKg,
+              rounding_policy: "ceil_to_min_1kg",
+              dims_cm: pkg.dims_cm,
+              dims_source: pkg.dims_source,
+              profile_used: pkg.profile_used,
+              missing_weight_fields_count: pkg.missing_weight_fields_count,
             });
           }
 
+          const shippingPackage = {
+            mass_weight_g: pkg.mass_weight_g,
+            tare_weight_g: pkg.tare_weight_g,
+            missing_weight_fields_count: pkg.missing_weight_fields_count,
+            dims_cm: pkg.dims_cm,
+            dims_source: pkg.dims_source,
+            profile_used: pkg.profile_used,
+            volumetric_weight_kg: pkg.volumetric_weight_kg,
+            billable_weight_kg: pkg.billable_weight_kg,
+            volumetric_factor: pkg.volumetric_factor,
+            weight_g: billableWeightG,
+            length_cm: pkg.length_cm,
+            width_cm: pkg.width_cm,
+            height_cm: pkg.height_cm,
+          };
+
+          metadata.shipping_package = shippingPackage;
           metadata.shipping_package_estimated = {
-            weight_g: finalWeightG,
-            length_cm: estimatedDims.length_cm,
-            width_cm: estimatedDims.width_cm,
-            height_cm: estimatedDims.height_cm,
-            base_weight_g: BASE_PACKAGE_WEIGHT_G,
-            source: estimatedWeight.source === "products" && estimatedDims.source === "products" ? "products" : estimatedWeight.source === "fallback" && estimatedDims.source === "fallback" ? "fallback" : "mixed",
-            fallback_used_count: estimatedWeight.fallback_used_count,
-            missing_fields_count: estimatedDims.missing_fields_count,
-            was_clamped: finalWeightG > estimatedWithBase,
+            weight_g: billableWeightG,
+            length_cm: pkg.length_cm,
+            width_cm: pkg.width_cm,
+            height_cm: pkg.height_cm,
+            base_weight_g: pkg.tare_weight_g,
+            source: pkg.dims_source,
+            fallback_used_count: pkg.missing_weight_fields_count,
+            missing_fields_count: 0,
+            was_clamped: billableWeightG > Math.round(pkg.billable_weight_kg * 1000),
           };
 
           const currentShippingMeta = (metadata.shipping as Record<string, unknown>) || {};
           metadata.shipping = {
             ...currentShippingMeta,
-            estimated_package: {
-              weight_g: finalWeightG,
-              length_cm: estimatedDims.length_cm,
-              width_cm: estimatedDims.width_cm,
-              height_cm: estimatedDims.height_cm,
-              base_weight_g: BASE_PACKAGE_WEIGHT_G,
-              source: estimatedWeight.source === "products" && estimatedDims.source === "products" ? "products" : estimatedWeight.source === "fallback" && estimatedDims.source === "fallback" ? "fallback" : "mixed",
-              fallback_used_count: estimatedWeight.fallback_used_count,
-              missing_fields_count: estimatedDims.missing_fields_count,
-              was_clamped: finalWeightG > estimatedWithBase,
-            },
+            estimated_package: shippingPackage,
           };
         } catch (error) {
-          // Si falla el cálculo, usar fallback pero no romper la orden
           if (process.env.NODE_ENV !== "production") {
-            console.warn("[save-order] Error al calcular peso estimado:", error);
+            console.warn("[save-order] Error al calcular paquete:", error);
           }
-          const MIN_BILLABLE_WEIGHT_G = parseInt(
-            process.env.SKYDROPX_MIN_BILLABLE_WEIGHT_G || "1000",
-            10,
-          );
-          const fallbackWeightG = Math.max(BASE_PACKAGE_WEIGHT_G, MIN_BILLABLE_WEIGHT_G);
+          const fallbackWeightG = 1200;
+          const defaultDims = { length_cm: 25, width_cm: 20, height_cm: 15 };
+          metadata.shipping_package = {
+            mass_weight_g: fallbackWeightG,
+            tare_weight_g: 1200,
+            missing_weight_fields_count: orderData.items.reduce((sum, item) => sum + item.qty, 0),
+            dims_cm: defaultDims,
+            dims_source: "fallback",
+            profile_used: "CUSTOM",
+            volumetric_weight_kg: (25 * 20 * 15) / 5000,
+            billable_weight_kg: 1.2,
+            volumetric_factor: 5000,
+            weight_g: fallbackWeightG,
+            length_cm: 25,
+            width_cm: 20,
+            height_cm: 15,
+          };
           metadata.shipping_package_estimated = {
             weight_g: fallbackWeightG,
-            length_cm: defaultLengthCm,
-            width_cm: defaultWidthCm,
-            height_cm: defaultHeightCm,
-            base_weight_g: BASE_PACKAGE_WEIGHT_G,
+            length_cm: 25,
+            width_cm: 20,
+            height_cm: 15,
+            base_weight_g: 1200,
             source: "fallback",
             fallback_used_count: orderData.items.reduce((sum, item) => sum + item.qty, 0),
             missing_fields_count: 0,
-            was_clamped: fallbackWeightG > BASE_PACKAGE_WEIGHT_G,
+            was_clamped: false,
           };
-
           const currentShippingMeta = (metadata.shipping as Record<string, unknown>) || {};
           metadata.shipping = {
             ...currentShippingMeta,
-            estimated_package: {
-              weight_g: fallbackWeightG,
-              length_cm: defaultLengthCm,
-              width_cm: defaultWidthCm,
-              height_cm: defaultHeightCm,
-              base_weight_g: BASE_PACKAGE_WEIGHT_G,
-              source: "fallback",
-              fallback_used_count: orderData.items.reduce((sum, item) => sum + item.qty, 0),
-              missing_fields_count: 0,
-              was_clamped: fallbackWeightG > BASE_PACKAGE_WEIGHT_G,
-            },
+            estimated_package: metadata.shipping_package,
           };
         }
       }
