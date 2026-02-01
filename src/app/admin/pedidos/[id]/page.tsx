@@ -23,6 +23,7 @@ import NotifyShippingClient from "./NotifyShippingClient";
 import { normalizePhoneToE164Mx } from "@/lib/utils/phone";
 import EditShippingOverrideClient from "./EditShippingOverrideClient";
 import ShippingTrackingDisplay from "./ShippingTrackingDisplay";
+import DeleteOrderClient from "./DeleteOrderClient";
 import { getOrderShippingAddress } from "@/lib/shipping/getOrderShippingAddress";
 
 export const dynamic = "force-dynamic";
@@ -879,6 +880,9 @@ export default async function AdminPedidoDetailPage({
               </div>
             </div>
           )}
+
+        {/* Eliminar pedido (danger zone) */}
+        <DeleteOrderClient orderId={order.id} />
       </div>
     </div>
   );
