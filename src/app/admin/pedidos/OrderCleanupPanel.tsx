@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-type CleanupMode = "cancelled" | "abandoned" | "both" | "unpaid_any_age";
+type CleanupMode = "cancelled" | "abandoned" | "both" | "unpaid_any_age" | "bank_transfer_test";
 
 type DryRunResult = {
   ok: true;
@@ -34,6 +34,8 @@ export default function OrderCleanupPanel() {
   const [olderThanDaysStr, setOlderThanDaysStr] = useState("14");
   const [dryRun, setDryRun] = useState(true);
   const [excludeWithShipmentId, setExcludeWithShipmentId] = useState(true);
+  const [allowDeletePaidForBankTransferTest, setAllowDeletePaidForBankTransferTest] = useState(false);
+  const [bankTransferReason, setBankTransferReason] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<CleanupResponse | null>(null);
   const [showExecuteModal, setShowExecuteModal] = useState(false);
@@ -52,6 +54,10 @@ export default function OrderCleanupPanel() {
           olderThanDays: Math.min(365, Math.max(1, parseInt(olderThanDaysStr, 10) || 14)),
           dryRun: !actuallyExecute,
           excludeWithShipmentId,
+          ...(mode === "bank_transfer_test" && {
+            allowDeletePaidForBankTransferTest,
+            reason: allowDeletePaidForBankTransferTest ? bankTransferReason.trim() : undefined,
+          }),
         }),
       });
       const data: CleanupResponse = await res.json();
@@ -114,8 +120,17 @@ export default function OrderCleanupPanel() {
             <option value="abandoned">Solo abandonadas (&gt; N días)</option>
             <option value="both">Ambas</option>
             <option value="unpaid_any_age">No pagadas (cualquier edad)</option>
+            <option value="bank_transfer_test">Transferencias de prueba</option>
           </select>
         </div>
+
+        {mode === "bank_transfer_test" && (
+          <div className="md:col-span-2">
+            <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3">
+              Este modo puede borrar órdenes marcadas pagadas manualmente para pruebas.
+            </p>
+          </div>
+        )}
 
         {mode !== "unpaid_any_age" && (
           <div>
@@ -142,6 +157,42 @@ export default function OrderCleanupPanel() {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             />
           </div>
+        )}
+
+        {mode === "bank_transfer_test" && (
+          <>
+            <div className="flex items-center gap-2 md:col-span-2">
+              <input
+                id="cleanup-allow-delete-paid"
+                type="checkbox"
+                checked={allowDeletePaidForBankTransferTest}
+                onChange={(e) => setAllowDeletePaidForBankTransferTest(e.target.checked)}
+                className="rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+              />
+              <label htmlFor="cleanup-allow-delete-paid" className="text-sm text-gray-700">
+                Permitir borrar aunque estén pagadas (solo transferencias)
+              </label>
+            </div>
+            {allowDeletePaidForBankTransferTest && (
+              <div className="md:col-span-2">
+                <label
+                  htmlFor="cleanup-bank-reason"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Razón (mínimo 10 caracteres)
+                </label>
+                <input
+                  id="cleanup-bank-reason"
+                  type="text"
+                  value={bankTransferReason}
+                  onChange={(e) => setBankTransferReason(e.target.value)}
+                  placeholder="Ej: órdenes de prueba marcadas pagadas manualmente"
+                  minLength={10}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                />
+              </div>
+            )}
+          </>
         )}
 
         <div className="flex items-center gap-2">
@@ -184,7 +235,12 @@ export default function OrderCleanupPanel() {
           <button
             type="button"
             onClick={handleOpenExecuteModal}
-            disabled={loading}
+            disabled={
+              loading ||
+              (mode === "bank_transfer_test" &&
+                allowDeletePaidForBankTransferTest &&
+                bankTransferReason.trim().length < 10)
+            }
             className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
           >
             Ejecutar borrado
