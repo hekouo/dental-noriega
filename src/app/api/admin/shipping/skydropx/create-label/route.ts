@@ -311,6 +311,20 @@ export async function POST(req: NextRequest) {
         normalizePackageCandidate(shippingMeta.estimated_package) ||
         normalizePackageCandidate(shippingMeta.shipping_package_estimated);
 
+      // metadata.shipping_package: peso facturable (masa vs volumétrico), dims con fallback por profile
+      const shippingPackageRaw = metadata.shipping_package as Record<string, unknown> | undefined;
+      const shippingPackage =
+        shippingPackageRaw && typeof shippingPackageRaw === "object"
+          ? normalizePackageCandidate({
+              weight_g: shippingPackageRaw.weight_g ?? shippingPackageRaw.billable_weight_kg != null
+                ? Math.round((shippingPackageRaw.billable_weight_kg as number) * 1000)
+                : undefined,
+              length_cm: shippingPackageRaw.length_cm ?? (shippingPackageRaw.dims_cm as { length_cm?: number })?.length_cm,
+              width_cm: shippingPackageRaw.width_cm ?? (shippingPackageRaw.dims_cm as { width_cm?: number })?.width_cm,
+              height_cm: shippingPackageRaw.height_cm ?? (shippingPackageRaw.dims_cm as { height_cm?: number })?.height_cm,
+            })
+          : null;
+
       const fallback = {
         weight_g: 1200,
         length_cm: 25,
@@ -323,6 +337,9 @@ export async function POST(req: NextRequest) {
       }
       if (packageUsed) {
         return { source: "package_used" as const, ...packageUsed };
+      }
+      if (shippingPackage) {
+        return { source: "shipping_package" as const, ...shippingPackage };
       }
       if (estimatedPackage) {
         return { source: "estimated" as const, ...estimatedPackage };
@@ -934,15 +951,33 @@ export async function POST(req: NextRequest) {
     };
 
     const createShipmentWithFinalPackage = async () => {
-      const weightKgPrecise = Math.max(1, Number((weightG / 1000).toFixed(2)));
+      // Preservar decimales: Skydropx acepta kg con decimales. Mínimo 1 kg.
+      const rawWeightKg = weightG / 1000;
+      const weightSentKg = Math.max(1, Math.ceil(rawWeightKg * 100) / 100);
+      const roundingPolicy = rawWeightKg < 1 ? "ceil_to_min_1kg" : "preserve_2_decimals";
+
       const parcel = {
-        weight: weightKgPrecise,
+        weight: weightSentKg,
         height: Math.max(1, Math.round(heightCm)),
         width: Math.max(1, Math.round(widthCm)),
         length: Math.max(1, Math.round(lengthCm)),
         distance_unit: "CM" as const,
         mass_unit: "KG" as const,
       };
+
+      const shippingPackageMeta = (orderMetadata.shipping_package as Record<string, unknown> | null) ?? null;
+      if (process.env.NODE_ENV !== "production" && shippingPackageMeta) {
+        console.log("[shipping/package] shipment_payload_debug", {
+          orderId,
+          mass_weight_g: shippingPackageMeta.mass_weight_g,
+          volumetric_weight_kg: shippingPackageMeta.volumetric_weight_kg,
+          billable_weight_kg: shippingPackageMeta.billable_weight_kg,
+          weight_sent_to_skydropx: weightSentKg,
+          rounding_policy: roundingPolicy,
+          dims_cm: shippingPackageMeta.dims_cm ?? { length_cm: lengthCm, width_cm: widthCm, height_cm: heightCm },
+          parcels_weight_kg: parcel.weight,
+        });
+      }
       const quotationReference = orderId ? `DDN-${orderId.slice(0, 8)}` : "DDN-unknown";
       const originReference = clampSkydropxReference(config.origin.reference || "Sin referencia");
       const destinationReference = clampSkydropxReference("Sin referencia");
@@ -972,7 +1007,7 @@ export async function POST(req: NextRequest) {
             height_cm: heightCm,
           },
           quoted_package: quotedPackage,
-          declared_weight_kg: weightKgPrecise,
+          declared_weight_kg: weightSentKg,
         });
       }
 
@@ -1038,7 +1073,7 @@ export async function POST(req: NextRequest) {
               {
                 package_number: "1",
                 package_protected: false,
-                weight: weightKgPrecise,
+                weight: weightSentKg,
                 height: parcel.height,
                 width: parcel.width,
                 length: parcel.length,
@@ -1056,7 +1091,7 @@ export async function POST(req: NextRequest) {
             rateId: savedRateId,
             packageSource,
             weightG,
-            weightKgPrecise,
+            weightSentKg,
             lengthCm: parcel.length,
             widthCm: parcel.width,
             heightCm: parcel.height,
@@ -1141,7 +1176,7 @@ export async function POST(req: NextRequest) {
           hasOrderId: Boolean(quotationPayload.order_id),
           packageSource,
           weightG,
-          weightKgPrecise,
+          weightSentKg,
           lengthCm: parcel.length,
           widthCm: parcel.width,
           heightCm: parcel.height,
@@ -1594,7 +1629,7 @@ export async function POST(req: NextRequest) {
             {
               package_number: "1",
               package_protected: false,
-              weight: weightKgPrecise,
+              weight: weightSentKg,
               height: parcel.height,
               width: parcel.width,
               length: parcel.length,
@@ -1612,7 +1647,7 @@ export async function POST(req: NextRequest) {
           rateId: rateSelection.rateId,
           packageSource,
           weightG,
-          weightKgPrecise,
+          weightSentKg,
           lengthCm: parcel.length,
           widthCm: parcel.width,
           heightCm: parcel.height,

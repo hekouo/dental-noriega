@@ -1,5 +1,21 @@
 import { PACKAGE_PROFILES, type PackageProfileKey } from "@/lib/shipping/packageProfiles";
 
+type ShippingPackageBillable = {
+  mass_weight_g?: number;
+  tare_weight_g?: number;
+  missing_weight_fields_count?: number;
+  dims_cm?: { length_cm: number; width_cm: number; height_cm: number };
+  dims_source?: string;
+  profile_used?: string | null;
+  volumetric_weight_kg?: number;
+  billable_weight_kg?: number;
+  volumetric_factor?: number;
+  weight_g?: number;
+  length_cm?: number;
+  width_cm?: number;
+  height_cm?: number;
+};
+
 type ShippingPackageInfoProps = {
   shippingPackageEstimated?: {
     weight_g?: number;
@@ -7,29 +23,40 @@ type ShippingPackageInfoProps = {
     fallback_used_count?: number;
     was_clamped?: boolean;
   } | null;
-  shippingPackage?: {
-    mode?: "profile" | "custom";
-    profile?: PackageProfileKey | null;
-    length_cm?: number;
-    width_cm?: number;
-    height_cm?: number;
-    weight_g?: number;
-  } | null;
+  shippingPackage?: (
+    | {
+        mode?: "profile" | "custom";
+        profile?: PackageProfileKey | null;
+        length_cm?: number;
+        width_cm?: number;
+        height_cm?: number;
+        weight_g?: number;
+      }
+    | ShippingPackageBillable
+  ) | null;
 };
 
 /**
  * Componente readonly para mostrar información del empaque usado para cotización
  * (no editable, solo informativo)
+ * Incluye masa, volumétrico y peso facturable cuando metadata.shipping_package está disponible
  */
 export default function ShippingPackageInfo({
   shippingPackageEstimated,
   shippingPackage,
 }: ShippingPackageInfoProps) {
-  // Determinar qué mostrar
-  const hasEstimated = shippingPackageEstimated && typeof shippingPackageEstimated.weight_g === "number";
-  const hasPackage = shippingPackage && (shippingPackage.mode || shippingPackage.profile);
+  // Nueva estructura: shipping_package con mass_weight_g, volumetric_weight_kg, billable_weight_kg
+  const hasBillable =
+    shippingPackage &&
+    typeof (shippingPackage as ShippingPackageBillable).mass_weight_g === "number" &&
+    typeof (shippingPackage as ShippingPackageBillable).billable_weight_kg === "number";
 
-  if (!hasEstimated && !hasPackage) {
+  const hasEstimated =
+    shippingPackageEstimated && typeof shippingPackageEstimated.weight_g === "number";
+  const hasLegacyPackage =
+    shippingPackage && !hasBillable && ((shippingPackage as { mode?: string }).mode || (shippingPackage as { profile?: string }).profile);
+
+  if (!hasBillable && !hasEstimated && !hasLegacyPackage) {
     return (
       <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
         <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
@@ -42,7 +69,59 @@ export default function ShippingPackageInfo({
     );
   }
 
-  // Mostrar información estimada (peso calculado en checkout)
+  // Mostrar masa, volumétrico, facturable (nueva estructura)
+  if (hasBillable) {
+    const pkg = shippingPackage as ShippingPackageBillable;
+    const massKg = (pkg.mass_weight_g ?? 0) / 1000;
+    const volumetricKg = pkg.volumetric_weight_kg ?? 0;
+    const billableKg = pkg.billable_weight_kg ?? 0;
+    const factor = pkg.volumetric_factor ?? 5000;
+    const dims = pkg.dims_cm ?? { length_cm: 0, width_cm: 0, height_cm: 0 };
+
+    return (
+      <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+        <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+          Empaque usado para cotización
+        </h4>
+        <div className="text-sm space-y-2">
+          <p className="text-gray-700 dark:text-gray-300">
+            <span className="font-medium">Masa total:</span>{" "}
+            {(pkg.mass_weight_g ?? 0).toLocaleString()}g ({(massKg).toFixed(3)} kg)
+          </p>
+          <p className="text-gray-700 dark:text-gray-300">
+            <span className="font-medium">Volumétrico:</span> {(volumetricKg).toFixed(3)} kg
+            <span className="text-gray-500 dark:text-gray-400 ml-1">
+              (factor {factor})
+            </span>
+          </p>
+          <p className="text-gray-700 dark:text-gray-300">
+            <span className="font-medium">Billable:</span> {(billableKg).toFixed(3)} kg
+          </p>
+          {dims.length_cm > 0 && dims.width_cm > 0 && dims.height_cm > 0 && (
+            <p className="text-gray-600 dark:text-gray-400">
+              Dimensiones: {dims.length_cm}×{dims.width_cm}×{dims.height_cm} cm
+              {pkg.dims_source && (
+                <span className="text-gray-500 dark:text-gray-400 ml-1">
+                  ({pkg.dims_source})
+                </span>
+              )}
+            </p>
+          )}
+          {(pkg.missing_weight_fields_count ?? 0) > 0 && (
+            <p className="text-gray-600 dark:text-gray-400">
+              <span className="font-medium">Productos sin peso (fallback):</span>{" "}
+              {pkg.missing_weight_fields_count}
+            </p>
+          )}
+        </div>
+        <p className="text-xs text-amber-700 dark:text-amber-400 mt-3 italic">
+          Skydropx cobra el mayor entre masa y volumétrico
+        </p>
+      </div>
+    );
+  }
+
+  // Mostrar información estimada legacy (peso calculado en checkout)
   if (hasEstimated) {
     const estimated = shippingPackageEstimated!;
     return (
@@ -56,7 +135,8 @@ export default function ShippingPackageInfo({
           </p>
           {estimated.fallback_used_count && estimated.fallback_used_count > 0 && (
             <p className="text-gray-600 dark:text-gray-400">
-              <span className="font-medium">Productos sin peso (fallback):</span> {estimated.fallback_used_count}
+              <span className="font-medium">Productos sin peso (fallback):</span>{" "}
+              {estimated.fallback_used_count}
             </p>
           )}
           {estimated.was_clamped && (
@@ -72,9 +152,9 @@ export default function ShippingPackageInfo({
     );
   }
 
-  // Mostrar información del empaque seleccionado (perfil o personalizado)
-  if (hasPackage) {
-    const pkg = shippingPackage!;
+  // Mostrar información del empaque legacy (perfil o personalizado)
+  if (hasLegacyPackage) {
+    const pkg = shippingPackage as { mode?: string; profile?: PackageProfileKey; length_cm?: number; width_cm?: number; height_cm?: number; weight_g?: number };
     const isProfile = pkg.mode === "profile" && pkg.profile;
     const isCustom = pkg.mode === "custom";
 
