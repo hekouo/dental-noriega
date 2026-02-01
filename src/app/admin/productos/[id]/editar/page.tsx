@@ -15,6 +15,7 @@ import {
 } from "@/lib/actions/products.admin";
 import type { PackageProfileKey } from "@/lib/shipping/packageProfiles";
 import ProductShippingEditorClient from "./ProductShippingEditorClient";
+import FeaturedProductEditorClient from "./FeaturedProductEditorClient";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +50,30 @@ export default async function AdminProductosEditarPage({
   const product = await getAdminProductById(id);
   const sections = await getAdminSections();
   const images = await getAdminProductImages(id);
+
+  // Obtener posición de destacado si existe
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  const { createClient } = await import("@supabase/supabase-js");
+  const supabase = createClient(supabaseUrl, serviceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+
+  let featuredPosition: number | null = null;
+  if (product) {
+    const { data: featuredData } = await supabase
+      .from("featured")
+      .select("position")
+      .eq("catalog_id", product.slug)
+      .maybeSingle();
+    
+    if (featuredData) {
+      featuredPosition = featuredData.position;
+    }
+  }
 
   if (!product) {
     return (
@@ -334,6 +359,15 @@ export default async function AdminProductosEditarPage({
           initialWidthCm={product.shippingWidthCm}
           initialHeightCm={product.shippingHeightCm}
           initialProfile={(product.shippingProfile as PackageProfileKey) || null}
+        />
+      </div>
+
+      {/* Producto destacado */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mt-6">
+        <FeaturedProductEditorClient
+          productSlug={product.slug}
+          productTitle={product.title}
+          initialPosition={featuredPosition}
         />
       </div>
 

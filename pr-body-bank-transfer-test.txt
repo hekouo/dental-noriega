@@ -1,0 +1,34 @@
+## Objetivo
+Extender el sistema de limpieza de órdenes para permitir borrar órdenes de transferencia bancarias de prueba aunque estén marcadas como pagadas por el admin.
+
+## E) Cleanup: modo bank_transfer_test
+
+### API
+- Nuevo modo `bank_transfer_test` en body Zod
+- Filtro base: `payment_method='bank_transfer'`, `created_at < now() - olderThanDays`
+- Por defecto: no incluye pagadas (igual que antes)
+- Flag `allowDeletePaidForBankTransferTest: boolean` (default false)
+  - Si true: incluye órdenes con `payment_status='paid'` (permite borrar transferencias de prueba marcadas pagadas)
+  - Requiere `reason: string` (mín 10 caracteres) cuando el flag está en true
+- Respeta `excludeWithShipmentId` (default true)
+- Borra primero `order_items`, luego `orders`
+- Dry-run devuelve conteos + sample IDs
+- Logging con `sanitizeForLog` (sin PII sensible)
+
+### UI
+- Modo "Transferencias de prueba" en OrderCleanupPanel
+- Warning: "Este modo puede borrar órdenes marcadas pagadas manualmente para pruebas."
+- Checkbox "Permitir borrar aunque estén pagadas (solo transferencias)" (default OFF)
+- Si se activa: input obligatorio `reason` (min 10 caracteres)
+- Botón "Ejecutar borrado" deshabilitado hasta que reason sea válido (cuando allowDeletePaid está activo)
+- Modal confirmación: escribir "BORRAR" se mantiene
+
+## Validaciones
+- `pnpm lint` OK
+- `pnpm typecheck` OK
+- `pnpm build` OK
+
+## Prueba manual
+1. Dry run con modo bank_transfer_test sin allowDeletePaid → no incluye pagadas.
+2. Activar allowDeletePaid + reason (≥10 chars) → dry run incluye pagadas.
+3. Execute borra correctamente y deja otras órdenes intactas.

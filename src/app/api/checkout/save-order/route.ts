@@ -280,15 +280,28 @@ export async function POST(req: NextRequest) {
 
       if (productIds.length > 0) {
         try {
-          // Obtener pesos de productos desde DB
+          // Obtener pesos y dimensiones de productos desde DB
           const { data: products } = await supabase
             .from("products")
-            .select("id, shipping_weight_g")
+            .select("id, shipping_weight_g, shipping_length_cm, shipping_width_cm, shipping_height_cm")
             .in("id", productIds);
 
-          const productsMap = new Map<string, number | null>();
+          const weightsMap = new Map<string, number | null>();
+          const dimensionsMap = new Map<
+            string,
+            {
+              length_cm: number | null;
+              width_cm: number | null;
+              height_cm: number | null;
+            }
+          >();
           products?.forEach((p) => {
-            productsMap.set(p.id, p.shipping_weight_g);
+            weightsMap.set(p.id, p.shipping_weight_g);
+            dimensionsMap.set(p.id, {
+              length_cm: p.shipping_length_cm,
+              width_cm: p.shipping_width_cm,
+              height_cm: p.shipping_height_cm,
+            });
           });
 
           const defaultItemWeightG = parseInt(
@@ -296,13 +309,27 @@ export async function POST(req: NextRequest) {
             10,
           );
 
-          const estimated = await estimatePackageWeight(
+          const estimatedWeight = await estimatePackageWeight(
             orderData.items.map((item) => ({
               product_id: item.productId || null,
               qty: item.qty,
             })),
-            productsMap,
+            weightsMap,
             defaultItemWeightG,
+          );
+
+          // Importar helper de dimensiones
+          const { estimatePackageDimensions } = await import("@/lib/shipping/estimatePackageDimensions");
+          const estimatedDims = await estimatePackageDimensions(
+            orderData.items.map((item) => ({
+              product_id: item.productId || null,
+            })),
+            dimensionsMap,
+            {
+              length_cm: defaultLengthCm,
+              width_cm: defaultWidthCm,
+              height_cm: defaultHeightCm,
+            },
           );
 
           // Clamp a mínimo 1kg (Skydropx requiere mínimo 1kg)
@@ -310,17 +337,36 @@ export async function POST(req: NextRequest) {
             process.env.SKYDROPX_MIN_BILLABLE_WEIGHT_G || "1000",
             10,
           );
-          const estimatedWithBase = estimated.weight_g + BASE_PACKAGE_WEIGHT_G;
+          const estimatedWithBase = estimatedWeight.weight_g + BASE_PACKAGE_WEIGHT_G;
           const finalWeightG = Math.max(estimatedWithBase, MIN_BILLABLE_WEIGHT_G);
+
+          // Log estructurado del paquete estimado
+          if (process.env.NODE_ENV !== "production") {
+            console.log("[shipping/package] ESTIMATED_PACKAGE", {
+              orderId: "pending",
+              weight_g: finalWeightG,
+              dims: {
+                length_cm: estimatedDims.length_cm,
+                width_cm: estimatedDims.width_cm,
+                height_cm: estimatedDims.height_cm,
+              },
+              weight_source: estimatedWeight.source,
+              dims_source: estimatedDims.source,
+              fallback_used_count: estimatedWeight.fallback_used_count,
+              missing_fields_count: estimatedDims.missing_fields_count,
+              was_clamped: finalWeightG > estimatedWithBase,
+            });
+          }
 
           metadata.shipping_package_estimated = {
             weight_g: finalWeightG,
-            length_cm: defaultLengthCm,
-            width_cm: defaultWidthCm,
-            height_cm: defaultHeightCm,
+            length_cm: estimatedDims.length_cm,
+            width_cm: estimatedDims.width_cm,
+            height_cm: estimatedDims.height_cm,
             base_weight_g: BASE_PACKAGE_WEIGHT_G,
-            source: estimated.source,
-            fallback_used_count: estimated.fallback_used_count,
+            source: estimatedWeight.source === "products" && estimatedDims.source === "products" ? "products" : estimatedWeight.source === "fallback" && estimatedDims.source === "fallback" ? "fallback" : "mixed",
+            fallback_used_count: estimatedWeight.fallback_used_count,
+            missing_fields_count: estimatedDims.missing_fields_count,
             was_clamped: finalWeightG > estimatedWithBase,
           };
 
@@ -329,12 +375,13 @@ export async function POST(req: NextRequest) {
             ...currentShippingMeta,
             estimated_package: {
               weight_g: finalWeightG,
-              length_cm: defaultLengthCm,
-              width_cm: defaultWidthCm,
-              height_cm: defaultHeightCm,
+              length_cm: estimatedDims.length_cm,
+              width_cm: estimatedDims.width_cm,
+              height_cm: estimatedDims.height_cm,
               base_weight_g: BASE_PACKAGE_WEIGHT_G,
-              source: estimated.source,
-              fallback_used_count: estimated.fallback_used_count,
+              source: estimatedWeight.source === "products" && estimatedDims.source === "products" ? "products" : estimatedWeight.source === "fallback" && estimatedDims.source === "fallback" ? "fallback" : "mixed",
+              fallback_used_count: estimatedWeight.fallback_used_count,
+              missing_fields_count: estimatedDims.missing_fields_count,
               was_clamped: finalWeightG > estimatedWithBase,
             },
           };
@@ -356,6 +403,7 @@ export async function POST(req: NextRequest) {
             base_weight_g: BASE_PACKAGE_WEIGHT_G,
             source: "fallback",
             fallback_used_count: orderData.items.reduce((sum, item) => sum + item.qty, 0),
+            missing_fields_count: 0,
             was_clamped: fallbackWeightG > BASE_PACKAGE_WEIGHT_G,
           };
 
@@ -370,6 +418,7 @@ export async function POST(req: NextRequest) {
               base_weight_g: BASE_PACKAGE_WEIGHT_G,
               source: "fallback",
               fallback_used_count: orderData.items.reduce((sum, item) => sum + item.qty, 0),
+              missing_fields_count: 0,
               was_clamped: fallbackWeightG > BASE_PACKAGE_WEIGHT_G,
             },
           };

@@ -1,0 +1,31 @@
+## Objetivo
+Fix crítico del constraint orders_status_check (error 23514 al setear processing) + mejoras en cleanup y UI.
+
+## A) Fix constraint orders_status_check
+- **Problema**: El constraint actual solo permite pending, paid, failed, canceled. El admin falla (23514) al setear status='processing'.
+- **Solución**: Script SQL idempotente `ops/sql/2026-01-31_orders_status_check_add_processing_completed.sql`
+  - Drop y recreate del constraint con: pending, paid, failed, canceled, cancelled, processing, completed
+  - **Aplicar manualmente** en Supabase SQL Editor antes de mergear/deployar
+
+## B) Cleanup: modo unpaid_any_age
+- Nuevo modo `unpaid_any_age`: borra no pagadas sin importar fecha
+- Solo órdenes con status in ('pending','cancelled','canceled')
+- Nunca borra payment_status='paid'
+- excludeWithShipmentId sigue aplicando
+
+## C) UI panel de limpieza
+- **Bug fix**: Input días ahora usa string state; permite escribir "7", "17", etc. sin clavarse en "1"
+- Validación 1-365 solo en blur
+- Opción "No pagadas (cualquier edad)" para unpaid_any_age
+- Campo días se oculta cuando modo = unpaid_any_age
+- Modal confirmación sigue exigiendo teclear BORRAR
+
+## Validaciones
+- pnpm lint OK
+- pnpm typecheck OK
+- pnpm build OK
+
+## Prueba manual
+1. **SQL**: Ejecutar script en Supabase SQL Editor. Admin debe poder marcar pagado => status processing sin error 23514.
+2. **Input**: En /admin/pedidos, panel Limpieza, cambiar días: escribir 7, 70, 365. Verificar que no se clava.
+3. **unpaid_any_age**: Modo "No pagadas (cualquier edad)", dry run, verificar conteos. Ejecutar requiere BORRAR.
