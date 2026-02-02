@@ -1,17 +1,21 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+
+type SlotInfo = {
+  position: number;
+  product_id: string | null;
+  title: string | null;
+  sku: string | null;
+  slug: string | null;
+};
 
 type FeaturedProductEditorClientProps = {
   productSlug: string;
   productTitle: string;
-  initialPosition: number | null; // null si no está destacado
+  initialPosition: number | null;
 };
 
-/**
- * Componente para marcar/desmarcar un producto como destacado
- * y asignar su posición (slot 0..7)
- */
 export default function FeaturedProductEditorClient({
   productSlug,
   productTitle,
@@ -21,26 +25,52 @@ export default function FeaturedProductEditorClient({
   const [position, setPosition] = useState<string>(
     initialPosition !== null ? String(initialPosition) : "0",
   );
+  const [slots, setSlots] = useState<SlotInfo[]>([]);
+  const [slotsLoading, setSlotsLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [warningMessage, setWarningMessage] = useState<string | null>(null);
 
-  // Reset success message after 3 seconds
+  const fetchSlots = useCallback(async () => {
+    setSlotsLoading(true);
+    try {
+      const res = await fetch("/api/admin/products/featured");
+      const data = await res.json();
+      if (data.ok && Array.isArray(data.slots)) {
+        setSlots(data.slots);
+      }
+    } catch {
+      setSlots([]);
+    } finally {
+      setSlotsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSlots();
+  }, [fetchSlots]);
+
   useEffect(() => {
     if (success) {
-      const timer = setTimeout(() => setSuccess(false), 3000);
-      return () => clearTimeout(timer);
+      const t = setTimeout(() => setSuccess(false), 3000);
+      return () => clearTimeout(t);
     }
   }, [success]);
 
-  // Reset error after 5 seconds
   useEffect(() => {
     if (error) {
-      const timer = setTimeout(() => setError(null), 5000);
-      return () => clearTimeout(timer);
+      const t = setTimeout(() => setError(null), 8000);
+      return () => clearTimeout(t);
     }
   }, [error]);
+
+  const getSlotLabel = (pos: number) => {
+    const slot = slots.find((s) => s.position === pos);
+    if (!slot || !slot.product_id) return `Slot ${pos} (vacío)`;
+    const label = slot.title?.trim() || slot.sku || slot.slug || "—";
+    return `Slot ${pos} (ocupado: ${label})`;
+  };
 
   const handleSave = async () => {
     setLoading(true);
@@ -49,8 +79,7 @@ export default function FeaturedProductEditorClient({
     setWarningMessage(null);
 
     try {
-      const positionValue = isFeatured ? parseInt(position, 10) : null;
-
+      const positionValue = isFeatured ? parseInt(position, 10) : undefined;
       if (isFeatured && (isNaN(positionValue!) || positionValue! < 0 || positionValue! > 7)) {
         setError("La posición debe ser un número entre 0 y 7.");
         setLoading(false);
@@ -59,33 +88,25 @@ export default function FeaturedProductEditorClient({
 
       const res = await fetch("/api/admin/products/featured", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           productSlug,
-          position: positionValue,
-          reason: isFeatured
-            ? `Marcar como destacado en posición ${positionValue}`
-            : "Desmarcar como destacado",
+          enabled: isFeatured,
+          position: isFeatured ? positionValue : undefined,
+          reason: isFeatured ? `Marcar como destacado en posición ${positionValue}` : "Quitar de destacados",
         }),
       });
 
       const data = await res.json();
 
       if (!data.ok) {
-        if (data.code === "position_occupied") {
-          setError(
-            `La posición ${position} ya está ocupada por otro producto${data.occupiedBy ? ` (${data.occupiedBy})` : ""}. Se reemplazará si continúas.`,
-          );
-        } else {
-          setError(data.message || "Error al guardar cambios");
-        }
+        const msg = data.message || "Error al guardar cambios";
+        const details = data.details ? ` (${data.details})` : "";
+        setError(msg + details);
         setLoading(false);
         return;
       }
 
-      // Si hubo swap (se reemplazó otro producto)
       if (data.action === "upserted" && data.previousSlug) {
         setWarningMessage(
           `Se reemplazó el producto anterior (${data.previousSlug}) en la posición ${data.position}.`,
@@ -93,13 +114,42 @@ export default function FeaturedProductEditorClient({
       }
 
       setSuccess(true);
-      // Refrescar página para mostrar cambios
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+      await fetchSlots();
+      setTimeout(() => window.location.reload(), 1000);
     } catch (err) {
       console.error("[FeaturedProductEditorClient] Error:", err);
       setError("Error de red al guardar cambios.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRemove = async () => {
+    setLoading(true);
+    setError(null);
+    setSuccess(false);
+    setWarningMessage(null);
+    try {
+      const res = await fetch("/api/admin/products/featured", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productSlug, enabled: false, reason: "Quitar de destacados" }),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        const msg = data.message || "Error al quitar de destacados";
+        const details = data.details ? ` (${data.details})` : "";
+        setError(msg + details);
+        setLoading(false);
+        return;
+      }
+      setSuccess(true);
+      setIsFeatured(false);
+      await fetchSlots();
+      setTimeout(() => window.location.reload(), 1000);
+    } catch (err) {
+      console.error("[FeaturedProductEditorClient] Error:", err);
+      setError("Error de red.");
     } finally {
       setLoading(false);
     }
@@ -109,8 +159,62 @@ export default function FeaturedProductEditorClient({
     <div className="space-y-4">
       <h3 className="text-md font-semibold">Producto destacado</h3>
       <p className="text-sm text-gray-600">
-        Los productos destacados aparecen en la página de inicio (máximo 8 posiciones: 0-7).
+        Los productos destacados aparecen en la página de inicio (8 slots: 0-7).
       </p>
+
+      {/* Estado actual */}
+      {initialPosition !== null ? (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+          <p className="text-sm text-blue-800">
+            <strong>Estado actual:</strong> Este producto está en el slot {initialPosition}
+          </p>
+        </div>
+      ) : (
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+          <p className="text-sm text-gray-700">No está destacado</p>
+        </div>
+      )}
+
+      {/* Tabla de slots 0..7 */}
+      <div>
+        <h4 className="text-sm font-medium text-gray-700 mb-2">Slots (0-7)</h4>
+        {slotsLoading ? (
+          <p className="text-sm text-gray-500">Cargando slots…</p>
+        ) : (
+          <div className="overflow-x-auto rounded-lg border border-gray-200">
+            <table className="min-w-full text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-3 py-2 text-left font-medium text-gray-700">Slot</th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-700">Producto</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {[0, 1, 2, 3, 4, 5, 6, 7].map((pos) => {
+                  const slot = slots.find((s) => s.position === pos);
+                  const occupied = slot?.product_id && (slot.title || slot.sku || slot.slug);
+                  const isThisProduct = slot?.slug === productSlug;
+                  return (
+                    <tr key={pos} className={isThisProduct ? "bg-primary-50" : ""}>
+                      <td className="px-3 py-2 font-medium">{pos}</td>
+                      <td className="px-3 py-2 text-gray-600">
+                        {occupied ? (
+                          <>
+                            {slot!.title || slot!.sku || slot!.slug}
+                            {isThisProduct && " (este producto)"}
+                          </>
+                        ) : (
+                          <span className="italic text-gray-400">Vacío</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
       {/* Toggle destacado */}
       <div className="flex items-center gap-3">
@@ -126,7 +230,6 @@ export default function FeaturedProductEditorClient({
         </label>
       </div>
 
-      {/* Selector de posición (solo si está destacado) */}
       {isFeatured && (
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -139,40 +242,28 @@ export default function FeaturedProductEditorClient({
           >
             {[0, 1, 2, 3, 4, 5, 6, 7].map((slot) => (
               <option key={slot} value={String(slot)}>
-                Slot {slot}
+                {getSlotLabel(slot)}
               </option>
             ))}
           </select>
           <p className="mt-1 text-xs text-gray-500">
-            Si la posición está ocupada, se reemplazará el producto anterior.
+            Si el slot está ocupado, se reemplazará el producto anterior.
           </p>
         </div>
       )}
 
-      {/* Estado actual */}
-      {initialPosition !== null && (
-        <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
-          <p className="text-sm text-blue-800">
-            <strong>Estado actual:</strong> Destacado en la posición {initialPosition}
-          </p>
-        </div>
-      )}
-
-      {/* Error */}
       {error && (
         <div className="rounded-lg border border-red-200 bg-red-50 p-3">
           <p className="text-sm text-red-800">{error}</p>
         </div>
       )}
 
-      {/* Warning (swap) */}
       {warningMessage && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
           <p className="text-sm text-amber-800">{warningMessage}</p>
         </div>
       )}
 
-      {/* Success */}
       {success && (
         <div className="rounded-lg border border-green-200 bg-green-50 p-3">
           <p className="text-sm text-green-800">
@@ -183,14 +274,25 @@ export default function FeaturedProductEditorClient({
         </div>
       )}
 
-      {/* Botón Guardar */}
-      <button
-        onClick={handleSave}
-        disabled={loading}
-        className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-      >
-        {loading ? "Guardando..." : "Guardar cambios"}
-      </button>
+      <div className="flex gap-3">
+        <button
+          onClick={handleSave}
+          disabled={loading}
+          className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+        >
+          {loading ? "Guardando…" : "Guardar cambios"}
+        </button>
+        {initialPosition !== null && (
+          <button
+            type="button"
+            onClick={handleRemove}
+            disabled={loading}
+            className="px-4 py-2 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 disabled:opacity-50 text-sm font-medium"
+          >
+            Quitar de destacados
+          </button>
+        )}
+      </div>
     </div>
   );
 }

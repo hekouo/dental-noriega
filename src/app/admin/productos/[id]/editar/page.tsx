@@ -67,9 +67,8 @@ export default async function AdminProductosEditarPage({
     const { data: featuredData } = await supabase
       .from("featured")
       .select("position")
-      .eq("catalog_id", product.slug)
+      .eq("product_id", product.id)
       .maybeSingle();
-    
     if (featuredData) {
       featuredPosition = featuredData.position;
     }

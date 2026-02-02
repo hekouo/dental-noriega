@@ -8,18 +8,26 @@ import { sanitizeForLog } from "@/lib/utils/sanitizeForLog";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const FeaturedRequestSchema = z.object({
+const FeaturedPostSchema = z.object({
   productSlug: z.string().min(1, "El slug del producto es requerido"),
-  position: z.number().int().min(0).max(7).nullable(), // null = delete
-  reason: z.string().optional(), // Opcional: razón para auditar
-});
+  position: z.number().int().min(0).max(7).optional(), // 0..7 cuando enabled=true
+  enabled: z.boolean().optional(), // true = asignar a slot, false = quitar de destacados
+  reason: z.string().optional(),
+}).refine(
+  (data) => {
+    if (data.enabled === true) return typeof data.position === "number";
+    return true;
+  },
+  { message: "Con enabled=true se requiere position (0-7)", path: ["position"] },
+);
 
-type FeaturedResponse =
+type FeaturedPostResponse =
   | {
       ok: true;
       action: "upserted" | "deleted";
       position?: number;
-      previousSlug?: string | null; // Si se reemplazó otro producto
+      previousSlug?: string | null;
+      previousProductId?: string | null;
     }
   | {
       ok: false;
@@ -27,226 +35,268 @@ type FeaturedResponse =
         | "unauthorized"
         | "invalid_request"
         | "product_not_found"
-        | "position_occupied"
         | "config_error"
         | "unknown_error";
       message: string;
-      occupiedBy?: string; // Slug del producto que ocupa la posición
+      details?: string;
     };
 
 /**
- * POST /api/admin/products/featured
- * Upsert o delete de productos destacados
- * Body: { productSlug: string, position: number | null, reason?: string }
- * Si position es null, se elimina de featured
- * Si position está ocupada, se reemplaza (política simple: swap)
+ * GET /api/admin/products/featured
+ * Lista todos los slots 0..7 con producto asignado (position, product_id, title, sku, slug)
  */
-export async function POST(req: NextRequest): Promise<NextResponse<FeaturedResponse>> {
+export async function GET(): Promise<NextResponse<unknown>> {
   try {
-    // Verificar acceso admin
     const access = await checkAdminAccess();
     if (access.status !== "allowed") {
       return NextResponse.json(
-        {
-          ok: false,
-          code: "unauthorized",
-          message: "No tienes permisos para realizar esta acción",
-        } satisfies FeaturedResponse,
+        { ok: false, code: "unauthorized", message: "No autorizado" },
         { status: 403 },
       );
     }
 
-    // Validar body
-    const body = await req.json().catch(() => null);
-    if (!body) {
-      return NextResponse.json(
-        {
-          ok: false,
-          code: "invalid_request",
-          message: "Datos inválidos: se espera un objeto JSON",
-        } satisfies FeaturedResponse,
-        { status: 400 },
-      );
-    }
-
-    const validationResult = FeaturedRequestSchema.safeParse(body);
-    if (!validationResult.success) {
-      const errors = validationResult.error.errors
-        .map((e) => `${e.path.join(".")}: ${e.message}`)
-        .join(", ");
-      return NextResponse.json(
-        {
-          ok: false,
-          code: "invalid_request",
-          message: `Datos inválidos: ${errors}`,
-        } satisfies FeaturedResponse,
-        { status: 400 },
-      );
-    }
-
-    const { productSlug, position, reason } = validationResult.data;
-
-    // Crear cliente Supabase
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
     if (!supabaseUrl || !serviceRoleKey) {
       return NextResponse.json(
-        {
-          ok: false,
-          code: "config_error",
-          message: "Configuración de Supabase incompleta",
-        } satisfies FeaturedResponse,
+        { ok: false, code: "config_error", message: "Configuración incompleta" },
         { status: 500 },
       );
     }
 
     const supabase = createClient(supabaseUrl, serviceRoleKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
+      auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // Verificar que el producto existe
+    const { data: rows, error } = await supabase
+      .from("featured")
+      .select("position, product_id")
+      .order("position", { ascending: true });
+
+    if (error) {
+      console.error("[featured GET] Error listando featured:", error);
+      return NextResponse.json(
+        { ok: false, code: "unknown_error", message: "Error al listar destacados", details: error.message },
+        { status: 500 },
+      );
+    }
+
+    const byPosition = new Map<number, string>();
+    (rows ?? []).forEach((r: { position: number; product_id: string }) => {
+      byPosition.set(r.position, r.product_id);
+    });
+
+    const productIds = [...new Set(byPosition.values())];
+    let products: { id: string; title: string | null; sku: string | null; slug: string | null }[] = [];
+    if (productIds.length > 0) {
+      const { data: prods, error: prodsErr } = await supabase
+        .from("products")
+        .select("id, title, sku, slug")
+        .in("id", productIds);
+      if (!prodsErr && prods) products = prods;
+    }
+
+    const productMap = new Map(products.map((p) => [p.id, p]));
+
+    const list: { position: number; product_id: string | null; title: string | null; sku: string | null; slug: string | null }[] = [];
+    for (let pos = 0; pos <= 7; pos++) {
+      const productId = byPosition.get(pos) ?? null;
+      const p = productId ? productMap.get(productId) : null;
+      list.push({
+        position: pos,
+        product_id: productId ?? null,
+        title: p?.title ?? null,
+        sku: p?.sku ?? null,
+        slug: p?.slug ?? null,
+      });
+    }
+
+    return NextResponse.json({ ok: true, slots: list });
+  } catch (err) {
+    console.error("[featured GET] Error inesperado:", err);
+    return NextResponse.json(
+      { ok: false, code: "unknown_error", message: "Error inesperado" },
+      { status: 500 },
+    );
+  }
+}
+
+/**
+ * POST /api/admin/products/featured
+ * enabled=true => asignar producto a position (0..7). Si el slot está ocupado, reemplaza.
+ * enabled=false => quitar el producto de featured (cualquier slot).
+ */
+export async function POST(req: NextRequest): Promise<NextResponse<FeaturedPostResponse>> {
+  try {
+    const access = await checkAdminAccess();
+    if (access.status !== "allowed") {
+      return NextResponse.json(
+        { ok: false, code: "unauthorized", message: "No tienes permisos para realizar esta acción" } satisfies FeaturedPostResponse,
+        { status: 403 },
+      );
+    }
+
+    const body = await req.json().catch(() => null);
+    if (!body) {
+      return NextResponse.json(
+        { ok: false, code: "invalid_request", message: "Se espera un objeto JSON" } satisfies FeaturedPostResponse,
+        { status: 400 },
+      );
+    }
+
+    const validationResult = FeaturedPostSchema.safeParse(body);
+    if (!validationResult.success) {
+      const errors = validationResult.error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ");
+      return NextResponse.json(
+        { ok: false, code: "invalid_request", message: `Datos inválidos: ${errors}` } satisfies FeaturedPostResponse,
+        { status: 400 },
+      );
+    }
+
+    const { productSlug, position, enabled, reason } = validationResult.data;
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !serviceRoleKey) {
+      return NextResponse.json(
+        { ok: false, code: "config_error", message: "Configuración de Supabase incompleta" } satisfies FeaturedPostResponse,
+        { status: 500 },
+      );
+    }
+
+    const supabase = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
     const { data: product, error: productError } = await supabase
       .from("products")
       .select("id, slug, title")
       .eq("slug", productSlug)
       .maybeSingle();
 
-    if (productError || !product) {
-      console.error("[featured] Producto no encontrado:", { productSlug, error: productError });
+    if (productError) {
+      console.error("[featured] Error al buscar producto:", { productSlug, error: productError });
       return NextResponse.json(
         {
           ok: false,
-          code: "product_not_found",
-          message: "El producto no existe",
-        } satisfies FeaturedResponse,
+          code: "unknown_error",
+          message: "Error al verificar el producto",
+          details: productError.message,
+        } satisfies FeaturedPostResponse,
+        { status: 500 },
+      );
+    }
+    if (!product) {
+      return NextResponse.json(
+        { ok: false, code: "product_not_found", message: "El producto no existe" } satisfies FeaturedPostResponse,
         { status: 404 },
       );
     }
 
-    // Si position es null, eliminar de featured
-    if (position === null) {
-      const { error: deleteError } = await supabase
-        .from("featured")
-        .delete()
-        .eq("catalog_id", productSlug);
+    const removeFromFeatured = enabled === false;
 
+    if (removeFromFeatured) {
+      const { error: deleteError } = await supabase.from("featured").delete().eq("product_id", product.id);
       if (deleteError) {
-        console.error("[featured] Error al eliminar de featured:", {
-          productSlug,
-          error: deleteError,
-        });
+        console.error("[featured] Error al eliminar de featured:", { productSlug, error: deleteError });
         return NextResponse.json(
           {
             ok: false,
             code: "unknown_error",
             message: "Error al eliminar el producto de destacados",
-          } satisfies FeaturedResponse,
+            details: deleteError.message,
+          } satisfies FeaturedPostResponse,
           { status: 500 },
         );
       }
-
       console.log("[featured] Producto eliminado de destacados", {
         productSlug: sanitizeForLog(productSlug),
         adminEmail: sanitizeForLog(access.userEmail),
         reason: reason ? sanitizeForLog(reason) : undefined,
       });
-
       return NextResponse.json({
         ok: true,
         action: "deleted",
-      } satisfies FeaturedResponse);
+      } satisfies FeaturedPostResponse);
     }
 
-    // Si position está definida, verificar si está ocupada
-    const { data: existingFeatured, error: existingError } = await supabase
+    const pos = typeof position === "number" ? position : 0;
+
+    // Verificar si la posición está ocupada (0 rows NO es error)
+    const { data: existingRow, error: existingError } = await supabase
       .from("featured")
-      .select("catalog_id")
-      .eq("position", position)
+      .select("product_id")
+      .eq("position", pos)
       .maybeSingle();
 
-    if (existingError && existingError.code !== "PGRST116") {
-      // PGRST116 = no rows
-      console.error("[featured] Error al verificar posición:", {
-        position,
-        error: existingError,
-      });
+    if (existingError) {
+      console.error("[featured] Error al verificar posición:", { position: pos, error: existingError });
       return NextResponse.json(
         {
           ok: false,
           code: "unknown_error",
           message: "Error al verificar la posición",
-        } satisfies FeaturedResponse,
+          details: existingError.message,
+        } satisfies FeaturedPostResponse,
         { status: 500 },
       );
     }
 
     let previousSlug: string | null = null;
+    let previousProductId: string | null = null;
 
-    // Si la posición está ocupada, eliminar el registro anterior (swap)
-    if (existingFeatured && existingFeatured.catalog_id !== productSlug) {
-      previousSlug = existingFeatured.catalog_id;
-      const { error: deleteError } = await supabase
-        .from("featured")
-        .delete()
-        .eq("position", position);
+    if (existingRow && existingRow.product_id && existingRow.product_id !== product.id) {
+      previousProductId = existingRow.product_id;
+      const { data: prevProduct } = await supabase
+        .from("products")
+        .select("slug")
+        .eq("id", existingRow.product_id)
+        .maybeSingle();
+      previousSlug = prevProduct?.slug ?? null;
 
+      const { error: deleteError } = await supabase.from("featured").delete().eq("position", pos);
       if (deleteError) {
-        console.error("[featured] Error al eliminar featured anterior:", {
-          position,
-          previousSlug,
-          error: deleteError,
-        });
+        console.error("[featured] Error al liberar posición:", { position: pos, error: deleteError });
         return NextResponse.json(
           {
             ok: false,
             code: "unknown_error",
             message: "Error al reemplazar el producto destacado",
-          } satisfies FeaturedResponse,
+            details: deleteError.message,
+          } satisfies FeaturedPostResponse,
           { status: 500 },
         );
       }
-
       console.log("[featured] Posición liberada (swap)", {
-        position,
+        position: pos,
         previousSlug: sanitizeForLog(previousSlug),
         newSlug: sanitizeForLog(productSlug),
       });
     }
 
-    // Eliminar cualquier featured anterior de este producto (para evitar duplicados)
-    await supabase.from("featured").delete().eq("catalog_id", productSlug);
+    await supabase.from("featured").delete().eq("product_id", product.id);
 
-    // Insertar nuevo featured
-    const { error: insertError } = await supabase
-      .from("featured")
-      .insert({
-        catalog_id: productSlug,
-        position,
-      });
+    const { error: insertError } = await supabase.from("featured").insert({
+      product_id: product.id,
+      position: pos,
+    });
 
     if (insertError) {
-      console.error("[featured] Error al insertar featured:", {
-        productSlug,
-        position,
-        error: insertError,
-      });
+      console.error("[featured] Error al insertar featured:", { productSlug, position: pos, error: insertError });
       return NextResponse.json(
         {
           ok: false,
           code: "unknown_error",
           message: "Error al marcar el producto como destacado",
-        } satisfies FeaturedResponse,
+          details: insertError.message,
+        } satisfies FeaturedPostResponse,
         { status: 500 },
       );
     }
 
     console.log("[featured] Producto marcado como destacado", {
       productSlug: sanitizeForLog(productSlug),
-      position,
+      position: pos,
       previousSlug: previousSlug ? sanitizeForLog(previousSlug) : null,
       adminEmail: sanitizeForLog(access.userEmail),
       reason: reason ? sanitizeForLog(reason) : undefined,
@@ -255,9 +305,10 @@ export async function POST(req: NextRequest): Promise<NextResponse<FeaturedRespo
     return NextResponse.json({
       ok: true,
       action: "upserted",
-      position,
+      position: pos,
       previousSlug,
-    } satisfies FeaturedResponse);
+      previousProductId,
+    } satisfies FeaturedPostResponse);
   } catch (err) {
     console.error("[featured] Error inesperado:", err);
     return NextResponse.json(
@@ -265,7 +316,8 @@ export async function POST(req: NextRequest): Promise<NextResponse<FeaturedRespo
         ok: false,
         code: "unknown_error",
         message: "Error inesperado al actualizar destacados",
-      } satisfies FeaturedResponse,
+        details: err instanceof Error ? err.message : String(err),
+      } satisfies FeaturedPostResponse,
       { status: 500 },
     );
   }
