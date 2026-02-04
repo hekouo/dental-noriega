@@ -451,6 +451,14 @@ export default async function AdminPedidoDetailPage({
                           ? (order.metadata as Record<string, unknown>).shipping_package as Record<string, unknown>
                           : null
                       }
+                      dims_source={
+                        (() => {
+                          const sh = (order.metadata as Record<string, unknown> | null)?.shipping as Record<string, unknown> | undefined;
+                          const pd = sh?.package_debug as { dims_source?: "override" | "standard_box" | "products" } | undefined;
+                          if (pd?.dims_source) return pd.dims_source;
+                          return currentPackageFinal ? "override" : "standard_box";
+                        })()
+                      }
                     />
                   </div>
                 )}

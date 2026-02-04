@@ -24,6 +24,7 @@ import {
 } from "@/lib/shipping/normalizeShippingMetadata";
 import {
   buildPackageDebug,
+  STANDARD_BOX_DIMS_CM,
   type PackageDebug,
   type PackageDebugOrderItem,
   type PackageDebugProduct,
@@ -373,16 +374,22 @@ export async function POST(req: NextRequest) {
         normalizePackageCandidate(metadata.shipping_package_final) ||
         normalizePackageCandidate(shippingMeta.package_final) ||
         normalizePackageCandidate(shippingMeta.shipping_package_final);
+
+      if (finalPackage) {
+        return {
+          source: "final" as const,
+          dims_source: "override" as const,
+          ...finalPackage,
+        };
+      }
+
       const packageUsed =
         normalizePackageCandidate(shippingMeta.package_used) ||
         normalizePackageCandidate((shippingMeta as { package_used?: unknown }).package_used);
-
       const estimatedPackage =
         normalizePackageCandidate(metadata.shipping_package_estimated) ||
         normalizePackageCandidate(shippingMeta.estimated_package) ||
         normalizePackageCandidate(shippingMeta.shipping_package_estimated);
-
-      // metadata.shipping_package: peso facturable (masa vs volumétrico), dims con fallback por profile
       const shippingPackageRaw = metadata.shipping_package as Record<string, unknown> | undefined;
       const shippingPackage =
         shippingPackageRaw && typeof shippingPackageRaw === "object"
@@ -396,26 +403,29 @@ export async function POST(req: NextRequest) {
             })
           : null;
 
-      const fallback = {
-        weight_g: 1200,
-        length_cm: 25,
-        width_cm: 20,
-        height_cm: 15,
+      const standardDims = {
+        length_cm: STANDARD_BOX_DIMS_CM.length,
+        width_cm: STANDARD_BOX_DIMS_CM.width,
+        height_cm: STANDARD_BOX_DIMS_CM.height,
+      };
+      const defaultWeight = 1200;
+
+      const weightSource = packageUsed || shippingPackage || estimatedPackage || {
+        weight_g: defaultWeight,
+        ...standardDims,
       };
 
-      if (finalPackage) {
-        return { source: "final" as const, ...finalPackage };
-      }
-      if (packageUsed) {
-        return { source: "package_used" as const, ...packageUsed };
-      }
-      if (shippingPackage) {
-        return { source: "shipping_package" as const, ...shippingPackage };
-      }
-      if (estimatedPackage) {
-        return { source: "estimated" as const, ...estimatedPackage };
-      }
-      return { source: "default" as const, ...fallback };
+      return {
+        source: packageUsed ? ("package_used" as const)
+          : shippingPackage ? ("shipping_package" as const)
+          : estimatedPackage ? ("estimated" as const)
+          : ("default" as const),
+        dims_source: "standard_box" as const,
+        weight_g: weightSource.weight_g,
+        length_cm: standardDims.length_cm,
+        width_cm: standardDims.width_cm,
+        height_cm: standardDims.height_cm,
+      };
     };
 
     const finalPackageCandidate =
@@ -829,6 +839,7 @@ export async function POST(req: NextRequest) {
 
     const normalizedPackage = normalizePackageForSkydropx(packageMetadata);
     const packageSource = normalizedPackage.source;
+    const dimsSource = (normalizedPackage as { dims_source?: "override" | "standard_box" | "products" }).dims_source ?? "standard_box";
     const weightG = normalizedPackage.weight_g;
     const lengthCm = normalizedPackage.length_cm;
     const widthCm = normalizedPackage.width_cm;
@@ -1046,6 +1057,7 @@ export async function POST(req: NextRequest) {
           width_cm: parcelDims.width,
           height_cm: parcelDims.height,
         },
+        dims_source: dimsSource,
         roundingPolicy,
         weightSentToSkydropxKg: weightSentKg,
       });
@@ -1790,6 +1802,7 @@ export async function POST(req: NextRequest) {
           width: parcel.width,
           height: parcel.height,
         },
+        dims_source: dimsSource,
         package_source: packageSource,
         rounding_policy: roundingPolicy,
         weight_sent_to_skydropx_kg: weightSentKg,
