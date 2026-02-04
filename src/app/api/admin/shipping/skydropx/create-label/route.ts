@@ -16,7 +16,19 @@ import {
 import { getSkydropxConfig } from "@/lib/shipping/skydropx.server";
 import { getOrderShippingAddress } from "@/lib/shipping/getOrderShippingAddress";
 import { normalizeShippingPricing } from "@/lib/shipping/normalizeShippingPricing";
-import { normalizeShippingMetadata, addShippingMetadataDebug, preserveRateUsed, ensureRateUsedInMetadata } from "@/lib/shipping/normalizeShippingMetadata";
+import {
+  normalizeShippingMetadata,
+  addShippingMetadataDebug,
+  preserveRateUsed,
+  ensureRateUsedInMetadata,
+} from "@/lib/shipping/normalizeShippingMetadata";
+import {
+  buildPackageDebug,
+  type PackageDebug,
+  type PackageDebugOrderItem,
+  type PackageDebugProduct,
+  type ShippingPackageMetaSnapshot,
+} from "@/lib/shipping/packageDebug";
 import { logPreWrite, logPostWrite } from "@/lib/shipping/metadataWriterLogger";
 
 export const dynamic = "force-dynamic";
@@ -264,6 +276,65 @@ export async function POST(req: NextRequest) {
     
     const order = orderData;
     orderForError = order as Record<string, unknown>;
+
+    const { data: orderItemsData, error: orderItemsError } = await supabase
+      .from("order_items")
+      .select("id, product_id, title, qty")
+      .eq("order_id", orderId);
+
+    if (orderItemsError) {
+      console.error("[create-label] Error al leer order_items:", {
+        orderId,
+        code: orderItemsError.code,
+        message: orderItemsError.message,
+      });
+    }
+
+    const packageOrderItems: PackageDebugOrderItem[] =
+      (orderItemsData || []).map((item) => ({
+        product_id: (item as { product_id?: string | null }).product_id ?? null,
+        qty: typeof item.qty === "number" && item.qty > 0 ? item.qty : 1,
+        title: (item as { title?: string | null }).title ?? null,
+      })) ?? [];
+
+    const productIds = Array.from(
+      new Set(
+        packageOrderItems
+          .map((item) => item.product_id)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    );
+
+    const productsMap: Map<string, PackageDebugProduct> = new Map();
+    if (productIds.length > 0) {
+      const { data: productsData, error: productsError } = await supabase
+        .from("products")
+        .select(
+          "id, sku, title, slug, shipping_weight_g, shipping_length_cm, shipping_width_cm, shipping_height_cm, shipping_profile",
+        )
+        .in("id", productIds);
+
+      if (productsError) {
+        console.error("[create-label] Error al leer productos para package_debug:", {
+          orderId,
+          code: productsError.code,
+          message: productsError.message,
+        });
+      } else {
+        productsData?.forEach((product) => {
+          productsMap.set(product.id, {
+            sku: product.sku ?? null,
+            title: product.title ?? null,
+            slug: product.slug ?? null,
+            shipping_weight_g: product.shipping_weight_g ?? null,
+            shipping_length_cm: product.shipping_length_cm ?? null,
+            shipping_width_cm: product.shipping_width_cm ?? null,
+            shipping_height_cm: product.shipping_height_cm ?? null,
+            shipping_profile: product.shipping_profile ?? null,
+          });
+        });
+      }
+    }
 
     // IDEMPOTENCIA: Verificar si ya existe shipment_id en metadata
     const orderMetadata = (order.metadata as Record<string, unknown>) || {};
@@ -763,6 +834,17 @@ export async function POST(req: NextRequest) {
     const widthCm = normalizedPackage.width_cm;
     const heightCm = normalizedPackage.height_cm;
     const weightKg = weightG / 1000;
+    const rawWeightKg = weightG / 1000;
+    const weightSentKg = Math.max(1, Math.ceil(rawWeightKg * 100) / 100);
+    const roundingPolicy = rawWeightKg < 1 ? "ceil_to_min_1kg" : "preserve_2_decimals";
+    const parcelDims = {
+      height: Math.max(1, Math.round(heightCm)),
+      width: Math.max(1, Math.round(widthCm)),
+      length: Math.max(1, Math.round(lengthCm)),
+    };
+    const shippingPackageMeta =
+      (orderMetadata.shipping_package as ShippingPackageMetaSnapshot | null) ?? null;
+    const defaultItemWeightG = parseInt(process.env.DEFAULT_ITEM_WEIGHT_G || "100", 10);
 
     if (process.env.NODE_ENV !== "production") {
       console.log("[create-label] Creando envío:", {
@@ -950,22 +1032,41 @@ export async function POST(req: NextRequest) {
       );
     };
 
-    const createShipmentWithFinalPackage = async () => {
-      // Preservar decimales: Skydropx acepta kg con decimales. Mínimo 1 kg.
-      const rawWeightKg = weightG / 1000;
-      const weightSentKg = Math.max(1, Math.ceil(rawWeightKg * 100) / 100);
-      const roundingPolicy = rawWeightKg < 1 ? "ceil_to_min_1kg" : "preserve_2_decimals";
+    let packageDebug: PackageDebug | null = null;
+    try {
+      packageDebug = buildPackageDebug({
+        orderId,
+        routeName: "create-label",
+        items: packageOrderItems,
+        products: productsMap,
+        fallbackItemWeightG: defaultItemWeightG,
+        shippingPackageMeta,
+        dimsCmUsed: {
+          length_cm: parcelDims.length,
+          width_cm: parcelDims.width,
+          height_cm: parcelDims.height,
+        },
+        roundingPolicy,
+        weightSentToSkydropxKg: weightSentKg,
+      });
+    } catch (packageDebugError) {
+      console.error("[create-label] Error al construir package_debug:", packageDebugError);
+    }
 
+    if (packageDebug) {
+      console.info("[create-label] PACKAGE_DEBUG", packageDebug);
+    }
+
+    const createShipmentWithFinalPackage = async () => {
       const parcel = {
         weight: weightSentKg,
-        height: Math.max(1, Math.round(heightCm)),
-        width: Math.max(1, Math.round(widthCm)),
-        length: Math.max(1, Math.round(lengthCm)),
+        height: parcelDims.height,
+        width: parcelDims.width,
+        length: parcelDims.length,
         distance_unit: "CM" as const,
         mass_unit: "KG" as const,
       };
 
-      const shippingPackageMeta = (orderMetadata.shipping_package as Record<string, unknown> | null) ?? null;
       if (process.env.NODE_ENV !== "production" && shippingPackageMeta) {
         console.log("[shipping/package] shipment_payload_debug", {
           orderId,
@@ -974,7 +1075,11 @@ export async function POST(req: NextRequest) {
           billable_weight_kg: shippingPackageMeta.billable_weight_kg,
           weight_sent_to_skydropx: weightSentKg,
           rounding_policy: roundingPolicy,
-          dims_cm: shippingPackageMeta.dims_cm ?? { length_cm: lengthCm, width_cm: widthCm, height_cm: heightCm },
+          dims_cm: shippingPackageMeta.dims_cm ?? {
+            length_cm: lengthCm,
+            width_cm: widthCm,
+            height_cm: heightCm,
+          },
           parcels_weight_kg: parcel.weight,
         });
       }
@@ -1097,6 +1202,24 @@ export async function POST(req: NextRequest) {
             heightCm: parcel.height,
           });
         }
+
+        console.info("[create-label] SHIPMENT_PAYLOAD_DEBUG", {
+          orderId,
+          mode: "reuse_saved_rate",
+          quotation_id: savedQuotationId,
+          rate_id: savedRateId,
+          provider: rateMeta?.provider ?? null,
+          service: rateMeta?.service ?? null,
+          weight_kg: parcel.weight,
+          dims_cm: {
+            length: parcel.length,
+            width: parcel.width,
+            height: parcel.height,
+          },
+          package_source: packageSource,
+          rounding_policy: roundingPolicy,
+          weight_sent_to_skydropx_kg: weightSentKg,
+        });
 
         const response = await skydropxFetch("/api/v1/shipments", {
           method: "POST",
@@ -1654,6 +1777,24 @@ export async function POST(req: NextRequest) {
         });
       }
 
+      console.info("[create-label] SHIPMENT_PAYLOAD_DEBUG", {
+        orderId,
+        mode: "new_rate_selection",
+        quotation_id: quotationId,
+        rate_id: rateSelection.rateId,
+        provider: rateSelection.provider ?? null,
+        service: rateSelection.service ?? null,
+        weight_kg: parcel.weight,
+        dims_cm: {
+          length: parcel.length,
+          width: parcel.width,
+          height: parcel.height,
+        },
+        package_source: packageSource,
+        rounding_policy: roundingPolicy,
+        weight_sent_to_skydropx_kg: weightSentKg,
+      });
+
       const response = await skydropxFetch("/api/v1/shipments", {
         method: "POST",
         headers: {
@@ -2014,7 +2155,7 @@ export async function POST(req: NextRequest) {
     const nowIso = new Date().toISOString();
     // Agregar evidencia de estado/label/tracking al metadata normalizado
     const metadataShipping = normalizedMeta.shippingMeta;
-    updatedMetadata.shipping = {
+    const shippingWithEvidence: Record<string, unknown> = {
       ...metadataShipping,
       shipping_status: shippingStatus,
       // NOTA: shipping_status_updated_at se guarda en metadata, no en columna (columna no existe)
@@ -2027,6 +2168,10 @@ export async function POST(req: NextRequest) {
         (metadataShipping as { tracking_number?: string | null }).tracking_number ??
         null,
     };
+    if (packageDebug) {
+      shippingWithEvidence.package_debug = packageDebug;
+    }
+    updatedMetadata.shipping = shippingWithEvidence;
     // Re-normalizar después de agregar evidencia para asegurar rate_used completo
     const finalNormalizedMeta = normalizeShippingMetadata(updatedMetadata, {
       source: "create-label",
@@ -2273,6 +2418,19 @@ export async function POST(req: NextRequest) {
           (rawDbRateUsed.price_cents != null && rawDbRateUsed.price_cents !== null) ||
           (rawDbRateUsed.carrier_cents != null && rawDbRateUsed.carrier_cents !== null)
         )),
+      });
+
+      const rawDbPackageDebug = (rawDbShipping?.package_debug as Record<string, unknown>) || null;
+      console.log("[create-label] PACKAGE_DB_VERIFICATION", {
+        orderId: sanitizedOrderId,
+        "db.metadata #>> '{shipping,package_debug,billable_weight_kg}'":
+          rawDbPackageDebug?.billable_weight_kg ?? null,
+        "db.metadata #>> '{shipping,package_debug,weight_sent_to_skydropx_kg}'":
+          rawDbPackageDebug?.weight_sent_to_skydropx_kg ?? null,
+        "db.metadata #>> '{shipping,package_debug,mass_plus_tare_g}'":
+          rawDbPackageDebug?.mass_plus_tare_g ?? null,
+        has_items:
+          Array.isArray(rawDbPackageDebug?.items) && rawDbPackageDebug?.items.length > 0,
       });
     }
 
