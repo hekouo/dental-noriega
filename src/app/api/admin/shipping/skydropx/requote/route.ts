@@ -247,12 +247,11 @@ export async function POST(req: NextRequest) {
         shippingPackage.weight_g >= MIN_BILLABLE_WEIGHT_G
       ) {
         weightGrams = shippingPackage.weight_g;
-        dimsSource = "standard_box";
       } else {
         weightGrams = MIN_BILLABLE_WEIGHT_G;
         hasPackageWarning = true;
-        dimsSource = "standard_box";
       }
+      // dimsSource ya es "standard_box" por defecto en este branch (sin override)
     }
 
     if (process.env.NODE_ENV !== "production") {
