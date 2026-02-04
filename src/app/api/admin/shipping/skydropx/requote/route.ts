@@ -6,6 +6,7 @@ import { getSkydropxRates } from "@/lib/shipping/skydropx.server";
 import { normalizeSkydropxRates } from "@/lib/shipping/normalizeSkydropxRates";
 import type { SkydropxRate } from "@/lib/shipping/skydropx.server";
 import { getOrderShippingAddress } from "@/lib/shipping/getOrderShippingAddress";
+import { STANDARD_BOX_DIMS_CM } from "@/lib/shipping/packageDebug";
 import { normalizeShippingMetadata, addShippingMetadataDebug, preserveRateUsed, ensureRateUsedInMetadata } from "@/lib/shipping/normalizeShippingMetadata";
 import { logPreWrite, logPostWrite } from "@/lib/shipping/metadataWriterLogger";
 import { createClient } from "@supabase/supabase-js";
@@ -175,7 +176,34 @@ export async function POST(req: NextRequest) {
       address2: shippingAddressResult.address.address2 ?? undefined,
     };
 
-    // Obtener package desde metadata.shipping_package o usar default
+    // Política de dims: override (manual) => dims override; si no => STANDARD_BOX_DIMS_CM (25×20×15). No usar dims de productos como default.
+    const normalizePackageCandidate = (candidate: unknown) => {
+      if (!candidate || typeof candidate !== "object") return null;
+      const data = candidate as Record<string, unknown>;
+      const weight = data.weight_g;
+      const length = data.length_cm;
+      const width = data.width_cm;
+      const height = data.height_cm;
+      if (
+        typeof weight === "number" &&
+        weight > 0 &&
+        typeof length === "number" &&
+        length > 0 &&
+        typeof width === "number" &&
+        width > 0 &&
+        typeof height === "number" &&
+        height > 0
+      ) {
+        return { weight_g: weight, length_cm: length, width_cm: width, height_cm: height };
+      }
+      return null;
+    };
+    const metadataShippingForPackage = (orderMetadata.shipping as Record<string, unknown>) || {};
+    const finalPackage =
+      normalizePackageCandidate(orderMetadata.shipping_package_final) ||
+      normalizePackageCandidate(metadataShippingForPackage.package_final) ||
+      normalizePackageCandidate(metadataShippingForPackage.shipping_package_final);
+
     const shippingPackage = orderMetadata.shipping_package as
       | {
           mode?: "profile" | "custom";
@@ -192,31 +220,49 @@ export async function POST(req: NextRequest) {
     let widthCm: number;
     let heightCm: number;
     let hasPackageWarning = false;
+    let dimsSource: "override" | "standard_box" | "provided" = "standard_box";
 
-    if (
-      shippingPackage &&
-      typeof shippingPackage.weight_g === "number" &&
-      typeof shippingPackage.length_cm === "number" &&
-      typeof shippingPackage.width_cm === "number" &&
-      typeof shippingPackage.height_cm === "number"
-    ) {
-      // Usar package guardado con hardening (valores mínimos razonables)
-      // Skydropx requiere/cobra mínimo 1kg (1000g) para cotizaciones y envíos
+    if (finalPackage) {
+      dimsSource = "override";
       const MIN_BILLABLE_WEIGHT_G = parseInt(
         process.env.SKYDROPX_MIN_BILLABLE_WEIGHT_G || "1000",
         10,
       );
-      weightGrams = Math.max(shippingPackage.weight_g, MIN_BILLABLE_WEIGHT_G); // Mínimo 1kg (1000g)
-      lengthCm = Math.max(shippingPackage.length_cm, 1); // Mínimo 1cm
-      widthCm = Math.max(shippingPackage.width_cm, 1); // Mínimo 1cm
-      heightCm = Math.max(shippingPackage.height_cm, 1); // Mínimo 1cm
+      weightGrams = Math.max(finalPackage.weight_g, MIN_BILLABLE_WEIGHT_G);
+      lengthCm = Math.max(finalPackage.length_cm, 1);
+      widthCm = Math.max(finalPackage.width_cm, 1);
+      heightCm = Math.max(finalPackage.height_cm, 1);
     } else {
-      // Usar default (BOX_S: 25x20x15 cm, 150g base)
-      weightGrams = 1000; // 1kg total (incluyendo productos)
-      lengthCm = 25;
-      widthCm = 20;
-      heightCm = 15;
-      hasPackageWarning = true;
+      // Sin override: siempre STANDARD_BOX_DIMS_CM (25×20×15) para que la cotización coincida con create-label.
+      lengthCm = STANDARD_BOX_DIMS_CM.length;
+      widthCm = STANDARD_BOX_DIMS_CM.width;
+      heightCm = STANDARD_BOX_DIMS_CM.height;
+      const MIN_BILLABLE_WEIGHT_G = parseInt(
+        process.env.SKYDROPX_MIN_BILLABLE_WEIGHT_G || "1000",
+        10,
+      );
+      if (
+        shippingPackage &&
+        typeof shippingPackage.weight_g === "number" &&
+        shippingPackage.weight_g >= MIN_BILLABLE_WEIGHT_G
+      ) {
+        weightGrams = shippingPackage.weight_g;
+        dimsSource = "standard_box";
+      } else {
+        weightGrams = MIN_BILLABLE_WEIGHT_G;
+        hasPackageWarning = true;
+        dimsSource = "standard_box";
+      }
+    }
+
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[requote] package for quotation", {
+        dims_source: dimsSource,
+        length_cm: lengthCm,
+        width_cm: widthCm,
+        height_cm: heightCm,
+        weight_g: weightGrams,
+      });
     }
 
     // Llamar a Skydropx para obtener rates (usando builder unificado con diagnóstico)
@@ -477,7 +523,8 @@ export async function POST(req: NextRequest) {
             length_cm: lengthCm,
             width_cm: widthCm,
             height_cm: heightCm,
-            source: hasPackageWarning ? "default" : "provided",
+            source: hasPackageWarning ? "default" : dimsSource === "override" ? "override" : "standard_box",
+            dims_source: dimsSource === "override" ? "override" : "standard_box",
           },
         };
         const updatedMetadata = {
