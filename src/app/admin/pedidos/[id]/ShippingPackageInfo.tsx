@@ -1,4 +1,7 @@
 import { PACKAGE_PROFILES, type PackageProfileKey } from "@/lib/shipping/packageProfiles";
+import { STANDARD_BOX_DIMS_CM } from "@/lib/shipping/packageDebug";
+
+export type DimsSourceDisplay = "override" | "standard_box" | "products";
 
 type ShippingPackageBillable = {
   mass_weight_g?: number;
@@ -34,6 +37,8 @@ type ShippingPackageInfoProps = {
       }
     | ShippingPackageBillable
   ) | null;
+  /** Cuando no hay override, usar "standard_box" para mostrar 25×20×15 y etiqueta (standard_box) */
+  dims_source?: DimsSourceDisplay | null;
 };
 
 /**
@@ -44,6 +49,7 @@ type ShippingPackageInfoProps = {
 export default function ShippingPackageInfo({
   shippingPackageEstimated,
   shippingPackage,
+  dims_source: dimsSourceProp,
 }: ShippingPackageInfoProps) {
   // Nueva estructura: shipping_package con mass_weight_g, volumetric_weight_kg, billable_weight_kg
   const hasBillable =
@@ -76,7 +82,21 @@ export default function ShippingPackageInfo({
     const volumetricKg = pkg.volumetric_weight_kg ?? 0;
     const billableKg = pkg.billable_weight_kg ?? 0;
     const factor = pkg.volumetric_factor ?? 5000;
-    const dims = pkg.dims_cm ?? { length_cm: 0, width_cm: 0, height_cm: 0 };
+    const dimsSource = dimsSourceProp ?? pkg.dims_source ?? null;
+    const dims =
+      dimsSource === "standard_box"
+        ? {
+            length_cm: STANDARD_BOX_DIMS_CM.length,
+            width_cm: STANDARD_BOX_DIMS_CM.width,
+            height_cm: STANDARD_BOX_DIMS_CM.height,
+          }
+        : pkg.dims_cm ?? { length_cm: 0, width_cm: 0, height_cm: 0 };
+    const dimsLabel =
+      dimsSource === "standard_box"
+        ? "standard_box"
+        : dimsSource === "override"
+          ? "override"
+          : pkg.dims_source ?? null;
 
     return (
       <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
@@ -100,9 +120,9 @@ export default function ShippingPackageInfo({
           {dims.length_cm > 0 && dims.width_cm > 0 && dims.height_cm > 0 && (
             <p className="text-gray-600 dark:text-gray-400">
               Dimensiones: {dims.length_cm}×{dims.width_cm}×{dims.height_cm} cm
-              {pkg.dims_source && (
+              {dimsLabel && (
                 <span className="text-gray-500 dark:text-gray-400 ml-1">
-                  ({pkg.dims_source})
+                  ({dimsLabel})
                 </span>
               )}
             </p>

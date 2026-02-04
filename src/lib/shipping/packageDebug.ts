@@ -8,11 +8,21 @@ export type PackageItemDebug = {
   source: "product" | "fallback" | "unknown";
 };
 
+/** Caja estándar del negocio: 25×20×15 cm. Usar por defecto cuando no hay override. */
+export const STANDARD_BOX_DIMS_CM = {
+  length: 25,
+  width: 20,
+  height: 15,
+} as const;
+
+export type DimsSource = "override" | "standard_box" | "products";
+
 export type PackageDebug = {
   orderId: string;
   routeName: "create-label" | string;
   computed_at: string;
   dims_cm: { length: number; width: number; height: number };
+  dims_source?: DimsSource;
   volumetric_divisor?: number | null;
   rounding_policy?: string;
   mass_weight_g: number;
@@ -63,6 +73,7 @@ type BuildPackageDebugOptions = {
   fallbackItemWeightG: number;
   shippingPackageMeta: ShippingPackageMetaSnapshot;
   dimsCmUsed: { length_cm: number; width_cm: number; height_cm: number };
+  dims_source?: DimsSource;
   roundingPolicy: string;
   weightSentToSkydropxKg: number;
   volumetricDivisorDefault?: number;
@@ -170,6 +181,7 @@ export function buildPackageDebug(options: BuildPackageDebugOptions): PackageDeb
       width: Number(resolvedDims.width),
       height: Number(resolvedDims.height),
     },
+    dims_source: options.dims_source,
     volumetric_divisor: volumetricDivisor,
     rounding_policy: options.roundingPolicy,
     mass_weight_g: Math.round(massWeight),
