@@ -1033,6 +1033,19 @@ export async function POST(req: NextRequest) {
         ? (shippingMeta.quoted_package as Record<string, unknown>)
         : null;
 
+    // Guard rail: si dims finales son standard_box pero la cotización se generó con otras dims, no reusar (forzar new_rate_selection).
+    const useReuseSavedRate =
+      !!savedQuotationId &&
+      !!savedRateId &&
+      (dimsSource !== "standard_box" ||
+        !quotedPackage ||
+        (typeof quotedPackage.length_cm === "number" &&
+          typeof quotedPackage.width_cm === "number" &&
+          typeof quotedPackage.height_cm === "number" &&
+          quotedPackage.length_cm === STANDARD_BOX_DIMS_CM.length &&
+          quotedPackage.width_cm === STANDARD_BOX_DIMS_CM.width &&
+          quotedPackage.height_cm === STANDARD_BOX_DIMS_CM.height));
+
     const isInvalidQuotationError = (status: number, parsedBody: unknown) => {
       if (status !== 400 && status !== 422) return false;
       const raw = typeof parsedBody === "string" ? parsedBody : JSON.stringify(parsedBody || {});
@@ -1056,6 +1069,11 @@ export async function POST(req: NextRequest) {
           length_cm: parcelDims.length,
           width_cm: parcelDims.width,
           height_cm: parcelDims.height,
+        },
+        dims_override_cm: {
+          length: parcelDims.length,
+          width: parcelDims.width,
+          height: parcelDims.height,
         },
         dims_source: dimsSource,
         roundingPolicy,
@@ -1149,7 +1167,7 @@ export async function POST(req: NextRequest) {
         reference: quotationReference,
       };
 
-      if (savedQuotationId && savedRateId) {
+      if (savedQuotationId && savedRateId && useReuseSavedRate) {
         const shipmentPayload = {
           shipment: {
             quotation: { id: savedQuotationId },

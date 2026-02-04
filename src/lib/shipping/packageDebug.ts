@@ -73,6 +73,8 @@ type BuildPackageDebugOptions = {
   fallbackItemWeightG: number;
   shippingPackageMeta: ShippingPackageMetaSnapshot;
   dimsCmUsed: { length_cm: number; width_cm: number; height_cm: number };
+  /** Si se pasa, se usan como dims finales en el debug (y para volumetric_weight_kg). Así PACKAGE_DEBUG refleja lo que se manda al shipment. */
+  dims_override_cm?: { length: number; width: number; height: number };
   dims_source?: DimsSource;
   roundingPolicy: string;
   weightSentToSkydropxKg: number;
@@ -91,17 +93,23 @@ export function buildPackageDebug(options: BuildPackageDebugOptions): PackageDeb
     options.volumetricDivisorDefault ??
     DEFAULT_VOLUMETRIC_DIVISOR;
 
-  const resolvedDims = {
-    length:
-      options.shippingPackageMeta?.dims_cm?.length_cm ??
-      options.dimsCmUsed.length_cm,
-    width:
-      options.shippingPackageMeta?.dims_cm?.width_cm ??
-      options.dimsCmUsed.width_cm,
-    height:
-      options.shippingPackageMeta?.dims_cm?.height_cm ??
-      options.dimsCmUsed.height_cm,
-  };
+  const resolvedDims = options.dims_override_cm
+    ? {
+        length: options.dims_override_cm.length,
+        width: options.dims_override_cm.width,
+        height: options.dims_override_cm.height,
+      }
+    : {
+        length:
+          options.shippingPackageMeta?.dims_cm?.length_cm ??
+          options.dimsCmUsed.length_cm,
+        width:
+          options.shippingPackageMeta?.dims_cm?.width_cm ??
+          options.dimsCmUsed.width_cm,
+        height:
+          options.shippingPackageMeta?.dims_cm?.height_cm ??
+          options.dimsCmUsed.height_cm,
+      };
 
   const itemsDebug = options.items.map<PackageItemDebug>((item) => {
     const qty = Number.isFinite(item.qty) && item.qty > 0 ? item.qty : 1;
