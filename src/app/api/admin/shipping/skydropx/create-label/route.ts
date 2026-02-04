@@ -1228,6 +1228,7 @@ export async function POST(req: NextRequest) {
             width: parcel.width,
             height: parcel.height,
           },
+          dims_source: dimsSource,
           package_source: packageSource,
           rounding_policy: roundingPolicy,
           weight_sent_to_skydropx_kg: weightSentKg,
