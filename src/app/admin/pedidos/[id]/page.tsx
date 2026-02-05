@@ -24,6 +24,7 @@ import { normalizePhoneToE164Mx } from "@/lib/utils/phone";
 import EditShippingOverrideClient from "./EditShippingOverrideClient";
 import ShippingTrackingDisplay from "./ShippingTrackingDisplay";
 import DeleteOrderClient from "./DeleteOrderClient";
+import ResetQuoteClient from "./ResetQuoteClient";
 import { getOrderShippingAddress } from "@/lib/shipping/getOrderShippingAddress";
 
 export const dynamic = "force-dynamic";
@@ -881,6 +882,9 @@ export default async function AdminPedidoDetailPage({
               </div>
             </div>
           )}
+
+        {/* Reset cotización Skydropx (forzar recotización con política actual) */}
+        <ResetQuoteClient orderId={order.id} />
 
         {/* Eliminar pedido (danger zone) */}
         <DeleteOrderClient orderId={order.id} />
