@@ -167,7 +167,7 @@ export default function ProductGallery({ images, title, fallbackImage }: Props) 
         {/* Miniaturas */}
         {displayImages.length > 1 && (
           <div className="w-full">
-            <div className="flex gap-2 overflow-x-auto pb-2 -mx-2 px-2">
+            <div className="w-full max-w-full flex gap-2 overflow-x-auto overflow-y-hidden pb-2 -mx-2 px-2">
               {displayImages.map((image, index) => (
                 <button
                   key={index}

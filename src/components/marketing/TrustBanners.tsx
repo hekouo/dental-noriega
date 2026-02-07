@@ -55,7 +55,7 @@ export function TrustBanners() {
       </div>
 
       {/* Mobile: Horizontal scroll */}
-      <div className="md:hidden overflow-x-auto snap-x snap-mandatory no-scrollbar -mx-4 px-4">
+      <div className="md:hidden w-full max-w-full overflow-x-auto overflow-y-hidden snap-x snap-mandatory no-scrollbar -mx-4 px-4">
         <div className="flex gap-4 w-max">
           {banners.map((banner) => {
             const Icon = banner.icon;

@@ -71,7 +71,7 @@ export default function SearchInput({ sticky = false }: SearchInputProps) {
   };
 
   return (
-    <div className={sticky ? "sticky top-0 z-10 bg-white pb-2 pt-2 -mx-4 px-4 sm:static sm:pb-0 sm:pt-0 sm:mx-0 sm:px-0" : ""}>
+    <div className={sticky ? "sticky top-0 z-10 bg-white pb-2 pt-2 -mx-4 px-4 max-w-full overflow-x-hidden sm:static sm:pb-0 sm:pt-0 sm:mx-0 sm:px-0" : ""}>
       <form
         action="/buscar"
         method="GET"

@@ -122,7 +122,7 @@ export default async function HomePage() {
   const items = await getFeaturedItems();
 
   return (
-    <main className="min-h-screen overflow-x-hidden">
+    <div className="min-h-screen overflow-x-clip max-w-full">
       {/* Hero Section - Premium 2025 */}
       <section className="relative bg-gradient-to-br from-primary-600 via-primary-700 to-primary-800 text-white py-16 sm:py-24 md:py-32 px-4 overflow-hidden w-full -mx-4 md:mx-0">
         {/* Background decoration - más sutil y moderno */}
@@ -282,6 +282,6 @@ export default async function HomePage() {
       <div className="max-w-6xl mx-auto px-4 py-8 sm:py-12">
         <HelpWidget context="home" />
       </div>
-    </main>
+    </div>
   );
 }

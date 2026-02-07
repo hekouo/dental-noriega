@@ -7,8 +7,8 @@ export default function FeaturedCarousel({ items }: { items: FeaturedItem[] }) {
   if (!items?.length) return null;
 
   return (
-    <div className="w-full overflow-x-auto no-scrollbar py-3">
-      <div className="flex gap-4 min-w-max">
+    <div className="w-full max-w-full overflow-x-auto overflow-y-hidden no-scrollbar py-3">
+      <div className="flex gap-4 min-w-max max-w-max">
         {items.map((item, index) => (
           <div key={item.product_id} className="flex-shrink-0 w-64">
             <FeaturedCard

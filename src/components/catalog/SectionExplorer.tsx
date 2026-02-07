@@ -93,8 +93,8 @@ export default async function SectionExplorer({
       </div>
 
       {/* Mobile: carrusel horizontal con snap */}
-      <div className="lg:hidden">
-        <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4 snap-x snap-mandatory no-scrollbar">
+      <div className="lg:hidden w-full max-w-full overflow-x-clip">
+        <div className="flex gap-4 overflow-x-auto overflow-y-hidden pb-4 -mx-4 px-4 snap-x snap-mandatory no-scrollbar">
           {displaySections.map((section) => {
             const Icon = getSectionIcon(section.slug);
             return (
