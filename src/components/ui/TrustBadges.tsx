@@ -13,7 +13,9 @@ type BadgeItem = {
   onClick?: () => void;
 };
 
-export default function TrustBadges() {
+type TrustBadgesProps = { variant?: "default" | "heritage" };
+
+export default function TrustBadges({ variant = "default" }: TrustBadgesProps) {
   const badges: BadgeItem[] = [
     {
       icon: <Truck size={18} />,
@@ -35,18 +37,20 @@ export default function TrustBadges() {
     },
   ];
 
-  // Aplicar accents: mint para soporte/envío, amber para puntos
+  const isHeritage = variant === "heritage";
+
   const getBadgeClasses = (index: number) => {
-    const isMint = index === 0 || index === 1 || index === 3; // Envío, WhatsApp, Pago seguro
-    const isAmber = index === 2; // Puntos
-    
+    if (isHeritage) {
+      return "flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-sm text-gray-600 border border-amber-200/80 bg-white/60 hover:bg-amber-50/80 transition-colors";
+    }
+    const isMint = index === 0 || index === 1 || index === 3;
+    const isAmber = index === 2;
     if (isMint) {
       return "flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-mint-500/20 backdrop-blur-sm rounded-full text-sm text-white border border-mint-400/30 transition-all duration-200 hover:bg-mint-500/30 hover:scale-105 active:scale-95";
     }
     if (isAmber) {
       return "flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-amber-500/20 backdrop-blur-sm rounded-full text-sm text-white border border-amber-400/30 transition-all duration-200 hover:bg-amber-500/30 hover:scale-105 active:scale-95";
     }
-    
     return "flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-white/10 backdrop-blur-sm rounded-full text-sm text-white border border-white/20 transition-all duration-200 hover:bg-white/20 hover:scale-105 active:scale-95";
   };
 
@@ -67,7 +71,7 @@ export default function TrustBadges() {
               href={badge.href}
               target={badge.href.startsWith("http") ? "_blank" : undefined}
               rel={badge.href.startsWith("http") ? "noopener noreferrer" : undefined}
-              className="focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-primary-600 rounded-full"
+              className={isHeritage ? "focus:outline-none focus:ring-2 focus:ring-amber-300/50 focus:ring-offset-2 focus:ring-offset-transparent rounded-full" : "focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-primary-600 rounded-full"}
             >
               {content}
             </Link>

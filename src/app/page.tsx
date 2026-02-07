@@ -1,12 +1,12 @@
 import Link from "next/link";
 import dynamicImport from "next/dynamic";
-import { Playfair_Display } from "next/font/google";
 import { ROUTES } from "@/lib/routes";
 import { getFeaturedItems } from "@/lib/catalog/getFeatured.server";
 import FeaturedCarousel from "@/components/FeaturedCarousel";
 import FeaturedGrid from "@/components/FeaturedGrid";
 import { buttonBase, buttonPrimary } from "@/lib/styles/button";
 import { MessageCircle } from "lucide-react";
+import TrustBadges from "@/components/ui/TrustBadges";
 import SectionHeader from "@/components/ui/SectionHeader";
 import { getWhatsAppUrl } from "@/lib/whatsapp/config";
 import { HelpWidget } from "@/components/support/HelpWidget";
@@ -14,12 +14,6 @@ import { TrustBanners } from "@/components/marketing/TrustBanners";
 import SectionExplorer from "@/components/catalog/SectionExplorer";
 import QuizCTA from "@/components/quiz/QuizCTA";
 import HeroCTAs from "@/components/home/HeroCTAs.client";
-
-const playfair = Playfair_Display({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-heading",
-});
 
 // Lazy load componentes no críticos
 const Testimonials = dynamicImport(() => import("@/components/ui/Testimonials"), {
@@ -129,17 +123,14 @@ export default async function HomePage() {
 
   return (
     <div className="min-h-screen overflow-x-clip max-w-full">
-      {/* Hero Section - Heritage premium (solo Home) */}
-      <section
-        className={`relative hero-paper text-stone-800 py-10 sm:py-14 md:py-20 px-4 overflow-hidden w-full ${playfair.variable}`}
-        aria-label="Presentación principal"
-      >
+      {/* Hero Section - Heritage Dental (solo Home) */}
+      <section className="relative bg-hero-heritage text-gray-800 py-10 sm:py-14 md:py-20 px-4 overflow-hidden w-full">
         <div className="relative max-w-6xl mx-auto text-center">
-          {/* Headline - serif solo en H1 */}
-          <h1 className="font-heading text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-semibold tracking-tight mb-4 sm:mb-5 text-stone-800 leading-tight">
+          {/* Headline - serif solo en headings */}
+          <h1 className="font-hero text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-semibold tracking-tight mb-4 sm:mb-6 text-gray-900 leading-tight">
             Insumos dentales de calidad para tu clínica
           </h1>
-          <p className="font-sans text-base sm:text-lg md:text-xl mb-6 sm:mb-8 text-stone-600 max-w-2xl mx-auto leading-relaxed">
+          <p className="text-base sm:text-lg md:text-xl mb-6 sm:mb-8 text-gray-600 max-w-2xl mx-auto leading-relaxed">
             Envíos a todo México. Atención por WhatsApp. Precios competitivos y pago seguro.
           </p>
 
@@ -147,20 +138,10 @@ export default async function HomePage() {
           <HeroCTAs variant="heritage" />
 
           {/* Trust line - pill badges con borde bronce suave */}
-          <div className="flex flex-wrap justify-center gap-2 sm:gap-3 mt-6 sm:mt-8">
-            <span className="inline-flex items-center rounded-full border border-amber-200/80 bg-amber-50/60 px-3 py-1.5 text-xs sm:text-sm text-stone-600">
-              Envío gratis desde $2,000 MXN
-            </span>
-            <span className="inline-flex items-center rounded-full border border-amber-200/80 bg-amber-50/60 px-3 py-1.5 text-xs sm:text-sm text-stone-600">
-              Facturación disponible
-            </span>
-            <span className="inline-flex items-center rounded-full border border-amber-200/80 bg-amber-50/60 px-3 py-1.5 text-xs sm:text-sm text-stone-600">
-              Pago seguro
-            </span>
+          <div className="mt-6 sm:mt-8 animate-fadeInUp">
+            <TrustBadges variant="heritage" />
           </div>
         </div>
-
-        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-200/50 to-transparent" />
       </section>
 
       {/* Trust Banners */}
