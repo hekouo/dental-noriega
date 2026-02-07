@@ -107,7 +107,7 @@ async function FeaturedItemsSection() {
 export default async function TiendaPage() {
 
   return (
-    <div className="bg-gray-50">
+    <div className="bg-gray-50 overflow-x-clip max-w-full">
       {/* Mini-hero con beneficios */}
       <div className="bg-gradient-to-br from-primary-600 via-primary-700 to-primary-800 text-white">
         <div className="max-w-7xl mx-auto px-4 pt-20 sm:pt-24 pb-10 sm:pb-16">

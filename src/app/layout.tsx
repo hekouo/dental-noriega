@@ -280,7 +280,7 @@ export default function RootLayout({
             </nav>
           </HeaderWithScrollEffect>
 
-        <main className="max-w-6xl mx-auto p-4 flex-1 w-full pb-24 md:pb-safe overflow-x-hidden">
+        <main className="max-w-6xl mx-auto p-4 flex-1 w-full max-w-full pb-24 md:pb-safe overflow-x-clip box-border">
           {children}
           <FinalThanks />
         </main>

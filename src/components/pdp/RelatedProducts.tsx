@@ -122,7 +122,7 @@ export default async function RelatedProducts({
 
       {/* Mobile: carrusel horizontal con snap */}
       <div className="lg:hidden">
-        <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4 snap-x snap-mandatory no-scrollbar">
+        <div className="w-full max-w-full flex gap-4 overflow-x-auto overflow-y-hidden pb-4 -mx-4 px-4 snap-x snap-mandatory no-scrollbar">
           {productCards.map((product) => (
             <div
               key={product.id}

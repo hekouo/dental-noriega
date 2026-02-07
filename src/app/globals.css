@@ -108,11 +108,12 @@ body {
   overscroll-behavior: contain;
 }
 
-/* Inputs: evitar zoom iOS elevando tipografía */
+/* Inputs: evitar zoom iOS elevando tipografía (>=16px evita zoom automático en iOS) */
 input,
 select,
 textarea {
   font-size: 16px;
+  max-width: 100%;
 }
 
 /* Utilidad para padding inferior respetando notch */
