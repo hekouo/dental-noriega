@@ -2,7 +2,7 @@
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
-import { Inter } from "next/font/google";
+import { Inter, Playfair_Display } from "next/font/google";
 import Script from "next/script";
 import dynamic from "next/dynamic";
 const WhatsappBubble = dynamic(() => import("@/components/WhatsappBubble"), {
@@ -83,6 +83,11 @@ const EnhancedMobileBottomNav = dynamic(
 );
 
 const inter = Inter({ subsets: ["latin"], display: "swap" });
+const playfair = Playfair_Display({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-hero",
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE.url),
@@ -188,7 +193,7 @@ export default function RootLayout({
         )}
       </head>
       <body
-        className={`${inter.className} min-h-dvh bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 flex flex-col overflow-x-hidden`}
+        className={`${inter.className} ${playfair.variable} min-h-dvh bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 flex flex-col overflow-x-hidden`}
       >
         <Providers>
           {/* Structured Data: Organization + Website */}
