@@ -128,10 +128,10 @@ export default async function HomePage() {
         <div className="relative max-w-6xl mx-auto text-center">
           {/* Headline - serif solo en headings */}
           <h1 className="font-hero text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-semibold tracking-tight mb-4 sm:mb-6 text-gray-900 leading-tight">
-            Insumos dentales de calidad para tu clínica
+            Buenos días, tu clínica merece compras fáciles.
           </h1>
           <p className="text-base sm:text-lg md:text-xl mb-6 sm:mb-8 text-gray-600 max-w-2xl mx-auto leading-relaxed">
-            Envíos a todo México. Atención por WhatsApp. Precios competitivos y pago seguro.
+            Atención personalizada por WhatsApp, precios claros en MXN y pago seguro. Envíos a todo México.
           </p>
 
           {/* CTAs */}
