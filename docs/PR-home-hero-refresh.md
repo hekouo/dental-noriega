@@ -18,7 +18,7 @@ Rediseño **solo** del Home (/) con enfoque premium "Heritage Dental" sutil. Sin
 
 ### Fuente y estilos
 - **Layout**: añadida `Playfair_Display` con variable `--font-hero`; en Tailwind `font-hero` para el headline.
-- **globals.css**: clase `.bg-hero-heritage` (marfil + gradiente + SVG noise muy sutil).
+- **globals.css**: clase `.bg-hero-heritage` (marfil #faf8f5 + 2 gradientes CSS sutiles, ~2–4% opacidad; sin SVG/data-URI).
 
 ### Componentes tocados
 - `HeroCTAs.client.tsx`: prop `variant="heritage"` (botón primario + outline bronce).
@@ -30,9 +30,11 @@ Rediseño **solo** del Home (/) con enfoque premium "Heritage Dental" sutil. Sin
 
 | Elemento    | Texto |
 |------------|--------|
-| **Headline** | Insumos dentales de calidad para tu clínica |
-| **Subheadline** | Envíos a todo México. Atención por WhatsApp. Precios competitivos y pago seguro. |
+| **H1** | Buenos días, tu clínica merece compras fáciles. |
+| **Subheadline** | Atención personalizada por WhatsApp, precios claros en MXN y pago seguro. Envíos a todo México. |
 | **Trust line** | Pills: Envío a todo México · Soporte WhatsApp · Puntos de lealtad · Pago seguro (labels de TrustBadges) |
+
+*(Sin "precios competitivos" en el hero.)*
 
 ---
 
@@ -55,3 +57,34 @@ Rediseño **solo** del Home (/) con enfoque premium "Heritage Dental" sutil. Sin
 | Hero azul (gradient primary), texto blanco, TrustBadges mint/amber sobre azul | Hero marfil con textura sutil, texto oscuro, serif en H1, TrustBadges pills bronce |
 | Hero alto (py-16–32), posible 2 pantallas en móvil | Hero más compacto (py-10–20), una pantalla en móvil |
 | -mx-4 en hero | Sin márgenes negativos; overflow evitado |
+
+---
+
+## Archivos tocados (este PR)
+
+- **src/app/page.tsx**: H1 y subheadline del hero (copy actualizado).
+- **src/app/globals.css**: `.bg-hero-heritage` reemplazado por textura 100% CSS ligera (sin SVG/data-URI; 2 gradientes sutiles ~2–4% opacidad).
+
+---
+
+## Cuerpo del PR (listo para GitHub)
+
+```
+## feat/home-hero-refresh — Ajustes copy + textura ligera
+
+### Cambios
+- **Copy hero**: H1 → "Buenos días, tu clínica merece compras fáciles." | Subheadline → "Atención personalizada por WhatsApp, precios claros en MXN y pago seguro. Envíos a todo México." (sin "precios competitivos").
+- **Textura**: `.bg-hero-heritage` ahora 100% CSS (marfil #faf8f5 + 2 gradientes sutiles); sin SVG/data-URI que infle el CSS.
+
+### Archivos tocados
+- `src/app/page.tsx` (H1 + subheadline)
+- `src/app/globals.css` (textura hero)
+
+### Copy final
+- **H1**: Buenos días, tu clínica merece compras fáciles.
+- **Subheadline**: Atención personalizada por WhatsApp, precios claros en MXN y pago seguro. Envíos a todo México.
+- **Trust line**: Pills (TrustBadges heritage): Envío a todo México · Soporte WhatsApp · Puntos de lealtad · Pago seguro
+
+### Responsive
+- Hero compacto (py-10–20); H1 responsive; sin -mx-4; sin overflow horizontal.
+```
