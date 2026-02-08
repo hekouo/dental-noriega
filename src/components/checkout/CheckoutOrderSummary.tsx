@@ -10,10 +10,13 @@ import RelatedProductsCompact from "./RelatedProductsCompact";
 
 interface CheckoutOrderSummaryProps {
   className?: string;
+  /** En mobile, mostrar resumen en details/summary con total visible en la cabecera */
+  collapsibleOnMobile?: boolean;
 }
 
 export default function CheckoutOrderSummary({
   className = "",
+  collapsibleOnMobile = false,
 }: CheckoutOrderSummaryProps) {
   const checkoutItems = useCheckoutStore((s) => s.checkoutItems);
   const shippingCost = useCheckoutStore((s) => s.shippingCost) || 0;
@@ -66,8 +69,11 @@ export default function CheckoutOrderSummary({
     return null;
   }
 
-  return (
-    <div className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm ${className}`}>
+  const totalFormatted = formatMXNFromCents(totalCents);
+  const summaryLabel = `Resumen del pedido (${selectedItems.length} ${selectedItems.length === 1 ? "producto" : "productos"}) · Total: ${totalFormatted}`;
+
+  const cardContent = (
+    <>
       <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Resumen del pedido</h2>
       </div>
@@ -189,7 +195,33 @@ export default function CheckoutOrderSummary({
           />
         )}
       </div>
+    </>
+  );
+
+  const card = (
+    <div className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm ${className}`}>
+      {cardContent}
     </div>
   );
+
+  if (collapsibleOnMobile) {
+    return (
+      <details
+        className="w-full lg:contents"
+        open
+        aria-label={summaryLabel}
+      >
+        <summary className="lg:hidden list-none cursor-pointer px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 font-medium text-gray-900 dark:text-gray-100 flex items-center justify-between gap-2 min-h-[44px]">
+          <span className="truncate">{summaryLabel}</span>
+          <svg className="w-5 h-5 flex-shrink-0 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </summary>
+        {card}
+      </details>
+    );
+  }
+
+  return card;
 }
 

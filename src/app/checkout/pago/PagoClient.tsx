@@ -12,7 +12,7 @@ import {
 } from "@/lib/store/checkoutStore";
 import { selectCheckoutItems } from "@/lib/store/checkoutStore";
 import { formatMXN as formatMXNMoney } from "@/lib/utils/money";
-import CheckoutStepper from "@/components/checkout/CheckoutStepper";
+import CheckoutStepIndicatorThree from "@/components/checkout/CheckoutStepIndicatorThree";
 import CheckoutOrderSummary from "@/components/checkout/CheckoutOrderSummary";
 import CheckoutDebugPanel from "@/components/CheckoutDebugPanel";
 import CheckoutBenefitsHeader from "@/components/checkout/CheckoutBenefitsHeader";
@@ -1142,8 +1142,8 @@ export default function PagoClient() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-      <CheckoutStepper current="payment" />
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6 pb-24 md:pb-6">
+      <CheckoutStepIndicatorThree />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
@@ -1654,10 +1654,10 @@ export default function PagoClient() {
           </div>
         )}
 
-        <div className="flex gap-4">
+        <div className="flex flex-col-reverse sm:flex-row gap-3 sticky bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 -mx-4 px-4 py-4 sm:static sm:border-0 sm:-mx-0 sm:px-0 sm:py-0">
           <Link
             href="/checkout/datos"
-            className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+            className="px-6 py-3 min-h-[44px] border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors inline-flex items-center justify-center font-medium"
           >
             ← Volver a datos
           </Link>
@@ -1673,8 +1673,8 @@ export default function PagoClient() {
               const microAnimsEnabled = process.env.NEXT_PUBLIC_MOBILE_MICRO_ANIMS === "true";
               const prefersReduced = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
               return microAnimsEnabled && !prefersReduced
-                ? "px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 flex-1 transition-all duration-150 active:scale-[0.98] active:opacity-90 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-                : "px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 flex-1 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed";
+                ? "px-6 py-3 min-h-[44px] bg-primary-600 text-white rounded-lg hover:bg-primary-700 flex-1 transition-all duration-150 active:scale-[0.98] active:opacity-90 font-semibold disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center"
+                : "px-6 py-3 min-h-[44px] bg-primary-600 text-white rounded-lg hover:bg-primary-700 flex-1 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center";
             })()}
           >
               {isCreatingOrder
@@ -1711,7 +1711,7 @@ export default function PagoClient() {
         {/* Resumen del pedido - lado derecho en desktop */}
         <div className="lg:col-span-1">
           <div className="lg:sticky lg:top-6 space-y-6">
-            <CheckoutOrderSummary />
+            <CheckoutOrderSummary collapsibleOnMobile />
             <CheckoutWhatsAppHelpBlock />
           </div>
         </div>
