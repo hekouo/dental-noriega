@@ -80,7 +80,7 @@ export default function HeaderSearchMobile() {
         type="button"
         onClick={() => setIsOpen(true)}
         aria-label="Abrir búsqueda"
-        className="md:hidden p-2 text-foreground hover:text-primary-600 dark:hover:text-primary-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 rounded-lg"
+        className="md:hidden p-2 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-foreground hover:text-primary-600 dark:hover:text-primary-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 rounded-lg"
       >
         <Search size={20} aria-hidden="true" />
       </button>
@@ -111,7 +111,7 @@ export default function HeaderSearchMobile() {
                   type="button"
                   onClick={() => setIsOpen(false)}
                   aria-label="Cerrar búsqueda"
-                  className="p-2 text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 rounded-lg"
+                  className="p-2 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 rounded-lg"
                 >
                   <X size={20} aria-hidden="true" />
                 </button>

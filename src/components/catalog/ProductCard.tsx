@@ -194,7 +194,7 @@ export default function ProductCard({
 
   return (
     <div 
-      className="rounded-2xl border border-gray-200 dark:border-gray-700 p-3 flex flex-col bg-white dark:bg-gray-800 shadow-sm hover:shadow-xl transition-all duration-300 ease-out hover:-translate-y-1 active:scale-[0.98] group"
+      className="rounded-2xl border border-gray-200 dark:border-gray-700 p-4 flex flex-col bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-all duration-300 ease-out hover:-translate-y-0.5 active:scale-[0.98] group min-w-0"
       style={{
         animation: "fadeInUp 0.5s ease-out backwards",
         animationDelay: "var(--delay, 0ms)",
@@ -276,20 +276,22 @@ export default function ProductCard({
       </div>
 
       {/* Controles: cantidad y agregar al carrito */}
-      <div className="mt-auto pt-2 space-y-2">
+      <div className="mt-auto pt-3 space-y-2">
         {canPurchase ? (
           <>
-            <div className="flex items-center gap-2">
-              <QuantityInput
-                value={qty}
-                onChange={handleQtyChange}
-                min={1}
-                max={99}
-                disabled={isAdding}
-                compact={compact}
-                ariaLabel="Cantidad del producto"
-              />
-              {/* CTA Primario: Agregar al carrito o Elegir opciones */}
+            <div className="flex flex-col sm:flex-row gap-2">
+              <div className="flex items-center gap-2">
+                <QuantityInput
+                  value={qty}
+                  onChange={handleQtyChange}
+                  min={1}
+                  max={99}
+                  disabled={isAdding}
+                  compact={compact}
+                  ariaLabel="Cantidad del producto"
+                />
+              </div>
+              {/* CTA Primario: Agregar al carrito o Elegir opciones - full width en mobile, min-h tap target */}
               <button
                 type="button"
                 onClick={handleAddToCart}
@@ -304,7 +306,7 @@ export default function ProductCard({
                   kind: "button",
                   enabled: microAnimsEnabled,
                   reducedMotion: prefersReducedMotion,
-                  className: `flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 transition-all duration-200 font-semibold shadow-md ${
+                  className: `w-full sm:flex-1 flex items-center justify-center gap-2 min-h-[44px] px-3 py-2.5 rounded-lg text-sm bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 transition-all duration-200 font-semibold shadow-md ${
                     isAdding 
                       ? "scale-95 bg-primary-700" 
                       : microAnimsEnabled ? "" : "hover:scale-[1.02] active:scale-[0.98] hover:shadow-lg"
@@ -374,7 +376,7 @@ export default function ProductCard({
                 title,
               });
             }}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm bg-emerald-500 text-white hover:bg-emerald-600 transition-colors font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+            className="w-full flex items-center justify-center gap-2 min-h-[44px] px-3 py-2.5 rounded-lg text-sm bg-emerald-500 text-white hover:bg-emerald-600 transition-colors font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
             aria-label={`Consultar ${title} por WhatsApp`}
           >
             <svg
