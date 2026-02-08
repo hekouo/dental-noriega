@@ -20,7 +20,7 @@ export default function CheckoutStepIndicatorThree() {
   const isPago = pathname.includes("/checkout/pago");
   const isDatos = pathname.includes("/checkout/datos");
 
-  const activeIndex = isPago ? 2 : isDatos ? 0 : 0;
+  const activeIndex = isPago ? 2 : 0;
 
   return (
     <nav aria-label="Pasos del checkout: dirección, envío, pago" className="mb-6">
