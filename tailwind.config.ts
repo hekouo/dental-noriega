@@ -80,6 +80,7 @@ const config = {
       fontFamily: {
         display: ["var(--font-display)", "system-ui", "sans-serif"],
         body: ["var(--font-body)", "system-ui", "sans-serif"],
+        hero: ["var(--font-hero)", "Georgia", "serif"],
       },
       boxShadow: {
         "sm": "var(--shadow-sm)",

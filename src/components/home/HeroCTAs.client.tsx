@@ -8,19 +8,30 @@ import { buttonBase } from "@/lib/styles/button";
 import { getTapClass } from "@/lib/ui/microAnims";
 import { usePrefersReducedMotion } from "@/lib/hooks/usePrefersReducedMotion";
 
-export default function HeroCTAs() {
+type HeroCTAsProps = { variant?: "default" | "heritage" };
+
+export default function HeroCTAs({ variant = "default" }: HeroCTAsProps) {
   const prefersReducedMotion = usePrefersReducedMotion();
   const microAnimsEnabled = process.env.NEXT_PUBLIC_MOBILE_MICRO_ANIMS === "true";
+  const isHeritage = variant === "heritage";
+
+  const primaryClass = isHeritage
+    ? `${buttonBase} rounded-xl bg-primary-600 text-white hover:bg-primary-700 text-base sm:text-lg font-semibold px-8 sm:px-10 py-3 sm:py-4 transition-all duration-200 hover:scale-[1.02] focus:outline-none focus:ring-4 focus:ring-primary-300 focus:ring-offset-2 focus:ring-offset-transparent shadow-md hover:shadow-lg`
+    : `${buttonBase} rounded-xl bg-white text-primary-600 hover:bg-gray-50 text-lg font-semibold px-10 py-4 transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-primary-600 shadow-lg hover:shadow-xl`;
+
+  const secondaryClass = isHeritage
+    ? `${buttonBase} rounded-xl bg-transparent text-gray-700 hover:bg-amber-50 border border-amber-200/90 text-base sm:text-lg font-semibold px-8 sm:px-10 py-3 sm:py-4 transition-all duration-200 hover:scale-[1.02] focus:outline-none focus:ring-4 focus:ring-amber-200 focus:ring-offset-2 focus:ring-offset-transparent`
+    : `${buttonBase} rounded-xl bg-primary-700/90 backdrop-blur-sm text-white hover:bg-primary-800 text-lg font-semibold px-10 py-4 transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-primary-500/50 focus:ring-offset-2 focus:ring-offset-primary-600 border border-white/20 shadow-lg hover:shadow-xl`;
 
   return (
-    <div className="flex flex-col sm:flex-row gap-4 justify-center mb-6 sm:mb-8">
+    <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center mb-6 sm:mb-8">
       <Link
         href={ROUTES.tienda()}
         className={getTapClass({
           kind: "button",
           enabled: microAnimsEnabled,
           reducedMotion: prefersReducedMotion,
-          className: `${buttonBase} rounded-xl bg-white text-primary-600 hover:bg-gray-50 text-lg font-semibold px-10 py-4 transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-primary-600 shadow-lg hover:shadow-xl`,
+          className: primaryClass,
         })}
       >
         <span>Ver tienda</span>
@@ -33,7 +44,7 @@ export default function HeroCTAs() {
           kind: "button",
           enabled: microAnimsEnabled,
           reducedMotion: prefersReducedMotion,
-          className: `${buttonBase} rounded-xl bg-primary-700/90 backdrop-blur-sm text-white hover:bg-primary-800 text-lg font-semibold px-10 py-4 transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-primary-500/50 focus:ring-offset-2 focus:ring-offset-primary-600 border border-white/20 shadow-lg hover:shadow-xl`,
+          className: secondaryClass,
         })}
       >
         <MessageCircle className="inline-block mr-2 w-5 h-5" aria-hidden="true" />

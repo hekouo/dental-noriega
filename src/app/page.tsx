@@ -123,37 +123,25 @@ export default async function HomePage() {
 
   return (
     <div className="min-h-screen overflow-x-clip max-w-full">
-      {/* Hero Section - Premium 2025 */}
-      <section className="relative bg-gradient-to-br from-primary-600 via-primary-700 to-primary-800 text-white py-16 sm:py-24 md:py-32 px-4 overflow-hidden w-full -mx-4 md:mx-0">
-        {/* Background decoration - más sutil y moderno */}
-        <div className="absolute inset-0 bg-hero opacity-40" />
-        <div className="absolute inset-0 bg-grid opacity-5" />
-        
+      {/* Hero Section - Heritage Dental (solo Home) */}
+      <section className="relative bg-hero-heritage text-gray-800 py-10 sm:py-14 md:py-20 px-4 overflow-hidden w-full">
         <div className="relative max-w-6xl mx-auto text-center">
-          {/* Trust badges - más prominentes */}
-          <div className="mb-8 sm:mb-10 animate-fadeInUp">
-            <TrustBadges />
-          </div>
-
-          {/* Headline - más bold y jerárquico */}
-          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 sm:mb-8 text-white leading-tight">
-            Insumos dentales de calidad para tu clínica
+          {/* Headline - serif solo en headings */}
+          <h1 className="font-hero text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-semibold tracking-tight mb-4 sm:mb-6 text-gray-900 leading-tight">
+            Buenos días, tu clínica merece compras fáciles.
           </h1>
-          <p className="text-xl sm:text-2xl md:text-3xl mb-8 sm:mb-10 text-primary-50 max-w-3xl mx-auto font-medium leading-relaxed">
-            Envíos a todo México. Precios competitivos. Atención por WhatsApp.
+          <p className="text-base sm:text-lg md:text-xl mb-6 sm:mb-8 text-gray-600 max-w-2xl mx-auto leading-relaxed">
+            Atención personalizada por WhatsApp, precios claros en MXN y pago seguro. Envíos a todo México.
           </p>
-          
-          {/* CTAs - más prominentes y con mejor spacing */}
-          <HeroCTAs />
-          
-          {/* Trust line - más sutil */}
-          <p className="text-sm sm:text-base text-primary-200 max-w-2xl mx-auto">
-            Envío gratis desde $2,000 MXN • Facturación disponible • Pago seguro
-          </p>
-        </div>
 
-        {/* Divider sutil */}
-        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+          {/* CTAs */}
+          <HeroCTAs variant="heritage" />
+
+          {/* Trust line - pill badges con borde bronce suave */}
+          <div className="mt-6 sm:mt-8 animate-fadeInUp">
+            <TrustBadges variant="heritage" />
+          </div>
+        </div>
       </section>
 
       {/* Trust Banners */}
