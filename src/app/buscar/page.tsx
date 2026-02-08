@@ -273,7 +273,7 @@ export default async function BuscarPage({ searchParams }: Props) {
 
       {items.length === 0 && (
         <>
-          <div className="bg-card rounded-xl border border-border p-8 sm:p-12 text-center max-w-2xl mx-auto shadow-sm">
+          <div className="bg-card rounded-xl border border-border p-8 sm:p-12 text-center max-w-2xl mx-auto shadow-sm" role="status" aria-live="polite">
             <div className="w-20 h-20 mx-auto rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center mb-6">
               <AlertCircle className="w-10 h-10 text-primary-600 dark:text-primary-400" aria-hidden="true" />
             </div>
@@ -364,10 +364,11 @@ export default async function BuscarPage({ searchParams }: Props) {
 
       {items.length > 0 && (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 min-w-0">
             {items.map((it, index) => (
               <div
                 key={it.id}
+                className="min-w-0"
                 style={{ "--delay": `${index * 50}ms` } as React.CSSProperties}
               >
                 <SearchResultCard

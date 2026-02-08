@@ -72,10 +72,11 @@ export default function FeaturedGrid({
   };
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 min-w-0">
       {items.map((item, index) => (
         <div
           key={item.product_id}
+          className="min-w-0"
           onClick={() => handleProductClick(item, index + 1)}
           style={{ "--delay": `${index * 50}ms` } as React.CSSProperties}
         >

@@ -17,7 +17,7 @@ export default function HeaderSearchBar({ className = "" }: HeaderSearchBarProps
   };
 
   return (
-    <div className={`flex-1 max-w-md ${className}`}>
+    <div className={`flex-1 max-w-md min-w-0 ${className}`} role="search">
       <SearchAutocomplete
         placeholder="Buscar guantes, brackets, resinas…"
         onSearch={handleSearch}

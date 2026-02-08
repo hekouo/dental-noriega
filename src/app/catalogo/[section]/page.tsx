@@ -283,7 +283,7 @@ export default async function CatalogoSectionPage({ params, searchParams }: Prop
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 min-w-0">
           {products.map((product, idx) => {
             // Usar ProductCard canónico
             return (

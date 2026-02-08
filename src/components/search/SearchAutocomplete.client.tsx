@@ -317,7 +317,7 @@ export default function SearchAutocomplete({
           aria-activedescendant={
             activeIndex >= 0 ? `suggestion-${activeIndex}` : undefined
           }
-          className={`w-full min-h-[44px] pl-10 pr-10 py-3 border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all ${inputClassName}`}
+          className={`w-full min-h-[44px] pl-10 pr-10 py-3 border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:border-transparent transition-all ${inputClassName}`}
         />
         {/* Voice search button */}
         {voiceSupported && (
