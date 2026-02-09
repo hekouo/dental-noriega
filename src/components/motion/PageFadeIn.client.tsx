@@ -1,19 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
 
 interface PageFadeInProps {
   children: React.ReactNode;
 }
 
 /**
- * Wrapper que aplica fade-in suave al contenido de la página (opacity 0→1, translateY 6px→0, ~200ms).
+ * Wrapper one-shot: fade-in suave solo al primer montaje (opacity 0→1, translateY 6px→0, ~200ms).
+ * NO reinicia en navegación (evita flicker/percepción de lentitud).
  * Se desactiva si el usuario tiene prefers-reduced-motion.
- * No depende de data fetching ni lógica de negocio.
  */
 export default function PageFadeIn({ children }: PageFadeInProps) {
-  const pathname = usePathname();
   const [visible, setVisible] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
 
@@ -26,15 +24,18 @@ export default function PageFadeIn({ children }: PageFadeInProps) {
   }, []);
 
   useEffect(() => {
-    setVisible(false);
-    const t = requestAnimationFrame(() => {
-      requestAnimationFrame(() => setVisible(true));
+    if (reduceMotion) {
+      setVisible(true);
+      return;
+    }
+    let innerId: number | null = null;
+    const outerId = requestAnimationFrame(() => {
+      innerId = requestAnimationFrame(() => setVisible(true));
     });
-    return () => cancelAnimationFrame(t);
-  }, [pathname]);
-
-  useEffect(() => {
-    if (reduceMotion) setVisible(true);
+    return () => {
+      cancelAnimationFrame(outerId);
+      if (innerId != null) cancelAnimationFrame(innerId);
+    };
   }, [reduceMotion]);
 
   return (
