@@ -141,7 +141,7 @@ export default function HeaderSearchMobile() {
                       key={term}
                       type="button"
                       onClick={() => handleChipClick(term)}
-                      className="px-4 py-2 bg-muted hover:bg-primary-100 dark:hover:bg-primary-900/30 border border-border rounded-full text-sm text-foreground hover:text-primary-600 dark:hover:text-primary-400 transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 min-h-[44px] inline-flex items-center justify-center"
+                      className="px-4 py-2 bg-muted hover:bg-primary-100 dark:hover:bg-primary-900/30 border border-border rounded-full text-sm text-foreground hover:text-primary-600 dark:hover:text-primary-400 transition-colors duration-200 focus-premium min-h-[44px] inline-flex items-center justify-center tap-feedback"
                     >
                       {term}
                     </button>

@@ -94,7 +94,7 @@ export default function CatalogCardControls({ item }: Props) {
           onClick={onAdd}
           disabled={!canBuy}
           aria-label={needsSelections ? "Elegir opciones" : "Agregar al carrito"}
-          className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 font-medium transition-colors"
+          className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50 focus-premium tap-feedback font-medium transition-colors"
           title={needsSelections ? "Elegir opciones" : "Agregar al carrito"}
         >
           {needsSelections ? (

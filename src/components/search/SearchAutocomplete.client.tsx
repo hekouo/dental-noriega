@@ -317,7 +317,7 @@ export default function SearchAutocomplete({
           aria-activedescendant={
             activeIndex >= 0 ? `suggestion-${activeIndex}` : undefined
           }
-          className={`w-full min-h-[44px] pl-10 pr-10 py-3 border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:border-transparent transition-all ${inputClassName}`}
+          className={`w-full min-h-[44px] pl-10 pr-10 py-3 border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus-premium transition-all ${inputClassName}`}
         />
         {/* Voice search button */}
         {voiceSupported && (
@@ -330,7 +330,7 @@ export default function SearchAutocomplete({
                 startVoice();
               }
             }}
-            className={`absolute right-3 top-1/2 -translate-y-1/2 min-h-[44px] min-w-[44px] flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors p-2 rounded-lg hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 ${
+            className={`absolute right-3 top-1/2 -translate-y-1/2 min-h-[44px] min-w-[44px] flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors p-2 rounded-lg hover:bg-muted focus-premium ${
               listening ? "text-red-600 dark:text-red-400" : ""
             }`}
             aria-label={listening ? "Detener búsqueda por voz" : "Buscar por voz"}
@@ -347,7 +347,7 @@ export default function SearchAutocomplete({
           <button
             type="button"
             onClick={handleClear}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1 focus-premium rounded"
             aria-label="Limpiar búsqueda"
           >
             <X size={18} />
@@ -357,7 +357,7 @@ export default function SearchAutocomplete({
           <button
             type="button"
             onClick={handleClear}
-            className="absolute right-12 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1"
+            className="absolute right-12 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1 focus-premium rounded"
             aria-label="Limpiar búsqueda"
           >
             <X size={18} />

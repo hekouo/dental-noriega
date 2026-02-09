@@ -293,6 +293,29 @@ textarea {
     @apply w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all;
     min-height: 44px;
   }
+
+  /* Pills / badges Heritage dental: discretos, tonos cálidos */
+  .pill {
+    @apply inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium leading-tight;
+  }
+  .pill-heritage {
+    @apply pill border-amber-200/90 bg-amber-50/80 text-amber-800;
+  }
+  .pill-stock {
+    @apply pill border-emerald-200/80 bg-emerald-50/90 text-emerald-800;
+  }
+  .pill-stock-out {
+    @apply pill border-red-200/80 bg-red-50/90 text-red-800;
+  }
+  .pill-shipping {
+    @apply pill border-stone-200 bg-stone-50/90 text-stone-700;
+  }
+  .pill-points {
+    @apply pill border-amber-200/80 bg-amber-50/90 text-amber-800;
+  }
+  .pill-neutral {
+    @apply pill border-gray-200 bg-gray-50 text-gray-700;
+  }
 }
 
 /* Animaciones para ProductCard y grids */

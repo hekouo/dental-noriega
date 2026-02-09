@@ -41,7 +41,7 @@ export default function TrustBadges({ variant = "default" }: TrustBadgesProps) {
 
   const getBadgeClasses = (index: number) => {
     if (isHeritage) {
-      return "flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-sm text-gray-600 border border-amber-200/80 bg-white/60 hover:bg-amber-50/80 transition-colors";
+      return "pill pill-heritage";
     }
     const isMint = index === 0 || index === 1 || index === 3;
     const isAmber = index === 2;
@@ -71,7 +71,7 @@ export default function TrustBadges({ variant = "default" }: TrustBadgesProps) {
               href={badge.href}
               target={badge.href.startsWith("http") ? "_blank" : undefined}
               rel={badge.href.startsWith("http") ? "noopener noreferrer" : undefined}
-              className={isHeritage ? "focus:outline-none focus:ring-2 focus:ring-amber-300/50 focus:ring-offset-2 focus:ring-offset-transparent rounded-full" : "focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-primary-600 rounded-full"}
+              className={isHeritage ? "focus-premium tap-feedback rounded-full" : "focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-primary-600 rounded-full"}
             >
               {content}
             </Link>
