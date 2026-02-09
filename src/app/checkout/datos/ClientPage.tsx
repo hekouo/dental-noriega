@@ -10,7 +10,7 @@ import { useCheckoutStore } from "@/lib/store/checkoutStore";
 import type { UiShippingOption } from "@/lib/store/checkoutStore";
 import type { NormalizedShippingOption } from "@/lib/shipping/normalizeRates";
 import { datosSchema, type DatosForm, MX_STATES } from "@/lib/checkout/schemas";
-import CheckoutStepper from "@/components/checkout/CheckoutStepper";
+import CheckoutStepIndicatorThree from "@/components/checkout/CheckoutStepIndicatorThree";
 import CheckoutDebugPanel from "@/components/CheckoutDebugPanel";
 import Link from "next/link";
 import TrustStrip from "@/components/ui/TrustStrip";
@@ -736,8 +736,8 @@ function DatosPageContent() {
   }
 
   return (
-    <main className="mx-auto max-w-3xl px-4 sm:px-6 py-6 space-y-6">
-      <CheckoutStepper current="details" />
+    <main className="mx-auto max-w-3xl px-4 sm:px-6 py-6 space-y-6 pb-24 md:pb-6">
+      <CheckoutStepIndicatorThree />
 
       <div>
         <h1 className="text-2xl font-semibold tracking-tight mb-2 text-gray-900">Datos de Envío</h1>
@@ -836,7 +836,7 @@ function DatosPageContent() {
                 aria-invalid={errors.name ? "true" : "false"}
                 aria-describedby={errors.name ? "name-error" : undefined}
                 placeholder="Ej: Juan"
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                className={`w-full min-h-[44px] px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ${
                   errors.name ? "border-red-500" : "border-gray-300"
                 }`}
               />
@@ -868,7 +868,7 @@ function DatosPageContent() {
                   errors.last_name ? "last_name-error" : undefined
                 }
                 placeholder="Ej: Pérez García"
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                className={`w-full min-h-[44px] px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ${
                   errors.last_name ? "border-red-500" : "border-gray-300"
                 }`}
               />
@@ -900,7 +900,7 @@ function DatosPageContent() {
             onBlur={() => handleBlur("email")}
             aria-invalid={errors.email ? "true" : "false"}
             aria-describedby={errors.email ? "email-error" : "email-help"}
-            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+            className={`w-full min-h-[44px] px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ${
               errors.email ? "border-red-500" : "border-gray-300"
             }`}
             placeholder="tu@email.com"
@@ -944,7 +944,7 @@ function DatosPageContent() {
               })}
               aria-invalid={errors.phone ? "true" : "false"}
               aria-describedby={errors.phone ? "phone-error" : "phone-help"}
-              className={`flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+              className={`flex-1 min-h-[44px] px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ${
                 errors.phone ? "border-red-500" : "border-gray-300"
               }`}
               placeholder="5512345678"
@@ -1037,7 +1037,7 @@ function DatosPageContent() {
             aria-describedby={
               errors.neighborhood ? "neighborhood-error" : undefined
             }
-            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+            className={`w-full min-h-[44px] px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ${
               errors.neighborhood ? "border-red-500" : "border-gray-300"
             }`}
             placeholder="Ej: Roma Norte"
@@ -1074,7 +1074,7 @@ function DatosPageContent() {
                 : undefined}
               aria-invalid={errors.city ? "true" : "false"}
               aria-describedby={errors.city ? "city-error" : undefined}
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+              className={`w-full min-h-[44px] px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ${
                 errors.city ? "border-red-500" : "border-gray-300"
               }`}
             />
@@ -1101,7 +1101,7 @@ function DatosPageContent() {
               {...register("state")}
               aria-invalid={errors.state ? "true" : "false"}
               aria-describedby={errors.state ? "state-error" : undefined}
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+              className={`w-full min-h-[44px] px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ${
                 errors.state ? "border-red-500" : "border-gray-300"
               }`}
             >
@@ -1137,7 +1137,7 @@ function DatosPageContent() {
               {...register("cp")}
               aria-invalid={errors.cp ? "true" : "false"}
               aria-describedby={errors.cp ? "cp-error" : undefined}
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+              className={`w-full min-h-[44px] px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ${
                 errors.cp ? "border-red-500" : "border-gray-300"
               }`}
               placeholder="Ej: 06700"
@@ -1189,7 +1189,7 @@ function DatosPageContent() {
             onBlur={() => handleBlur("notes")}
             aria-invalid={errors.notes ? "true" : "false"}
             aria-describedby={errors.notes ? "notes-error" : "notes-help"}
-            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+            className={`w-full min-h-[44px] px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ${
               errors.notes ? "border-red-500" : "border-gray-300"
             }`}
             placeholder="Ej: Llame antes de entregar, portería abierta 24h, referencias de la puerta..."
@@ -1595,11 +1595,11 @@ function DatosPageContent() {
           ]}
         />
 
-        {/* Botones */}
-        <div className="flex gap-4 pt-4">
+        {/* Botones - sticky en mobile para no tapar con teclado */}
+        <div className="flex flex-col-reverse sm:flex-row gap-3 pt-6 pb-6 md:pb-0 sticky bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 -mx-4 px-4 py-4 sm:static sm:border-0 sm:-mx-0 sm:px-0 sm:py-0">
           <Link
             href="/carrito"
-            className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+            className="px-6 py-3 min-h-[44px] border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors inline-flex items-center justify-center font-medium"
           >
             ← Volver al carrito
           </Link>
@@ -1616,8 +1616,8 @@ function DatosPageContent() {
               const microAnimsEnabled = process.env.NEXT_PUBLIC_MOBILE_MICRO_ANIMS === "true";
               const prefersReduced = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
               return microAnimsEnabled && !prefersReduced
-                ? "px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex-1 font-semibold transition-all duration-150 active:scale-[0.98] active:opacity-90"
-                : "px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex-1 font-semibold transition-colors";
+                ? "px-6 py-3 min-h-[44px] bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex-1 font-semibold transition-all duration-150 active:scale-[0.98] active:opacity-90 inline-flex items-center justify-center"
+                : "px-6 py-3 min-h-[44px] bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex-1 font-semibold transition-colors inline-flex items-center justify-center";
             })()}
           >
             Continuar al pago →
