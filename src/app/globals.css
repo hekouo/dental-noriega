@@ -63,6 +63,14 @@
   --radius-md: 0.5rem; /* 8px */
   --radius-lg: 0.75rem; /* 12px */
   --radius-xl: 1rem; /* 16px */
+
+  /* Motion system (microinteracciones premium) */
+  --motion-fast: 150ms;
+  --motion-med: 220ms;
+  --motion-slow: 260ms;
+  --motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --motion-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Dark mode variables */
@@ -160,6 +168,55 @@ textarea {
     background-size: 100% 100%, 100% 100%;
   }
 
+  /* Motion system utilities */
+  .motion-base {
+    transition-property: transform, opacity, box-shadow, background-color, border-color;
+  }
+  .motion-fast {
+    transition-duration: var(--motion-fast);
+    transition-timing-function: var(--motion-ease);
+  }
+  .motion-med {
+    transition-duration: var(--motion-med);
+    transition-timing-function: var(--motion-ease);
+  }
+  .hover-lift {
+    transition: transform var(--motion-fast) var(--motion-ease),
+      box-shadow var(--motion-fast) var(--motion-ease);
+  }
+  .hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+  .tap-feedback {
+    transition: transform var(--motion-fast) var(--motion-ease);
+  }
+  .tap-feedback:active {
+    transform: scale(0.98);
+  }
+  .focus-premium {
+    outline: none;
+  }
+  .focus-premium:focus-visible {
+    outline: 2px solid rgb(180, 160, 120);
+    outline-offset: 2px;
+  }
+  /* Shimmer "seda": skeleton suave, warm-neutral */
+  .shimmer-silk {
+    background: linear-gradient(
+      90deg,
+      rgb(250, 248, 245) 0%,
+      rgb(243, 241, 238) 45%,
+      rgb(250, 248, 245) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer-silk 1.2s linear infinite;
+  }
+  @keyframes shimmer-silk {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
   /* Reduced motion support */
   @media (prefers-reduced-motion: reduce) {
     *,
@@ -169,6 +226,52 @@ textarea {
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
       scroll-behavior: auto !important;
+    }
+    .hover-lift:hover {
+      transform: none;
+    }
+    .tap-feedback:active {
+      transform: none;
+    }
+  .shimmer-silk {
+    animation: none;
+    background: rgb(243, 241, 238);
+    }
+  }
+
+  /* PageFadeIn (client component) */
+  .page-fade-in {
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 200ms var(--motion-ease), transform 200ms var(--motion-ease);
+  }
+  .page-fade-in.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  /* RevealOnScroll (client component) */
+  .reveal-on-scroll {
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity var(--motion-med) var(--motion-ease),
+      transform var(--motion-med) var(--motion-ease);
+  }
+  .reveal-on-scroll.is-revealed {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .page-fade-in,
+    .page-fade-in.is-visible {
+      opacity: 1;
+      transform: none;
+      transition: none;
+    }
+    .reveal-on-scroll,
+    .reveal-on-scroll.is-revealed {
+      opacity: 1;
+      transform: none;
+      transition: none;
     }
   }
 }

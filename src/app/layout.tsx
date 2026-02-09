@@ -81,6 +81,10 @@ const EnhancedMobileBottomNav = dynamic(
     ssr: false,
   },
 );
+const PageFadeIn = dynamic(
+  () => import("@/components/motion/PageFadeIn.client").then((m) => ({ default: m.default })),
+  { ssr: true },
+);
 
 const inter = Inter({ subsets: ["latin"], display: "swap" });
 const playfair = Playfair_Display({
@@ -286,7 +290,7 @@ export default function RootLayout({
           </HeaderWithScrollEffect>
 
         <main className="max-w-6xl mx-auto p-4 flex-1 w-full max-w-full pb-24 md:pb-safe overflow-x-clip box-border">
-          {children}
+          <PageFadeIn>{children}</PageFadeIn>
           <FinalThanks />
         </main>
 
