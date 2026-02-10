@@ -173,7 +173,7 @@ export default function FeaturedCardControls({ item, compact = false }: Props) {
             onClick={onAdd}
             aria-busy={isAdding}
             aria-label={needsSelections ? "Elegir opciones" : "Agregar al carrito"}
-            className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-4 py-2 text-white hover:bg-primary-700 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 font-medium transition-colors"
+            className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-4 py-2 text-white hover:bg-primary-700 disabled:opacity-60 focus-premium tap-feedback font-medium transition-colors"
             disabled={isAdding}
             title={needsSelections ? "Elegir opciones" : "Agregar al carrito"}
           >
@@ -238,7 +238,7 @@ export default function FeaturedCardControls({ item, compact = false }: Props) {
           onClick={onAdd}
           aria-busy={isAdding}
           aria-label={needsSelections ? "Elegir opciones" : "Agregar al carrito"}
-          className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-4 py-2 text-white hover:bg-primary-700 disabled:opacity-60 h-9 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 font-medium transition-colors"
+          className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-4 py-2 text-white hover:bg-primary-700 disabled:opacity-60 h-9 focus-premium tap-feedback font-medium transition-colors"
           disabled={isAdding}
           title={needsSelections ? "Elegir opciones" : "Agregar al carrito"}
         >

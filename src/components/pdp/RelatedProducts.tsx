@@ -56,7 +56,7 @@ export default async function RelatedProducts({
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link
               href={ROUTES.tienda()}
-              className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 min-h-[44px]"
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors font-medium focus-premium tap-feedback min-h-[44px]"
             >
               Ver tienda
               <ArrowRight size={18} />
@@ -66,7 +66,7 @@ export default async function RelatedProducts({
                 href={whatsappUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition-colors font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 min-h-[44px]"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition-colors font-medium focus-premium tap-feedback min-h-[44px]"
               >
                 <svg
                   width={18}
@@ -145,7 +145,7 @@ export default async function RelatedProducts({
       <div className="mt-6 text-center">
         <Link
           href={ROUTES.section(sectionSlug)}
-          className="inline-flex items-center gap-2 text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 rounded min-h-[44px]"
+          className="inline-flex items-center gap-2 text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors focus-premium tap-feedback rounded min-h-[44px]"
         >
           Ver más de esta categoría
           <ArrowRight size={16} />

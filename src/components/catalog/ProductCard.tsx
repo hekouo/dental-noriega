@@ -193,8 +193,8 @@ export default function ProductCard({
   };
 
   return (
-    <div 
-      className="rounded-2xl border border-gray-200 dark:border-gray-700 p-4 flex flex-col bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-all duration-300 ease-out hover:-translate-y-0.5 active:scale-[0.98] group min-w-0"
+    <div
+      className="rounded-2xl border border-gray-200 dark:border-gray-700 p-4 flex flex-col bg-white dark:bg-gray-800 shadow-sm group min-w-0 hover-lift tap-feedback"
       style={{
         animation: "fadeInUp 0.5s ease-out backwards",
         animationDelay: "var(--delay, 0ms)",
@@ -221,7 +221,7 @@ export default function ProductCard({
         <Link
           href={href}
           prefetch={false}
-          className="hover:text-primary-600 dark:hover:text-primary-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 rounded text-gray-900 dark:text-gray-100"
+          className="hover:text-primary-600 dark:hover:text-primary-400 focus-premium rounded text-gray-900 dark:text-gray-100"
         >
           {renderTitle()}
         </Link>
@@ -232,45 +232,21 @@ export default function ProductCard({
         {price !== null ? formatMXN(price) : <span className="text-gray-500 dark:text-gray-400 text-sm font-normal">Consultar precio</span>}
       </div>
 
-      {/* Badges compactos: stock, envío gratis, puntos */}
+      {/* Badges compactos: stock, envío gratis, puntos (pills heritage) */}
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
-        {/* Estado de stock - Badge con acento de marca */}
-        {in_stock !== null && in_stock !== undefined && (() => {
-          const accentEnabled = process.env.NEXT_PUBLIC_ENABLE_ACCENT_UI === "true";
-          const stockClasses = in_stock
-            ? accentEnabled
-              ? "bg-mint-50 dark:bg-mint-900/20 text-mint-700 dark:text-mint-300 border border-mint-200 dark:border-mint-800"
-              : "bg-primary-50 text-primary-700 border border-primary-200"
-            : "bg-red-50 text-red-700 border border-red-200";
-          
-          return (
-            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${stockClasses}`}>
-              {in_stock ? "En stock" : "Agotado"}
-            </span>
-          );
-        })()}
-
-        {/* Badge de envío gratis compacto */}
-        {price !== null && (
-          <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium bg-mint-50 dark:bg-mint-900/20 text-mint-700 dark:text-mint-300 border border-mint-200 dark:border-mint-800">
-            Envío gratis $2,000+
+        {in_stock !== null && in_stock !== undefined && (
+          <span className={in_stock ? "pill pill-stock" : "pill pill-stock-out"}>
+            {in_stock ? "En stock" : "Agotado"}
           </span>
         )}
-
-        {/* Badge de puntos compacto */}
-        {(() => {
-          if (priceCents <= 0) return null;
+        {price !== null && (
+          <span className="pill pill-shipping">Envío gratis $2,000+</span>
+        )}
+        {priceCents > 0 && (() => {
           const points = estimatePointsForPriceCents(priceCents);
           if (points <= 0) return null;
-          const accentEnabled = process.env.NEXT_PUBLIC_ENABLE_ACCENT_UI === "true";
-          const pointsClasses = accentEnabled
-            ? "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
-            : "bg-amber-50 text-amber-700 border border-amber-200";
-          
           return (
-            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${pointsClasses}`}>
-              +{points.toLocaleString("es-MX")} pts
-            </span>
+            <span className="pill pill-points">+{points.toLocaleString("es-MX")} pts</span>
           );
         })()}
       </div>
@@ -306,10 +282,8 @@ export default function ProductCard({
                   kind: "button",
                   enabled: microAnimsEnabled,
                   reducedMotion: prefersReducedMotion,
-                  className: `w-full sm:flex-1 flex items-center justify-center gap-2 min-h-[44px] px-3 py-2.5 rounded-lg text-sm bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 transition-all duration-200 font-semibold shadow-md ${
-                    isAdding 
-                      ? "scale-95 bg-primary-700" 
-                      : microAnimsEnabled ? "" : "hover:scale-[1.02] active:scale-[0.98] hover:shadow-lg"
+                  className: `w-full sm:flex-1 flex items-center justify-center gap-2 min-h-[44px] px-3 py-2.5 rounded-lg text-sm bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed focus-premium transition-all duration-200 font-semibold shadow-md tap-feedback ${
+                    isAdding ? "scale-95 bg-primary-700" : microAnimsEnabled ? "" : "hover:scale-[1.02] hover:shadow-lg"
                   }`,
                 })}
                 title={needsSelections ? "Elegir opciones" : "Agregar al carrito"}
@@ -376,7 +350,7 @@ export default function ProductCard({
                 title,
               });
             }}
-            className="w-full flex items-center justify-center gap-2 min-h-[44px] px-3 py-2.5 rounded-lg text-sm bg-emerald-500 text-white hover:bg-emerald-600 transition-colors font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+            className="w-full flex items-center justify-center gap-2 min-h-[44px] px-3 py-2.5 rounded-lg text-sm bg-emerald-500 text-white hover:bg-emerald-600 transition-colors font-medium focus-premium tap-feedback"
             aria-label={`Consultar ${title} por WhatsApp`}
           >
             <svg
