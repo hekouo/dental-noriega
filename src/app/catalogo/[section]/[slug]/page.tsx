@@ -209,15 +209,15 @@ export default async function ProductDetailPage({ params }: Props) {
               />
             </div>
 
-            {/* Información del producto */}
+            {/* Información del producto — jerarquía premium */}
             <div className="space-y-4 sm:space-y-6">
               <div>
                 <div className="flex items-start justify-between gap-4 mb-2">
-                  <div className="flex-1">
-                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 dark:text-white mb-2">
+                  <div className="flex-1 min-w-0">
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 dark:text-white mb-2 leading-tight line-clamp-4">
                       {product.title}
                     </h1>
-                    <p className="text-base sm:text-lg text-gray-600 dark:text-gray-400 capitalize">
+                    <p className="text-base sm:text-lg text-stone-600 dark:text-gray-400 capitalize">
                       {product.section.replace(/-/g, " ")}
                     </p>
                   </div>
@@ -226,12 +226,12 @@ export default async function ProductDetailPage({ params }: Props) {
                 </div>
               </div>
 
-              {/* Precio y disponibilidad */}
+              {/* Precio y disponibilidad — jerarquía fuerte */}
               <div className="space-y-2">
-                <div className="text-4xl sm:text-5xl font-bold text-primary-600 dark:text-primary-400">
+                <div className="text-4xl sm:text-5xl font-bold tracking-tight text-primary-600 dark:text-primary-400">
                   {price}
                 </div>
-                <div className="flex items-center space-x-2 flex-wrap gap-2">
+                <div className="flex items-center flex-wrap gap-2">
                   {product.in_stock !== null &&
                     product.in_stock !== undefined && (
                       <span
@@ -243,7 +243,7 @@ export default async function ProductDetailPage({ params }: Props) {
                       </span>
                     )}
                   {product.in_stock && (
-                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                    <span className="text-sm text-stone-600 dark:text-gray-400">
                       Lista para envío inmediato
                     </span>
                   )}

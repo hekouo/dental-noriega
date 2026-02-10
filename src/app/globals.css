@@ -194,6 +194,13 @@ textarea {
   .tap-feedback:active {
     transform: scale(0.98);
   }
+  /* CTA pulse: breve scale al click (160–200ms); no usar con reduced motion */
+  .cta-pulse {
+    transition: transform var(--motion-med) var(--motion-ease);
+  }
+  .cta-pulse.cta-pulse-active {
+    transform: scale(0.98);
+  }
   .focus-premium {
     outline: none;
   }
@@ -231,6 +238,9 @@ textarea {
       transform: none;
     }
     .tap-feedback:active {
+      transform: none;
+    }
+    .cta-pulse.cta-pulse-active {
       transform: none;
     }
   .shimmer-silk {

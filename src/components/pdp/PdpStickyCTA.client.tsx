@@ -1,11 +1,13 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { ShoppingCart, MessageCircle } from "lucide-react";
 import { useCartStore } from "@/lib/store/cartStore";
 import { getWhatsAppProductUrl } from "@/lib/whatsapp/config";
 import { mxnFromCents } from "@/lib/utils/currency";
+
+const PULSE_MS = 180;
 
 type PdpStickyCTAProps = {
   product: {
@@ -21,10 +23,10 @@ type PdpStickyCTAProps = {
 
 export default function PdpStickyCTA({ product }: PdpStickyCTAProps) {
   const addToCart = useCartStore((state) => state.addToCart);
-  const [isAdding, setIsAdding] = React.useState(false);
+  const [isAdding, setIsAdding] = useState(false);
+  const [pulse, setPulse] = useState(false);
 
   const handleAddToCart = () => {
-    setIsAdding(true);
     addToCart({
       id: product.id,
       title: product.title,
@@ -33,6 +35,9 @@ export default function PdpStickyCTA({ product }: PdpStickyCTAProps) {
       image_url: product.image_url,
       selected: true,
     });
+    setIsAdding(true);
+    setPulse(true);
+    setTimeout(() => setPulse(false), PULSE_MS);
     setTimeout(() => setIsAdding(false), 1000);
   };
 
@@ -54,7 +59,7 @@ export default function PdpStickyCTA({ product }: PdpStickyCTAProps) {
             href={whatsappUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex-shrink-0 px-4 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors duration-200 flex items-center justify-center gap-2 min-h-[44px] focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 active:scale-95"
+            className="flex-shrink-0 px-4 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors duration-200 flex items-center justify-center gap-2 min-h-[44px] font-medium focus-premium tap-feedback"
             aria-label="Contactar por WhatsApp"
           >
             <MessageCircle size={20} />
@@ -64,7 +69,7 @@ export default function PdpStickyCTA({ product }: PdpStickyCTAProps) {
         <button
           onClick={handleAddToCart}
           disabled={!canBuy || isAdding}
-          className="flex-1 px-4 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center justify-center gap-2 min-h-[44px] font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 active:scale-95"
+          className={`cta-pulse focus-premium tap-feedback flex-1 px-4 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center justify-center gap-2 min-h-[44px] font-medium ${pulse ? "cta-pulse-active" : ""}`}
           aria-label="Agregar al carrito"
         >
           <ShoppingCart size={20} />

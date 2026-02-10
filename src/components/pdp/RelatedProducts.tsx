@@ -39,7 +39,7 @@ export default async function RelatedProducts({
 
     return (
       <section
-        className="mt-12 pt-10 border-t border-gray-200 dark:border-gray-700"
+        className="mt-12 pt-10 border-t border-stone-200/80 dark:border-gray-700"
         aria-labelledby="related-products-empty"
       >
         <div className="text-center py-12 px-4">
@@ -104,18 +104,18 @@ export default async function RelatedProducts({
 
   return (
     <section
-      className="mt-12 pt-10 border-t border-gray-200 dark:border-gray-700"
+      className="mt-12 pt-10 border-t border-stone-200/80 dark:border-gray-700"
       aria-labelledby="related-products-heading"
     >
-      {/* Heading + microcopy */}
+      {/* Heading + microcopy — consistencia visual con pills y hover-lift en cards */}
       <div className="mb-6">
         <h2
           id="related-products-heading"
-          className="text-2xl font-semibold text-gray-900 dark:text-white mb-1"
+          className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-white mb-1"
         >
           Productos relacionados
         </h2>
-        <p className="text-sm text-gray-600 dark:text-gray-400">
+        <p className="text-sm text-stone-600 dark:text-gray-400">
           Más opciones de la misma categoría
         </p>
       </div>
@@ -141,11 +141,11 @@ export default async function RelatedProducts({
         ))}
       </div>
 
-      {/* CTA secundaria: Ver más de esta categoría */}
+      {/* CTA secundaria: Ver más de esta categoría — tap target >= 44px */}
       <div className="mt-6 text-center">
         <Link
           href={ROUTES.section(sectionSlug)}
-          className="inline-flex items-center gap-2 text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors focus-premium tap-feedback rounded min-h-[44px]"
+          className="inline-flex items-center justify-center gap-2 text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors focus-premium tap-feedback rounded min-h-[44px] px-4 py-2"
         >
           Ver más de esta categoría
           <ArrowRight size={16} />

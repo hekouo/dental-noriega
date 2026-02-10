@@ -36,12 +36,16 @@ type Props = {
   product: Product;
 };
 
+const PULSE_MS = 180;
+
 export default function ProductActions({ product }: Props) {
   const [qty, setQty] = useState(1);
   const [variantDetail, setVariantDetail] = useState<string | null>(null);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [colorNotes, setColorNotes] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: "error" | "success" } | null>(null);
+  const [pulseAdd, setPulseAdd] = useState(false);
+  const [pulseBuy, setPulseBuy] = useState(false);
   const { showToast } = useToast();
   const addToCart = useCartStore((s) => s.addToCart);
   const prefersReducedMotion = usePrefersReducedMotion();
@@ -386,17 +390,23 @@ export default function ProductActions({ product }: Props) {
         </div>
 
         <div className="space-y-2">
-          {/* CTA Primario: Agregar al carrito */}
+          {/* CTA Primario: Agregar al carrito — pulse mínimo al click, focus-premium, tap target >= 44px */}
           <button
-            onClick={handleAddToCart}
+            onClick={() => {
+              handleAddToCart();
+              if (!prefersReducedMotion) {
+                setPulseAdd(true);
+                setTimeout(() => setPulseAdd(false), PULSE_MS);
+              }
+            }}
             disabled={!canBuy}
             aria-label="Agregar al carrito"
-            className={getTapClass({
+            className={`cta-pulse focus-premium tap-feedback min-h-[44px] ${pulseAdd ? "cta-pulse-active" : ""} ${getTapClass({
               kind: "button",
               enabled: microAnimsEnabled,
               reducedMotion: prefersReducedMotion,
-              className: "w-full bg-primary-600 text-white px-6 py-3 rounded-md hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 font-semibold",
-            })}
+              className: "w-full bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 font-semibold",
+            })}`}
             title="Agregar al carrito"
           >
             Agregar al carrito
@@ -404,15 +414,21 @@ export default function ProductActions({ product }: Props) {
 
           {/* CTA Secundario: Comprar ahora */}
           <button
-            onClick={handleBuyNow}
+            onClick={() => {
+              handleBuyNow();
+              if (!prefersReducedMotion) {
+                setPulseBuy(true);
+                setTimeout(() => setPulseBuy(false), PULSE_MS);
+              }
+            }}
             disabled={!canBuy}
             aria-label="Comprar ahora"
-            className={getTapClass({
+            className={`cta-pulse focus-premium tap-feedback min-h-[44px] ${pulseBuy ? "cta-pulse-active" : ""} ${getTapClass({
               kind: "button",
               enabled: microAnimsEnabled,
               reducedMotion: prefersReducedMotion,
-              className: "w-full border-2 border-primary-600 dark:border-primary-500 text-primary-600 dark:text-primary-400 bg-white dark:bg-gray-800 px-6 py-3 rounded-md hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 font-medium",
-            })}
+              className: "w-full border-2 border-primary-600 dark:border-primary-500 text-primary-600 dark:text-primary-400 bg-white dark:bg-gray-800 px-6 py-3 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 font-medium",
+            })}`}
             title="Comprar ahora"
           >
             Comprar ahora
@@ -433,7 +449,7 @@ export default function ProductActions({ product }: Props) {
                   title: product.title,
                 });
               }}
-              className="w-full bg-emerald-500 text-white px-6 py-3 rounded-md hover:bg-emerald-600 transition-colors font-medium flex items-center justify-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+              className="w-full bg-emerald-500 text-white px-6 py-3 rounded-lg hover:bg-emerald-600 transition-colors font-medium flex items-center justify-center gap-2 min-h-[44px] focus-premium tap-feedback"
             >
               <MessageCircle className="w-5 h-5" />
               ¿Dudas? Escríbenos

@@ -5,6 +5,7 @@ import Image from "next/image";
 import { ZoomIn } from "lucide-react";
 import { normalizeImageUrl } from "@/lib/img/normalizeImageUrl";
 import ProductLightbox from "./ProductLightbox.client";
+import { usePrefersReducedMotion } from "@/lib/hooks/usePrefersReducedMotion";
 
 type ProductImage = {
   url: string;
@@ -20,6 +21,7 @@ type Props = {
 export default function ProductGallery({ images, title, fallbackImage }: Props) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const prefersReducedMotion = usePrefersReducedMotion();
 
   // Si no hay imágenes, usar fallback
   const displayImages =
@@ -27,7 +29,7 @@ export default function ProductGallery({ images, title, fallbackImage }: Props) 
 
   if (displayImages.length === 0) {
     return (
-      <div className="relative w-full aspect-square bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden">
+      <div className="relative w-full aspect-square bg-white dark:bg-gray-800 rounded-xl overflow-hidden border border-stone-200/90 dark:border-gray-700 shadow-sm">
         <div className="w-full h-full flex items-center justify-center text-gray-400 dark:text-gray-500">
           Sin imagen
         </div>
@@ -47,6 +49,10 @@ export default function ProductGallery({ images, title, fallbackImage }: Props) 
   const normalizedUrl = normalizeImageUrl(currentImage.url, 800);
   const lightboxImages = displayImages.map((img) => img.url);
 
+  const imageScaleClass = !prefersReducedMotion
+    ? "transition-transform duration-200 ease-out lg:group-hover:scale-[1.02]"
+    : "";
+
   return (
     <div className="space-y-4">
       {/* Desktop: Layout con thumbnails verticales */}
@@ -61,10 +67,10 @@ export default function ProductGallery({ images, title, fallbackImage }: Props) 
                   key={index}
                   type="button"
                   onClick={() => handleThumbnailClick(index)}
-                  className={`relative w-20 h-20 rounded-lg overflow-hidden border-2 transition-all focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 flex-shrink-0 ${
+                  className={`relative w-20 h-20 rounded-lg overflow-hidden border-2 transition-all focus-premium flex-shrink-0 ${
                     selectedIndex === index
                       ? "border-primary-600 dark:border-primary-400 ring-2 ring-primary-200 dark:ring-primary-800"
-                      : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+                      : "border-stone-200 dark:border-gray-700 hover:border-stone-300 dark:hover:border-gray-600"
                   }`}
                   aria-label={`Ver imagen ${index + 1} de ${displayImages.length}`}
                   aria-pressed={selectedIndex === index}
@@ -84,12 +90,12 @@ export default function ProductGallery({ images, title, fallbackImage }: Props) 
           </div>
         )}
 
-        {/* Imagen principal */}
-        <div className="relative flex-1 aspect-square bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-sm group cursor-pointer">
+        {/* Imagen principal: borde/sombra heritage, hover scale solo desktop y sin reduced motion */}
+        <div className="relative flex-1 aspect-square bg-white dark:bg-gray-800 rounded-xl overflow-hidden border border-stone-200/90 dark:border-gray-700 shadow-sm group cursor-pointer">
           <button
             type="button"
             onClick={handleImageClick}
-            className="w-full h-full focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded-lg"
+            className="w-full h-full focus-premium rounded-xl"
             aria-label={`Ver imagen ${selectedIndex + 1} en pantalla completa`}
           >
             <Image
@@ -97,7 +103,7 @@ export default function ProductGallery({ images, title, fallbackImage }: Props) 
               alt={`${title} - Imagen ${selectedIndex + 1}`}
               width={800}
               height={800}
-              className="w-full h-full object-contain"
+              className={`w-full h-full object-contain ${imageScaleClass}`}
               sizes="(max-width: 1024px) 100vw, 50vw"
               priority={selectedIndex === 0}
             />
@@ -111,14 +117,14 @@ export default function ProductGallery({ images, title, fallbackImage }: Props) 
         </div>
       </div>
 
-      {/* Mobile: Layout con thumbnails horizontales */}
+      {/* Mobile: Layout con thumbnails horizontales (sin hover scale) */}
       <div className="lg:hidden space-y-4">
         {/* Imagen principal */}
-        <div className="relative w-full aspect-square bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-sm">
+        <div className="relative w-full aspect-square bg-white dark:bg-gray-800 rounded-xl overflow-hidden border border-stone-200/90 dark:border-gray-700 shadow-sm">
           <button
             type="button"
             onClick={handleImageClick}
-            className="w-full h-full focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded-lg"
+            className="w-full h-full focus-premium rounded-xl"
             aria-label={`Ver imagen ${selectedIndex + 1} en pantalla completa`}
           >
             <Image
@@ -151,10 +157,10 @@ export default function ProductGallery({ images, title, fallbackImage }: Props) 
                     key={index}
                     type="button"
                     onClick={() => handleThumbnailClick(index)}
-                    className={`flex-shrink-0 relative w-20 h-20 rounded-lg overflow-hidden border-2 transition-all focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ${
+                    className={`flex-shrink-0 relative w-20 h-20 rounded-lg overflow-hidden border-2 transition-all focus-premium ${
                       selectedIndex === index
                         ? "border-primary-600 dark:border-primary-400 ring-2 ring-primary-200 dark:ring-primary-800"
-                        : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+                        : "border-stone-200 dark:border-gray-700 hover:border-stone-300 dark:hover:border-gray-600"
                     }`}
                     aria-label={`Ver imagen ${index + 1} de ${displayImages.length}`}
                     aria-pressed={selectedIndex === index}
