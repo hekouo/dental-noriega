@@ -6,6 +6,8 @@ interface RevealOnScrollProps {
   children: React.ReactNode;
   /** Umbral de intersección (0–1). Default 0.12 */
   threshold?: number;
+  /** Retraso en ms para stagger (ej. 0, 60, 120…). */
+  delayMs?: number;
   className?: string;
 }
 
@@ -17,6 +19,7 @@ interface RevealOnScrollProps {
 export default function RevealOnScroll({
   children,
   threshold = 0.12,
+  delayMs,
   className = "",
 }: RevealOnScrollProps) {
   const ref = useRef<HTMLDivElement>(null);
@@ -49,9 +52,10 @@ export default function RevealOnScroll({
   }, [reduceMotion, threshold]);
 
   const baseClass = reduceMotion ? "" : "reveal-on-scroll".concat(revealed ? " is-revealed" : "");
+  const style = delayMs != null && !reduceMotion ? { transitionDelay: `${delayMs}ms` } : undefined;
 
   return (
-    <div ref={ref} className={[baseClass, className].filter(Boolean).join(" ")}>
+    <div ref={ref} className={[baseClass, className].filter(Boolean).join(" ")} style={style}>
       {children}
     </div>
   );

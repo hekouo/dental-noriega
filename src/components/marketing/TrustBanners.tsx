@@ -36,7 +36,7 @@ export function TrustBanners() {
             <Link
               key={banner.href}
               href={banner.href}
-              className="group bg-card border border-border rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+              className="group bg-card border border-border rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-200 hover-lift focus-premium"
             >
               <div className="flex items-start gap-4">
                 <div className={`flex-shrink-0 ${banner.iconColor}`}>
@@ -63,7 +63,7 @@ export function TrustBanners() {
               <Link
                 key={banner.href}
                 href={banner.href}
-                className="group snap-start flex-shrink-0 w-[280px] bg-card border border-border rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+                className="group snap-start flex-shrink-0 w-[280px] bg-card border border-border rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-200 tap-feedback focus-premium"
               >
                 <div className="flex items-start gap-4">
                   <div className={`flex-shrink-0 ${banner.iconColor}`}>
