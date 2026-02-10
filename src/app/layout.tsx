@@ -214,9 +214,9 @@ export default function RootLayout({
           <CheckoutDevGuard />
           <TopInfoBar />
           <HeaderWithScrollEffect>
-            <nav className="max-w-6xl mx-auto flex items-center justify-between p-4 gap-4">
-              <div className="flex items-center gap-3">
-                <Link href={ROUTES.home()}>
+            <nav className="max-w-6xl mx-auto flex items-center justify-between p-4 gap-3 min-w-0">
+              <div className="flex items-center gap-3 min-w-0 flex-shrink-0">
+                <Link href={ROUTES.home()} className="min-h-[44px] flex items-center focus-premium" aria-label="Inicio">
                   <BrandMark />
                 </Link>
                 {process.env.VERCEL_ENV && (
@@ -239,35 +239,35 @@ export default function RootLayout({
               </div>
 
               {/* Buscador desktop */}
-              <div className="hidden md:block">
+              <div className="hidden md:block flex-1 max-w-md min-w-0 mx-2">
                 <HeaderSearchBar />
               </div>
 
-              <div className="flex items-center gap-4 text-sm">
+              <div className="flex items-center gap-2 sm:gap-3 text-sm min-w-0 flex-shrink">
                 <Link
                   href={ROUTES.tienda()}
-                  className="min-h-[44px] flex items-center hover:text-primary-600 dark:hover:text-primary-400 transition-colors font-medium"
+                  className="min-h-[44px] px-2 flex items-center hover:text-primary-600 dark:hover:text-primary-400 transition-colors font-medium focus-premium rounded"
                   aria-label="Ir a la tienda"
                 >
                   <span>Tienda</span>
                 </Link>
                 <Link
                   href={ROUTES.destacados()}
-                  className="min-h-[44px] flex items-center hover:text-primary-600 dark:hover:text-primary-400 transition-colors font-medium"
+                  className="min-h-[44px] px-2 flex items-center hover:text-primary-600 dark:hover:text-primary-400 transition-colors font-medium focus-premium rounded"
                   aria-label="Ver productos destacados"
                 >
                   <span>Destacados</span>
                 </Link>
                 <Link
                   href={ROUTES.buscar()}
-                  className="min-h-[44px] flex items-center hover:text-primary-600 dark:hover:text-primary-400 transition-colors font-medium"
+                  className="min-h-[44px] px-2 flex items-center hover:text-primary-600 dark:hover:text-primary-400 transition-colors font-medium focus-premium rounded"
                   aria-label="Buscar productos"
                 >
                   <span>Buscar</span>
                 </Link>
                 <Link
                   href="/como-comprar"
-                  className="min-h-[44px] flex items-center hover:text-primary-600 dark:hover:text-primary-400 transition-colors font-medium"
+                  className="min-h-[44px] px-2 flex items-center hover:text-primary-600 dark:hover:text-primary-400 transition-colors font-medium focus-premium rounded"
                   aria-label="Cómo comprar"
                 >
                   <span>Cómo comprar</span>
