@@ -41,7 +41,7 @@ export default function TrustBadges({ variant = "default" }: TrustBadgesProps) {
 
   const getBadgeClasses = (index: number) => {
     if (isHeritage) {
-      return "pill pill-heritage";
+      return "pill pill-heritage pill-lg";
     }
     const isMint = index === 0 || index === 1 || index === 3;
     const isAmber = index === 2;
