@@ -23,7 +23,7 @@ export default function HeaderSearchBar({ className = "" }: HeaderSearchBarProps
         onSearch={handleSearch}
         inputClassName="text-sm"
         className="w-full"
-        showQuizLink={false}
+        context="header"
       />
     </div>
   );

@@ -21,14 +21,16 @@ type SuggestItem = {
   price_cents: number | null;
 };
 
+type SearchAutocompleteContext = "header" | "page";
+
 type SearchAutocompleteProps = {
   placeholder?: string;
   className?: string;
   inputClassName?: string;
   initialQuery?: string;
   onSearch?: (query: string) => void;
-  /** En header no mostramos el enlace "No sé qué buscar" debajo del input para no romper layout */
-  showQuizLink?: boolean;
+  /** "header" = no renderizar helper (ni texto ni link). "page" = puede mostrar "No sé qué buscar. Haz el quiz" si quiz está activo. */
+  context?: SearchAutocompleteContext;
 };
 
 export default function SearchAutocomplete({
@@ -37,7 +39,7 @@ export default function SearchAutocomplete({
   inputClassName = "",
   initialQuery = "",
   onSearch,
-  showQuizLink = true,
+  context = "page",
 }: SearchAutocompleteProps) {
   const router = useRouter();
   const [query, setQuery] = useState(initialQuery);
@@ -373,8 +375,8 @@ export default function SearchAutocomplete({
         )}
       </div>
 
-      {/* Quiz link - Solo fuera del header (evita bloque angosto debajo del input en nav) */}
-      {showQuizLink && process.env.NEXT_PUBLIC_ENABLE_QUIZ === "true" && (
+      {/* Helper "No sé qué buscar. Haz el quiz" — solo en context="page"; en header no se renderiza nada */}
+      {context === "page" && process.env.NEXT_PUBLIC_ENABLE_QUIZ === "true" && (
         <div className="mt-2 text-center">
           <Link
             href="/quiz"

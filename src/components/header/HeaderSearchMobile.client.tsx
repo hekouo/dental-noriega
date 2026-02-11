@@ -122,7 +122,7 @@ export default function HeaderSearchMobile() {
                 <SearchAutocomplete
                   placeholder="Buscar guantes, brackets, resinas…"
                   onSearch={handleSearch}
-                  showQuizLink={false}
+                  context="header"
                 />
               </div>
 
