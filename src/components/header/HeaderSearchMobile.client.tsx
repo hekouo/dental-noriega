@@ -118,10 +118,11 @@ export default function HeaderSearchMobile() {
               </div>
 
               {/* Input de búsqueda */}
-              <div className="mb-6">
+              <div className="mb-6 w-full min-w-0">
                 <SearchAutocomplete
                   placeholder="Buscar guantes, brackets, resinas…"
                   onSearch={handleSearch}
+                  showQuizLink={false}
                 />
               </div>
 

@@ -238,8 +238,8 @@ export default function RootLayout({
                 )}
               </div>
 
-              {/* Buscador desktop */}
-              <div className="hidden md:block flex-1 max-w-md min-w-0 mx-2">
+              {/* Buscador desktop: hidden en mobile, visible md+; contención para evitar overflow */}
+              <div className="hidden md:block flex-1 max-w-md min-w-0 w-full mx-2">
                 <HeaderSearchBar />
               </div>
 

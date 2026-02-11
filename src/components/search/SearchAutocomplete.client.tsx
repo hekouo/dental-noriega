@@ -27,6 +27,8 @@ type SearchAutocompleteProps = {
   inputClassName?: string;
   initialQuery?: string;
   onSearch?: (query: string) => void;
+  /** En header no mostramos el enlace "No sé qué buscar" debajo del input para no romper layout */
+  showQuizLink?: boolean;
 };
 
 export default function SearchAutocomplete({
@@ -35,6 +37,7 @@ export default function SearchAutocomplete({
   inputClassName = "",
   initialQuery = "",
   onSearch,
+  showQuizLink = true,
 }: SearchAutocompleteProps) {
   const router = useRouter();
   const [query, setQuery] = useState(initialQuery);
@@ -289,8 +292,8 @@ export default function SearchAutocomplete({
   };
 
   return (
-    <div className={`relative ${className}`}>
-      <div className="relative">
+    <div className={`relative w-full min-w-0 ${className}`}>
+      <div className="relative w-full min-w-0">
         <Search
           className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
           size={20}
@@ -370,25 +373,25 @@ export default function SearchAutocomplete({
         )}
       </div>
 
-      {/* Quiz link - Solo si está habilitado */}
-      {process.env.NEXT_PUBLIC_ENABLE_QUIZ === "true" && (
+      {/* Quiz link - Solo fuera del header (evita bloque angosto debajo del input en nav) */}
+      {showQuizLink && process.env.NEXT_PUBLIC_ENABLE_QUIZ === "true" && (
         <div className="mt-2 text-center">
           <Link
             href="/quiz"
-            className="text-sm text-muted-foreground hover:text-foreground underline transition-colors"
+            className="text-sm text-muted-foreground hover:text-foreground underline transition-colors whitespace-nowrap"
           >
             No sé qué buscar. Haz el quiz
           </Link>
         </div>
       )}
 
-      {/* Dropdown */}
+      {/* Dropdown - absolute fuera del flujo, ancho completo debajo del input */}
       {isOpen && (suggestions.length > 0 || isLoading) && (
         <div
           ref={dropdownRef}
           id="search-suggestions"
           role="listbox"
-          className="absolute z-50 w-full mt-2 bg-card border border-border rounded-2xl shadow-lg max-h-[400px] overflow-y-auto"
+          className="absolute left-0 right-0 top-full z-50 mt-2 w-full min-w-0 bg-card border border-border rounded-2xl shadow-lg max-h-[400px] overflow-y-auto"
         >
           {isLoading ? (
             <ul className="py-2" role="status" aria-live="polite" aria-label="Cargando sugerencias">
