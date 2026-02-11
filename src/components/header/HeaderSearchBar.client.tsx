@@ -17,12 +17,13 @@ export default function HeaderSearchBar({ className = "" }: HeaderSearchBarProps
   };
 
   return (
-    <div className={`flex-1 max-w-md min-w-0 ${className}`} role="search">
+    <div className={`w-full max-w-md min-w-0 flex-1 ${className}`} role="search">
       <SearchAutocomplete
         placeholder="Buscar guantes, brackets, resinas…"
         onSearch={handleSearch}
         inputClassName="text-sm"
         className="w-full"
+        showQuizLink={false}
       />
     </div>
   );
