@@ -238,12 +238,13 @@ export default function RootLayout({
                 )}
               </div>
 
-              {/* Buscador desktop: hidden en mobile, visible md+; contención para evitar overflow */}
-              <div className="hidden md:block flex-1 max-w-md min-w-0 w-full mx-2">
+              {/* Buscador desktop: flex-1 min-w-0 para que no se comprima cuando hay sesión (cuenta/puntos) */}
+              <div className="hidden md:flex flex-1 min-w-0 w-full max-w-md mx-2 min-w-[180px]">
                 <HeaderSearchBar />
               </div>
 
-              <div className="flex items-center gap-2 sm:gap-3 text-sm min-w-0 flex-shrink">
+              {/* Links + cuenta: shrink-0 para no empujar el buscador; contenido con truncate donde aplique */}
+              <div className="flex items-center gap-2 sm:gap-3 text-sm flex-shrink-0 min-w-0">
                 <Link
                   href={ROUTES.tienda()}
                   className="min-h-[44px] px-2 flex items-center hover:text-primary-600 dark:hover:text-primary-400 transition-colors font-medium focus-premium rounded"

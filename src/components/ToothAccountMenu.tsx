@@ -68,9 +68,9 @@ export function ToothAccountMenu() {
         </button>
       )}
 
-      {/* Botón principal: avatar o "Iniciar sesión" */}
+      {/* Botón principal: avatar o "Iniciar sesión" — shrink-0 para no comprimir buscador */}
       {user ? (
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 min-w-0">
           {/* Badge de puntos de lealtad */}
           <LoyaltyHeaderBadge />
           <button
