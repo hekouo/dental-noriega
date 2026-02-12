@@ -91,7 +91,7 @@ export default function FeaturedGrid({
   const useV2 = FEATURE_CARD_V2;
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 min-w-0">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5 items-start min-w-0">
       {items.map((item, index) => {
         const props = toProductCardProps(
           item,
