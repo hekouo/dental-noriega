@@ -20,6 +20,8 @@ import FeaturedGrid from "@/components/FeaturedGrid";
 import SectionHeader from "@/components/ui/SectionHeader";
 import { SITE_URL } from "@/lib/site";
 import QuickSearchBar from "@/components/search/QuickSearchBar";
+import StorefrontListHeader from "@/components/storefront/StorefrontListHeader";
+import EmptyState from "@/components/storefront/EmptyState";
 
 const BuscarClient = dynamicImport(() => import("./BuscarClient"), {
   ssr: false,
@@ -212,18 +214,18 @@ export default async function BuscarPage({ searchParams }: Props) {
       {/* Búsquedas recientes */}
       <BuscarClient query={q} hasResults={items.length > 0} total={total} />
 
-      {/* Cabecera mejorada */}
+      {/* Cabecera: StorefrontListHeader + SearchInput */}
       <div>
-        <h1 className="text-xl sm:text-2xl font-semibold mb-2 text-gray-900 dark:text-foreground">
-          {q ? `Resultados para "${q}"` : "Buscar productos"}
-        </h1>
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-sm text-slate-600 dark:text-muted-foreground">
-            {total > 0
-              ? `Mostrando ${total} producto${total !== 1 ? "s" : ""}`
-              : ""}
-          </p>
-        </div>
+        <StorefrontListHeader
+          title={q ? `Resultados para "${q}"` : "Buscar productos"}
+          counter={
+            total > 0
+              ? `${total} producto${total !== 1 ? "s" : ""}`
+              : undefined
+          }
+          level={1}
+          className="mb-4"
+        />
         <SearchInput sticky />
       </div>
 
@@ -273,56 +275,47 @@ export default async function BuscarPage({ searchParams }: Props) {
 
       {items.length === 0 && (
         <>
-          <div className="bg-card rounded-xl border border-border p-8 sm:p-12 text-center max-w-2xl mx-auto shadow-sm" role="status" aria-live="polite">
-            <div className="w-20 h-20 mx-auto rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center mb-6">
-              <AlertCircle className="w-10 h-10 text-primary-600 dark:text-primary-400" aria-hidden="true" />
-            </div>
-            <h2 className="text-2xl font-bold text-foreground mb-3">
-              No encontramos eso
-            </h2>
-            <p className="text-sm text-muted-foreground mb-6">
-              Prueba otra búsqueda o escríbenos y lo conseguimos.
-            </p>
-            
-            {/* Sugerencias de texto */}
-            <div className="mb-6 bg-muted/50 rounded-lg p-4 text-left max-w-lg mx-auto">
+          <EmptyState
+            title="No encontramos eso"
+            description="Prueba otra búsqueda o escríbenos y lo conseguimos."
+            icon={<AlertCircle className="w-10 h-10 text-current" aria-hidden="true" />}
+            role="status"
+            aria-live="polite"
+          >
+            <div className="bg-muted/50 rounded-lg p-4 text-left max-w-lg mx-auto">
               <p className="text-xs font-semibold text-foreground mb-2">💡 Sugerencias para mejorar tu búsqueda:</p>
               <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
-                <li>Prueba con una palabra más general (ej: "guantes" en lugar de "guantes de nitrilo azul")</li>
+                <li>Prueba con una palabra más general (ej: &quot;guantes&quot; en lugar de &quot;guantes de nitrilo azul&quot;)</li>
                 <li>Revisa la ortografía o usa sinónimos</li>
                 <li>Busca por categoría o marca</li>
               </ul>
             </div>
-            
-            {/* Chips con sugerencias */}
-            <div className="mb-8">
+            <div>
               <p className="text-xs text-muted-foreground mb-3 font-medium">Búsquedas populares:</p>
               <div className="flex flex-wrap gap-2 justify-center">
                 {["guantes", "brackets", "resina", "anestesia", "algodon", "mascarillas", "ácido grabador", "limas"].map((suggestion) => (
                   <Link
                     key={suggestion}
                     href={`/buscar?q=${encodeURIComponent(suggestion)}`}
-                    className="px-4 py-2 bg-muted hover:bg-primary-100 dark:hover:bg-primary-900/30 border border-border rounded-full text-sm text-foreground hover:text-primary-600 dark:hover:text-primary-400 transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 min-h-[44px] inline-flex items-center justify-center"
+                    className="px-4 py-2 bg-muted hover:bg-primary-100 dark:hover:bg-primary-900/30 border border-border rounded-full text-sm text-foreground hover:text-primary-600 dark:hover:text-primary-400 transition-colors duration-200 focus-premium tap-feedback min-h-[44px] inline-flex items-center justify-center"
                   >
                     {suggestion}
                   </Link>
                 ))}
               </div>
             </div>
-
-            {/* CTAs */}
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               {(inStockOnly || priceRange !== "all" || sort !== "relevance") && (
                 <Link
                   href={`/buscar?q=${encodeURIComponent(q)}`}
-                  className="px-6 py-3 bg-muted border border-border text-foreground rounded-lg hover:bg-muted/80 transition-colors duration-200 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 min-h-[44px] inline-flex items-center justify-center"
+                  className="px-6 py-3 bg-muted border border-border text-foreground rounded-lg hover:bg-muted/80 transition-colors duration-200 font-medium focus-premium tap-feedback min-h-[44px] inline-flex items-center justify-center"
                 >
                   Quitar filtros
                 </Link>
               )}
               <Link
                 href={ROUTES.destacados()}
-                className="px-6 py-3 bg-primary-600 dark:bg-primary-700 text-white rounded-lg hover:bg-primary-700 dark:hover:bg-primary-600 transition-colors duration-200 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 min-h-[44px] inline-flex items-center justify-center"
+                className="px-6 py-3 bg-primary-600 dark:bg-primary-700 text-white rounded-lg hover:bg-primary-700 dark:hover:bg-primary-600 transition-colors duration-200 font-medium focus-premium tap-feedback min-h-[44px] inline-flex items-center justify-center"
               >
                 Ver destacados
               </Link>
@@ -331,13 +324,13 @@ export default async function BuscarPage({ searchParams }: Props) {
                   href={getWhatsAppUrl(`Hola, busco productos relacionados con "${q}" en Depósito Dental Noriega.`)!}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-6 py-3 border-2 border-green-500 dark:border-green-600 text-green-700 dark:text-green-400 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors duration-200 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 min-h-[44px] inline-flex items-center justify-center"
+                  className="px-6 py-3 border-2 border-green-500 dark:border-green-600 text-green-700 dark:text-green-400 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors duration-200 font-medium focus-premium tap-feedback min-h-[44px] inline-flex items-center justify-center"
                 >
                   Preguntar por WhatsApp
                 </Link>
               )}
             </div>
-          </div>
+          </EmptyState>
 
           {/* Productos destacados cuando no hay resultados */}
           <div className="mt-12">
