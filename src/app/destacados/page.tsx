@@ -9,6 +9,8 @@ import SectionHeader from "@/components/ui/SectionHeader";
 import { AlertCircle, MessageCircle } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
 import { getWhatsAppUrl } from "@/lib/whatsapp/config";
+import DestacadosHero from "@/components/storefront/DestacadosHero";
+import ProductRail from "@/components/storefront/ProductRail";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -99,18 +101,19 @@ async function DestacadosContent() {
     );
   }
 
-  return <FeaturedGrid items={items} />;
+  return (
+    <>
+      <ProductRail items={items} title="Destacados" showPrevNext className="mb-8" />
+      <FeaturedGrid items={items} />
+    </>
+  );
 }
 
 export default async function DestacadosPage() {
   return (
     <div className="bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 pt-20 sm:pt-24 pb-8 sm:pb-12">
-        <SectionHeader
-          title="Productos destacados"
-          subtitle="Productos recomendados que suelen interesar a nuestros clientes"
-          showWatermark
-        />
+      <DestacadosHero />
+      <div className="max-w-7xl mx-auto px-4 py-8 sm:py-12">
         <Suspense fallback={<ProductsGridSkeleton count={8} />}>
           <DestacadosContent />
         </Suspense>
