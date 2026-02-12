@@ -695,6 +695,66 @@ export default function GraciasContent() {
   const displayItems = orderDataFromStorage?.items || [];
   const displayStatus = orderStatus || orderDataFromStorage?.status || null;
 
+  // Estado para receiptUrl obtenido desde API (si no está en orderDataFromStorage)
+  const [fetchedReceiptUrl, setFetchedReceiptUrl] = useState<string | null>(null);
+
+  // Fetch receipt_url desde API cuando displayStatus === "paid" y no hay receiptUrl en orderDataFromStorage
+  useEffect(() => {
+    // Solo hacer fetch si:
+    // - displayStatus === "paid"
+    // - hay orderRef
+    // - no hay receiptUrl en orderDataFromStorage
+    // - aún no hemos hecho fetch (fetchedReceiptUrl es null)
+    if (
+      !isMounted ||
+      displayStatus !== "paid" ||
+      !orderRef ||
+      typeof window === "undefined"
+    ) {
+      return;
+    }
+
+    const orderData = orderDataFromStorage as { receipt_url?: string | null } | null;
+    const existingReceiptUrl = orderData?.receipt_url ?? null;
+
+    // Si ya hay receiptUrl en orderDataFromStorage, no hacer fetch
+    if (existingReceiptUrl) {
+      return;
+    }
+
+    // Si ya hicimos fetch (aunque sea null), no volver a hacer
+    if (fetchedReceiptUrl !== null) {
+      return;
+    }
+
+    // Hacer fetch al endpoint READ-ONLY
+    const fetchReceiptUrl = async () => {
+      try {
+        const response = await fetch(`/api/stripe/receipt?orderId=${encodeURIComponent(orderRef)}`, {
+          method: "GET",
+          credentials: "include", // Incluir cookies para auth
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          // El endpoint devuelve { receiptUrl: string | null }
+          setFetchedReceiptUrl(data.receiptUrl || null);
+        } else {
+          // Si hay error (401, 404, etc.), dejar como null (fallback UI)
+          setFetchedReceiptUrl(null);
+        }
+      } catch (error) {
+        // Error silencioso: dejar como null (fallback UI)
+        if (process.env.NODE_ENV === "development") {
+          console.warn("[GraciasContent] Error al obtener receipt_url:", error);
+        }
+        setFetchedReceiptUrl(null);
+      }
+    };
+
+    void fetchReceiptUrl();
+  }, [isMounted, displayStatus, orderRef, orderDataFromStorage, fetchedReceiptUrl]);
+
   // Track purchase cuando la orden está pagada (solo una vez)
   useEffect(() => {
     if (!displayStatus || displayStatus !== "paid" || hasTrackedRef.current) return;
@@ -1175,7 +1235,9 @@ export default function GraciasContent() {
       {/* Recibo y facturación: un solo lugar cuando displayStatus === "paid" (evita duplicación) */}
       {displayStatus === "paid" && (() => {
         const checkoutDatos = useCheckoutStore.getState().datos;
-        const receiptUrl = (orderDataFromStorage as { receipt_url?: string | null })?.receipt_url ?? null;
+        // Prioridad: orderDataFromStorage.receipt_url > fetchedReceiptUrl > null
+        const receiptUrlFromStorage = (orderDataFromStorage as { receipt_url?: string | null })?.receipt_url ?? null;
+        const receiptUrl = receiptUrlFromStorage ?? fetchedReceiptUrl;
         const invoicePdfUrl = (orderDataFromStorage as { invoice_pdf_url?: string | null })?.invoice_pdf_url ?? null;
         return (
           <div className="mb-8">
