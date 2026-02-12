@@ -1,6 +1,7 @@
 // src/components/SearchResultCard.tsx
 "use client";
 import ProductCard from "@/components/catalog/ProductCard";
+import ProductCardV2 from "@/components/catalog/ProductCardV2";
 import type { CatalogItem } from "@/lib/supabase/catalog";
 import type { ProductCardProps } from "@/components/catalog/ProductCard";
 import { trackSearchClickResult } from "@/lib/analytics/events";
@@ -28,12 +29,23 @@ function toProductCardProps(item: CatalogItem, highlightQuery?: string): Product
   };
 }
 
+/** Datos mínimos para usar V2; si falta algo, fallback a card canónica */
+function hasMinDataForV2(item: CatalogItem): boolean {
+  return !!(
+    item &&
+    typeof item.id === "string" &&
+    typeof item.section === "string" &&
+    typeof item.product_slug === "string" &&
+    typeof item.title === "string"
+  );
+}
+
 /**
- * SearchResultCard: wrapper que usa ProductCard canónico con highlight
+ * SearchResultCard: en /buscar usa ProductCardV2 (premium); fallback a ProductCard si faltan datos.
  */
 export default function SearchResultCard({ item, highlightQuery, position }: Props) {
   const handleClick = () => {
-    if (highlightQuery && position !== undefined) {
+    if (highlightQuery && position !== undefined && item?.id) {
       trackSearchClickResult({
         query: highlightQuery,
         productId: item.id,
@@ -43,9 +55,19 @@ export default function SearchResultCard({ item, highlightQuery, position }: Pro
     }
   };
 
+  const props = toProductCardProps(item, highlightQuery);
+
+  if (!hasMinDataForV2(item)) {
+    return (
+      <div onClick={handleClick}>
+        <ProductCard {...props} compact />
+      </div>
+    );
+  }
+
   return (
     <div onClick={handleClick}>
-      <ProductCard {...toProductCardProps(item, highlightQuery)} compact />
+      <ProductCardV2 {...props} />
     </div>
   );
 }
