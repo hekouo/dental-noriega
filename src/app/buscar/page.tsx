@@ -108,12 +108,24 @@ export default async function BuscarPage({ searchParams }: Props) {
 
   if (!q) {
     return (
-      <section className="space-y-6">
-        {/* Quick Search Bar */}
-        <QuickSearchBar />
+      <section className="max-w-5xl mx-auto px-4 py-6 sm:py-10 space-y-8" role="search">
+        {/* Header editorial */}
+        <div className="text-center sm:text-left">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 dark:text-white scroll-mt-20 mb-2">
+            Buscar productos
+          </h1>
+          <p className="text-sm sm:text-base text-stone-600 dark:text-gray-400">
+            Encuentra insumos y equipos dentales por nombre, categoría o descripción.
+          </p>
+        </div>
+
+        {/* Input en bloque premium */}
+        <div className="rounded-xl border border-stone-200/90 dark:border-gray-700 bg-stone-50/50 dark:bg-gray-800/30 p-4 sm:p-6 shadow-sm">
+          <QuickSearchBar />
+        </div>
 
         {/* Búsquedas populares */}
-        <div className="mt-6">
+        <div>
           <h2 className="text-lg font-semibold text-gray-900 dark:text-foreground mb-4">
             Búsquedas populares
           </h2>
@@ -122,7 +134,7 @@ export default async function BuscarPage({ searchParams }: Props) {
               <Link
                 key={search}
                 href={`/buscar?q=${encodeURIComponent(search)}`}
-                className="flex-shrink-0 px-4 py-2 bg-white dark:bg-card border border-gray-300 dark:border-border rounded-full text-sm text-gray-700 dark:text-foreground hover:bg-primary-50 dark:hover:bg-primary-900/30 hover:border-primary-500 dark:hover:border-primary-500 hover:text-primary-700 dark:hover:text-primary-400 transition-all duration-200 active:scale-95 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1"
+                className="flex-shrink-0 px-4 py-2.5 bg-white dark:bg-card border border-stone-200 dark:border-border rounded-full text-sm text-gray-700 dark:text-foreground hover:bg-primary-50 dark:hover:bg-primary-900/30 hover:border-primary-500 dark:hover:border-primary-500 hover:text-primary-700 dark:hover:text-primary-400 transition-all duration-200 focus-premium tap-feedback min-h-[44px] inline-flex items-center justify-center"
               >
                 {search}
               </Link>
@@ -131,7 +143,7 @@ export default async function BuscarPage({ searchParams }: Props) {
         </div>
 
         {/* Categorías */}
-        <div className="mt-8">
+        <div>
           <h2 className="text-lg font-semibold text-gray-900 dark:text-foreground mb-4">
             Explorar por categoría
           </h2>
@@ -140,7 +152,7 @@ export default async function BuscarPage({ searchParams }: Props) {
               <Link
                 key={category.slug}
                 href={ROUTES.section(category.slug)}
-                className="flex-shrink-0 px-4 py-2 bg-primary-50 dark:bg-primary-900/30 border border-primary-200 dark:border-primary-700 rounded-full text-sm text-primary-700 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/50 hover:border-primary-400 dark:hover:border-primary-600 transition-all duration-200 active:scale-95 font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1"
+                className="flex-shrink-0 px-4 py-2.5 bg-primary-50 dark:bg-primary-900/30 border border-primary-200 dark:border-primary-700 rounded-full text-sm text-primary-700 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/50 hover:border-primary-400 dark:hover:border-primary-600 transition-all duration-200 font-medium focus-premium tap-feedback min-h-[44px] inline-flex items-center justify-center"
               >
                 {category.name}
               </Link>
@@ -204,7 +216,7 @@ export default async function BuscarPage({ searchParams }: Props) {
   const hasFewResults = total > 0 && total <= 3;
 
   return (
-    <section className="space-y-6" role="search">
+    <section className="max-w-5xl mx-auto px-4 py-6 sm:py-10 space-y-8" role="search">
       {/* Analytics tracking */}
       {total > 0 && <SearchTracker query={q} resultsCount={total} />}
 
@@ -214,8 +226,8 @@ export default async function BuscarPage({ searchParams }: Props) {
       {/* Búsquedas recientes */}
       <BuscarClient query={q} hasResults={items.length > 0} total={total} />
 
-      {/* Cabecera: StorefrontListHeader + SearchInput */}
-      <div>
+      {/* Header editorial + Input en bloque premium */}
+      <div className="rounded-xl border border-stone-200/90 dark:border-gray-700 bg-stone-50/50 dark:bg-gray-800/30 p-4 sm:p-6 shadow-sm space-y-4">
         <StorefrontListHeader
           title={q ? `Resultados para "${q}"` : "Buscar productos"}
           counter={
@@ -224,7 +236,7 @@ export default async function BuscarPage({ searchParams }: Props) {
               : undefined
           }
           level={1}
-          className="mb-4"
+          className="mb-0"
         />
         <SearchInput sticky />
       </div>
@@ -275,6 +287,7 @@ export default async function BuscarPage({ searchParams }: Props) {
 
       {items.length === 0 && (
         <>
+          <div className="mt-2">
           <EmptyState
             title="No encontramos eso"
             description="Prueba otra búsqueda o escríbenos y lo conseguimos."
@@ -293,7 +306,7 @@ export default async function BuscarPage({ searchParams }: Props) {
             <div>
               <p className="text-xs text-muted-foreground mb-3 font-medium">Búsquedas populares:</p>
               <div className="flex flex-wrap gap-2 justify-center">
-                {["guantes", "brackets", "resina", "anestesia", "algodon", "mascarillas", "ácido grabador", "limas"].map((suggestion) => (
+                {["guantes", "brackets", "arcos", "resina", "anestesia", "algodon", "mascarillas", "ácido grabador", "limas"].map((suggestion) => (
                   <Link
                     key={suggestion}
                     href={`/buscar?q=${encodeURIComponent(suggestion)}`}
@@ -331,9 +344,10 @@ export default async function BuscarPage({ searchParams }: Props) {
               )}
             </div>
           </EmptyState>
+          </div>
 
           {/* Productos destacados cuando no hay resultados */}
-          <div className="mt-12">
+          <div className="mt-12 pt-8 border-t border-stone-200/80 dark:border-gray-700">
             <SectionHeader
               title="Te recomendamos estos productos destacados"
               subtitle="Productos que podrían interesarte"
@@ -357,7 +371,7 @@ export default async function BuscarPage({ searchParams }: Props) {
 
       {items.length > 0 && (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 min-w-0">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 sm:gap-6 min-w-0 mt-2">
             {items.map((it, index) => (
               <div
                 key={it.id}
@@ -397,7 +411,7 @@ export default async function BuscarPage({ searchParams }: Props) {
 
           {/* Sección "También te puede interesar" cuando hay pocos resultados */}
           {hasFewResults && filteredFeatured.length > 0 && (
-            <div className="mt-12 pt-8 border-t border-gray-200">
+            <div className="mt-12 pt-8 border-t border-stone-200/80 dark:border-gray-700">
               <SectionHeader
                 title="También te puede interesar"
                 subtitle="Otros productos similares que suelen revisar nuestros clientes"
