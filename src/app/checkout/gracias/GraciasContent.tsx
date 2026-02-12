@@ -1159,47 +1159,35 @@ export default function GraciasContent() {
             );
           })()}
 
-          {/* Recibo / Factura (Stripe-like card): botones solo si hay URLs; si no, fallback a facturación y WhatsApp */}
-          {displayStatus === "paid" && (() => {
-            const checkoutDatos = useCheckoutStore.getState().datos;
-            const receiptUrl = (orderDataFromStorage as { receipt_url?: string | null })?.receipt_url ?? null;
-            const invoicePdfUrl = (orderDataFromStorage as { invoice_pdf_url?: string | null })?.invoice_pdf_url ?? null;
-            return (
-              <div className="mt-4">
-                <ReceiptDownloadsCard
-                  orderId={orderRef || undefined}
-                  receiptUrl={receiptUrl}
-                  invoicePdfUrl={invoicePdfUrl}
-                  customerEmail={checkoutDatos?.email ?? null}
-                />
-              </div>
-            );
-          })()}
         </div>
       )}
 
       {/* Mensaje si no hay datos completos */}
       {displayItems.length === 0 && displayTotal === 0 && !shippingMethod && (
-        <>
-          <div className="mb-8 p-6 bg-gray-50 rounded-lg border border-gray-200">
-            <p className="text-gray-600 text-center">
-              Hemos registrado tu compra. En breve te contactaremos para confirmar
-              los detalles.
-            </p>
-          </div>
-          {/* Recibo / Factura cuando no hay resumen pero sí pago confirmado */}
-          {displayStatus === "paid" && (
-            <div className="mb-8">
-              <ReceiptDownloadsCard
-                orderId={orderRef || undefined}
-                receiptUrl={null}
-                invoicePdfUrl={null}
-                customerEmail={useCheckoutStore.getState().datos?.email ?? null}
-              />
-            </div>
-          )}
-        </>
+        <div className="mb-8 p-6 bg-gray-50 rounded-lg border border-gray-200">
+          <p className="text-gray-600 text-center">
+            Hemos registrado tu compra. En breve te contactaremos para confirmar
+            los detalles.
+          </p>
+        </div>
       )}
+
+      {/* Recibo y facturación: un solo lugar cuando displayStatus === "paid" (evita duplicación) */}
+      {displayStatus === "paid" && (() => {
+        const checkoutDatos = useCheckoutStore.getState().datos;
+        const receiptUrl = (orderDataFromStorage as { receipt_url?: string | null })?.receipt_url ?? null;
+        const invoicePdfUrl = (orderDataFromStorage as { invoice_pdf_url?: string | null })?.invoice_pdf_url ?? null;
+        return (
+          <div className="mb-8">
+            <ReceiptDownloadsCard
+              orderId={orderRef || undefined}
+              receiptUrl={receiptUrl}
+              invoicePdfUrl={invoicePdfUrl}
+              customerEmail={checkoutDatos?.email ?? null}
+            />
+          </div>
+        );
+      })()}
 
       {/* Botones de navegación */}
       <div className="flex flex-col sm:flex-row gap-3 justify-center mb-8">
