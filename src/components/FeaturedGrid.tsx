@@ -2,9 +2,15 @@
 
 import { useEffect, useRef } from "react";
 import ProductCard from "@/components/catalog/ProductCard";
+import ProductCardV2 from "@/components/catalog/ProductCardV2";
 import type { FeaturedItem } from "@/lib/catalog/getFeatured.server";
 import type { ProductCardProps } from "@/components/catalog/ProductCard";
 import { trackRelatedProductsShown, trackRelatedProductClicked } from "@/lib/analytics/events";
+
+/** Flag: usar ProductCardV2 en FeaturedGrid (tienda + destacados). Default false. */
+const FEATURE_CARD_V2 =
+  typeof process.env.NEXT_PUBLIC_FEATURE_CARD_V2 !== "undefined" &&
+  process.env.NEXT_PUBLIC_FEATURE_CARD_V2 === "true";
 
 /**
  * Adaptador para FeaturedItem -> ProductCardProps
@@ -27,6 +33,17 @@ function toProductCardProps(
     priority,
     sizes,
   };
+}
+
+/** Datos mínimos para renderizar V2; si falta algo, fallback a ProductCard (no null). */
+function hasMinDataForFeaturedV2(item: FeaturedItem): boolean {
+  return !!(
+    item &&
+    typeof item.product_id === "string" &&
+    typeof item.section === "string" &&
+    typeof item.product_slug === "string" &&
+    typeof item.title === "string"
+  );
 }
 
 type FeaturedGridProps = {
@@ -71,24 +88,28 @@ export default function FeaturedGrid({
     }
   };
 
+  const useV2 = FEATURE_CARD_V2;
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 min-w-0">
-      {items.map((item, index) => (
-        <div
-          key={item.product_id}
-          className="min-w-0"
-          onClick={() => handleProductClick(item, index + 1)}
-          style={{ "--delay": `${index * 50}ms` } as React.CSSProperties}
-        >
-          <ProductCard
-            {...toProductCardProps(
-              item,
-              index < 4, // priority para primeros 4
-              "(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
-            )}
-          />
-        </div>
-      ))}
+      {items.map((item, index) => {
+        const props = toProductCardProps(
+          item,
+          index < 4,
+          "(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw",
+        );
+        const showV2 = useV2 && hasMinDataForFeaturedV2(item);
+        return (
+          <div
+            key={item.product_id}
+            className="min-w-0"
+            onClick={() => handleProductClick(item, index + 1)}
+            style={{ "--delay": `${index * 50}ms` } as React.CSSProperties}
+          >
+            {showV2 ? <ProductCardV2 {...props} /> : <ProductCard {...props} />}
+          </div>
+        );
+      })}
     </div>
   );
 }
