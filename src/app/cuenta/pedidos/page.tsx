@@ -21,6 +21,7 @@ import {
 import LoyaltyRewardsTable from "@/components/loyalty/LoyaltyRewardsTable";
 import RepeatOrderButton from "./RepeatOrderButton.client";
 import { OrderWhatsAppBlock } from "@/components/checkout/OrderWhatsAppBlock";
+import ReceiptDownloadsCard from "@/components/checkout/ReceiptDownloadsCard";
 import ShippingTrackingTimeline from "@/components/orders/ShippingTrackingTimeline.client";
 
 export default function PedidosPage() {
@@ -43,6 +44,79 @@ export default function PedidosPage() {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userFullName, setUserFullName] = useState<string | null>(null);
   const ordersRef = useRef<HTMLDivElement | null>(null);
+
+  // Estado para receiptUrl obtenido desde API (si no está en orderDetail)
+  const [fetchedReceiptUrl, setFetchedReceiptUrl] = useState<string | null>(null);
+  const fetchedOrderIdRef = useRef<string | null>(null);
+
+  // Fetch receipt_url desde API cuando orderDetail está pagado y no hay receiptUrl guardado
+  useEffect(() => {
+    // Solo hacer fetch si:
+    // - hay orderDetail
+    // - payment_status === "paid"
+    // - usuario está autenticado (isAuthenticated)
+    // - no hay receiptUrl en orderDetail (si existe metadata.receipt_url, no hacer fetch)
+    // - aún no hemos hecho fetch para este orderDetail.id
+    if (
+      !orderDetail ||
+      orderDetail.payment_status !== "paid" ||
+      !isAuthenticated ||
+      typeof window === "undefined"
+    ) {
+      // Resetear ref si no se cumplen condiciones
+      if (!orderDetail || orderDetail.payment_status !== "paid") {
+        fetchedOrderIdRef.current = null;
+        setFetchedReceiptUrl(null);
+      }
+      return;
+    }
+
+    const currentOrderId = orderDetail.id;
+
+    // Si ya hay receiptUrl en orderDetail.metadata, no hacer fetch
+    const metadata = orderDetail.metadata as { receipt_url?: string | null } | null;
+    const existingReceiptUrl = metadata?.receipt_url ?? null;
+    if (existingReceiptUrl) {
+      fetchedOrderIdRef.current = currentOrderId;
+      setFetchedReceiptUrl(null); // No usar fetched si ya hay en metadata
+      return;
+    }
+
+    // Si ya hicimos fetch para este pedido, no volver a hacer
+    if (fetchedOrderIdRef.current === currentOrderId) {
+      return;
+    }
+
+    // Hacer fetch al endpoint READ-ONLY
+    const fetchReceiptUrl = async () => {
+      try {
+        const response = await fetch(`/api/stripe/receipt?orderId=${encodeURIComponent(currentOrderId)}`, {
+          method: "GET",
+          credentials: "include", // Incluir cookies para auth
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          // El endpoint devuelve { receiptUrl: string | null }
+          fetchedOrderIdRef.current = currentOrderId;
+          setFetchedReceiptUrl(data.receiptUrl || null);
+        } else {
+          // Si hay error (401, 404, etc.), dejar como null (fallback UI)
+          fetchedOrderIdRef.current = currentOrderId; // Marcar como procesado aunque sea null
+          setFetchedReceiptUrl(null);
+        }
+      } catch (error) {
+        // Error silencioso: dejar como null (fallback UI)
+        if (process.env.NODE_ENV === "development") {
+          console.warn("[PedidosPage] Error al obtener receipt_url:", error);
+        }
+        fetchedOrderIdRef.current = currentOrderId; // Marcar como procesado aunque sea null
+        setFetchedReceiptUrl(null);
+      }
+    };
+
+    void fetchReceiptUrl();
+  }, [orderDetail, isAuthenticated]);
 
   // Cargar email del usuario autenticado al montar
   useEffect(() => {
@@ -957,6 +1031,26 @@ export default function PedidosPage() {
                     paymentStatus={paymentStatus || null}
                     source="account_order"
                   />
+                );
+              })()}
+
+              {/* Recibo y facturación: solo cuando payment_status === "paid" */}
+              {orderDetail.payment_status === "paid" && (() => {
+                const metadata = orderDetail.metadata as { receipt_url?: string | null } | null;
+                // Prioridad: orderDetail.metadata.receipt_url > fetchedReceiptUrl > null
+                const receiptUrlFromMetadata = metadata?.receipt_url ?? null;
+                const receiptUrl = receiptUrlFromMetadata ?? fetchedReceiptUrl;
+                const customerEmail = orderDetail.metadata?.contact_email || orderDetail.email || null;
+
+                return (
+                  <div className="mt-4">
+                    <ReceiptDownloadsCard
+                      orderId={orderDetail.id}
+                      receiptUrl={receiptUrl}
+                      invoicePdfUrl={null}
+                      customerEmail={customerEmail}
+                    />
+                  </div>
                 );
               })()}
 
