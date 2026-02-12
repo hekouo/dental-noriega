@@ -13,6 +13,7 @@ import QuickSearchBar from "@/components/search/QuickSearchBar";
 import SectionExplorer from "@/components/catalog/SectionExplorer";
 import StorefrontListHeader from "@/components/storefront/StorefrontListHeader";
 import EmptyState from "@/components/storefront/EmptyState";
+import TiendaVitrina from "@/components/storefront/TiendaVitrina";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -149,6 +150,11 @@ export default async function TiendaPage() {
       <div className="max-w-7xl mx-auto px-4 pb-8">
         <QuickSearchBar />
       </div>
+
+      {/* Vitrina: bento + rails (fallback: si falla, no se renderiza; el grid actual sigue debajo) */}
+      <Suspense fallback={null}>
+        <TiendaVitrina />
+      </Suspense>
 
       {/* Section Explorer */}
       <div className="max-w-7xl mx-auto px-4 pb-8">
