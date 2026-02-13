@@ -194,15 +194,15 @@ export default function ProductCard({
 
   return (
     <div
-      className="rounded-2xl border border-gray-200 dark:border-gray-700 p-4 flex flex-col bg-white dark:bg-gray-800 shadow-sm group min-w-0 hover-lift tap-feedback"
+      className="rounded-xl border border-gray-200 dark:border-gray-700 p-3 sm:p-4 flex flex-col bg-white dark:bg-gray-800 shadow-sm group min-w-0 hover-lift tap-feedback"
       style={{
         animation: "fadeInUp 0.5s ease-out backwards",
         animationDelay: "var(--delay, 0ms)",
       }}
     >
-      {/* Imagen con link a PDP - mejorado con zoom sutil */}
+      {/* Imagen con link a PDP - ratio 4/3 para card compacta (no poster) */}
       <Link href={href} prefetch={false} className="block overflow-hidden rounded-lg">
-        <div className="relative w-full aspect-square bg-gradient-to-br from-gray-50 dark:from-gray-700 to-gray-100 dark:to-gray-800 rounded-lg overflow-hidden group-hover:from-gray-100 dark:group-hover:from-gray-600 group-hover:to-gray-200 dark:group-hover:to-gray-700 transition-all duration-300">
+        <div className="relative w-full aspect-[4/3] max-h-[220px] sm:max-h-[260px] bg-gradient-to-br from-gray-50 dark:from-gray-700 to-gray-100 dark:to-gray-800 rounded-lg overflow-hidden group-hover:from-gray-100 dark:group-hover:from-gray-600 group-hover:to-gray-200 dark:group-hover:to-gray-700 transition-all duration-300">
           <ImageWithFallback
             src={image_url}
             width={400}

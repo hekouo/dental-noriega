@@ -142,9 +142,9 @@ export default function ProductCardV2({
         animationDelay: "var(--delay, 0ms)",
       }}
     >
-      {/* Imagen: borde/sombra suave */}
+      {/* Imagen: ratio 4/3 para card compacta (no poster) */}
       <Link href={href} prefetch={false} className="block overflow-hidden">
-        <div className="relative w-full aspect-square bg-stone-50 dark:bg-gray-800 border-b border-stone-200/80 dark:border-gray-700">
+        <div className="relative w-full aspect-[4/3] max-h-[220px] sm:max-h-[260px] bg-stone-50 dark:bg-gray-800 border-b border-stone-200/80 dark:border-gray-700">
           <ImageWithFallback
             src={image_url}
             width={400}
@@ -158,7 +158,7 @@ export default function ProductCardV2({
         </div>
       </Link>
 
-      <div className="p-4 flex flex-col flex-1 min-w-0">
+      <div className="p-3 sm:p-4 flex flex-col flex-1 min-w-0">
         {/* Título line-clamp 2 */}
         <h3 className="text-sm font-semibold line-clamp-2 min-h-[2.5rem] text-gray-900 dark:text-gray-100">
           <Link
