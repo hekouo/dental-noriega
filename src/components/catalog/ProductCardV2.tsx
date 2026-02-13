@@ -36,8 +36,10 @@ export default function ProductCardV2({
   description: _description,
   priority = false,
   sizes,
+  variant = "default",
   highlightQuery,
 }: ProductCardProps) {
+  const isCompact = variant === "compact";
   const addToCart = useCartStore((s) => s.addToCart);
   const { showToast } = useToast();
   const router = useRouter();
@@ -142,9 +144,9 @@ export default function ProductCardV2({
         animationDelay: "var(--delay, 0ms)",
       }}
     >
-      {/* Imagen: ratio 4/3 para card compacta (no poster) */}
+      {/* Imagen: ratio 4/3; compact = menor altura */}
       <Link href={href} prefetch={false} className="block overflow-hidden">
-        <div className="relative w-full aspect-[4/3] max-h-[220px] sm:max-h-[260px] bg-stone-50 dark:bg-gray-800 border-b border-stone-200/80 dark:border-gray-700">
+        <div className={`relative w-full aspect-[4/3] bg-stone-50 dark:bg-gray-800 border-b border-stone-200/80 dark:border-gray-700 ${isCompact ? "max-h-[180px] sm:max-h-[210px]" : "max-h-[220px] sm:max-h-[260px]"}`}>
           <ImageWithFallback
             src={image_url}
             width={400}
@@ -158,7 +160,7 @@ export default function ProductCardV2({
         </div>
       </Link>
 
-      <div className="p-3 sm:p-4 flex flex-col flex-1 min-w-0">
+      <div className={`flex flex-col flex-1 min-w-0 ${isCompact ? "p-3" : "p-3 sm:p-4"}`}>
         {/* Título line-clamp 2 */}
         <h3 className="text-sm font-semibold line-clamp-2 min-h-[2.5rem] text-gray-900 dark:text-gray-100">
           <Link
@@ -195,7 +197,7 @@ export default function ProductCardV2({
         </div>
 
         {/* Controles: tap targets >= 44px */}
-        <div className="mt-auto pt-4 space-y-2">
+        <div className={`mt-auto space-y-2 ${isCompact ? "pt-2" : "pt-4"}`}>
           {canPurchase ? (
             <>
               <div className="flex flex-col sm:flex-row gap-2">
@@ -253,7 +255,7 @@ export default function ProductCardV2({
                   title,
                 });
               }}
-              className="w-full flex items-center justify-center gap-2 min-h-[44px] px-3 py-2.5 rounded-lg text-sm bg-emerald-500 text-white hover:bg-emerald-600 transition-colors font-medium focus-premium tap-feedback"
+              className={`flex items-center justify-center gap-1.5 font-medium focus-premium tap-feedback rounded-lg text-sm transition-colors min-h-[44px] ${isCompact ? "px-3 py-2 border border-stone-200 dark:border-gray-600 text-stone-600 dark:text-gray-400 hover:bg-stone-50 dark:hover:bg-gray-700/50" : "w-full px-3 py-2.5 bg-emerald-500 text-white hover:bg-emerald-600"}`}
               aria-label={`Consultar ${title} por WhatsApp`}
             >
               <span>¿Dudas? WhatsApp</span>

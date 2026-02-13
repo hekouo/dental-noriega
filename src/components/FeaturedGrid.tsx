@@ -99,6 +99,7 @@ export default function FeaturedGrid({
           "(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw",
         );
         const showV2 = useV2 && hasMinDataForFeaturedV2(item);
+        const cardProps = { ...props, variant: "compact" as const };
         return (
           <div
             key={item.product_id}
@@ -106,7 +107,7 @@ export default function FeaturedGrid({
             onClick={() => handleProductClick(item, index + 1)}
             style={{ "--delay": `${index * 50}ms` } as React.CSSProperties}
           >
-            {showV2 ? <ProductCardV2 {...props} /> : <ProductCard {...props} />}
+            {showV2 ? <ProductCardV2 {...cardProps} /> : <ProductCard {...cardProps} />}
           </div>
         );
       })}
