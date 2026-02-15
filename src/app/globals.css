@@ -416,3 +416,41 @@ textarea {
 .animation-delay-4000 {
   animation-delay: 4s;
 }
+
+/* AnimatedSeparator: sutil, respeta prefers-reduced-motion */
+@keyframes separator-fade {
+  from {
+    opacity: 0.5;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.separator-line {
+  animation: separator-fade 0.5s ease-out;
+}
+
+.separator-stroke {
+  stroke-dasharray: 92;
+  stroke-dashoffset: 92;
+  animation: separator-draw 0.6s ease-out forwards;
+}
+
+@keyframes separator-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .separator-line,
+  .separator-stroke {
+    animation: none;
+    opacity: 1;
+  }
+  .separator-stroke {
+    stroke-dasharray: none;
+    stroke-dashoffset: 0;
+  }
+}
