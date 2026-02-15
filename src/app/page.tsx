@@ -8,10 +8,12 @@ import { buttonPrimary } from "@/lib/styles/button";
 import SectionHeader from "@/components/ui/SectionHeader";
 import { HelpWidget } from "@/components/support/HelpWidget";
 import { TrustBanners } from "@/components/marketing/TrustBanners";
-import SectionExplorer from "@/components/catalog/SectionExplorer";
 import QuizCTA from "@/components/quiz/QuizCTA";
 import HeroIntro from "@/components/home/HeroIntro";
 import WhyBuySection from "@/components/home/WhyBuySection.client";
+import AnimatedSeparator from "@/components/common/AnimatedSeparator";
+import BentoSection from "@/components/home/BentoSection";
+import CategoryGrid from "@/components/home/CategoryGrid";
 
 // Lazy load componentes no críticos
 const Testimonials = dynamicImport(() => import("@/components/ui/Testimonials"), {
@@ -55,6 +57,11 @@ export default async function HomePage() {
       {/* Hero Section - PR-H1: HeroIntro con AmbientBackground + IconRail */}
       <HeroIntro />
 
+      <AnimatedSeparator />
+      <BentoSection />
+      <AnimatedSeparator />
+      <CategoryGrid />
+
       {/* Trust Banners */}
       <div className="max-w-6xl mx-auto px-4 py-8 sm:py-12">
         <TrustBanners />
@@ -63,14 +70,6 @@ export default async function HomePage() {
       {/* Quiz CTA - Móvil arriba del fold */}
       <div className="max-w-6xl mx-auto px-4 pb-4 md:hidden">
         <QuizCTA />
-      </div>
-
-      {/* Explorar por categorías */}
-      <div className="max-w-6xl mx-auto px-4 py-8 sm:py-12">
-        <SectionExplorer
-          title="Explora por categoría"
-          subtitle="Navega por nuestras categorías de productos"
-        />
       </div>
 
       {/* Productos Destacados */}
