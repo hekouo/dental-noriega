@@ -5,13 +5,12 @@ import { getFeaturedItems } from "@/lib/catalog/getFeatured.server";
 import FeaturedCarousel from "@/components/FeaturedCarousel";
 import FeaturedGrid from "@/components/FeaturedGrid";
 import { buttonPrimary } from "@/lib/styles/button";
-import TrustBadges from "@/components/ui/TrustBadges";
 import SectionHeader from "@/components/ui/SectionHeader";
 import { HelpWidget } from "@/components/support/HelpWidget";
 import { TrustBanners } from "@/components/marketing/TrustBanners";
 import SectionExplorer from "@/components/catalog/SectionExplorer";
 import QuizCTA from "@/components/quiz/QuizCTA";
-import HeroCTAs from "@/components/home/HeroCTAs.client";
+import HeroIntro from "@/components/home/HeroIntro";
 import WhyBuySection from "@/components/home/WhyBuySection.client";
 
 // Lazy load componentes no críticos
@@ -53,26 +52,8 @@ export default async function HomePage() {
 
   return (
     <div className="min-h-screen overflow-x-clip max-w-full">
-      {/* Hero Section - Heritage Dental (solo Home) */}
-      <section className="relative bg-hero-heritage text-gray-800 py-10 sm:py-14 md:py-20 px-4 overflow-hidden w-full">
-        <div className="relative max-w-6xl mx-auto text-center">
-          {/* Headline - serif solo en headings */}
-          <h1 className="font-hero text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-semibold tracking-tight mb-4 sm:mb-6 text-gray-900 leading-tight">
-            Buenos días, tu clínica merece compras fáciles.
-          </h1>
-          <p className="text-base sm:text-lg md:text-xl mb-6 sm:mb-8 text-gray-600 max-w-2xl mx-auto leading-relaxed">
-            Atención personalizada por WhatsApp, precios claros en MXN y pago seguro. Envíos a todo México.
-          </p>
-
-          {/* CTAs */}
-          <HeroCTAs variant="heritage" />
-
-          {/* Trust line - pill badges con borde bronce suave */}
-          <div className="mt-6 sm:mt-8 animate-fadeInUp">
-            <TrustBadges variant="heritage" />
-          </div>
-        </div>
-      </section>
+      {/* Hero Section - PR-H1: HeroIntro con AmbientBackground + IconRail */}
+      <HeroIntro />
 
       {/* Trust Banners */}
       <div className="max-w-6xl mx-auto px-4 py-8 sm:py-12">

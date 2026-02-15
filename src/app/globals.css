@@ -224,6 +224,21 @@ textarea {
     100% { background-position: -200% 0; }
   }
 
+  /* Ambient hero gradient: muy sutil, animación lenta */
+  .ambient-gradient {
+    animation: ambient-shift 12s ease-in-out infinite;
+  }
+  @keyframes ambient-shift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ambient-gradient {
+      animation: none;
+      background-position: 50% 50%;
+    }
+  }
+
   /* Reduced motion support */
   @media (prefers-reduced-motion: reduce) {
     *,
