@@ -21,7 +21,6 @@ async function rmNext() {
   if (exists) {
     fs.rmSync(full, { recursive: true, force: true });
   }
-  return;
 }
 
 async function main() {
