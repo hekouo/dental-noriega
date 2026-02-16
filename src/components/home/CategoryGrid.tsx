@@ -59,7 +59,7 @@ export default async function CategoryGrid() {
 
   return (
     <section
-      className="max-w-6xl mx-auto px-4 py-10 sm:py-14"
+      className="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-14"
       aria-labelledby="category-grid-heading"
     >
       <h2
@@ -95,7 +95,7 @@ export default async function CategoryGrid() {
                 className={cn(
                   "h-full p-5 sm:p-6 flex flex-row sm:flex-col gap-4",
                   "border border-gray-200/80 dark:border-gray-700/60",
-                  "hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
+                  "hover:shadow-lg hover:-translate-y-0.5 motion-reduce:translate-y-0 transition-all duration-200"
                 )}
               >
                 <div
@@ -135,7 +135,7 @@ export default async function CategoryGrid() {
                 className={cn(
                   "h-full p-4 sm:p-5 flex flex-col gap-3",
                   "border border-gray-200/80 dark:border-gray-700/60",
-                  "hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
+                  "hover:shadow-lg hover:-translate-y-0.5 motion-reduce:translate-y-0 transition-all duration-200"
                 )}
               >
                 <div
