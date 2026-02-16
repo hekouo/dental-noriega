@@ -18,7 +18,7 @@ type FeaturedProductEditorClientProps = {
 
 export default function FeaturedProductEditorClient({
   productSlug,
-  productTitle,
+  productTitle: _productTitle,
   initialPosition,
 }: FeaturedProductEditorClientProps) {
   const [isFeatured, setIsFeatured] = useState<boolean>(initialPosition !== null);

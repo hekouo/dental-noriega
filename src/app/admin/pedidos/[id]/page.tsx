@@ -89,6 +89,14 @@ export default async function AdminPedidoDetailPage({
     );
   }
 
+  const getQuotedAt = (ord: typeof order): string | null => {
+    const meta = ord.metadata as Record<string, unknown> | null;
+    const shipping = meta?.shipping;
+    if (!shipping || typeof shipping !== "object") return null;
+    const quotedAt = (shipping as Record<string, unknown>).quoted_at;
+    return quotedAt != null ? String(quotedAt) : null;
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return new Intl.DateTimeFormat("es-MX", {
@@ -495,22 +503,7 @@ export default async function AdminPedidoDetailPage({
                     <RequoteSkydropxRatesClient
                       orderId={order.id}
                       currentRatePriceCents={order.shipping_price_cents}
-                      quotedAt={
-                        (order.metadata as Record<string, unknown> | null)?.shipping &&
-                        typeof (order.metadata as Record<string, unknown>).shipping === "object"
-                          ? ((order.metadata as Record<string, unknown>).shipping as Record<
-                              string,
-                              unknown
-                            >)?.quoted_at
-                            ? String(
-                                ((order.metadata as Record<string, unknown>).shipping as Record<
-                                  string,
-                                  unknown
-                                >).quoted_at,
-                              )
-                            : null
-                          : null
-                      }
+                      quotedAt={getQuotedAt(order)}
                     />
                   </div>
                 )}

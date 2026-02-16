@@ -127,21 +127,26 @@ export default function ShippingTrackingDisplay({
             </a>
           </div>
         </div>
-      ) : trackingNumber && normalizedStatus !== "cancelled" ? (
-        <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-          <div className="flex items-start gap-2">
-            <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5" />
-            <div className="flex-1">
-              <p className="text-sm font-medium text-yellow-900 dark:text-yellow-100">
-                Etiqueta pendiente
-              </p>
-              <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
-                El tracking está disponible pero la etiqueta aún no está lista. Se actualizará automáticamente cuando Skydropx la genere.
-              </p>
+      ) : (() => {
+        if (trackingNumber && normalizedStatus !== "cancelled") {
+          return (
+            <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-yellow-900 dark:text-yellow-100">
+                    Etiqueta pendiente
+                  </p>
+                  <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
+                    El tracking está disponible pero la etiqueta aún no está lista. Se actualizará automáticamente cuando Skydropx la genere.
+                  </p>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      ) : null}
+          );
+        }
+        return null;
+      })()}
     </div>
   );
 }

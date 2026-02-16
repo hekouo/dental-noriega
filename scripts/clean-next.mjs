@@ -15,18 +15,17 @@ function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-function rmNext() {
+async function rmNext() {
   const full = path.resolve(process.cwd(), DIR);
-  if (!fs.existsSync(full)) {
-    return;
+  if (fs.existsSync(full)) {
+    fs.rmSync(full, { recursive: true, force: true });
   }
-  fs.rmSync(full, { recursive: true, force: true });
 }
 
 async function main() {
   for (let i = 0; i < MAX_RETRIES; i++) {
     try {
-      rmNext();
+      await rmNext();
       process.exit(0);
     } catch (e) {
       const isLast = i === MAX_RETRIES - 1;
