@@ -64,7 +64,7 @@ export default function ProductsRail({
 
   return (
     <section
-      className={cn("relative max-w-6xl mx-auto px-4 py-8 sm:py-10", className)}
+      className={cn("relative max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-10", className)}
       aria-labelledby="products-rail-title"
     >
       <div className="flex items-center justify-between gap-4 mb-4">

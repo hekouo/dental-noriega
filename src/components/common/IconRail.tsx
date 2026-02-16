@@ -30,12 +30,19 @@ const chips: ChipItem[] = [
  */
 export default function IconRail() {
   return (
-    <div className="w-full overflow-x-auto overflow-y-hidden no-scrollbar pb-2 -mx-1">
+    <div className="w-full">
       <div
-        className="flex gap-3 sm:gap-4 min-w-max px-1"
-        style={{ scrollSnapType: "x mandatory" }}
-        role="list"
+        className="overflow-x-auto overflow-y-hidden no-scrollbar pb-2 -mx-1"
+        style={{
+          maskImage: "linear-gradient(to right, black 85%, transparent 100%)",
+          WebkitMaskImage: "linear-gradient(to right, black 85%, transparent 100%)",
+        }}
       >
+        <div
+          className="flex gap-3 sm:gap-4 min-w-max px-1"
+          style={{ scrollSnapType: "x mandatory" }}
+          role="list"
+        >
         {chips.map((chip, index) => {
           const chipContent = (
             <span
@@ -68,6 +75,7 @@ export default function IconRail() {
             </div>
           );
         })}
+        </div>
       </div>
     </div>
   );
