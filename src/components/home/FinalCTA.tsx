@@ -16,19 +16,23 @@ export default function FinalCTA() {
 
   return (
     <section
-      className="max-w-6xl mx-auto px-4 py-12 sm:py-16"
+      className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16"
       aria-labelledby="final-cta-heading"
     >
-      <h2
-        id="final-cta-heading"
-        className="sr-only"
-      >
-        Acciones finales
-      </h2>
+      <div className="rounded-2xl border border-gray-200/90 dark:border-gray-700 bg-white/80 dark:bg-gray-800/60 backdrop-blur-sm shadow-sm p-6 sm:p-8">
+        <h2
+          id="final-cta-heading"
+          className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white text-center mb-2"
+        >
+          Listo para comprar
+        </h2>
+        <p className="text-center text-gray-600 dark:text-gray-400 text-sm sm:text-base mb-6 max-w-lg mx-auto">
+          Insumos dentales confiables, entregados a todo México. Atención por WhatsApp y facturación electrónica.
+        </p>
 
-      <div className="flex flex-col lg:flex-row items-center justify-center gap-8 sm:gap-12 lg:gap-16">
-        {/* CTAs */}
-        <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
+        <div className="flex flex-col lg:flex-row items-center justify-center gap-8 sm:gap-12 lg:gap-16">
+          {/* CTAs */}
+          <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
           <Link
             href={ROUTES.tienda()}
             className={`${buttonPrimary} text-base sm:text-lg px-6 py-3 font-semibold shadow-lg hover:shadow-xl transition-shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 rounded-xl min-h-[48px] inline-flex items-center justify-center`}
@@ -66,11 +70,8 @@ export default function FinalCTA() {
             QR
           </span>
         </div>
+        </div>
       </div>
-
-      <p className="mt-6 text-center text-sm text-muted-foreground max-w-xl mx-auto">
-        Insumos dentales confiables, entregados a todo México. Atención por WhatsApp y facturación electrónica.
-      </p>
     </section>
   );
 }

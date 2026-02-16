@@ -37,7 +37,6 @@ const TESTIMONIALS: Testimonial[] = [
 ];
 
 const AUTO_SCROLL_INTERVAL_MS = 7000;
-const CARD_WIDTH = 320;
 const SCROLL_OFFSET = 340;
 
 /**
