@@ -2,7 +2,6 @@ import Link from "next/link";
 import dynamicImport from "next/dynamic";
 import { ROUTES } from "@/lib/routes";
 import { getFeaturedItems } from "@/lib/catalog/getFeatured.server";
-import FeaturedCarousel from "@/components/FeaturedCarousel";
 import FeaturedGrid from "@/components/FeaturedGrid";
 import { buttonPrimary } from "@/lib/styles/button";
 import SectionHeader from "@/components/ui/SectionHeader";
@@ -14,6 +13,9 @@ import WhyBuySection from "@/components/home/WhyBuySection.client";
 import AnimatedSeparator from "@/components/common/AnimatedSeparator";
 import BentoSection from "@/components/home/BentoSection";
 import CategoryGrid from "@/components/home/CategoryGrid";
+import CategorySelector from "@/components/home/CategorySelector";
+import ProductsRail from "@/components/home/ProductsRail";
+import TestimonialsCarousel from "@/components/home/TestimonialsCarousel";
 
 // Lazy load componentes no críticos
 const Testimonials = dynamicImport(() => import("@/components/ui/Testimonials"), {
@@ -62,6 +64,12 @@ export default async function HomePage() {
       <AnimatedSeparator />
       <CategoryGrid />
 
+      {/* PR-H3: Destacados compactos + testimonios */}
+      <AnimatedSeparator />
+      <CategorySelector />
+      <ProductsRail items={items} title="Destacados" />
+      <TestimonialsCarousel />
+
       {/* Trust Banners */}
       <div className="max-w-6xl mx-auto px-4 py-8 sm:py-12">
         <TrustBanners />
@@ -71,12 +79,6 @@ export default async function HomePage() {
       <div className="max-w-6xl mx-auto px-4 pb-4 md:hidden">
         <QuizCTA />
       </div>
-
-      {/* Productos Destacados */}
-      <section className="max-w-6xl mx-auto px-4 py-8 sm:py-12">
-        <SectionHeader title="Destacados" />
-        <FeaturedCarousel items={items} />
-      </section>
 
       {/* Separador visual */}
       <div className="max-w-6xl mx-auto px-4">
