@@ -218,7 +218,7 @@ export default function RootLayout({
           <CheckoutDevGuard />
           <TopInfoBar />
           <HeaderWithScrollEffect>
-            <nav className="max-w-6xl mx-auto flex items-center justify-between p-4 gap-3 min-w-0">
+            <nav className="max-w-6xl mx-auto flex items-center justify-between px-4 sm:px-6 py-3 gap-3 min-w-0" aria-label="Navegación principal">
               <div className="flex items-center gap-3 min-w-0 flex-shrink-0">
                 <Link href={ROUTES.home()} className="min-h-[44px] flex items-center focus-premium" aria-label="Inicio">
                   <Logo variant="mark" size="sm" className="md:hidden" />
