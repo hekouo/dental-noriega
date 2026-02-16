@@ -83,7 +83,7 @@ export default function TestimonialsCarousel() {
 
   return (
     <section
-      className="max-w-6xl mx-auto px-4 py-10 sm:py-14"
+      className="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-14 overflow-x-clip"
       aria-labelledby="testimonials-heading"
       aria-roledescription="carousel"
     >
@@ -108,10 +108,10 @@ export default function TestimonialsCarousel() {
               onBlur={() => setIsPaused(false)}
               onMouseEnter={() => setIsPaused(true)}
               onMouseLeave={() => setIsPaused(false)}
-              className="p-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 min-h-[44px] min-w-[44px] inline-flex items-center justify-center"
+              className="p-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors focus-premium min-h-[44px] min-w-[44px] inline-flex items-center justify-center"
               aria-label="Testimonio anterior"
             >
-              <ChevronLeft className="w-5 h-5" />
+              <ChevronLeft className="w-5 h-5" aria-hidden />
             </button>
             <button
               type="button"
@@ -120,10 +120,10 @@ export default function TestimonialsCarousel() {
               onBlur={() => setIsPaused(false)}
               onMouseEnter={() => setIsPaused(true)}
               onMouseLeave={() => setIsPaused(false)}
-              className="p-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 min-h-[44px] min-w-[44px] inline-flex items-center justify-center"
+              className="p-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors focus-premium min-h-[44px] min-w-[44px] inline-flex items-center justify-center"
               aria-label="Siguiente testimonio"
             >
-              <ChevronRight className="w-5 h-5" />
+              <ChevronRight className="w-5 h-5" aria-hidden />
             </button>
           </div>
         )}

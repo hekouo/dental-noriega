@@ -69,22 +69,22 @@ export default async function HomePage() {
       <TestimonialsCarousel />
 
       {/* Trust Banners */}
-      <div className="max-w-6xl mx-auto px-4 py-8 sm:py-12">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
         <TrustBanners />
       </div>
 
       {/* Quiz CTA - Móvil arriba del fold */}
-      <div className="max-w-6xl mx-auto px-4 pb-4 md:hidden">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-4 md:hidden">
         <QuizCTA />
       </div>
 
       {/* Separador visual */}
-      <div className="max-w-6xl mx-auto px-4">
-        <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
+      <div className="max-w-6xl mx-auto px-4 sm:px-6">
+        <div className="h-px bg-gradient-to-r from-transparent via-gray-200 dark:via-gray-600 to-transparent" />
       </div>
 
       {/* También te puede interesar - con fondo sutil */}
-      <section className="max-w-6xl mx-auto px-4 py-8 sm:py-12 bg-gray-50/50 rounded-2xl my-8">
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12 bg-gray-50/50 dark:bg-gray-800/30 rounded-2xl my-8 overflow-x-clip">
         <SectionHeader
           title="También te puede interesar"
           subtitle="Productos recomendados que suelen interesar a nuestros clientes"
@@ -106,12 +106,12 @@ export default async function HomePage() {
       <FinalCTA />
 
       {/* Bloque final con agradecimiento - Cargado dinámicamente */}
-      <div className="max-w-6xl mx-auto px-4">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6">
         <FinalThanks />
       </div>
 
       {/* Help Widget */}
-      <div className="max-w-6xl mx-auto px-4 py-8 sm:py-12">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
         <HelpWidget context="home" />
       </div>
     </div>
