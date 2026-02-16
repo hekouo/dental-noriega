@@ -15,7 +15,7 @@ export function HeaderWithScrollEffect({
 
   return (
     <header
-      className={`border-b border-gray-200/80 bg-white/80 backdrop-blur-md sticky top-0 z-40 transition-all duration-200 ${
+      className={`min-h-[56px] border-b border-gray-200/80 dark:border-gray-700/80 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md sticky top-0 z-40 transition-shadow duration-200 motion-reduce:transition-none ${
         isScrolled ? "shadow-md" : "shadow-sm"
       }`}
       id="main-header"

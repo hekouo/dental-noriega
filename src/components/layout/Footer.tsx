@@ -2,13 +2,14 @@ import Link from "next/link";
 import { MessageCircle, CreditCard, Building2 } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
 import { getWhatsAppUrl } from "@/lib/whatsapp/config";
+import Logo from "@/components/common/Logo";
 
 export function Footer() {
   const whatsappUrl = getWhatsAppUrl("Hola, tengo una consulta.");
 
   return (
-    <footer className="bg-stone-50/80 dark:bg-gray-900/50 border-t border-stone-200 dark:border-gray-800 mt-auto">
-      <div className="max-w-6xl mx-auto px-4 py-8 sm:py-12">
+    <footer className="bg-stone-50/80 dark:bg-gray-900/50 border-t border-stone-200 dark:border-gray-800 mt-auto" role="contentinfo">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8 sm:gap-10 mb-8">
           {/* Links principales */}
           <div className="border-b border-stone-200/80 dark:border-gray-700 sm:border-b-0 pb-6 sm:pb-0">
@@ -98,9 +99,12 @@ export function Footer() {
 
           {/* Información adicional y Legal */}
           <div>
-            <h3 className="text-sm font-semibold text-stone-800 dark:text-stone-100 mb-4 tracking-tight">
-              Depósito Dental Noriega
-            </h3>
+            <div className="mb-4 flex items-center gap-3">
+              <Logo variant="mark" size="sm" className="flex-shrink-0" />
+              <h3 className="text-sm font-semibold text-stone-800 dark:text-stone-100 tracking-tight">
+                Depósito Dental Noriega
+              </h3>
+            </div>
             <p className="text-sm text-stone-600 dark:text-stone-400 leading-relaxed mb-4">
               Insumos dentales de calidad para consultorios, clínicas y ortodoncistas en México.
             </p>
