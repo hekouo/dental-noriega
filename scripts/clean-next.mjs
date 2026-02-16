@@ -17,9 +17,11 @@ function sleep(ms) {
 
 async function rmNext() {
   const full = path.resolve(process.cwd(), DIR);
-  if (fs.existsSync(full)) {
+  const exists = fs.existsSync(full);
+  if (exists) {
     fs.rmSync(full, { recursive: true, force: true });
   }
+  return;
 }
 
 async function main() {
