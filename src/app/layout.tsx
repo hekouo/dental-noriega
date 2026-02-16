@@ -116,8 +116,8 @@ export const metadata: Metadata = {
     description: SITE.description,
     images: [
       {
-        url: `${SITE.url}${SITE.socialImage}`,
-        width: 1200,
+        url: "/brand/ddn-seal.png",
+        width: 630,
         height: 630,
         alt: SITE.name,
       },
@@ -129,7 +129,14 @@ export const metadata: Metadata = {
     creator: "@dentalnoriega",
     title: `${SITE.name} | Insumos dentales en México`,
     description: SITE.description,
-    images: [`${SITE.url}${SITE.socialImage}`],
+    images: [
+      {
+        url: "/brand/ddn-seal.png",
+        width: 630,
+        height: 630,
+        alt: SITE.name,
+      },
+    ],
   },
   robots: {
     index: true,
