@@ -251,39 +251,43 @@ export default function OrderCleanupPanel() {
       {/* Resultado */}
       {result && (
         <div
-          className={`mt-4 p-4 rounded-lg border ${
-            result.ok
-              ? result.dryRun
-                ? "bg-blue-50 border-blue-200 text-blue-900"
-                : "bg-green-50 border-green-200 text-green-900"
-              : "bg-red-50 border-red-200 text-red-900"
-          }`}
+          className={(() => {
+            if (!result.ok) return "mt-4 p-4 rounded-lg border bg-red-50 border-red-200 text-red-900";
+            if (result.dryRun) return "mt-4 p-4 rounded-lg border bg-blue-50 border-blue-200 text-blue-900";
+            return "mt-4 p-4 rounded-lg border bg-green-50 border-green-200 text-green-900";
+          })()}
         >
-          {result.ok ? (
-            result.dryRun ? (
-              <>
+          {(() => {
+            if (!result.ok) {
+              return (
                 <p className="font-medium">
-                  Vista previa: {result.ordersToDelete} órdenes,{" "}
-                  {result.orderItemsToDelete} items a borrar.
+                  Error: {result.message} ({result.code})
                 </p>
-                {result.sampleOrderIds.length > 0 && (
-                  <p className="text-sm mt-1 font-mono truncate">
-                    Ejemplo IDs: {result.sampleOrderIds.slice(0, 5).join(", ")}
-                    {result.sampleOrderIds.length > 5 && " …"}
+              );
+            }
+            if (result.dryRun) {
+              return (
+                <>
+                  <p className="font-medium">
+                    Vista previa: {result.ordersToDelete} órdenes,{" "}
+                    {result.orderItemsToDelete} items a borrar.
                   </p>
-                )}
-              </>
-            ) : (
+                  {result.sampleOrderIds.length > 0 && (
+                    <p className="text-sm mt-1 font-mono truncate">
+                      Ejemplo IDs: {result.sampleOrderIds.slice(0, 5).join(", ")}
+                      {result.sampleOrderIds.length > 5 && " …"}
+                    </p>
+                  )}
+                </>
+              );
+            }
+            return (
               <p className="font-medium">
                 Hecho: {result.ordersDeleted} órdenes y {result.orderItemsDeleted}{" "}
                 items borrados.
               </p>
-            )
-          ) : (
-            <p className="font-medium">
-              Error: {result.message} ({result.code})
-            </p>
-          )}
+            );
+          })()}
         </div>
       )}
 

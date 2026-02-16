@@ -26,7 +26,7 @@ export default function EnviosReportClient({ defaultFrom, defaultTo }: Props) {
     today.setHours(23, 59, 59, 999);
 
     if (days === null) {
-      // Todo el tiempo: desde hace 1 año
+      // Rango completo: desde hace 1 año
       const oneYearAgo = new Date(today);
       oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
       oneYearAgo.setHours(0, 0, 0, 0);

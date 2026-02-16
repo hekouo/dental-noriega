@@ -41,6 +41,12 @@ type ShippingPackageInfoProps = {
   dims_source?: DimsSourceDisplay | null;
 };
 
+function isLegacyPackageShape(pkg: unknown): boolean {
+  if (!pkg || typeof pkg !== "object") return false;
+  const o = pkg as { mode?: string; profile?: string };
+  return !!(o.mode || o.profile);
+}
+
 /**
  * Componente readonly para mostrar información del empaque usado para cotización
  * (no editable, solo informativo)
@@ -59,8 +65,7 @@ export default function ShippingPackageInfo({
 
   const hasEstimated =
     shippingPackageEstimated && typeof shippingPackageEstimated.weight_g === "number";
-  const hasLegacyPackage =
-    shippingPackage && !hasBillable && ((shippingPackage as { mode?: string }).mode || (shippingPackage as { profile?: string }).profile);
+  const hasLegacyPackage = shippingPackage && !hasBillable && isLegacyPackageShape(shippingPackage);
 
   if (!hasBillable && !hasEstimated && !hasLegacyPackage) {
     return (
@@ -91,12 +96,9 @@ export default function ShippingPackageInfo({
             height_cm: STANDARD_BOX_DIMS_CM.height,
           }
         : pkg.dims_cm ?? { length_cm: 0, width_cm: 0, height_cm: 0 };
-    const dimsLabel =
-      dimsSource === "standard_box"
-        ? "standard_box"
-        : dimsSource === "override"
-          ? "override"
-          : pkg.dims_source ?? null;
+    let dimsLabel: string | null = pkg.dims_source ?? null;
+    if (dimsSource === "standard_box") dimsLabel = "standard_box";
+    else if (dimsSource === "override") dimsLabel = "override";
 
     return (
       <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">

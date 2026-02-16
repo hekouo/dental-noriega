@@ -28,6 +28,20 @@ function getErrorMessage(code: string | undefined, message: string | undefined):
   return message || "Error al guardar las dimensiones.";
 }
 
+function parseOptionalNumber(
+  value: string,
+  errorLabel: string,
+): { ok: true; value: number | null } | { ok: false; message: string } {
+  if (value.trim() === "") {
+    return { ok: true, value: null };
+  }
+  const parsed = parseFloat(value);
+  if (isNaN(parsed)) {
+    return { ok: false, message: errorLabel };
+  }
+  return { ok: true, value: parsed };
+}
+
 /**
  * Componente para editar dimensiones de envío de un producto
  */
@@ -72,6 +86,31 @@ export default function ProductShippingEditorClient({
     setSuccess(false);
 
     try {
+      const weightResult = parseOptionalNumber(weightG, "El peso debe ser un número válido.");
+      if (!weightResult.ok) {
+        setError(weightResult.message);
+        setLoading(false);
+        return;
+      }
+      const lengthResult = parseOptionalNumber(lengthCm, "El largo debe ser un número válido.");
+      if (!lengthResult.ok) {
+        setError(lengthResult.message);
+        setLoading(false);
+        return;
+      }
+      const widthResult = parseOptionalNumber(widthCm, "El ancho debe ser un número válido.");
+      if (!widthResult.ok) {
+        setError(widthResult.message);
+        setLoading(false);
+        return;
+      }
+      const heightResult = parseOptionalNumber(heightCm, "El alto debe ser un número válido.");
+      if (!heightResult.ok) {
+        setError(heightResult.message);
+        setLoading(false);
+        return;
+      }
+
       const body: {
         productId: string;
         weight_g?: number | null;
@@ -81,58 +120,12 @@ export default function ProductShippingEditorClient({
         shipping_profile?: PackageProfileKey | null;
       } = {
         productId,
+        weight_g: weightResult.value,
+        length_cm: lengthResult.value,
+        width_cm: widthResult.value,
+        height_cm: heightResult.value,
+        shipping_profile: profile === "" ? null : (profile as PackageProfileKey),
       };
-
-      // Solo incluir valores si tienen contenido
-      if (weightG.trim() !== "") {
-        const parsed = parseFloat(weightG);
-        if (isNaN(parsed)) {
-          setError("El peso debe ser un número válido.");
-          setLoading(false);
-          return;
-        }
-        body.weight_g = parsed;
-      } else {
-        body.weight_g = null;
-      }
-
-      if (lengthCm.trim() !== "") {
-        const parsed = parseFloat(lengthCm);
-        if (isNaN(parsed)) {
-          setError("El largo debe ser un número válido.");
-          setLoading(false);
-          return;
-        }
-        body.length_cm = parsed;
-      } else {
-        body.length_cm = null;
-      }
-
-      if (widthCm.trim() !== "") {
-        const parsed = parseFloat(widthCm);
-        if (isNaN(parsed)) {
-          setError("El ancho debe ser un número válido.");
-          setLoading(false);
-          return;
-        }
-        body.width_cm = parsed;
-      } else {
-        body.width_cm = null;
-      }
-
-      if (heightCm.trim() !== "") {
-        const parsed = parseFloat(heightCm);
-        if (isNaN(parsed)) {
-          setError("El alto debe ser un número válido.");
-          setLoading(false);
-          return;
-        }
-        body.height_cm = parsed;
-      } else {
-        body.height_cm = null;
-      }
-
-      body.shipping_profile = profile === "" ? null : (profile as PackageProfileKey);
 
       const res = await fetch("/api/admin/products/update-shipping", {
         method: "POST",

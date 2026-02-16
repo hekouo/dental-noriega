@@ -15,6 +15,7 @@
     "lh:mobile:html": "lighthouse http://localhost:3002 --form-factor=mobile --screenEmulation.mobile=true --output=html --output-path=./lighthouse-mobile.html --no-enable-error-reporting",
     "format": "prettier --write .",
     "clean": "node -e \"try{require('fs').rmSync('.next',{recursive:true,force:true})}catch(e){}\"",
+    "clean:next": "node scripts/clean-next.mjs",
     "rebuild": "npm run clean && pnpm build",
     "prepare": "husky",
     "tsc": "tsc -p .",
@@ -24,7 +25,7 @@
     "e2e:dev": "playwright test -c tests",
     "build:ci": "node scripts/prebuild-pages-manifest.js && next build && node scripts/budget.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "verify": "pnpm -s tsc && pnpm -s lint && pnpm -s build",
+    "verify": "pnpm -s clean:next && pnpm -s tsc && pnpm -s lint && pnpm -s build",
     "budget": "node scripts/budget.mjs",
     "audit:lh": "node scripts/audit/lighthouse.mjs",
     "audit:axe": "playwright test scripts/audit/axe.spec.ts --reporter=list"
