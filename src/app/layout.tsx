@@ -25,7 +25,7 @@ const ToothAccountMenu = dynamic(
 );
 import { ROUTES } from "@/lib/routes";
 import { SITE } from "@/lib/site";
-import BrandMark from "@/components/BrandMark";
+import Logo from "@/components/common/Logo";
 import {
   getOrganizationJsonLd,
   getWebsiteJsonLd,
@@ -138,6 +138,10 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "/",
   },
+  icons: {
+    icon: "/brand/favicon.ico",
+    apple: "/brand/apple-touch-icon.png",
+  },
 };
 
 export const viewport: Viewport = {
@@ -217,7 +221,8 @@ export default function RootLayout({
             <nav className="max-w-6xl mx-auto flex items-center justify-between p-4 gap-3 min-w-0">
               <div className="flex items-center gap-3 min-w-0 flex-shrink-0">
                 <Link href={ROUTES.home()} className="min-h-[44px] flex items-center focus-premium" aria-label="Inicio">
-                  <BrandMark />
+                  <Logo variant="mark" size="sm" className="md:hidden" />
+                  <Logo variant="horizontal" size="md" className="hidden md:block" />
                 </Link>
                 {process.env.VERCEL_ENV && (
                   <span

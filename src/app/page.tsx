@@ -1,9 +1,6 @@
-import Link from "next/link";
 import dynamicImport from "next/dynamic";
-import { ROUTES } from "@/lib/routes";
 import { getFeaturedItems } from "@/lib/catalog/getFeatured.server";
 import FeaturedGrid from "@/components/FeaturedGrid";
-import { buttonPrimary } from "@/lib/styles/button";
 import SectionHeader from "@/components/ui/SectionHeader";
 import { HelpWidget } from "@/components/support/HelpWidget";
 import { TrustBanners } from "@/components/marketing/TrustBanners";
@@ -16,6 +13,7 @@ import CategoryGrid from "@/components/home/CategoryGrid";
 import CategorySelector from "@/components/home/CategorySelector";
 import ProductsRail from "@/components/home/ProductsRail";
 import TestimonialsCarousel from "@/components/home/TestimonialsCarousel";
+import FinalCTA from "@/components/home/FinalCTA";
 
 // Lazy load componentes no críticos
 const Testimonials = dynamicImport(() => import("@/components/ui/Testimonials"), {
@@ -103,20 +101,9 @@ export default async function HomePage() {
       {/* Testimonials - Lazy loaded */}
       <Testimonials />
 
-      {/* CTA Section */}
-      <section className="py-16 px-4">
-        <div className="max-w-4xl mx-auto text-center">
-          <p className="text-lg sm:text-xl text-gray-700 mb-6 font-medium">
-            Insumos dentales confiables, entregados a todo México.
-          </p>
-          <Link
-            href={ROUTES.tienda()}
-            className={`${buttonPrimary} text-lg px-8 py-3 font-semibold shadow-lg hover:shadow-xl transition-shadow`}
-          >
-            <span>Ver tienda</span>
-          </Link>
-        </div>
-      </section>
+      {/* CTA final editorial - PR-H4 */}
+      <AnimatedSeparator />
+      <FinalCTA />
 
       {/* Bloque final con agradecimiento - Cargado dinámicamente */}
       <div className="max-w-6xl mx-auto px-4">

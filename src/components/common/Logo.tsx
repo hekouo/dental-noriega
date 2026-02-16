@@ -1,9 +1,11 @@
 "use client";
 
+import Image from "next/image";
+
 /**
- * Logo placeholder: monograma + wordmark.
- * variant: horizontal (DDN + texto) | mark (solo DDN)
- * size: sm | md | lg
+ * Logo desde /brand/...
+ * variant: horizontal (DDN + wordmark) | mark (solo DDN)
+ * size: sm ~24px | md ~24-28px (header) | lg ~36-44px (hero)
  */
 type LogoProps = {
   variant?: "horizontal" | "mark";
@@ -11,37 +13,35 @@ type LogoProps = {
   className?: string;
 };
 
-const sizeClasses = {
-  sm: "text-xl",
-  md: "text-2xl sm:text-3xl",
-  lg: "text-3xl sm:text-4xl",
+const sizePx = {
+  sm: 24,
+  md: 28,
+  lg: 40,
 };
 
-export default function Logo({ variant = "horizontal", size = "md", className = "" }: LogoProps) {
-  const sizeClass = sizeClasses[size];
+export default function Logo({
+  variant = "horizontal",
+  size = "md",
+  className = "",
+}: LogoProps) {
+  const h = sizePx[size];
+  const src =
+    variant === "mark"
+      ? "/brand/ddn-mark.png"
+      : "/brand/ddn-logo-horizontal.png";
+  const alt = "Depósito Dental Noriega";
 
-  if (variant === "mark") {
-    return (
-      <span
-        className={`font-hero font-semibold tracking-tight text-gray-900 dark:text-white ${sizeClass} ${className}`}
-        aria-label="Depósito Dental Noriega"
-      >
-        DDN
-      </span>
-    );
-  }
+  const w = variant === "mark" ? h : Math.round(h * 4.5);
 
   return (
-    <span
-      className={`inline-flex items-baseline gap-2 ${className}`}
-      aria-label="Depósito Dental Noriega"
-    >
-      <span className={`font-hero font-semibold tracking-tight text-gray-900 dark:text-white ${sizeClass}`}>
-        DDN
-      </span>
-      <span className={`text-gray-600 dark:text-gray-400 font-body text-base sm:text-lg hidden sm:inline`}>
-        Depósito Dental Noriega
-      </span>
-    </span>
+    <Image
+      src={src}
+      alt={alt}
+      width={w}
+      height={h}
+      className={`object-contain ${className}`}
+      style={{ height: h, width: "auto" }}
+      priority
+    />
   );
 }
