@@ -3,15 +3,21 @@
 import Link from "next/link";
 import { MessageCircle } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
-import { getWhatsAppUrl } from "@/lib/whatsapp/config";
+import { getWhatsAppPhone } from "@/lib/whatsapp/config";
+import { buildWhatsAppUrl } from "@/lib/whatsapp/format";
 import { buttonPrimary } from "@/lib/styles/button";
+
+const ASESOR_MESSAGE = "Hola, necesito ayuda con mi compra en DDN.";
 
 /**
  * CTA final editorial: /tienda, /facturacion (o /contacto fallback), WhatsApp.
  * QR placeholder visual (sin librerías).
  */
 export default function FinalCTA() {
-  const waUrl = getWhatsAppUrl("Hola, me interesa hacer un pedido.");
+  const ddnPhone = getWhatsAppPhone();
+  const waUrl = ddnPhone
+    ? buildWhatsAppUrl({ phoneE164OrMX: ddnPhone, text: ASESOR_MESSAGE })
+    : null;
   const facturacionHref = "/facturacion";
 
   return (
@@ -52,8 +58,8 @@ export default function FinalCTA() {
               href={waUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded-xl border-2 border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/30 text-green-800 dark:text-green-200 px-6 py-3 font-semibold hover:border-green-400 dark:hover:border-green-600 hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 min-h-[48px] inline-flex items-center justify-center gap-2"
-              aria-label="Contactar por WhatsApp"
+              className="rounded-xl border-2 border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/30 text-green-800 dark:text-green-200 px-6 py-3 font-semibold hover:border-green-400 dark:hover:border-green-600 hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors focus-premium min-h-[48px] inline-flex items-center justify-center gap-2"
+              aria-label="Habla con un asesor por WhatsApp"
             >
               <MessageCircle className="w-5 h-5" aria-hidden />
               WhatsApp

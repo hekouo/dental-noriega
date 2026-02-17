@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { MessageCircle } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
-import { getWhatsAppUrl } from "@/lib/whatsapp/config";
+import { getWhatsAppPhone } from "@/lib/whatsapp/config";
+import { buildWhatsAppUrl } from "@/lib/whatsapp/format";
 import { buttonBase } from "@/lib/styles/button";
 import AmbientBackground from "./AmbientBackground";
 import Logo from "@/components/common/Logo";
@@ -18,7 +19,11 @@ import { usePrefersReducedMotion } from "@/lib/hooks/usePrefersReducedMotion";
 export default function HeroIntro() {
   const prefersReducedMotion = usePrefersReducedMotion();
   const microAnimsEnabled = process.env.NEXT_PUBLIC_MOBILE_MICRO_ANIMS === "true";
-  const waUrl = getWhatsAppUrl("Hola, me gustaría hablar con un asesor sobre productos dentales.");
+  const ASESOR_MESSAGE = "Hola, necesito ayuda con mi compra en DDN.";
+  const ddnPhone = getWhatsAppPhone();
+  const waUrl = ddnPhone
+    ? buildWhatsAppUrl({ phoneE164OrMX: ddnPhone, text: ASESOR_MESSAGE })
+    : null;
 
   const primaryClass = `${buttonBase} rounded-2xl bg-primary-600 text-white hover:bg-primary-700 text-base sm:text-lg font-semibold px-8 sm:px-10 py-3 sm:py-4 transition-all duration-200 shadow-md hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-primary-300 focus:ring-offset-2 focus:ring-offset-transparent`;
 
@@ -55,7 +60,7 @@ export default function HeroIntro() {
           >
             <span className="whitespace-nowrap">Explorar catálogo</span>
           </Link>
-          <Link
+          <a
             href={waUrl ?? "#"}
             target="_blank"
             rel="noopener noreferrer"
@@ -63,12 +68,13 @@ export default function HeroIntro() {
               kind: "button",
               enabled: microAnimsEnabled,
               reducedMotion: prefersReducedMotion,
-              className: secondaryClass,
+              className: secondaryClass + " focus-premium",
             })}
+            aria-label="Habla con un asesor por WhatsApp"
           >
             <MessageCircle className="inline-block mr-2 w-5 h-5 shrink-0" aria-hidden />
             <span className="whitespace-nowrap">Habla con un asesor</span>
-          </Link>
+          </a>
         </div>
 
         {/* Icon Rail - beneficios */}
