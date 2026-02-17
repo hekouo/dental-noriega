@@ -160,7 +160,15 @@ export default function PagoPendienteClient({ order, error }: Props) {
                 {/* Bloque de WhatsApp */}
                 {order.total_cents && (() => {
                   const rawMetadata = (order.metadata ?? null) as
-                    | { contact_name?: string; contactName?: string; contact_email?: string; contactEmail?: string; shortId?: string }
+                    | {
+                        contact_name?: string;
+                        contactName?: string;
+                        contact_email?: string;
+                        contactEmail?: string;
+                        shortId?: string;
+                        whatsapp_confirmed?: boolean;
+                        whatsapp_wa_digits?: string;
+                      }
                     | null;
                   const customerName =
                     rawMetadata?.contact_name ??
@@ -178,6 +186,8 @@ export default function PagoPendienteClient({ order, error }: Props) {
                       totalCents={order.total_cents}
                       customerName={customerName}
                       customerEmail={customerEmail}
+                      whatsappWaDigits={rawMetadata?.whatsapp_wa_digits ?? null}
+                      whatsappConfirmed={rawMetadata?.whatsapp_confirmed}
                       orderId={order.id}
                       shortId={rawMetadata?.shortId || null}
                       paymentMethod={order.payment_method || null}

@@ -11,6 +11,7 @@ interface OrderWhatsAppBlockProps {
   customerName?: string | null;
   customerEmail?: string | null;
   whatsappWaDigits?: string | null; // Número de WhatsApp del cliente (desde metadata.whatsapp_wa_digits)
+  whatsappConfirmed?: boolean; // metadata.whatsapp_confirmed; si false, se muestra hint opcional
   // Props adicionales para analytics
   orderId?: string;
   shortId?: string | null;
@@ -27,6 +28,7 @@ export function OrderWhatsAppBlock(props: OrderWhatsAppBlockProps) {
     customerName,
     customerEmail,
     whatsappWaDigits,
+    whatsappConfirmed,
     orderId,
     shortId,
     paymentMethod,
@@ -60,6 +62,9 @@ export function OrderWhatsAppBlock(props: OrderWhatsAppBlockProps) {
     ? "Si necesitas ayuda con tu pedido o quieres hacer un ajuste, mándanos mensaje por WhatsApp con tu número de pedido."
     : "Cuando tengas tu comprobante de transferencia, envíanoslo por WhatsApp para validar tu pago más rápido.";
 
+  const showWhatsAppHint =
+    !isPaid && whatsappConfirmed === false ? true : false;
+
   const handleClick = () => {
     if (orderId) {
       trackWhatsAppOrderSupportClick({
@@ -89,12 +94,18 @@ export function OrderWhatsAppBlock(props: OrderWhatsAppBlockProps) {
             target="_blank"
             rel="noreferrer"
             onClick={handleClick}
-            className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+            className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 focus-premium"
+            aria-label={isPaid ? "Contactar por WhatsApp sobre tu pedido" : "Enviar comprobante por WhatsApp"}
           >
             <span>WhatsApp</span>
           </Link>
         </div>
       </div>
+      {showWhatsAppHint && (
+        <p className="mt-2 text-xs text-emerald-700/90">
+          Confirma tu WhatsApp en checkout para seguimiento.
+        </p>
+      )}
     </div>
   );
 }
