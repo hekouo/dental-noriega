@@ -29,6 +29,7 @@ const SaveOrderRequestSchema = z.object({
   payment_id: z.string().optional(),
   metadata: z.record(z.unknown()).optional(),
   whatsappConfirmed: z.boolean().optional().default(false),
+  whatsappWaDigits: z.string().optional(), // "52" + 10 dígitos (PR-H12)
   shippingAddressConfirmed: z.boolean().optional().default(false),
 });
 
@@ -234,10 +235,19 @@ export async function POST(req: NextRequest) {
       contact_city: metadataFromPayload.contact_city || null,
       contact_state: metadataFromPayload.contact_state || null,
       contact_cp: metadataFromPayload.contact_cp || null,
-      // Confirmaciones (preservar existentes o usar nuevos valores)
+      // Confirmaciones (preservar existentes o usar nuevos valores) (PR-H12)
       whatsapp_confirmed: metadataFromPayload.whatsapp_confirmed ?? orderData.whatsappConfirmed ?? false,
       shipping_address_confirmed: metadataFromPayload.shipping_address_confirmed ?? orderData.shippingAddressConfirmed ?? false,
     };
+    const confirmed = metadata.whatsapp_confirmed as boolean;
+    const digits =
+      orderData.whatsappWaDigits ??
+      (typeof metadataFromPayload.whatsapp_wa_digits === "string"
+        ? metadataFromPayload.whatsapp_wa_digits
+        : undefined);
+    if (confirmed && digits) {
+      metadata.whatsapp_wa_digits = digits;
+    }
 
     // Guardar dirección de envío en metadata.shipping_address (merge seguro, preservar si ya existe)
     if (metadataFromPayload.shipping_address && typeof metadataFromPayload.shipping_address === "object") {
