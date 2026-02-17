@@ -68,9 +68,7 @@ export const datosSchema = z.object({
       return normalizeToMx10(v);
     })
     .refine((v) => isValidMx10(v), { message: "Ingresa un teléfono de 10 dígitos" }),
-  whatsappConfirmed: z.boolean().refine((v) => v === true, {
-    message: "Debes confirmar que este es tu número de WhatsApp para continuar",
-  }),
+  whatsappConfirmed: z.boolean().default(false),
   shippingAddressConfirmed: z.boolean().refine((v) => v === true, {
     message: "Debes confirmar que tu dirección es correcta para continuar",
   }),
@@ -92,3 +90,5 @@ export const datosSchema = z.object({
 });
 
 export type DatosForm = z.infer<typeof datosSchema>;
+/** Valores del formulario (input); whatsappConfirmed puede venir sin marcar */
+export type DatosFormValues = z.input<typeof datosSchema>;
