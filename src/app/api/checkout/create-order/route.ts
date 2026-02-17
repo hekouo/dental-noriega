@@ -3,7 +3,8 @@ import { unstable_noStore as noStore } from "next/cache";
 import { createClient } from "@supabase/supabase-js";
 import { createActionSupabase } from "@/lib/supabase/server-actions";
 import { z } from "zod";
-import { toMxE164, toMxWhatsAppDigits, isValidMx10 } from "@/lib/phone/mx";
+import { toMxE164, isValidMx10 } from "@/lib/phone/mx";
+import { normalizePhoneMX } from "@/lib/whatsapp/format";
 import { normalizeShippingPricing } from "@/lib/shipping/normalizeShippingPricing";
 import { normalizeShippingMetadata } from "@/lib/shipping/normalizeShippingMetadata";
 
@@ -266,12 +267,13 @@ export async function POST(req: NextRequest) {
     const phone = orderData.phone || null;
     const whatsappConfirmed = orderData.whatsappConfirmed ?? false;
     const shippingAddressConfirmed = orderData.shippingAddressConfirmed ?? false;
-    
-    // Normalizar teléfono para WhatsApp si es válido
+    // PR-H12: whatsapp_wa_digits = "52" + 10 dígitos solo si confirmado y teléfono válido
+    const whatsappWaDigits =
+      whatsappConfirmed && phone ? normalizePhoneMX(phone) : null;
+    const confirmed = !!(whatsappConfirmed && whatsappWaDigits);
     const whatsappDigits10 = phone && isValidMx10(phone) ? phone : null;
     const whatsappE164 = whatsappDigits10 ? toMxE164(whatsappDigits10) : null;
-    const whatsappWaDigits = whatsappDigits10 ? toMxWhatsAppDigits(whatsappDigits10) : null;
-    
+
     const metadata: Record<string, unknown> = {
       subtotal_cents, // Subtotal real (sin envío ni descuentos)
       shipping_cost_cents: shippingCostCents, // Costo de envío en centavos
@@ -286,8 +288,8 @@ export async function POST(req: NextRequest) {
       whatsapp_raw: phone || null,
       whatsapp_digits10: whatsappDigits10,
       whatsapp_e164: whatsappE164,
-      whatsapp_wa_digits: whatsappWaDigits,
-      whatsapp_confirmed: whatsappConfirmed,
+      whatsapp_wa_digits: whatsappWaDigits ?? undefined,
+      whatsapp_confirmed: confirmed,
       // Confirmación de dirección
       shipping_address_confirmed: shippingAddressConfirmed,
     };

@@ -20,6 +20,7 @@ import { clearCartAction } from "@/lib/actions/cart.server";
 import OrderPointsInfo from "@/components/loyalty/OrderPointsInfo";
 import { OrderWhatsAppBlock } from "@/components/checkout/OrderWhatsAppBlock";
 import ReceiptDownloadsCard from "@/components/checkout/ReceiptDownloadsCard";
+import { normalizePhoneMX } from "@/lib/whatsapp/format";
 
 type LastOrder = {
   orderRef: string;
@@ -259,6 +260,8 @@ export default function GraciasContent() {
             const urlParams = new URLSearchParams(window.location.search);
             const paymentIntentId = urlParams.get("payment_intent");
             
+            const waConfirmed = checkoutDatos.whatsappConfirmed ?? false;
+            const waDigits = waConfirmed ? normalizePhoneMX(checkoutDatos.phone ?? "") : null;
             fetch(`/api/checkout/save-order`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -270,6 +273,8 @@ export default function GraciasContent() {
                 status: "paid",
                 payment_provider: "stripe",
                 payment_id: paymentIntentId || undefined,
+                whatsappConfirmed: waConfirmed && !!waDigits,
+                whatsappWaDigits: waDigits ?? undefined,
                 metadata: {
                   subtotal_cents: subtotalCents,
                   shipping_cost_cents: shippingCents,
@@ -422,6 +427,8 @@ export default function GraciasContent() {
                   const subtotalCents = totalCents - shippingCents + discountCents;
                   
                   if (itemsForSave.length > 0 && totalCents > 0) {
+                    const waConfirmed = checkoutDatos.whatsappConfirmed ?? false;
+                    const waDigits = waConfirmed ? normalizePhoneMX(checkoutDatos.phone ?? "") : null;
                     fetch(`/api/checkout/save-order`, {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
@@ -433,6 +440,8 @@ export default function GraciasContent() {
                         status: "paid",
                         payment_provider: "stripe",
                         payment_id: pi.id,
+                        whatsappConfirmed: waConfirmed && !!waDigits,
+                        whatsappWaDigits: waDigits ?? undefined,
                         metadata: {
                           subtotal_cents: subtotalCents,
                           shipping_cost_cents: shippingCents,
