@@ -311,6 +311,14 @@ export default async function AdminPedidoDetailPage({
                   <p className="font-medium">{order.shipping.contact_phone}</p>
                 </div>
               )}
+              {typeof (order.metadata as Record<string, unknown> | null)?.whatsapp_confirmed === "boolean" && (
+                <div>
+                  <p className="text-gray-600">WhatsApp confirmado</p>
+                  <p className="font-medium">
+                    {(order.metadata as { whatsapp_confirmed?: boolean }).whatsapp_confirmed ? "Sí" : "No"}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Dirección de envío */}

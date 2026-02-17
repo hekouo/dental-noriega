@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import type { UseFormSetValue, UseFormRegisterReturn } from "react-hook-form";
-import type { DatosForm } from "@/lib/checkout/schemas";
+import type { DatosFormValues } from "@/lib/checkout/schemas";
 
 // Tipos para Google Places API
 interface AddressComponents {
@@ -16,7 +16,7 @@ interface AddressComponents {
 }
 
 interface AddressAutocompleteClientProps {
-  setValue: UseFormSetValue<DatosForm>;
+  setValue: UseFormSetValue<DatosFormValues>;
   register: UseFormRegisterReturn<"address">;
   errors?: { address?: { message?: string } };
   onAddressSelect?: (address: string) => void;

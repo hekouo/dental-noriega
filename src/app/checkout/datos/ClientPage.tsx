@@ -9,7 +9,7 @@ import { useSelectedIds } from "@/lib/store/checkoutSelectors";
 import { useCheckoutStore } from "@/lib/store/checkoutStore";
 import type { UiShippingOption } from "@/lib/store/checkoutStore";
 import type { NormalizedShippingOption } from "@/lib/shipping/normalizeRates";
-import { datosSchema, type DatosForm, MX_STATES } from "@/lib/checkout/schemas";
+import { datosSchema, type DatosFormValues, MX_STATES } from "@/lib/checkout/schemas";
 import CheckoutStepIndicatorThree from "@/components/checkout/CheckoutStepIndicatorThree";
 import CheckoutDebugPanel from "@/components/CheckoutDebugPanel";
 import Link from "next/link";
@@ -42,7 +42,7 @@ function DatosPageContent() {
     }
   }, [selectedItems.length, router]);
 
-  const form = useForm<DatosForm>({
+  const form = useForm<DatosFormValues>({
     resolver: zodResolver(datosSchema),
     mode: "onChange",
     reValidateMode: "onChange",
@@ -272,7 +272,7 @@ function DatosPageContent() {
   }, [setValue]);
 
   // Sanitización: trim en blur para campos de texto
-  const handleBlur = (field: keyof DatosForm) => {
+  const handleBlur = (field: keyof DatosFormValues) => {
     const value = watch(field);
     if (typeof value === "string") {
       setValue(field, value.trim() as never, { shouldValidate: true });
@@ -664,7 +664,7 @@ function DatosPageContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cpValue, stateValue, cityValue, selectedItems, fetchShippingRates]);
 
-  const onSubmit: SubmitHandler<DatosForm> = async (values) => {
+  const onSubmit: SubmitHandler<DatosFormValues> = async (values) => {
     setSubmitError(null);
     try {
       const store = useCheckoutStore.getState();
@@ -715,7 +715,7 @@ function DatosPageContent() {
         }
       }
 
-      store.setDatos(values); // avanza step -> "pago" y persiste checkoutItems
+      store.setDatos({ ...values, whatsappConfirmed: values.whatsappConfirmed ?? false }); // avanza step -> "pago" y persiste checkoutItems
       router.push("/checkout/pago");
     } catch (err) {
       console.error("submit(datos) failed", err);
@@ -964,23 +964,23 @@ function DatosPageContent() {
             </p>
           )}
           
-          {/* Checkbox de confirmación WhatsApp (OBLIGATORIO) */}
-          <div className="mt-3">
-            <label className="flex items-start gap-2 cursor-pointer">
+          {/* Checkbox: Este es mi número de WhatsApp (metadata.whatsapp_confirmed) */}
+          <div className="mt-3 min-h-[44px] flex flex-col justify-center">
+            <label htmlFor="whatsappConfirmed" className="flex items-start gap-2 cursor-pointer">
               <input
+                id="whatsappConfirmed"
                 type="checkbox"
                 {...register("whatsappConfirmed")}
-                className="mt-0.5 h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                className="mt-0.5 h-4 w-4 text-primary-600 focus-premium border-gray-300 rounded"
+                aria-describedby="whatsapp-confirmed-help"
               />
               <span className="text-sm text-gray-700">
-                Confirmo que este es mi número de WhatsApp *
+                Este es mi número de WhatsApp
               </span>
             </label>
-            {errors.whatsappConfirmed && (
-              <p className="text-red-500 text-sm mt-1" role="alert">
-                {errors.whatsappConfirmed.message}
-              </p>
-            )}
+            <p id="whatsapp-confirmed-help" className="text-gray-500 text-xs mt-1 ml-6">
+              Lo usaremos para enviarte actualizaciones y para que puedas mandar tu comprobante si pagas por transferencia.
+            </p>
           </div>
         </div>
 
