@@ -81,6 +81,10 @@ const EnhancedMobileBottomNav = dynamic(
     ssr: false,
   },
 );
+const FeedbackMount = dynamic(
+  () => import("@/components/feedback/FeedbackMount.client").then((m) => ({ default: m.FeedbackMount })),
+  { ssr: false },
+);
 const PageFadeIn = dynamic(
   () => import("@/components/motion/PageFadeIn.client").then((m) => ({ default: m.default })),
   { ssr: true },
@@ -312,6 +316,7 @@ export default function RootLayout({
         <WhatsappBubble />
         <CartSticky />
         <WhatsAppFloatingButton />
+        <FeedbackMount />
 
         {/* Dev Guards */}
         <CheckoutDevGuard />
