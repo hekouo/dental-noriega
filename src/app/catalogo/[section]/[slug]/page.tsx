@@ -27,6 +27,7 @@ import {
   getProductJsonLd,
 } from "@/lib/seo/schema";
 import { HelpWidget } from "@/components/support/HelpWidget";
+import { ProductReviews } from "@/components/reviews/ProductReviews.client";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -325,6 +326,8 @@ export default async function ProductDetailPage({ params }: Props) {
               </div>
             </section>
           )}
+
+          <ProductReviews productId={product.id} />
 
           {/* Acordeones de información */}
           <div className="mt-6 space-y-4">
