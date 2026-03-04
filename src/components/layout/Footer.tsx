@@ -59,6 +59,12 @@ export function Footer() {
               >
                 Contacto
               </Link>
+              <Link
+                href="/opiniones"
+                className="text-sm text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 transition-colors py-2 min-h-[44px] sm:min-h-0 sm:py-0 flex items-center focus-premium rounded"
+              >
+                Opiniones
+              </Link>
             </nav>
           </div>
 
