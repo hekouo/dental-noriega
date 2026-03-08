@@ -130,7 +130,7 @@ export default function AdminReviewsTableClient() {
         <h1 className="text-3xl font-bold text-gray-900">Reseñas</h1>
         <p className="text-sm text-gray-500 mt-1">Moderar reseñas de productos</p>
         <Link
-          href="/admin/pedidos"
+          href="/admin"
           className="inline-block mt-2 text-sm text-primary-600 hover:text-primary-700"
         >
           ← Volver a admin
