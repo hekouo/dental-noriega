@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getPublicSupabase } from "@/lib/supabase/public";
+import { createServerSupabase } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +54,15 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const supabase = createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json(
+      { message: "Inicia sesión para escribir una reseña." },
+      { status: 401 },
+    );
+  }
+
   let body: unknown;
   try {
     body = await req.json();
@@ -68,13 +78,31 @@ export async function POST(req: Request) {
     );
   }
 
-  const supabase = getPublicSupabase();
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { data: existing } = await supabase
+    .from("product_reviews")
+    .select("id")
+    .eq("product_id", parsed.data.product_id)
+    .eq("user_id", user.id)
+    .gte("created_at", since)
+    .eq("is_example", false)
+    .limit(1)
+    .maybeSingle();
+
+  if (existing) {
+    return NextResponse.json(
+      { message: "Ya enviaste una reseña para este producto recientemente." },
+      { status: 429 },
+    );
+  }
+
   const { error } = await supabase.from("product_reviews").insert({
     product_id: parsed.data.product_id,
     rating: parsed.data.rating,
     title: parsed.data.title ?? null,
     body: parsed.data.body ?? null,
     author_name: parsed.data.author_name ?? null,
+    user_id: user.id,
     is_example: false,
     is_published: false,
     source: "user",
