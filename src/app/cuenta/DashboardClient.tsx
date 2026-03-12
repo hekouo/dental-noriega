@@ -124,9 +124,15 @@ export default function DashboardClient({
                 Administración
               </h2>
             </div>
-            <p className="text-sm text-gray-600 mb-6 flex-1">
+            <p className="text-sm text-gray-600 mb-4 flex-1">
               Gestiona pedidos y productos del catálogo.
             </p>
+            <Link
+              href="/admin"
+              className="text-sm text-primary-600 hover:text-primary-700 mb-4 inline-block"
+            >
+              Ir al Admin →
+            </Link>
             <div className="flex flex-col space-y-2">
               <Link
                 href="/admin/pedidos"
@@ -145,6 +151,24 @@ export default function DashboardClient({
                 className="inline-flex items-center justify-center rounded-xl bg-blue-600 text-white px-4 py-2 text-sm font-medium hover:bg-blue-700 transition-all duration-150 hover:-translate-y-[1px] active:translate-y-0"
               >
                 Panel de Secciones
+              </Link>
+              <Link
+                href="/admin/reportes/envios"
+                className="inline-flex items-center justify-center rounded-xl bg-blue-600 text-white px-4 py-2 text-sm font-medium hover:bg-blue-700 transition-all duration-150 hover:-translate-y-[1px] active:translate-y-0"
+              >
+                Reporte de Envíos
+              </Link>
+              <Link
+                href="/admin/resenas"
+                className="inline-flex items-center justify-center rounded-xl bg-blue-600 text-white px-4 py-2 text-sm font-medium hover:bg-blue-700 transition-all duration-150 hover:-translate-y-[1px] active:translate-y-0"
+              >
+                Panel de Reseñas
+              </Link>
+              <Link
+                href="/admin/opiniones"
+                className="inline-flex items-center justify-center rounded-xl bg-blue-600 text-white px-4 py-2 text-sm font-medium hover:bg-blue-700 transition-all duration-150 hover:-translate-y-[1px] active:translate-y-0"
+              >
+                Panel de Opiniones
               </Link>
             </div>
           </div>
