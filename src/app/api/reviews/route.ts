@@ -79,7 +79,7 @@ export async function POST(req: Request) {
   }
 
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const { data: existing } = await supabase
+  const { data: existing, error: antiSpamError } = await supabase
     .from("product_reviews")
     .select("id")
     .eq("product_id", parsed.data.product_id)
@@ -88,6 +88,14 @@ export async function POST(req: Request) {
     .eq("is_example", false)
     .limit(1)
     .maybeSingle();
+
+  if (antiSpamError) {
+    console.error("[POST /api/reviews] anti-spam query", antiSpamError);
+    return NextResponse.json(
+      { message: "No se pudo validar anti-spam. Intenta de nuevo." },
+      { status: 500 },
+    );
+  }
 
   if (existing) {
     return NextResponse.json(
