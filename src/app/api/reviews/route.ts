@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import "server-only";
+import { createClient as createServiceClient } from "@supabase/supabase-js";
+import { createHash } from "crypto";
 import { getPublicSupabase } from "@/lib/supabase/public";
 import { createServerSupabase } from "@/lib/supabase/server";
 
@@ -104,7 +107,37 @@ export async function POST(req: Request) {
     );
   }
 
-  const { error } = await supabase.from("product_reviews").insert({
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  if (!url || !serviceRoleKey) {
+    console.error("[POST /api/reviews] missing service role env");
+    return NextResponse.json(
+      { message: "No se pudo publicar la reseña. Intenta de nuevo." },
+      { status: 500 },
+    );
+  }
+
+  const ua = req.headers.get("user-agent") ?? null;
+  const forwardedFor = req.headers.get("x-forwarded-for");
+  const realIp = req.headers.get("x-real-ip");
+  const cfIp = req.headers.get("cf-connecting-ip");
+  const ip =
+    (cfIp && cfIp.trim()) ||
+    (realIp && realIp.trim()) ||
+    (forwardedFor ? forwardedFor.split(",")[0]?.trim() : "") ||
+    null;
+  const day = new Date().toISOString().slice(0, 10); // YYYY-MM-DD (UTC)
+  const ip_hash_day = ip
+    ? createHash("sha256").update(`${ip}|${day}`).digest("hex").slice(0, 32)
+    : null;
+
+  // Insert con Service Role (server-only) para permitir auto-publicación sin cambiar RLS.
+  // La autenticación sigue siendo por sesión (createServerSupabase + cookies).
+  const service = createServiceClient(url, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  const { error } = await service.from("product_reviews").insert({
     product_id: parsed.data.product_id,
     rating: parsed.data.rating,
     title: parsed.data.title ?? null,
@@ -112,9 +145,12 @@ export async function POST(req: Request) {
     author_name: parsed.data.author_name ?? null,
     user_id: user.id,
     is_example: false,
-    is_published: false,
+    is_published: true,
     source: "user",
-    meta: {},
+    meta: {
+      ip_hash_day,
+      ua,
+    },
   });
 
   if (error) {
@@ -122,5 +158,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Error al guardar reseña" }, { status: 500 });
   }
 
-  return NextResponse.json({ message: "Gracias, tu reseña será revisada" }, { status: 200 });
+  return NextResponse.json({ message: "Gracias, tu reseña fue publicada." }, { status: 200 });
 }
