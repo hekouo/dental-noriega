@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { RatingStars } from "./RatingStars";
 
 type ReviewRow = {
@@ -31,6 +32,7 @@ export function ProductReviews({ productId }: Props) {
   const [data, setData] = useState<ApiResponse | null>(null);
   const [submitStatus, setSubmitStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [submitError, setSubmitError] = useState("");
+  const [needsLogin, setNeedsLogin] = useState(false);
   const [rating, setRating] = useState("");
   const [body, setBody] = useState("");
   const [authorName, setAuthorName] = useState("");
@@ -73,6 +75,7 @@ export function ProductReviews({ productId }: Props) {
       return;
     }
     setSubmitError("");
+    setNeedsLogin(false);
     setSubmitStatus("loading");
     try {
       const res = await fetch("/api/reviews", {
@@ -86,11 +89,29 @@ export function ProductReviews({ productId }: Props) {
         }),
       });
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) {
+      const payload = json as { error?: string; message?: string };
+
+      if (res.status === 401) {
         setSubmitStatus("error");
-        setSubmitError((json as { error?: string }).error ?? "Error al enviar.");
+        setNeedsLogin(true);
+        setSubmitError(payload.message ?? "Inicia sesión para escribir una reseña.");
         return;
       }
+
+      if (res.status === 429) {
+        setSubmitStatus("error");
+        setSubmitError(
+          payload.message ?? payload.error ?? "Ya enviaste una reseña para este producto recientemente.",
+        );
+        return;
+      }
+
+      if (!res.ok) {
+        setSubmitStatus("error");
+        setSubmitError(payload.error ?? payload.message ?? "Error al enviar.");
+        return;
+      }
+
       setSubmitStatus("success");
       setRating("");
       setBody("");
@@ -184,10 +205,27 @@ export function ProductReviews({ productId }: Props) {
 
       <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
         <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-3">Escribir reseña</h3>
-        {submitStatus === "success" && (
-          <p className="text-green-700 dark:text-green-300 text-sm mb-3" role="status">
-            Gracias, tu reseña será revisada
-          </p>
+        {(submitStatus === "success" || submitError) && (
+          <div role="status" aria-live="polite" className="mb-3 text-sm space-y-2">
+            {submitStatus === "success" && (
+              <p className="text-green-700 dark:text-green-300">
+                Gracias, tu reseña será revisada
+              </p>
+            )}
+            {submitError && (
+              <div className="text-red-600 dark:text-red-400 space-y-1">
+                <p>{submitError}</p>
+                {needsLogin && (
+                  <Link
+                    href="/cuenta"
+                    className="inline-flex items-center text-sm font-medium text-primary-700 dark:text-primary-300 hover:underline"
+                  >
+                    Iniciar sesión
+                  </Link>
+                )}
+              </div>
+            )}
+          </div>
         )}
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
@@ -235,7 +273,6 @@ export function ProductReviews({ productId }: Props) {
               className="w-full max-w-xs rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm focus-premium"
             />
           </div>
-          {submitError && <p className="text-red-600 dark:text-red-400 text-sm">{submitError}</p>}
           <button
             type="submit"
             disabled={submitStatus === "loading"}
