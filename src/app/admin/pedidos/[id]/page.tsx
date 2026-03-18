@@ -23,6 +23,7 @@ import NotifyShippingClient from "./NotifyShippingClient";
 import { normalizePhoneToE164Mx } from "@/lib/utils/phone";
 import EditShippingOverrideClient from "./EditShippingOverrideClient";
 import ShippingTrackingDisplay from "./ShippingTrackingDisplay";
+import ShippingHandoffClient from "./ShippingHandoffClient";
 import DeleteOrderClient from "./DeleteOrderClient";
 import ResetQuoteClient from "./ResetQuoteClient";
 import { getOrderShippingAddress } from "@/lib/shipping/getOrderShippingAddress";
@@ -527,6 +528,22 @@ export default async function AdminPedidoDetailPage({
                 const hasShipmentId = !!(shipmentIdFromColumn || shipmentIdFromMetadata);
                 const hasLabelEvidence = hasShipmentId || !!order.shipping_tracking_number || !!order.shipping_label_url;
                 const isSkydropx = order.shipping_provider === "skydropx" || order.shipping_provider === "Skydropx";
+                const shippingMeta = ((order.metadata as Record<string, unknown>)?.shipping as Record<string, unknown>) || {};
+                type ShippingHandoff = {
+                  mode?: "dropoff";
+                  selected_at?: string;
+                  notes?: string;
+                  dropoff?: {
+                    status?: "pending_dropoff" | "dropped_off";
+                    location_name?: string;
+                    address?: string;
+                    dropped_off_at?: string;
+                  };
+                };
+                const initialHandoff: ShippingHandoff | null =
+                  shippingMeta.handoff && typeof shippingMeta.handoff === "object"
+                    ? (shippingMeta.handoff as ShippingHandoff)
+                    : null;
 
                 return (
                   <>
@@ -540,6 +557,16 @@ export default async function AdminPedidoDetailPage({
                           shippingStatus={order.shipping_status}
                         />
                       </div>
+                    )}
+
+                    {/* PR-S1: Entrega del paquete (solo si ya existe guía/evidencia) */}
+                    {hasLabelEvidence && (
+                      <ShippingHandoffClient
+                        orderId={order.id}
+                        labelUrl={order.shipping_label_url}
+                        trackingNumber={order.shipping_tracking_number}
+                        initialHandoff={initialHandoff}
+                      />
                     )}
 
                     {/* Botón para crear guía si es Skydropx */}
