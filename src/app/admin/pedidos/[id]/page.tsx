@@ -539,11 +539,22 @@ export default async function AdminPedidoDetailPage({
                     address?: string;
                     dropped_off_at?: string;
                   };
+                  pickup?: {
+                    pickup_id?: string;
+                    scheduled_from?: string;
+                    scheduled_to?: string;
+                    packages?: number;
+                    total_weight_kg?: number;
+                    status?: "scheduled";
+                  };
                 };
                 const initialHandoff: ShippingHandoff | null =
                   shippingMeta.handoff && typeof shippingMeta.handoff === "object"
                     ? (shippingMeta.handoff as ShippingHandoff)
                     : null;
+                const packageUsed = (shippingMeta.package_used as Record<string, unknown> | undefined) || undefined;
+                const weightG = typeof packageUsed?.weight_g === "number" ? packageUsed.weight_g : 1000;
+                const initialWeightKg = Math.max(0.1, Math.round((weightG / 1000) * 10) / 10);
 
                 return (
                   <>
@@ -566,6 +577,7 @@ export default async function AdminPedidoDetailPage({
                         labelUrl={order.shipping_label_url}
                         trackingNumber={order.shipping_tracking_number}
                         initialHandoff={initialHandoff}
+                        initialWeightKg={initialWeightKg}
                       />
                     )}
 
