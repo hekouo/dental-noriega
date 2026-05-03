@@ -146,19 +146,35 @@ export async function POST(req: NextRequest): Promise<NextResponse<JsonOk | Json
     },
   };
 
+  const pickupPath = "/api/v1/pickups/";
+  const pickupUrl = new URL(pickupPath, "https://pro.skydropx.com").toString();
   let pickupJson: Record<string, unknown> = {};
   try {
-    const res = await skydropxFetch("/api/v1/pickups", {
+    const res = await skydropxFetch(pickupPath, {
       method: "POST",
       body: JSON.stringify(payload),
-    });
+    }, "pro");
     pickupJson = (await res.json().catch(() => ({}))) as Record<string, unknown>;
     if (!res.ok) {
-      const msg = typeof pickupJson.message === "string" ? pickupJson.message : "Error Skydropx al crear pickup";
-      return NextResponse.json({ ok: false, message: msg }, { status: 502 });
+      const msg =
+        typeof pickupJson.message === "string"
+          ? pickupJson.message
+          : typeof pickupJson.error === "string"
+            ? pickupJson.error
+            : "Error Skydropx al crear pickup";
+      console.error("[admin/pickups] skydropx !ok", {
+        status: res.status,
+        url: pickupUrl,
+        message: sanitizeForLog(msg),
+      });
+      const upstreamStatus = res.status >= 400 && res.status < 600 ? res.status : 502;
+      return NextResponse.json({ ok: false, message: msg }, { status: upstreamStatus });
     }
   } catch (err) {
-    console.error("[admin/pickups] skydropx", err);
+    console.error("[admin/pickups] skydropx", {
+      url: pickupUrl,
+      error: err instanceof Error ? sanitizeForLog(err.message) : "unknown",
+    });
     return NextResponse.json({ ok: false, message: "Error Skydropx al crear pickup" }, { status: 502 });
   }
 
