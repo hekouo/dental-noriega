@@ -27,6 +27,7 @@ type Props = {
   orderId: string;
   labelUrl: string | null;
   trackingNumber: string | null;
+  shippingProvider: string | null;
   initialHandoff: Handoff | null;
   initialWeightKg: number;
 };
@@ -35,6 +36,7 @@ export default function ShippingHandoffClient({
   orderId,
   labelUrl,
   trackingNumber,
+  shippingProvider,
   initialHandoff,
   initialWeightKg,
 }: Props) {
@@ -49,10 +51,20 @@ export default function ShippingHandoffClient({
   const [pickupWeightKg, setPickupWeightKg] = useState<number>(
     initialHandoff?.pickup?.total_weight_kg ?? Math.max(0.1, initialWeightKg || 1),
   );
+  const [showPickupForm, setShowPickupForm] = useState<boolean>(handoff.mode === "pickup" && !handoff.pickup?.pickup_id);
+  const [pickupUiHint, setPickupUiHint] = useState<string>("");
 
   const dropoffStatus = handoff.dropoff?.status ?? null;
   const hasPickupProgrammed = !!handoff.pickup?.pickup_id;
   const pickupId = handoff.pickup?.pickup_id ?? null;
+  const providerLabel = shippingProvider?.trim() || "la paquetería";
+  const isCoordinadora = providerLabel.toLowerCase().includes("coordinadora");
+  const dropoffBranchLink = isCoordinadora
+    ? "https://www.coordinadora.com/servicios/sucursales/"
+    : `https://www.google.com/search?q=${encodeURIComponent(`sucursales ${providerLabel}`)}`;
+  const dropoffBranchLinkLabel = isCoordinadora
+    ? "Buscar sucursales Coordinadora"
+    : `Buscar sucursales ${providerLabel}`;
   const badge = useMemo(() => {
     if (dropoffStatus === "dropped_off") {
       return { label: "Entregado en sucursal", cls: "bg-green-100 text-green-700" };
@@ -125,7 +137,7 @@ export default function ShippingHandoffClient({
   };
 
   const isDropoffSelected = handoff.mode === "dropoff";
-  const isPickupSelected = handoff.mode === "pickup";
+  const isPickupSelected = handoff.mode === "pickup" || showPickupForm;
 
   const applyDefaultWindowByDate = (dateValue: string) => {
     if (!dateValue) return;
@@ -147,6 +159,24 @@ export default function ShippingHandoffClient({
   };
 
   const handleProgramPickup = async () => {
+    if (hasPickupProgrammed) {
+      setPickupUiHint("Esta orden ya tiene una recolección programada.");
+      return;
+    }
+
+    if (!showPickupForm) {
+      setPickupUiHint("Abriendo formulario...");
+      setShowPickupForm(true);
+      const now = new Date().toISOString();
+      setHandoff((prev) => ({
+        ...prev,
+        mode: "pickup",
+        selected_at: prev.selected_at ?? now,
+      }));
+      return;
+    }
+
+    setPickupUiHint("");
     const day = new Date(`${pickupDate}T12:00:00`).getDay();
     if (day === 0) {
       setError("Domingo no disponible");
@@ -186,7 +216,7 @@ export default function ShippingHandoffClient({
       };
       if (!res.ok || !json.ok) {
         setStatus("error");
-        setError(json.message ?? "No se pudo programar pickup.");
+        setError(`(${res.status}) ${json.message ?? "No se pudo programar pickup."}`);
         return;
       }
       const now = new Date().toISOString();
@@ -204,6 +234,8 @@ export default function ShippingHandoffClient({
           status: "scheduled",
         },
       }));
+      setShowPickupForm(false);
+      setPickupUiHint("Recolección programada.");
       setStatus("idle");
     } catch {
       setStatus("error");
@@ -235,6 +267,17 @@ export default function ShippingHandoffClient({
               <p className="text-xs text-gray-600 mt-0.5">
                 Entregas el paquete en la sucursal indicada por la paquetería.
               </p>
+              <p className="text-xs text-gray-600 mt-1">
+                Entrega el paquete en cualquier sucursal/punto autorizado de {providerLabel}. Lleva la guía impresa.
+              </p>
+              <a
+                href={dropoffBranchLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex mt-1 text-xs text-primary-700 hover:underline"
+              >
+                {dropoffBranchLinkLabel}
+              </a>
             </div>
             <button
               type="button"
@@ -261,9 +304,13 @@ export default function ShippingHandoffClient({
               disabled={status === "saving" || hasPickupProgrammed}
               className="px-3 py-2 rounded-lg bg-primary-600 text-white text-sm font-medium hover:bg-primary-700 disabled:opacity-50 focus-premium"
             >
-              Programar recolección
+              {showPickupForm ? (status === "saving" ? "Programando..." : "Confirmar pickup") : "Programar recolección"}
             </button>
           </div>
+          {pickupUiHint && <p className="text-xs text-gray-600 mt-2">{pickupUiHint}</p>}
+          {hasPickupProgrammed && (
+            <p className="text-xs text-blue-700 mt-2">Pickup ya programado. Reprogramar: disponible pronto.</p>
+          )}
         </div>
       </div>
 

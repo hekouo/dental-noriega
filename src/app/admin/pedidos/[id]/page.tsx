@@ -576,6 +576,7 @@ export default async function AdminPedidoDetailPage({
                         orderId={order.id}
                         labelUrl={order.shipping_label_url}
                         trackingNumber={order.shipping_tracking_number}
+                        shippingProvider={order.shipping_provider}
                         initialHandoff={initialHandoff}
                         initialWeightKg={initialWeightKg}
                       />
