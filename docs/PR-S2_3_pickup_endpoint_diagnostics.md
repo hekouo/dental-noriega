@@ -12,10 +12,12 @@ Sin tocar checkout y sin cambios SQL.
 
 El endpoint de pickup intenta en este orden:
 
-1. `https://pro.skydropx.com/api/v1/pickups/`
-2. `https://pro.skydropx.com/api/v1/pickups`
-3. `https://api-pro.skydropx.com/api/v1/pickups/`
-4. `https://api-pro.skydropx.com/api/v1/pickups`
+1. `https://app.skydropx.com/api/v1/pickups/`
+2. `https://app.skydropx.com/api/v1/pickups`
+3. `https://pro.skydropx.com/api/v1/pickups/`
+4. `https://pro.skydropx.com/api/v1/pickups`
+5. `https://api-pro.skydropx.com/api/v1/pickups/`
+6. `https://api-pro.skydropx.com/api/v1/pickups`
 
 En la primera respuesta `2xx`, se toma como válida y se persiste:
 

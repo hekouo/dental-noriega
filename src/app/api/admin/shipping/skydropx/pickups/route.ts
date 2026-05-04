@@ -39,7 +39,7 @@ type JsonErr = {
 type PickupAttemptConfig = {
   url: string;
   path: string;
-  target: "pro" | "api-pro";
+  target: "app" | "pro" | "api-pro";
 };
 
 function deepMerge<T extends Record<string, unknown>>(
@@ -168,6 +168,16 @@ export async function POST(req: NextRequest): Promise<NextResponse<JsonOk | Json
   };
 
   const pickupAttemptsConfig: PickupAttemptConfig[] = [
+    {
+      url: "https://app.skydropx.com/api/v1/pickups/",
+      path: "/api/v1/pickups/",
+      target: "app",
+    },
+    {
+      url: "https://app.skydropx.com/api/v1/pickups",
+      path: "/api/v1/pickups",
+      target: "app",
+    },
     {
       url: "https://pro.skydropx.com/api/v1/pickups/",
       path: "/api/v1/pickups/",
