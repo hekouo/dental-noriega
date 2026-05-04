@@ -27,7 +27,20 @@ type JsonOk = {
   packages: number;
   total_weight_kg: number;
 };
-type JsonErr = { ok: false; message: string };
+type JsonErr = {
+  ok: false;
+  message: string;
+  skydropx_status?: number;
+  skydropx_url_used?: string;
+  skydropx_response_sample?: string;
+  attempts?: Array<{ url: string; status: number; message: string }>;
+};
+
+type PickupAttemptConfig = {
+  url: string;
+  path: string;
+  target: "pro" | "api-pro";
+};
 
 function deepMerge<T extends Record<string, unknown>>(
   base: T,
@@ -49,6 +62,12 @@ function deepMerge<T extends Record<string, unknown>>(
     }
   }
   return out as T;
+}
+
+function safeTruncate(value: unknown, max = 280): string {
+  const raw = typeof value === "string" ? value : JSON.stringify(value ?? {});
+  const safe = sanitizeForLog(raw);
+  return safe.length > max ? `${safe.slice(0, max)}...` : safe;
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse<JsonOk | JsonErr>> {
@@ -116,6 +135,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<JsonOk | Json
   const shipmentIdFromMeta =
     shipping && typeof shipping === "object" ? (shipping.shipment_id as string | undefined) : undefined;
   const shipmentId = (order.shipping_shipment_id as string | null) || shipmentIdFromMeta || null;
+  const referenceShipmentId = shipmentIdFromMeta ?? undefined;
   if (!shipmentId) {
     return NextResponse.json(
       { ok: false, message: "No hay shipment_id. Primero crea la guía." },
@@ -126,6 +146,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<JsonOk | Json
   const payload = {
     pickup: {
       shipment_id: shipmentId,
+      ...(referenceShipmentId ? { reference_shipment_id: referenceShipmentId } : {}),
       scheduled_from,
       scheduled_to,
       packages,
@@ -146,36 +167,106 @@ export async function POST(req: NextRequest): Promise<NextResponse<JsonOk | Json
     },
   };
 
-  const pickupPath = "/api/v1/pickups/";
-  const pickupUrl = new URL(pickupPath, "https://pro.skydropx.com").toString();
+  const pickupAttemptsConfig: PickupAttemptConfig[] = [
+    {
+      url: "https://pro.skydropx.com/api/v1/pickups/",
+      path: "/api/v1/pickups/",
+      target: "pro",
+    },
+    {
+      url: "https://pro.skydropx.com/api/v1/pickups",
+      path: "/api/v1/pickups",
+      target: "pro",
+    },
+    {
+      url: "https://api-pro.skydropx.com/api/v1/pickups/",
+      path: "/api/v1/pickups/",
+      target: "api-pro",
+    },
+    {
+      url: "https://api-pro.skydropx.com/api/v1/pickups",
+      path: "/api/v1/pickups",
+      target: "api-pro",
+    },
+  ];
   let pickupJson: Record<string, unknown> = {};
+  let endpointUsed: string | null = null;
+  const attempts: Array<{ url: string; status: number; message: string }> = [];
+  let currentAttemptUrl = pickupAttemptsConfig[0].url;
   try {
-    const res = await skydropxFetch(pickupPath, {
-      method: "POST",
-      body: JSON.stringify(payload),
-    }, "pro");
-    pickupJson = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-    if (!res.ok) {
+    for (const attempt of pickupAttemptsConfig) {
+      currentAttemptUrl = attempt.url;
+      const res = await skydropxFetch(
+        attempt.path,
+        {
+          method: "POST",
+          body: JSON.stringify(payload),
+        },
+        attempt.target,
+      );
+      pickupJson = (await res.json().catch(() => ({}))) as Record<string, unknown>;
       const msg =
         typeof pickupJson.message === "string"
           ? pickupJson.message
           : typeof pickupJson.error === "string"
             ? pickupJson.error
             : "Error Skydropx al crear pickup";
+
+      if (res.ok) {
+        endpointUsed = attempt.url;
+        break;
+      }
+
+      attempts.push({
+        url: attempt.url,
+        status: res.status,
+        message: safeTruncate(msg),
+      });
       console.error("[admin/pickups] skydropx !ok", {
         status: res.status,
-        url: pickupUrl,
+        url: attempt.url,
         message: sanitizeForLog(msg),
       });
-      const upstreamStatus = res.status >= 400 && res.status < 600 ? res.status : 502;
-      return NextResponse.json({ ok: false, message: msg }, { status: upstreamStatus });
+    }
+
+    if (!endpointUsed) {
+      const lastAttempt = attempts[attempts.length - 1];
+      const status =
+        lastAttempt && lastAttempt.status >= 400 && lastAttempt.status < 600 ? lastAttempt.status : 502;
+      return NextResponse.json(
+        {
+          ok: false,
+          message: lastAttempt?.message ?? "Error Skydropx al crear pickup",
+          skydropx_status: lastAttempt?.status ?? 502,
+          skydropx_url_used: lastAttempt?.url ?? pickupAttemptsConfig[0].url,
+          skydropx_response_sample: safeTruncate(pickupJson),
+          attempts,
+        },
+        { status },
+      );
     }
   } catch (err) {
-    console.error("[admin/pickups] skydropx", {
-      url: pickupUrl,
-      error: err instanceof Error ? sanitizeForLog(err.message) : "unknown",
+    const errorMessage = err instanceof Error ? sanitizeForLog(err.message) : "unknown";
+    attempts.push({
+      url: currentAttemptUrl,
+      status: 502,
+      message: safeTruncate(errorMessage),
     });
-    return NextResponse.json({ ok: false, message: "Error Skydropx al crear pickup" }, { status: 502 });
+    console.error("[admin/pickups] skydropx", {
+      attempts,
+      error: errorMessage,
+    });
+    return NextResponse.json(
+      {
+        ok: false,
+        message: "Error Skydropx al crear pickup",
+        skydropx_status: 502,
+        skydropx_url_used: attempts[attempts.length - 1]?.url ?? pickupAttemptsConfig[0].url,
+        skydropx_response_sample: safeTruncate(errorMessage),
+        attempts,
+      },
+      { status: 502 },
+    );
   }
 
   const pickupId =
@@ -194,6 +285,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<JsonOk | Json
     notes: notes ?? null,
     pickup: {
       pickup_id: pickupId,
+      endpoint_used: endpointUsed ?? null,
       scheduled_from,
       scheduled_to,
       packages,
