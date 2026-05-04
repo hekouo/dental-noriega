@@ -295,7 +295,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<JsonOk | Json
     notes: notes ?? null,
     pickup: {
       pickup_id: pickupId,
-      endpoint_used: endpointUsed ?? null,
+      endpoint_used: endpointUsed,
       scheduled_from,
       scheduled_to,
       packages,
