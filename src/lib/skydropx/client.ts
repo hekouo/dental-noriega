@@ -536,7 +536,7 @@ async function getAccessToken(): Promise<string | null> {
  * Función genérica para hacer requests a la API de Skydropx
  * Maneja automáticamente la autenticación OAuth
  */
-type SkydropxFetchTarget = "shipments" | "pro";
+type SkydropxFetchTarget = "shipments" | "pro" | "api-pro" | "app";
 
 export async function skydropxFetch(
   path: string,
@@ -557,7 +557,11 @@ export async function skydropxFetch(
   const baseUrl =
     target === "pro"
       ? assertAllowedSkydropxUrl(SKYDROPX_PRO_HOST, ALLOWED_PRO_HOSTS, "pro")
-      : assertAllowedSkydropxUrl(config.restBaseUrl, ALLOWED_SHIPMENTS_HOSTS, "shipments");
+      : target === "api-pro"
+        ? assertAllowedSkydropxUrl(SKYDROPX_API_PRO_HOST, ALLOWED_SHIPMENTS_HOSTS, "api-pro")
+        : target === "app"
+          ? assertAllowedSkydropxUrl(SKYDROPX_APP_HOST, ALLOWED_SHIPMENTS_HOSTS, "app")
+        : assertAllowedSkydropxUrl(config.restBaseUrl, ALLOWED_SHIPMENTS_HOSTS, "shipments");
   const url = new URL(path.startsWith("/") ? path : `/${path}`, `${baseUrl.origin}/`).toString();
 
   // Log seguro de URL (sin secretos)
