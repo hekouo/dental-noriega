@@ -529,6 +529,27 @@ export default async function AdminPedidoDetailPage({
                 const hasLabelEvidence = hasShipmentId || !!order.shipping_tracking_number || !!order.shipping_label_url;
                 const isSkydropx = order.shipping_provider === "skydropx" || order.shipping_provider === "Skydropx";
                 const shippingMeta = ((order.metadata as Record<string, unknown>)?.shipping as Record<string, unknown>) || {};
+                const rateUsed = (shippingMeta.rate_used as Record<string, unknown> | undefined) || undefined;
+                const rate = (shippingMeta.rate as Record<string, unknown> | undefined) || undefined;
+                const carrierName =
+                  (typeof rateUsed?.provider === "string" && rateUsed.provider.trim()) ||
+                  (typeof rate?.provider === "string" && rate.provider.trim()) ||
+                  (typeof shippingMeta.option_code === "string" && shippingMeta.option_code.trim()) ||
+                  (typeof shippingMeta.provider === "string" && shippingMeta.provider.trim()) ||
+                  order.shipping_provider ||
+                  null;
+                const serviceName =
+                  (typeof rateUsed?.service_level_name === "string" && rateUsed.service_level_name.trim()) ||
+                  (typeof rateUsed?.service === "string" && rateUsed.service.trim()) ||
+                  (typeof rate?.service_level_name === "string" && rate.service_level_name.trim()) ||
+                  (typeof rate?.service === "string" && rate.service.trim()) ||
+                  null;
+                const handoffLabelUrl =
+                  order.shipping_label_url ||
+                  (typeof shippingMeta.label_url === "string" ? shippingMeta.label_url : null);
+                const handoffTracking =
+                  order.shipping_tracking_number ||
+                  (typeof shippingMeta.tracking_number === "string" ? shippingMeta.tracking_number : null);
                 type ShippingHandoff = {
                   mode?: "dropoff";
                   selected_at?: string;
@@ -552,9 +573,6 @@ export default async function AdminPedidoDetailPage({
                   shippingMeta.handoff && typeof shippingMeta.handoff === "object"
                     ? (shippingMeta.handoff as ShippingHandoff)
                     : null;
-                const packageUsed = (shippingMeta.package_used as Record<string, unknown> | undefined) || undefined;
-                const weightG = typeof packageUsed?.weight_g === "number" ? packageUsed.weight_g : 1000;
-                const initialWeightKg = Math.max(0.1, Math.round((weightG / 1000) * 10) / 10);
 
                 return (
                   <>
@@ -574,11 +592,11 @@ export default async function AdminPedidoDetailPage({
                     {hasLabelEvidence && (
                       <ShippingHandoffClient
                         orderId={order.id}
-                        labelUrl={order.shipping_label_url}
-                        trackingNumber={order.shipping_tracking_number}
-                        shippingProvider={order.shipping_provider}
+                        labelUrl={handoffLabelUrl}
+                        trackingNumber={handoffTracking}
+                        shippingProvider={carrierName}
+                        shippingService={serviceName}
                         initialHandoff={initialHandoff}
-                        initialWeightKg={initialWeightKg}
                       />
                     )}
 
